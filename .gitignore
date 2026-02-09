@@ -1,0 +1,111 @@
+# Miscellaneous
+*.class
+*.log
+*.pyc
+*.swp
+.DS_Store
+.atom/
+.buildlog/
+.history
+.svn/
+
+# IntelliJ related
+*.iml
+*.ipr
+*.iws
+.idea/
+
+# The .vscode folder contains launch configuration and tasks you configure in
+# VS Code which you may wish to be included in version control, so this line
+# is commented out by default.
+#.vscode/
+
+# Flutter/Dart/Pub related
+**/doc/api/
+**/ios/Flutter/.last_build_id
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+.pub-cache/
+.pub/
+/build/
+
+changes.tar
+changes.zip
+get_changed_files.sh
+changed_files.zip
+
+# Web related
+
+# Symbolication related
+app.*.symbols
+
+# Obfuscation related
+app.*.map.json
+
+# Android Studio will place build artifacts here
+/android/app/debug
+/android/app/profile
+/android/app/release
+
+# Build artifacts and temporary files
+delete/
+2025/
+
+# SECURITY: Keep API keys and sensitive data out of version control
+android/key.properties
+android/app/key.properties
+*.jks
+*.keystore
+
+# Theme directory
+lib/theme/
+
+# Documentation and temporary markdown files (keep README.md)
+API_*.md
+BACKEND_*.md
+ECOMMERCE_*.md
+FIREBASE_*.md
+FLUTTER_*.md
+FOOD_*.md
+MODULE_*.md
+NOTIFICATION_*.md
+PHARMACY_*.md
+PRICING_*.md
+RELEASE_*.md
+RUN_*.md
+STORE_*.md
+URGENT_*.md
+test_*.md
+foodmodule.md
+
+Module 6*.md
+apis/
+app screens/
+notifications/
+
+# Test scripts and temporary scripts
+*.ps1
+*.sh
+*.bat
+test_*.dart
+fetch_*.dart
+check_*.ps1
+build_production.bat
+get_valid_ids.sh
+
+# Temporary JSON and data files
+module6_categories_*.json
+module6_categories_summary.txt
+modules_response*.json
+
+# Temporary image files (root level only)
+WhatsApp Image*.jpg
+
+# Local properties (machine-specific)
+android/local.properties
+ios/Podfile.lock
+
+# Firebase config (if contains sensitive data)
+firebase.json

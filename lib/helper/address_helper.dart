@@ -1,0 +1,60 @@
+import 'dart:convert';
+import 'package:flutter/foundation.dart';
+import 'package:get/get.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:sixam_mart/features/splash/controllers/splash_controller.dart';
+import 'package:sixam_mart/api/api_client.dart';
+import 'package:sixam_mart/features/address/domain/models/address_model.dart';
+import 'package:sixam_mart/util/app_constants.dart';
+
+class AddressHelper {
+  static Future<bool> saveUserAddressInSharedPref(AddressModel address) async {
+    final SharedPreferences sharedPreferences = Get.find<SharedPreferences>();
+    final String userAddress = jsonEncode(address.toJson());
+    Get.find<ApiClient>().updateHeader(
+      sharedPreferences.getString(AppConstants.token),
+      address.zoneIds,
+      [],
+      sharedPreferences.getString(AppConstants.languageCode),
+      Get.find<SplashController>().module?.id,
+      address.latitude,
+      address.longitude,
+    );
+    return await sharedPreferences.setString(AppConstants.userAddress, userAddress);
+  }
+
+  static AddressModel? getUserAddressFromSharedPref() {
+    final SharedPreferences sharedPreferences = Get.find<SharedPreferences>();
+    AddressModel? addressModel;
+    try {
+      final String? userAddress = sharedPreferences.getString(AppConstants.userAddress);
+      if (userAddress != null) {
+        addressModel = AddressModel.fromJson(jsonDecode(userAddress) as Map<String, dynamic>);
+      }
+    } catch (e) {
+      if (!GetPlatform.isWeb) {
+        debugPrint('Address Catch exception : $e');
+      }
+    }
+    return addressModel;
+  }
+
+  static bool clearAddressFromSharedPref() {
+    final SharedPreferences sharedPreferences = Get.find<SharedPreferences>();
+    sharedPreferences.remove(AppConstants.userAddress);
+    return true;
+  }
+
+  String removeEnglishAndNumbers(String text) {
+    // إزالة الحروف الإنجليزية والأرقام
+    // ignore: deprecated_member_use
+    String cleaned = text.replaceAll(RegExp(r'[a-zA-Z0-9]'), '');
+
+    // إزالة جميع علامات الفاصلة العربية والإنجليزية
+    // ignore: deprecated_member_use
+    cleaned = cleaned.replaceAll(RegExp(r'[،,]'), '');
+
+    // إزالة الفراغات الزائدة من البداية والنهاية
+    return cleaned.trim();
+  }
+}

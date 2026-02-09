@@ -1,0 +1,2163 @@
+// ignore_for_file: avoid_print, unused_local_variable
+
+import 'dart:io';
+import 'dart:convert';
+import 'dart:async';
+import 'package:flutter/cupertino.dart';
+import 'package:flutter/foundation.dart';
+import 'package:sixam_mart/features/cart/controllers/cart_controller.dart';
+import 'package:sixam_mart/features/cart/widgets/extra_packaging_widget.dart';
+import 'package:sixam_mart/features/cart/widgets/not_available_bottom_sheet_widget.dart';
+import 'package:sixam_mart/common/widgets/smart_image.dart';
+import 'package:sixam_mart/features/cart/widgets/out_of_service_dialog.dart';
+import 'package:sixam_mart/features/checkout/controllers/checkout_controller.dart';
+import 'package:sixam_mart/features/profile/controllers/profile_controller.dart';
+import 'package:sixam_mart/features/splash/controllers/splash_controller.dart';
+import 'package:sixam_mart/features/store/controllers/store_controller.dart';
+import 'package:sixam_mart/features/location/controllers/location_controller.dart';
+import 'package:sixam_mart/features/address/domain/models/address_model.dart';
+import 'package:sixam_mart/features/location/domain/models/zone_response_model.dart';
+import 'package:sixam_mart/helper/address_helper.dart';
+import 'package:sixam_mart/features/cart/domain/models/cart_model.dart';
+import 'package:sixam_mart/features/item/domain/models/item_model.dart';
+import 'package:sixam_mart/features/store/domain/models/store_model.dart';
+import 'package:sixam_mart/helper/price_converter.dart';
+import 'package:sixam_mart/helper/responsive_helper.dart';
+import 'package:sixam_mart/helper/route_helper.dart';
+import 'package:sixam_mart/util/dimensions.dart';
+import 'package:sixam_mart/util/app_constants.dart';
+import 'package:sixam_mart/util/images.dart';
+import 'package:sixam_mart/util/styles.dart';
+import 'package:sixam_mart/common/widgets/custom_button.dart';
+import 'package:sixam_mart/common/widgets/custom_snackbar.dart';
+import 'package:sixam_mart/common/widgets/confirmation_dialog.dart';
+import 'package:sixam_mart/common/widgets/footer_view.dart';
+import 'package:sixam_mart/common/widgets/item_widget.dart';
+import 'package:sixam_mart/common/widgets/no_data_screen.dart';
+import 'package:sixam_mart/common/widgets/web_constrained_box.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:get/get.dart';
+import 'package:sixam_mart/features/cart/widgets/web_cart_items_widget.dart';
+import 'package:sixam_mart/features/home/screens/home_screen.dart';
+import '../../my_coupon/controllers/my_coupon_controller.dart';
+import 'package:sixam_mart/helper/auth_helper.dart';
+import 'package:sixam_mart/features/auth/widgets/auth_dialog_widget.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:sixam_mart/features/checkout/widgets/checkout_loading_dialog.dart';
+
+// #region agent log helper
+void _writeDebugLog(String location, String message, Map<String, dynamic> data,
+    String hypothesisId) {
+  if (!kDebugMode || !AppConstants.enableVerboseLogs) {
+    return;
+  }
+  unawaited(_writeDebugLogAsync(location, message, data, hypothesisId));
+}
+
+Future<void> _writeDebugLogAsync(String location, String message,
+    Map<String, dynamic> data, String hypothesisId) async {
+  if (!kDebugMode || !AppConstants.enableVerboseLogs) {
+    return;
+  }
+  try {
+    const logPath = r'c:\Users\pc\Desktop\clone\app-test\.cursor\debug.log';
+    final logFile = File(logPath);
+    final logDir = logFile.parent;
+    if (!await logDir.exists()) {
+      await logDir.create(recursive: true);
+    }
+    final logEntry = {
+      'location': location,
+      'message': message,
+      'data': data,
+      'timestamp': DateTime.now().millisecondsSinceEpoch,
+      'sessionId': 'debug-session',
+      'runId': 'run1',
+      'hypothesisId': hypothesisId,
+    };
+    await logFile.writeAsString('${jsonEncode(logEntry)}\n',
+        mode: FileMode.append);
+  } catch (e) {
+    // Silently fail - don't break the app
+    if (kDebugMode && AppConstants.enableVerboseLogs) {
+      debugPrint('Debug log error: $e');
+    }
+  }
+}
+// #endregion
+
+/// Helper function to navigate to checkout with loading dialog
+/// Shows engaging animation while preparing checkout data
+Future<void> _navigateToCheckoutWithLoading(
+  BuildContext context,
+  CartController cartController,
+) async {
+  final storeId = cartController.storeId ??
+      (cartController.cartList.isNotEmpty
+          ? cartController.cartList.first.item?.storeId
+          : null);
+
+  if (storeId == null) {
+    showCustomSnackBar('invalid_cart_item'.tr);
+    return;
+  }
+
+  // Show loading dialog
+  showCheckoutLoadingDialog(context);
+
+  try {
+    // Calculate distance
+    await _CartScreenState._calculateAndSetDistanceBeforeCheckout();
+    if (!context.mounted) return;
+
+    final checkoutController = Get.find<CheckoutController>();
+
+    // Initialize checkout data (delivery fee calculation)
+    await checkoutController.initCheckoutData(
+      context,
+      storeId,
+      preloadedCartList: cartController.cartList,
+      preCalculatedDistance: checkoutController.preCalculatedDistance,
+    );
+    if (!context.mounted) return;
+
+    // Dismiss loading dialog
+    dismissCheckoutLoadingDialog(context);
+    if (!context.mounted) return;
+
+    // Navigate to checkout - all data is now ready
+    RouteHelper.navigateToCheckout(
+      cartList: cartController.cartList,
+      storeId: storeId,
+    );
+  } catch (e) {
+    debugPrint('❌ [Cart→Checkout] Error during preparation: $e');
+    if (context.mounted) {
+      dismissCheckoutLoadingDialog(context);
+      showCustomSnackBar('unable_to_proceed_checkout'.tr);
+    }
+  }
+}
+
+/// Modern color palette for the cart screen matching the touese designr
+class CartColors {
+  static const green = Color(0xFF31A342); // Exact green from touese
+  static const dark = Color(0xFF2D3633); // Dark text color
+  static const light = Color(0xFF7B8280); // Light text color
+  static const divider = Color(0xFFE9ECEB); // Divider color
+  static const cardShadow = Color(0x14333333); // Subtle shadow
+  static const orange = Color(0xFFFA9D2B); // Orange for prices and buttons
+  static const white = Color(0xFFFFFFFF);
+}
+
+class CartScreen extends StatefulWidget {
+  final bool fromNav;
+  const CartScreen({super.key, required this.fromNav});
+
+  @override
+  State<CartScreen> createState() => _CartScreenState();
+}
+
+class _CartScreenState extends State<CartScreen> {
+  final ScrollController scrollController = ScrollController();
+  bool _isFirstDidChangeDependencies = true;
+  bool _isRefreshingCart = false;
+  DateTime? _lastCartRefresh;
+
+  @override
+  void initState() {
+    super.initState();
+    initCall();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Skip the first call (happens right after initState)
+    // This prevents duplicate API calls on screen load
+    if (_isFirstDidChangeDependencies) {
+      _isFirstDidChangeDependencies = false;
+      debugPrint(
+          '🔄 Cart screen first load - skipping didChangeDependencies refresh');
+      return;
+    }
+    // Only refresh if cart data is stale (older than 30 seconds)
+    // This prevents unnecessary API calls when returning to cart
+    final cartController = Get.find<CartController>();
+    if (cartController.lastSuccessfulCartLoad == null ||
+        DateTime.now().difference(cartController.lastSuccessfulCartLoad!) >
+            const Duration(seconds: 30)) {
+      debugPrint('🔄 Cart screen became visible - refreshing stale cart data');
+      _refreshCartData();
+    } else {
+      debugPrint('💾 Cart screen became visible - using cached data');
+    }
+  }
+
+  Future<void> _refreshCartData() async {
+    if (_isRefreshingCart) {
+      debugPrint('⏳ Cart refresh already in progress - skipping');
+      return;
+    }
+    if (_lastCartRefresh != null &&
+        DateTime.now().difference(_lastCartRefresh!) <
+            const Duration(seconds: 10)) {
+      debugPrint('⏳ Cart refresh throttled - too soon after last refresh');
+      return;
+    }
+
+    _isRefreshingCart = true;
+    _lastCartRefresh = DateTime.now();
+    try {
+      // Use forceRefresh to ensure we get the latest data and trigger stale data detection
+      await Get.find<CartController>().getCartDataOnline(forceRefresh: true);
+      debugPrint('✅ Cart data refreshed from API');
+    } catch (e) {
+      debugPrint('❌ Error refreshing cart data: $e');
+    } finally {
+      _isRefreshingCart = false;
+    }
+  }
+
+  Future<void> initCall() async {
+    // Add delay to allow backend to process any pending updates
+    // This is especially important after cart quantity updates
+    await Future<void>.delayed(const Duration(milliseconds: 800));
+
+    // Load cart data from API with force refresh to get latest data
+    debugPrint('🔄 Cart screen init - loading fresh data from API');
+    await Get.find<CartController>().getCartDataOnline(forceRefresh: true);
+    if (!mounted) {
+      return;
+    }
+
+    // Force UI update after cart data loads
+    Get.find<CartController>().update();
+
+    final cartController = Get.find<CartController>();
+    // 🔥 BUG FIX: Guard all cartList[0] access to prevent RangeError
+    if (cartController.cartList.isNotEmpty) {
+      final firstCartItem = cartController.cartList[0];
+      if (firstCartItem.item?.storeId == null) {
+        debugPrint(
+            '⚠️ initState: First cart item has no storeId, skipping initialization');
+        return;
+      }
+
+      // Only initialize checkout data once, not on every build
+      if (Get.find<CheckoutController>().store == null) {
+        Get.find<CheckoutController>()
+            .initCheckoutData(context, firstCartItem.item!.storeId ?? 0);
+      }
+
+      if (kDebugMode) {
+        print('----cart item : ${firstCartItem.toJson()}');
+      }
+
+      if (cartController.addCutlery) {
+        cartController.updateCutlery(willUpdate: false);
+      }
+      if (cartController.needExtraPackage) {
+        cartController.toggleExtraPackage(willUpdate: false);
+      }
+      cartController.setAvailableIndex(-1, willUpdate: false);
+      Get.find<StoreController>()
+          .getCartStoreSuggestedItemList(firstCartItem.item!.storeId ?? 0);
+      // REMOVED: Duplicate getStoreDetails call - initCheckoutData() already loads store details
+      // This was causing double API calls and unnecessary rebuilds that recalculated totals/taxes
+      // Removed - totals are now calculated automatically via _onCartMutated()
+      showReferAndEarnSnackBar();
+    }
+  }
+
+  /// Helper method to determine if current language is RTL
+  bool get _isRTL => Get.locale?.languageCode == 'ar';
+
+  /// Calculate distance and set it in CheckoutController before navigating to checkout
+  /// This prevents "calculating" state in checkout screen
+  static Future<void> _calculateAndSetDistanceBeforeCheckout() async {
+    try {
+      // Get current address
+      final AddressModel? currentAddress =
+          AddressHelper.getUserAddressFromSharedPref();
+      if (currentAddress == null ||
+          currentAddress.latitude == null ||
+          currentAddress.longitude == null) {
+        debugPrint('⚠️ No address available for distance calculation');
+        return;
+      }
+
+      // Get store from cart
+      final cartController = Get.find<CartController>();
+      // 🔥 BUG FIX: Guard cartList[0] access
+      if (cartController.cartList.isEmpty) {
+        debugPrint('⚠️ Cart is empty, cannot calculate distance');
+        return;
+      }
+
+      final firstItem = cartController.cartList[0].item;
+      if (firstItem?.storeId == null) {
+        debugPrint(
+            '⚠️ First cart item has no storeId, cannot calculate distance');
+        return;
+      }
+
+      final storeId = firstItem!.storeId!;
+      final storeController = Get.find<StoreController>();
+
+      // Ensure store is loaded
+      Store? store = storeController.store;
+      if (store == null || store.id != storeId) {
+        debugPrint('🔄 Loading store details for distance calculation...');
+        store = await storeController.getStoreDetails(
+          Get.context!,
+          Store(id: storeId),
+          false,
+          fromCart: true,
+        );
+      }
+
+      if (store == null || store.latitude == null || store.longitude == null) {
+        debugPrint('⚠️ Store location not available');
+        return;
+      }
+
+      // Calculate distance using Haversine formula (same as checkout)
+      final distance = Geolocator.distanceBetween(
+            double.parse(currentAddress.latitude!),
+            double.parse(currentAddress.longitude!),
+            double.parse(store.latitude!),
+            double.parse(store.longitude!),
+          ) /
+          1000;
+
+      debugPrint('📍 [Cart] Pre-calculated distance: $distance km');
+
+      // Set pre-calculated distance in CheckoutController
+      await Get.find<CheckoutController>().setPreCalculatedDistance(distance);
+      debugPrint('✅ [Cart] Distance set in CheckoutController');
+    } catch (e) {
+      debugPrint('❌ [Cart] Error calculating distance: $e');
+      // Don't block navigation if calculation fails
+    }
+  }
+
+  /// Validates if current user location is in service zone before checkout
+  static Future<bool> validateLocationForCheckout() async {
+    try {
+      // Get current user address
+      final AddressModel? currentAddress =
+          AddressHelper.getUserAddressFromSharedPref();
+
+      if (currentAddress == null ||
+          currentAddress.latitude == null ||
+          currentAddress.longitude == null) {
+        // No address set, show location picker
+        showLocationPickerDialog();
+        return false;
+      }
+
+      // Check if location is in service zone
+      // ⚠️ CRITICAL: Checkout ALWAYS requires a valid zone, regardless of skipZoneValidation flag
+      // The skipZoneValidation flag is only for browsing the app, not for checkout
+      final LocationController locationController =
+          Get.find<LocationController>();
+
+      final ZoneResponseModel response = await locationController.getZone(
+          currentAddress.latitude, currentAddress.longitude, false);
+
+      if (response.isSuccess && response.zoneIds.isNotEmpty) {
+        // Location is in service zone, proceed with checkout
+        debugPrint('✅ Location validation passed - user is in service zone');
+        return true;
+      } else {
+        // Location is outside service zone, show location picker dialog
+        debugPrint(
+            '❌ Location validation failed - user is outside service zone');
+        showLocationPickerDialog();
+        return false;
+      }
+    } catch (e) {
+      debugPrint('❌ Error validating location: $e');
+      showLocationPickerDialog();
+      return false;
+    }
+  }
+
+  /// Shows enhanced location picker dialog with saved addresses and map option
+  static void showLocationPickerDialog() {
+    Get.dialog<void>(
+      const OutOfServiceDialog(),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final bool isDesktop = ResponsiveHelper.isDesktop(context);
+
+    return Directionality(
+      textDirection: _isRTL ? TextDirection.rtl : TextDirection.ltr,
+      child: Scaffold(
+        backgroundColor: Colors.white,
+        appBar: _buildModernHeader(),
+        endDrawerEnableOpenDragGesture: false,
+        body: GetBuilder<StoreController>(builder: (storeController) {
+          // #region agent log
+          _writeDebugLog(
+              'cart_screen.dart:280',
+              'GetBuilder StoreController rebuild',
+              {
+                'storeId': storeController.store?.id,
+                'storeTax': storeController.store?.tax,
+                'hasStore': storeController.store != null,
+              },
+              'C');
+          // #endregion
+          // 🔥 PHASE 2.2: Split GetBuilder into IDs for partial rebuilds
+          // Main GetBuilder for loading state only
+          return GetBuilder<CartController>(
+              id: 'cart_loading', // Only rebuilds on loading state changes
+              builder: (cartController) {
+                // Show loading indicator while cart data is being loaded
+                if (cartController.isLoading) {
+                  return const Center(child: CircularProgressIndicator());
+                } else if (cartController.cartList.isNotEmpty) {
+                  return Column(children: [
+                    Expanded(
+                      child: SingleChildScrollView(
+                        controller: scrollController,
+                        padding: ResponsiveHelper.isDesktop(context)
+                            ? const EdgeInsets.only(
+                                top: Dimensions.paddingSizeSmall)
+                            : const EdgeInsets.fromLTRB(
+                                16, 16, 16, 0), // Remove bottom padding
+                        child: FooterView(
+                          child: SizedBox(
+                            width: Dimensions.webMaxWidth,
+                            child: Column(children: [
+                              Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  ResponsiveHelper.isDesktop(context)
+                                      ? WebCardItemsWidget(
+                                          cartList: cartController.cartList)
+                                      : Expanded(
+                                          flex: 7,
+                                          child: Column(
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.start,
+                                              children: [
+                                                WebConstrainedBox(
+                                                  dataLength: cartController
+                                                      .cartList.length,
+                                                  child: Column(
+                                                    crossAxisAlignment:
+                                                        CrossAxisAlignment
+                                                            .start,
+                                                    children: [
+                                                      // 🔥 PHASE 2.2: Cart Items Section with ID
+                                                      GetBuilder<
+                                                          CartController>(
+                                                        id: 'cart_items', // Only rebuilds when items change
+                                                        builder:
+                                                            (cartController) {
+                                                          return Column(
+                                                            children:
+                                                                cartController
+                                                                    .cartList
+                                                                    .asMap()
+                                                                    .entries
+                                                                    .map(
+                                                                        (entry) {
+                                                              final int index =
+                                                                  entry.key;
+                                                              final CartModel
+                                                                  cart =
+                                                                  entry.value;
+                                                              return Padding(
+                                                                padding: const EdgeInsets
+                                                                    .symmetric(
+                                                                    horizontal:
+                                                                        16,
+                                                                    vertical:
+                                                                        8),
+                                                                child:
+                                                                    _ModernCartItemCard(
+                                                                  cart: cart,
+                                                                  cartIndex:
+                                                                      index,
+                                                                  addOns: cartController
+                                                                          .addOnsList[
+                                                                      index],
+                                                                  isAvailable:
+                                                                      cartController
+                                                                              .availableList[
+                                                                          index],
+                                                                  cartController:
+                                                                      cartController,
+                                                                ),
+                                                              );
+                                                            }).toList(),
+                                                          );
+                                                        },
+                                                      ),
+
+                                                      // Removed "add more items" button per request
+
+                                                      // Extra packaging widget
+                                                      if (!ResponsiveHelper
+                                                          .isDesktop(context))
+                                                        ExtraPackagingWidget(
+                                                            cartController:
+                                                                cartController),
+
+                                                      // Suggested items
+                                                      if (!ResponsiveHelper
+                                                          .isDesktop(context))
+                                                        suggestedItemView(
+                                                            cartController
+                                                                .cartList),
+                                                    ],
+                                                  ),
+                                                ),
+                                              ]),
+                                        ),
+                                  // Desktop pricing view
+                                  ResponsiveHelper.isDesktop(context)
+                                      ? Expanded(
+                                          flex: 4,
+                                          child: cartController
+                                                      .cartList.isNotEmpty &&
+                                                  cartController
+                                                          .cartList[0].item !=
+                                                      null
+                                              ? pricingView(
+                                                  cartController,
+                                                  cartController
+                                                      .cartList[0].item!)
+                                              : const SizedBox())
+                                      : const SizedBox(),
+                                ],
+                              ),
+                              // Web suggested items
+                              ResponsiveHelper.isDesktop(context)
+                                  ? const SizedBox() // WebSuggestedItemViewWidget pending
+                                  : const SizedBox(),
+                            ]),
+                          ),
+                        ),
+                      ),
+                    ),
+
+                    // Order summary from touese design - now static, no expandable
+                    if (!ResponsiveHelper.isDesktop(context))
+                      Container(
+                        width: context.width,
+                        decoration: BoxDecoration(
+                          color: Theme.of(context).cardColor,
+                          borderRadius: const BorderRadius.only(
+                              topLeft:
+                                  Radius.circular(Dimensions.radiusDefault),
+                              topRight:
+                                  Radius.circular(Dimensions.radiusDefault)),
+                        ),
+                        child: Column(children: [
+                          Container(
+                            padding: const EdgeInsets.only(
+                              left: Dimensions.paddingSizeSmall,
+                              right: Dimensions.paddingSizeSmall,
+                              top: Dimensions.paddingSizeSmall,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Theme.of(context).cardColor,
+                              borderRadius: const BorderRadius.only(
+                                  topLeft:
+                                      Radius.circular(Dimensions.radiusDefault),
+                                  topRight: Radius.circular(
+                                      Dimensions.radiusDefault)),
+                            ),
+                            child: Column(children: [
+                              // Promo code input from touese design - now in fixed section
+                              _ModernPromoInput(),
+
+                              const SizedBox(height: 12),
+
+                              // 🔥 PHASE 2.2: Cart Summary Section with ID
+                              // Only rebuilds when totals change (subTotal, tax, etc.)
+                              GetBuilder<CartController>(
+                                id: 'cart_summary',
+                                builder: (cartController) {
+                                  final double effectiveTaxPercent =
+                                      _resolveCartTaxPercent(storeController
+                                              .store?.tax ??
+                                          (cartController.cartList.isNotEmpty
+                                              ? cartController
+                                                  .cartList.first.item?.tax
+                                              : null));
+                                  final bool taxIncluded =
+                                      Get.find<SplashController>()
+                                              .configModel!
+                                              .taxIncluded ==
+                                          1;
+                                  return Column(children: [
+                                    // Modern summary rows with actual app price calculations
+                                    _ModernSummaryRow(
+                                      label: 'subtotal'.tr,
+                                      value: PriceConverter.convertPrice2(
+                                        cartController.itemPrice,
+                                        textStyle: robotoRegular,
+                                      ),
+                                    ),
+                                    const _DividerLine(),
+
+                                    // Taxes row - using proper tax calculation
+                                    _ModernSummaryRow(
+                                      label:
+                                          '${'taxes'.tr} (${_formatPercent(effectiveTaxPercent)})',
+                                      value: _calculateCartTax(
+                                        cartController.subTotal,
+                                        effectiveTaxPercent,
+                                        taxIncluded,
+                                        cartController.cartList,
+                                      ),
+                                    ),
+                                    const _DividerLine(),
+
+                                    // App fee (service fee) row - shown if enabled
+                                    if (Get.find<SplashController>()
+                                            .configModel!
+                                            .additionalChargeStatus! &&
+                                        Get.find<SplashController>()
+                                                .configModel!
+                                                .additionCharge !=
+                                            null &&
+                                        Get.find<SplashController>()
+                                                .configModel!
+                                                .additionCharge! >
+                                            0) ...[
+                                      _ModernSummaryRow(
+                                        label: 'service_fee'.tr,
+                                        value: PriceConverter.convertPrice2(
+                                          Get.find<SplashController>()
+                                              .configModel!
+                                              .additionCharge!,
+                                          prefixText: '(+) ',
+                                          textStyle: robotoRegular,
+                                        ),
+                                      ),
+                                      const _DividerLine(),
+                                    ],
+
+                                    // Delivery row removed - calculated at checkout based on actual distance
+
+                                    // Total row with item count and actual calculations
+                                    _ModernSummaryRow(
+                                      label: 'total'.tr,
+                                      value: _calculateCartTotal(
+                                        subTotal: cartController.subTotal,
+                                        taxPercent: effectiveTaxPercent,
+                                        taxIncluded: taxIncluded,
+                                        cartList: cartController.cartList,
+                                      ),
+                                      isTotal: true,
+                                    ),
+
+                                    // Minimum order warning
+                                    if (storeController.store != null &&
+                                        storeController.store!.minimumOrder! >
+                                            0 &&
+                                        cartController.subTotal <
+                                            storeController
+                                                .store!.minimumOrder!)
+                                      Container(
+                                        margin: const EdgeInsets.only(top: 8),
+                                        padding: const EdgeInsets.all(12),
+                                        decoration: BoxDecoration(
+                                          color: Colors.orange
+                                              .withValues(alpha: 0.1),
+                                          borderRadius:
+                                              BorderRadius.circular(8),
+                                          border: Border.all(
+                                              color: Colors.orange
+                                                  .withValues(alpha: 0.3)),
+                                        ),
+                                        child: Directionality(
+                                          textDirection: _isRTL
+                                              ? TextDirection.rtl
+                                              : TextDirection.ltr,
+                                          child: Row(
+                                            children: [
+                                              const Icon(
+                                                Icons.info_outline,
+                                                color: Colors.orange,
+                                                size: 16,
+                                              ),
+                                              const SizedBox(width: 8),
+                                              Expanded(
+                                                child: Row(
+                                                  mainAxisSize:
+                                                      MainAxisSize.min,
+                                                  children: [
+                                                    Text(
+                                                      'minimum_order_amount_is'
+                                                          .tr,
+                                                      style: robotoRegular
+                                                          .copyWith(
+                                                        color:
+                                                            Colors.orange[700],
+                                                        fontSize: 12,
+                                                      ),
+                                                    ),
+                                                    const SizedBox(width: 4),
+                                                    Directionality(
+                                                      textDirection:
+                                                          TextDirection.ltr,
+                                                      child: PriceConverter
+                                                          .convertPrice2(
+                                                        storeController.store!
+                                                            .minimumOrder!,
+                                                        textStyle: robotoRegular
+                                                            .copyWith(
+                                                          color: Colors
+                                                              .orange[700],
+                                                          fontSize: 12,
+                                                        ),
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ),
+
+                                    const SizedBox(
+                                        height:
+                                            Dimensions.paddingSizeExtraLarge),
+                                  ]);
+                                },
+                              ),
+                            ]),
+                          ),
+                        ]),
+                      ),
+
+                    // 🔥 PHASE 2.2: Checkout Button with ID
+                    // Only rebuilds when totals or checkout-related data changes
+                    ResponsiveHelper.isDesktop(context)
+                        ? const SizedBox.shrink()
+                        : GetBuilder<CartController>(
+                            id: 'cart_checkout',
+                            builder: (cartController) {
+                              return _ModernPaymentButton(
+                                cartController: cartController,
+                                availableList: cartController.availableList,
+                              );
+                            },
+                          ),
+                  ]);
+                } else {
+                  return const NoDataScreen(
+                      isCart: true, text: '', showFooter: true);
+                }
+              });
+        }),
+      ),
+    );
+  }
+
+  /// Modern header matching the touese design exactly
+  PreferredSizeWidget _buildModernHeader() {
+    return AppBar(
+      elevation: 0,
+      backgroundColor: CartColors.green,
+      centerTitle: true,
+      automaticallyImplyLeading: false,
+      toolbarHeight: 80, // Exact height from touese
+      systemOverlayStyle: SystemUiOverlayStyle.light, // white status icons
+      leading: IconButton(
+        icon: Icon(
+          _isRTL ? Icons.arrow_back_ios_rounded : Icons.arrow_back_ios_rounded,
+          color: CartColors.white,
+          size: 20,
+        ),
+        onPressed: () => Get.back<void>(),
+        tooltip: _isRTL ? 'رجوع' : 'Back',
+      ),
+      title: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.shopping_cart_outlined,
+              color: CartColors.white, size: 24),
+          const SizedBox(width: 8),
+          Text(
+            _isRTL ? 'السلة' : 'My Cart',
+            style: const TextStyle(
+              color: CartColors.white,
+              fontWeight: FontWeight.w700,
+              fontSize: 22,
+            ),
+          ),
+        ],
+      ),
+      actions: [
+        GetBuilder<CartController>(
+          id: 'cart_count',
+          builder: (cartController) {
+            return IconButton(
+              tooltip: _isRTL ? 'افراغ السلة' : 'Clear cart',
+              icon: const Icon(Icons.delete_outline, color: CartColors.white),
+              onPressed: () {
+                if (cartController.cartList.isEmpty) {
+                  showCustomSnackBar('cart_is_empty'.tr);
+                  return;
+                }
+                Get.dialog<void>(
+                  ConfirmationDialog(
+                    icon: Images.warning,
+                    description: 'are_you_sure'.tr,
+                    onYesPressed: () async {
+                      Get.back<void>();
+                      await cartController.clearCartList();
+                    },
+                  ),
+                  useSafeArea: false,
+                );
+              },
+            );
+          },
+        ),
+        const SizedBox(width: Dimensions.paddingSizeSmall),
+      ],
+    );
+  }
+
+  Widget pricingView(CartController cartController, Item item) {
+    return Container(
+      decoration: ResponsiveHelper.isDesktop(context)
+          ? BoxDecoration(
+              color: Theme.of(context).cardColor,
+              borderRadius: BorderRadius.circular(
+                  ResponsiveHelper.isDesktop(context)
+                      ? Dimensions.radiusDefault
+                      : Dimensions.radiusSmall),
+              boxShadow: const [
+                BoxShadow(color: Colors.black12, blurRadius: 5, spreadRadius: 1)
+              ],
+            )
+          : null,
+      child: GetBuilder<StoreController>(builder: (storeController) {
+        return Column(children: [
+          ResponsiveHelper.isDesktop(context)
+              ? ExtraPackagingWidget(cartController: cartController)
+              : const SizedBox(),
+
+          ResponsiveHelper.isDesktop(context)
+              ? Align(
+                  alignment: Alignment.topLeft,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: Dimensions.paddingSizeDefault,
+                        vertical: Dimensions.paddingSizeSmall),
+                    child: Text('order_summary'.tr,
+                        style: robotoBold.copyWith(
+                            fontSize: Dimensions.fontSizeLarge)),
+                  ),
+                )
+              : const SizedBox(),
+
+          !ResponsiveHelper.isDesktop(context) &&
+                  (Get.find<SplashController>()
+                          .getModuleConfig(item.moduleType)
+                          .newVariation ??
+                      false) &&
+                  (storeController.store != null &&
+                      storeController.store!.cutlery!)
+              ? Padding(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: Dimensions.paddingSizeDefault,
+                      vertical: Dimensions.paddingSizeSmall),
+                  child: Row(children: [
+                    Image.asset(Images.cutlery, height: 18, width: 18),
+                    const SizedBox(width: Dimensions.paddingSizeDefault),
+                    Expanded(
+                      child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('add_cutlery'.tr,
+                                style: robotoMedium.copyWith(
+                                    color: Theme.of(context).primaryColor)),
+                            const SizedBox(
+                                height: Dimensions.paddingSizeExtraSmall),
+                            Text('do_not_have_cutlery'.tr,
+                                style: robotoRegular.copyWith(
+                                    color: Theme.of(context).disabledColor,
+                                    fontSize: Dimensions.fontSizeSmall)),
+                          ]),
+                    ),
+                    Transform.scale(
+                      scale: 0.7,
+                      child: CupertinoSwitch(
+                        value: cartController.addCutlery,
+                        activeTrackColor: Theme.of(context).primaryColor,
+                        onChanged: (bool? value) {
+                          cartController.updateCutlery();
+                        },
+                        inactiveTrackColor: Theme.of(context)
+                            .primaryColor
+                            .withValues(alpha: 0.5),
+                      ),
+                    )
+                  ]),
+                )
+              : const SizedBox(),
+
+          ResponsiveHelper.isDesktop(context)
+              ? const SizedBox()
+              : Container(
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).cardColor,
+                    border: Border.all(
+                        color: Theme.of(context).primaryColor, width: 0.5),
+                  ),
+                  padding: const EdgeInsets.all(Dimensions.paddingSizeDefault),
+                  margin: ResponsiveHelper.isDesktop(context)
+                      ? const EdgeInsets.symmetric(
+                          horizontal: Dimensions.paddingSizeDefault,
+                          vertical: Dimensions.paddingSizeSmall)
+                      : EdgeInsets.zero,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      InkWell(
+                        onTap: () {
+                          if (ResponsiveHelper.isDesktop(context)) {
+                            Get.dialog<void>(const Dialog(
+                                child: NotAvailableBottomSheetWidget()));
+                          } else {
+                            showModalBottomSheet<void>(
+                              context: context,
+                              isScrollControlled: true,
+                              backgroundColor: Colors.transparent,
+                              builder: (con) =>
+                                  const NotAvailableBottomSheetWidget(),
+                            );
+                          }
+                        },
+                        child: Row(children: [
+                          Expanded(
+                              child: Text('if_any_product_is_not_available'.tr,
+                                  style: robotoMedium,
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis)),
+                          const Icon(Icons.arrow_forward_ios_sharp, size: 18),
+                        ]),
+                      ),
+                      cartController.notAvailableIndex != -1
+                          ? Row(children: [
+                              Text(
+                                  cartController
+                                      .notAvailableList[
+                                          cartController.notAvailableIndex]
+                                      .tr,
+                                  style: robotoMedium.copyWith(
+                                      fontSize: Dimensions.fontSizeSmall,
+                                      color: Theme.of(context).primaryColor)),
+                              IconButton(
+                                onPressed: () =>
+                                    cartController.setAvailableIndex(-1),
+                                icon: const Icon(Icons.clear, size: 18),
+                              )
+                            ])
+                          : const SizedBox(),
+                    ],
+                  ),
+                ),
+          ResponsiveHelper.isDesktop(context)
+              ? const SizedBox()
+              : const SizedBox(height: Dimensions.paddingSizeSmall),
+
+          // Total
+          ResponsiveHelper.isDesktop(context)
+              ? Padding(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: Dimensions.paddingSizeDefault,
+                      vertical: Dimensions.paddingSizeSmall),
+                  child: Column(children: [
+                    Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text('item_price'.tr, style: robotoRegular),
+                          PriceConverter.convertAnimationPrice(
+                              cartController.itemPrice,
+                              textStyle: robotoRegular),
+                        ]),
+                    SizedBox(
+                        height: cartController.variationPrice > 0
+                            ? Dimensions.paddingSizeSmall
+                            : 0),
+                    (Get.find<SplashController>()
+                                    .getModuleConfig(item.moduleType)
+                                    .newVariation ??
+                                false) &&
+                            cartController.variationPrice > 0
+                        ? Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text('variations'.tr, style: robotoRegular),
+                              PriceConverter.convertPrice2(
+                                cartController.variationPrice,
+                                prefixText: '(+) ',
+                                textStyle: robotoRegular,
+                              ),
+                            ],
+                          )
+                        : const SizedBox(),
+                    const SizedBox(height: Dimensions.paddingSizeSmall),
+                    Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text('discount'.tr, style: robotoRegular),
+                          storeController.store != null
+                              ? Row(children: [
+                                  Text('(-)', style: robotoRegular),
+                                  PriceConverter.convertAnimationPrice(
+                                      cartController.itemDiscountPrice,
+                                      textStyle: robotoRegular),
+                                ])
+                              : Text('calculating'.tr, style: robotoRegular),
+                          // Text('(-) ${PriceConverter.convertPrice(cartController.itemDiscountPrice)}', style: robotoRegular, textDirection: TextDirection.ltr),
+                        ]),
+                    SizedBox(
+                        height: Get.find<SplashController>()
+                                .configModel!
+                                .moduleConfig!
+                                .module!
+                                .addOn!
+                            ? 10
+                            : 0),
+                    Get.find<SplashController>()
+                            .configModel!
+                            .moduleConfig!
+                            .module!
+                            .addOn!
+                        ? Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text('addons'.tr, style: robotoRegular),
+                              PriceConverter.convertPrice2(
+                                cartController.addOns,
+                                prefixText: '(+) ',
+                                textStyle: robotoRegular,
+                              ),
+                            ],
+                          )
+                        : const SizedBox(),
+                  ]),
+                )
+              : const SizedBox(),
+
+          // 🔥 PHASE 2.2: Desktop Checkout Button with ID
+          ResponsiveHelper.isDesktop(context)
+              ? GetBuilder<CartController>(
+                  id: 'cart_checkout',
+                  builder: (cartController) {
+                    return Row(
+                      children: [
+                        CheckoutButton(
+                            cartController: cartController,
+                            availableList: cartController.availableList),
+                      ],
+                    );
+                  },
+                )
+              : const SizedBox.shrink(),
+        ]);
+      }),
+    );
+  }
+
+  Widget suggestedItemView(List<CartModel> cartList) {
+    return Container(
+      decoration: BoxDecoration(color: Theme.of(context).cardColor),
+      width: double.infinity,
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        GetBuilder<StoreController>(builder: (storeController) {
+          List<Item>? suggestedItems;
+          if (storeController.cartSuggestItemModel != null) {
+            suggestedItems = [];
+            final List<int> cartIds = [];
+            for (final CartModel cartItem in cartList) {
+              cartIds.add(cartItem.item!.id!);
+            }
+            for (final Item item
+                in storeController.cartSuggestItemModel!.items!) {
+              if (!cartIds.contains(item.id)) {
+                suggestedItems.add(item);
+              }
+            }
+          }
+          return storeController.cartSuggestItemModel != null &&
+                  suggestedItems!.isNotEmpty
+              ? Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const SizedBox(height: Dimensions.paddingSizeSmall),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: Dimensions.paddingSizeDefault,
+                          vertical: Dimensions.paddingSizeExtraSmall),
+                      child: Text('you_may_also_like'.tr,
+                          style: robotoMedium.copyWith(
+                              fontSize: Dimensions.fontSizeDefault)),
+                    ),
+                    SizedBox(
+                      height: ResponsiveHelper.isDesktop(context) ? 160 : 130,
+                      child: ListView.builder(
+                        scrollDirection: Axis.horizontal,
+                        itemCount: suggestedItems.length,
+                        physics: const BouncingScrollPhysics(),
+                        padding: EdgeInsets.only(
+                            left: ResponsiveHelper.isDesktop(context)
+                                ? Dimensions.paddingSizeExtraSmall
+                                : Dimensions.paddingSizeDefault),
+                        itemBuilder: (context, index) {
+                          return Padding(
+                            padding: ResponsiveHelper.isDesktop(context)
+                                ? const EdgeInsets.symmetric(vertical: 20)
+                                : const EdgeInsets.symmetric(vertical: 10),
+                            child: Container(
+                              width: ResponsiveHelper.isDesktop(context)
+                                  ? 500
+                                  : 300,
+                              padding: const EdgeInsets.only(
+                                  right: Dimensions.paddingSizeSmall,
+                                  left: Dimensions.paddingSizeExtraSmall),
+                              margin: const EdgeInsets.only(
+                                  right: Dimensions.paddingSizeSmall),
+                              child: ItemWidget(
+                                isStore: false,
+                                item: suggestedItems![index],
+                                fromCartSuggestion: true,
+                                store: null,
+                                index: index,
+                                length: null,
+                                inStore: true,
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                  ],
+                )
+              : const SizedBox();
+        }),
+      ]),
+    );
+  }
+
+  Future<void> showReferAndEarnSnackBar() async {
+    final String text = 'your_referral_discount_added_on_your_first_order'.tr;
+    if (Get.find<ProfileController>().userInfoModel != null &&
+        Get.find<ProfileController>().userInfoModel!.isValidForDiscount!) {
+      showCustomSnackBar(text, isError: false);
+    }
+  }
+
+  /// Calculate tax for cart display using discounted prices
+  Widget _calculateCartTax(double subTotal, double? taxPercent,
+      bool taxIncluded, List<CartModel> cartList) {
+    // #region agent log
+    _writeDebugLog(
+        'cart_screen.dart:981',
+        '_calculateCartTax called',
+        {
+          'subTotal': subTotal,
+          'taxPercent': taxPercent,
+          'taxIncluded': taxIncluded,
+          'cartListLength': cartList.length,
+        },
+        'A');
+    // #endregion
+
+    if (taxPercent == null || taxPercent == 0) {
+      final result =
+          PriceConverter.convertPrice2(0.0, textStyle: robotoRegular);
+      // #region agent log
+      _writeDebugLog('cart_screen.dart:985',
+          '_calculateCartTax returning 0 (no tax)', {}, 'A');
+      // #endregion
+      return result;
+    }
+
+    final calculatedTax = PriceConverter.toFixed(
+        _calculateCartTaxAmount(subTotal, taxPercent, taxIncluded));
+    // #region agent log
+    _writeDebugLog(
+        'cart_screen.dart:993',
+        '_calculateCartTax calculated value',
+        {
+          'calculatedTax': calculatedTax,
+          'taxIncluded': taxIncluded,
+        },
+        'A');
+    // #endregion
+
+    return PriceConverter.convertPrice2(
+      calculatedTax,
+      textStyle: robotoRegular,
+    );
+  }
+
+  double _calculateCartTaxAmount(
+      double subTotal, double? taxPercent, bool taxIncluded) {
+    final double effectiveTaxPercent = _resolveCartTaxPercent(taxPercent);
+    if (effectiveTaxPercent == 0) {
+      return 0;
+    }
+    if (taxIncluded) {
+      return subTotal * effectiveTaxPercent / (100 + effectiveTaxPercent);
+    }
+    return PriceConverter.calculation(
+        subTotal, effectiveTaxPercent, 'percent', 1);
+  }
+
+  double _resolveCartTaxPercent(double? storeTaxPercent) {
+    if (storeTaxPercent == null || storeTaxPercent == 0) {
+      return 15;
+    }
+    return storeTaxPercent;
+  }
+
+  String _formatPercent(double? value) {
+    if (value == null) return '0%';
+    final bool isWhole = value % 1 == 0;
+    return isWhole
+        ? '${value.toStringAsFixed(0)}%'
+        : '${value.toStringAsFixed(2)}%';
+  }
+
+  /// Calculate total for cart display using same logic as checkout
+  Widget _calculateCartTotal({
+    required double subTotal,
+    required double? taxPercent,
+    required bool taxIncluded,
+    required List<CartModel> cartList,
+  }) {
+    // #region agent log
+    _writeDebugLog(
+        'cart_screen.dart:1119',
+        '_calculateCartTotal called',
+        {
+          'subTotal': subTotal,
+          'taxPercent': taxPercent,
+          'taxIncluded': taxIncluded,
+          'cartListLength': cartList.length,
+        },
+        'B');
+    // #endregion
+
+    // Calculate tax using discounted prices (subTotal)
+    final double tax =
+        _calculateCartTaxAmount(subTotal, taxPercent, taxIncluded);
+
+    // Delivery charge not included in cart total - calculated at checkout based on actual distance
+    // Delivery fee row was removed from UI, so it should not be in the total calculation
+
+    // Calculate additional charges (app fee) - shown in cart total
+    final double additionalCharge =
+        Get.find<SplashController>().configModel!.additionalChargeStatus!
+            ? Get.find<SplashController>().configModel!.additionCharge!
+            : 0;
+
+    // Calculate total without delivery charge (delivery fee calculated at checkout)
+    // App fee is included in total
+    final double total = subTotal + (taxIncluded ? 0 : tax) + additionalCharge;
+
+    // #region agent log
+    _writeDebugLog(
+        'cart_screen.dart:1136',
+        '_calculateCartTotal calculated value',
+        {
+          'total': total,
+          'tax': tax,
+          'taxIncluded': taxIncluded,
+        },
+        'B');
+    // #endregion
+
+    return PriceConverter.convertPrice2(
+      total,
+      textStyle: const TextStyle(
+        color: CartColors.dark,
+        fontSize: 18,
+        fontWeight: FontWeight.w700,
+      ),
+    );
+  }
+}
+
+/// Modern cart item card with clean design from touese
+class _ModernCartItemCard extends StatelessWidget {
+  final CartModel cart;
+  final int cartIndex;
+  final List<AddOns> addOns;
+  final bool isAvailable;
+  final CartController cartController;
+
+  const _ModernCartItemCard({
+    required this.cart,
+    required this.cartIndex,
+    required this.addOns,
+    required this.isAvailable,
+    required this.cartController,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final bool isRTL = Get.locale?.languageCode == 'ar';
+    final item = cart.item;
+    final String itemName = (item?.name ?? 'item'.tr).trim();
+    final String storeName = (item?.storeName ?? '').trim();
+    final String? imageUrl = item?.imageFullUrl;
+    final int quantity = cart.quantity ?? 1;
+
+    return Stack(
+      children: [
+        Container(
+          width: double.infinity,
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            boxShadow: const [
+              BoxShadow(
+                color: CartColors.cardShadow,
+                blurRadius: 14,
+                offset: Offset(0, 6),
+              ),
+            ],
+          ),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 14),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Keep image on the *left* by forcing this Row LTR only
+                Directionality(
+                  textDirection: TextDirection.ltr,
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(8),
+                        child: Container(
+                          width: 90,
+                          height: 86,
+                          color: const Color(0xFFF6F6F6),
+                          child: SmartImage(
+                            url: imageUrl ?? '',
+                            height: 86,
+                            width: 90,
+                            cacheWidth: 300,
+                            cacheHeight: 300,
+                            fit: BoxFit.cover,
+                            errorWidget: const Icon(
+                              Icons.image_not_supported_outlined,
+                              color: CartColors.light,
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Directionality(
+                          textDirection:
+                              isRTL ? TextDirection.rtl : TextDirection.ltr,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const SizedBox(height: 2),
+                              Text(
+                                itemName.split(' ').take(5).join(' ') +
+                                    (itemName.split(' ').length > 5
+                                        ? '  ...'
+                                        : ''),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  color: CartColors.dark,
+                                  fontWeight: FontWeight.w800,
+                                  fontSize: 22,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              if (storeName.isNotEmpty)
+                                Text(
+                                  storeName,
+                                  style: const TextStyle(
+                                    color: CartColors.light,
+                                    fontSize: 15,
+                                    height: 1.2,
+                                  ),
+                                ),
+                              const SizedBox(height: 10),
+                              Align(
+                                alignment: isRTL
+                                    ? Alignment.centerRight
+                                    : Alignment.centerLeft,
+                                child: PriceConverter.convertPrice2(
+                                  cart.price,
+                                  textStyle: const TextStyle(
+                                    color: CartColors.orange,
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.w800,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 12),
+                // Quantity line
+                Directionality(
+                  textDirection: TextDirection.ltr,
+                  child: Row(
+                    children: [
+                      _RoundMinus(
+                        onTap: () {
+                          // 🔥 BUG FIX: Use cart_id instead of index (safe, index-independent)
+                          if (cart.id != null) {
+                            if (quantity > 1) {
+                              cartController.setQuantityById(false, cart.id!,
+                                  cart.stock, cart.quantityLimit);
+                            } else {
+                              // When quantity is 1, remove the item completely
+                              cartController.removeFromCartById(cart.id!,
+                                  item: cart.item,
+                                  reason: 'quantity_decrement');
+                            }
+                          } else {
+                            // Fallback for items without cart_id
+                            if (cart.quantity! > 1) {
+                              // ignore: deprecated_member_use_from_same_package
+                              cartController.setQuantity(false, cartIndex,
+                                  cart.stock, cart.quantityLimit);
+                            } else {
+                              // ignore: deprecated_member_use_from_same_package
+                              cartController.removeFromCart(cartIndex,
+                                  item: cart.item);
+                            }
+                          }
+                        },
+                      ),
+                      const SizedBox(width: 10),
+                      Text(
+                        '${cart.quantity}',
+                        style: const TextStyle(
+                          color: CartColors.dark,
+                          fontSize: 22,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      _RoundPlus(
+                        onTap: () {
+                          // 🔥 BUG FIX: Guard cartList[0] access before accessing moduleId
+                          if (cartController.cartList.isNotEmpty &&
+                              cartController.cartList[0].item?.moduleId !=
+                                  null) {
+                            cartController.forcefullySetModule(context,
+                                cartController.cartList[0].item!.moduleId!);
+                          }
+                          // 🔥 BUG FIX: Use cart_id instead of index (safe, index-independent)
+                          if (cart.id != null) {
+                            cartController.setQuantityById(
+                                true, cart.id!, cart.stock, cart.quantityLimit);
+                          } else {
+                            // Fallback for items without cart_id
+                            // ignore: deprecated_member_use_from_same_package
+                            cartController.setQuantity(true, cartIndex,
+                                cart.stock, cart.quantityLimit);
+                          }
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        // Close button on the (visual) right
+        PositionedDirectional(
+          top: 10,
+          end: 10,
+          child: _CloseDot(
+            onTap: () {
+              // 🔥 BUG FIX: Use cart_id instead of index (safe, index-independent)
+              if (cart.id != null) {
+                cartController.removeFromCartById(cart.id!,
+                    item: cart.item, reason: 'close_button');
+              } else {
+                // Fallback for items without cart_id
+                // ignore: deprecated_member_use_from_same_package
+                cartController.removeFromCart(cartIndex, item: cart.item);
+              }
+            },
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// Modern minus button from touese design
+class _RoundMinus extends StatelessWidget {
+  const _RoundMinus({required this.onTap});
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkResponse(
+      onTap: onTap,
+      radius: 28,
+      child: Container(
+        width: 44,
+        height: 44,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          shape: BoxShape.circle,
+          border: Border.all(color: CartColors.orange, width: 3),
+        ),
+        child: const Center(
+          child: Icon(Icons.remove, color: CartColors.orange, size: 22),
+        ),
+      ),
+    );
+  }
+}
+
+/// Modern plus button from touese design
+class _RoundPlus extends StatelessWidget {
+  const _RoundPlus({required this.onTap});
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkResponse(
+      onTap: onTap,
+      radius: 28,
+      child: Container(
+        width: 44,
+        height: 44,
+        decoration: const BoxDecoration(
+          color: CartColors.orange,
+          shape: BoxShape.circle,
+        ),
+        child: const Center(
+          child: Icon(Icons.add, color: Colors.white, size: 24),
+        ),
+      ),
+    );
+  }
+}
+
+/// Close button from touese design
+class _CloseDot extends StatelessWidget {
+  const _CloseDot({required this.onTap});
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkResponse(
+      onTap: onTap,
+      radius: 18,
+      child: Container(
+        width: 28,
+        height: 28,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          shape: BoxShape.circle,
+          boxShadow: const [
+            BoxShadow(
+              color: Color(0x14000000),
+              blurRadius: 8,
+              offset: Offset(0, 2),
+            ),
+          ],
+          border: Border.all(color: CartColors.divider),
+        ),
+        child: const Center(
+          child: Icon(Icons.close, color: CartColors.dark, size: 18),
+        ),
+      ),
+    );
+  }
+}
+
+/// Modern promo input field from touese design
+class _ModernPromoInput extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    final bool isRTL = Get.locale?.languageCode == 'ar';
+
+    return GetBuilder<CouponController>(
+      builder: (couponController) {
+        return Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+          child: Container(
+            height: 64,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: CartColors.divider),
+            ),
+            child: Row(
+              children: [
+                const SizedBox(width: 16),
+                Expanded(
+                  child: TextField(
+                    textAlign: isRTL ? TextAlign.right : TextAlign.left,
+                    textDirection:
+                        isRTL ? TextDirection.rtl : TextDirection.ltr,
+                    decoration: InputDecoration(
+                      border: InputBorder.none,
+                      hintText: isRTL ? 'برومو كود' : 'promo_code'.tr,
+                      hintStyle: const TextStyle(
+                          color: CartColors.light, fontSize: 18),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Padding(
+                  padding: const EdgeInsetsDirectional.only(end: 10),
+                  child: InkWell(
+                    onTap: () => _applyPromoCode(couponController),
+                    borderRadius: BorderRadius.circular(28),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 22,
+                        vertical: 10,
+                      ),
+                      decoration: BoxDecoration(
+                        color: CartColors.green,
+                        borderRadius: BorderRadius.circular(28),
+                      ),
+                      child: couponController.isLoading
+                          ? const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                valueColor:
+                                    AlwaysStoppedAnimation<Color>(Colors.white),
+                                strokeWidth: 2,
+                              ),
+                            )
+                          : Text(
+                              isRTL ? 'إدخال' : 'apply'.tr,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 20,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  /// Apply promo code with proper validation
+  void _applyPromoCode(CouponController couponController) {
+    // Get cart total for validation
+    final cartTotal = Get.find<CartController>().cartList.fold<double>(
+        0.0, (sum, cart) => sum + (cart.price ?? 0) * (cart.quantity ?? 1));
+
+    // Apply coupon through API
+    couponController
+        .applyCoupon(
+      '', // Empty string for now, you can add a controller for the promo code input
+      cartTotal,
+      15.0, // Delivery charge (fixed at 15 ريال)
+      Get.find<StoreController>().store?.id,
+    )
+        .then((discount) {
+      if (discount != null && discount > 0) {
+        showCustomSnackBar(
+          '${'you_got_discount_of'.tr} ${PriceConverter.convertPrice2(discount)}',
+          isError: false,
+        );
+      } else {
+        showCustomSnackBar('invalid_code_or'.tr);
+      }
+    }).catchError((error) {
+      showCustomSnackBar('invalid_code_or'.tr);
+    });
+  }
+}
+
+/// Divider line from touese design
+class _DividerLine extends StatelessWidget {
+  const _DividerLine();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Padding(
+      padding: EdgeInsets.symmetric(horizontal: 16),
+      child: Divider(color: CartColors.divider, height: 24, thickness: 1),
+    );
+  }
+}
+
+/// Modern summary row from touese design
+class _ModernSummaryRow extends StatelessWidget {
+  const _ModernSummaryRow({
+    required this.label,
+    required this.value,
+    this.trailingNote,
+    this.isTotal = false,
+  });
+
+  final String label;
+  final Widget value;
+  final String? trailingNote;
+  final bool isTotal;
+
+  @override
+  Widget build(BuildContext context) {
+    final labelStyle = TextStyle(
+      color: CartColors.dark,
+      fontSize: isTotal ? 18 : 17,
+      fontWeight: isTotal ? FontWeight.w700 : FontWeight.w600,
+    );
+    final valueStyle = TextStyle(
+      color: CartColors.dark,
+      fontSize: isTotal ? 18 : 17,
+      fontWeight: isTotal ? FontWeight.w700 : FontWeight.w600,
+    );
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(label, style: labelStyle),
+          Row(
+            children: [
+              if (trailingNote != null) ...[
+                Text(
+                  trailingNote!,
+                  style: const TextStyle(
+                    color: CartColors.light,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(width: 8),
+              ],
+              DefaultTextStyle(
+                style: valueStyle,
+                child: value,
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Modern payment button from touese design
+class _ModernPaymentButton extends StatelessWidget {
+  final CartController cartController;
+  final List<bool> availableList;
+
+  const _ModernPaymentButton({
+    required this.cartController,
+    required this.availableList,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final bool isRTL = Get.locale?.languageCode == 'ar';
+
+    return Container(
+      width: Dimensions.webMaxWidth,
+      padding: const EdgeInsets.all(Dimensions.paddingSizeSmall),
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardColor,
+        borderRadius: BorderRadius.circular(
+            ResponsiveHelper.isDesktop(context) ? Dimensions.radiusDefault : 0),
+      ),
+      child: GetBuilder<StoreController>(builder: (storeController) {
+        return Column(
+          children: [
+            // Primary CTA
+            SizedBox(
+              height: 54,
+              width: double.infinity,
+              child: ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: CartColors.green,
+                  foregroundColor: Colors.white,
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                ),
+                onPressed: () async {
+                  if (cartController.cartList.isEmpty) {
+                    return;
+                  }
+
+                  final firstItem = cartController.cartList.first.item;
+                  if (firstItem == null) return;
+
+                  if (!(firstItem.scheduleOrder ?? false) &&
+                      availableList.contains(false)) {
+                    showCustomSnackBar('one_or_more_product_unavailable'.tr);
+                  } else {
+                    final double subTotal = cartController.subTotal;
+                    final double minimumOrder =
+                        storeController.store?.minimumOrder ?? 0;
+
+                    if (minimumOrder > 0 && subTotal < minimumOrder) {
+                      showCustomSnackBar(
+                          '${'minimum_order_amount_is'.tr} ${PriceConverter.convertPrice(minimumOrder)}');
+                      return;
+                    }
+
+                    final bool isLocationValid =
+                        await _CartScreenState.validateLocationForCheckout();
+
+                    // ✅ إصلاح مشكلة Context Gap
+                    if (!context.mounted) return;
+
+                    if (!isLocationValid) {
+                      return;
+                    }
+
+                    if (Get.find<SplashController>().module == null) {
+                      if (cartController.cartList.isEmpty ||
+                          cartController.cartList[0].item?.moduleId == null) {
+                        return;
+                      }
+
+                      int i = 0;
+                      for (i = 0;
+                          i < Get.find<SplashController>().moduleList!.length;
+                          i++) {
+                        if (cartController.cartList[0].item!.moduleId ==
+                            Get.find<SplashController>().moduleList![i].id) {
+                          break;
+                        }
+                      }
+                      Get.find<SplashController>().setModule(
+                          Get.find<SplashController>().moduleList![i]);
+
+                      // ✅ إصلاح مشكلة Context Gap هنا أيضاً
+                      if (context.mounted) {
+                        HomeScreen.loadData(context, true);
+                      }
+                    }
+                    Get.find<CouponController>().removeCouponData(false);
+
+                    final bool isLoggedIn = AuthHelper.isLoggedIn();
+
+                    if (!isLoggedIn) {
+                      if (ResponsiveHelper.isDesktop(context)) {
+                        await Get.dialog<void>(
+                          const Center(
+                              child: AuthDialogWidget(
+                                  exitFromApp: false, backFromThis: true)),
+                          barrierDismissible: false,
+                        );
+                        if (!context.mounted) return;
+
+                        if (AuthHelper.isLoggedIn()) {
+                          final bool isLocationValid = await _CartScreenState
+                              .validateLocationForCheckout();
+                          if (!context.mounted) return;
+
+                          if (isLocationValid) {
+                            await _navigateToCheckoutWithLoading(
+                              context,
+                              cartController,
+                            );
+                          }
+                        }
+                      } else {
+                        // ✅ إضافة <void>
+                        await Get.toNamed<void>(
+                            RouteHelper.getSignInRoute(Get.currentRoute));
+                        if (!context.mounted) return;
+
+                        if (AuthHelper.isLoggedIn()) {
+                          final bool isLocationValid = await _CartScreenState
+                              .validateLocationForCheckout();
+                          if (!context.mounted) return;
+
+                          if (isLocationValid) {
+                            await _navigateToCheckoutWithLoading(
+                              context,
+                              cartController,
+                            );
+                          }
+                        }
+                      }
+                    } else {
+                      await _navigateToCheckoutWithLoading(
+                        context,
+                        cartController,
+                      );
+                    }
+                  }
+                },
+                child: Text(
+                  isRTL ? 'الدفع' : 'confirm_delivery_details'.tr,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 18,
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 10),
+            // Secondary CTA
+            SizedBox(
+              height: 44,
+              width: double.infinity,
+              child: OutlinedButton(
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: CartColors.dark,
+                  side: BorderSide(color: Theme.of(context).dividerColor),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                onPressed: () => Get.back<void>(),
+                child: Text(
+                  'complete_shopping'.tr,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 14,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        );
+      }),
+    );
+  }
+}
+
+// ✅ IMPROVED: CheckoutButton with proper async checkout flow
+class CheckoutButton extends StatelessWidget {
+  final CartController cartController;
+  final List<bool> availableList;
+  const CheckoutButton(
+      {super.key, required this.cartController, required this.availableList});
+
+  Future<void> _proceedToCheckout(BuildContext context) async {
+    try {
+      if (cartController.cartList.isEmpty) {
+        showCustomSnackBar('cart_empty'.tr);
+        return;
+      }
+
+      final firstItem = cartController.cartList.first;
+      if (firstItem.item?.storeId == null || firstItem.item?.moduleId == null) {
+        showCustomSnackBar('invalid_cart_item'.tr);
+        return;
+      }
+
+      final storeId = firstItem.item!.storeId!;
+      final moduleId = firstItem.item!.moduleId!;
+
+      if (Get.find<SplashController>().module == null) {
+        int moduleIndex = 0;
+        for (int i = 0;
+            i < Get.find<SplashController>().moduleList!.length;
+            i++) {
+          if (Get.find<SplashController>().moduleList![i].id == moduleId) {
+            moduleIndex = i;
+            break;
+          }
+        }
+        Get.find<SplashController>()
+            .setModule(Get.find<SplashController>().moduleList![moduleIndex]);
+      }
+
+      Get.find<CouponController>().removeCouponData(false);
+
+      bool isLoggedIn = AuthHelper.isLoggedIn();
+      if (!isLoggedIn) {
+        if (ResponsiveHelper.isDesktop(context)) {
+          await Get.dialog<void>(
+            const Center(
+                child:
+                    AuthDialogWidget(exitFromApp: false, backFromThis: true)),
+            barrierDismissible: false,
+          );
+          if (!context.mounted) return; // ✅ إصلاح Context Gap
+          isLoggedIn = AuthHelper.isLoggedIn();
+        } else {
+          await Get.toNamed<void>(RouteHelper.getSignInRoute(Get.currentRoute));
+          if (!context.mounted) return; // ✅ إصلاح Context Gap
+          isLoggedIn = AuthHelper.isLoggedIn();
+        }
+
+        if (!isLoggedIn) {
+          return;
+        }
+      }
+
+      final bool isLocationValid =
+          await _CartScreenState.validateLocationForCheckout();
+      if (!context.mounted) return; // ✅ إصلاح Context Gap
+      if (!isLocationValid) {
+        return;
+      }
+
+      // ✅ FIX: Show loading dialog while preparing checkout data
+      // This ensures all data is loaded before showing checkout screen
+      showCheckoutLoadingDialog(context);
+
+      try {
+        // Calculate distance
+        await _CartScreenState._calculateAndSetDistanceBeforeCheckout();
+        if (!context.mounted) return;
+
+        final checkoutController = Get.find<CheckoutController>();
+
+        // Initialize checkout data (delivery fee calculation)
+        await checkoutController.initCheckoutData(
+          context,
+          storeId,
+          preloadedCartList: cartController.cartList,
+          preCalculatedDistance: checkoutController.preCalculatedDistance,
+        );
+        if (!context.mounted) return;
+
+        // Validate minimum order
+        final double subTotal = cartController.subTotal;
+        final StoreController storeController = Get.find<StoreController>();
+        final double minimumOrder = storeController.store?.minimumOrder ?? 0;
+
+        if (minimumOrder > 0 && subTotal < minimumOrder) {
+          dismissCheckoutLoadingDialog(context);
+          showCustomSnackBar(
+              '${'minimum_order_amount_is'.tr} ${PriceConverter.convertPrice(minimumOrder)}');
+          return;
+        }
+
+        if (!cartController.cartList.first.item!.scheduleOrder! &&
+            availableList.contains(false)) {
+          dismissCheckoutLoadingDialog(context);
+          showCustomSnackBar('one_or_more_product_unavailable'.tr);
+          return;
+        }
+
+        final finalStoreId = cartController.storeId ?? storeId;
+
+        // Dismiss loading dialog
+        dismissCheckoutLoadingDialog(context);
+        if (!context.mounted) return;
+
+        // Navigate to checkout - all data is now ready
+        RouteHelper.navigateToCheckout(
+          cartList: cartController.cartList,
+          storeId: finalStoreId,
+        );
+      } catch (e) {
+        debugPrint('❌ [Cart→Checkout] Error during preparation: $e');
+        if (context.mounted) {
+          dismissCheckoutLoadingDialog(context);
+          showCustomSnackBar('unable_to_proceed_checkout'.tr);
+        }
+      }
+    } catch (e) {
+      debugPrint('❌ [Cart→Checkout] Error: $e');
+      showCustomSnackBar('unable_to_proceed_checkout'.tr);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    double percentage = 0; // تم الحفاظ على المتغير ولو لم يستخدم لإبقاء الهيكل
+    final bool isRTL = Get.locale?.languageCode == 'ar';
+
+    return Container(
+      width: Dimensions.webMaxWidth,
+      padding: const EdgeInsets.all(Dimensions.paddingSizeSmall),
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardColor,
+        borderRadius: BorderRadius.circular(
+            ResponsiveHelper.isDesktop(context) ? Dimensions.radiusDefault : 0),
+      ),
+      child: GetBuilder<StoreController>(builder: (storeController) {
+        if (Get.find<StoreController>().store != null &&
+            !Get.find<StoreController>().store!.freeDelivery! &&
+            Get.find<SplashController>().configModel!.freeDeliveryOver !=
+                null) {
+          percentage = cartController.subTotal /
+              Get.find<SplashController>().configModel!.freeDeliveryOver!;
+        }
+        return Column(
+          children: [
+            SizedBox(
+              height: 54,
+              width: double.infinity,
+              child: CustomButton(
+                buttonText: isRTL ? 'الدفع' : 'confirm_delivery_details'.tr,
+                fontSize: ResponsiveHelper.isDesktop(context)
+                    ? Dimensions.fontSizeSmall
+                    : Dimensions.fontSizeLarge,
+                isBold: true,
+                radius: 14,
+                onPressed: () async {
+                  await _proceedToCheckout(context);
+                },
+              ),
+            ),
+            const SizedBox(height: 10),
+            SizedBox(
+              height: 44,
+              width: double.infinity,
+              child: OutlinedButton(
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: CartColors.dark,
+                  side: BorderSide(color: Theme.of(context).dividerColor),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                onPressed: () => Get.back<void>(),
+                child: Text(
+                  'complete_shopping'.tr,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 14,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        );
+      }),
+    );
+  }
+}

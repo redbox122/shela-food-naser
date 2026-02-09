@@ -1,0 +1,1224 @@
+// ignore_for_file: non_constant_identifier_names, unnecessary_null_comparison, no_leading_underscores_for_local_identifiers
+
+import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
+import 'package:get/get.dart';
+import 'package:shimmer_animation/shimmer_animation.dart';
+import 'package:sixam_mart/features/add_delegate/controllers/delegate_controller.dart';
+import 'package:sixam_mart/features/auth/controllers/deliveryman_registration_controller.dart';
+import 'package:sixam_mart/features/auth/controllers/store_registration_controller.dart';
+import 'package:sixam_mart/features/auth/domain/models/status_model.dart';
+import 'package:sixam_mart/features/auth/widgets/auth_dialog_widget.dart';
+import 'package:sixam_mart/features/cart/controllers/cart_controller.dart';
+import 'package:sixam_mart/features/home/controllers/home_controller.dart';
+import 'package:sixam_mart/features/language/controllers/language_controller.dart';
+import 'package:sixam_mart/features/language/widgets/language_bottom_sheet_widget.dart';
+import 'package:sixam_mart/features/splash/controllers/splash_controller.dart';
+import 'package:sixam_mart/features/profile/controllers/profile_controller.dart';
+import 'package:sixam_mart/features/favourite/controllers/favourite_controller.dart';
+import 'package:sixam_mart/features/auth/controllers/auth_controller.dart';
+import 'package:sixam_mart/features/rental_module/rental_cart_screen/controllers/taxi_cart_controller.dart';
+import 'package:sixam_mart/features/wallet_kaidha_subscription/controllers/kaidhaSub_controller.dart';
+import 'package:sixam_mart/helper/auth_helper.dart';
+import 'package:sixam_mart/helper/price_converter.dart';
+import 'package:sixam_mart/helper/date_converter.dart';
+import 'package:sixam_mart/helper/responsive_helper.dart';
+import 'package:sixam_mart/helper/route_helper.dart';
+import 'package:sixam_mart/util/dimensions.dart';
+import 'package:sixam_mart/util/images.dart';
+import 'package:sixam_mart/util/styles.dart';
+import 'package:sixam_mart/util/app_constants.dart';
+import 'package:sixam_mart/common/widgets/confirmation_dialog.dart';
+import 'package:sixam_mart/common/widgets/custom_image.dart';
+import 'package:sixam_mart/common/widgets/custom_snackbar.dart';
+import 'package:sixam_mart/common/cache/comprehensive_home_cache_manager.dart';
+import 'package:sixam_mart/features/menu/widgets/portion_widget.dart';
+import 'package:sixam_mart/features/update/controllers/update_controller.dart';
+import 'package:url_launcher/url_launcher.dart';
+
+class MenuScreen extends StatefulWidget {
+  const MenuScreen({super.key});
+
+  @override
+  State<MenuScreen> createState() => _MenuScreenState();
+}
+
+class _MenuScreenState extends State<MenuScreen> {
+  @override
+  void initState() {
+    super.initState();
+    // ⚡ TASK 3: Check if userInfoModel exists - show UI instantly if data is available
+    final profileController = Get.find<ProfileController>();
+    if (AuthHelper.isLoggedIn() && profileController.userInfoModel != null) {
+      // Data already exists - show UI instantly, refresh balance in background
+      if (kDebugMode) {
+        debugPrint('⚡ MenuScreen: userInfoModel exists - showing UI instantly');
+        debugPrint(
+            '   - Name: ${profileController.userInfoModel?.fName} ${profileController.userInfoModel?.lName}');
+      }
+      // Load data in background to refresh balance only
+      loadData(context);
+    } else {
+      // No data - load it first
+      loadData(context);
+    }
+  }
+
+  Future<void> loadData(context) async {
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (kDebugMode) {
+        debugPrint('📋 MenuScreen: loadData() called');
+        debugPrint('   - isLoggedIn: ${AuthHelper.isLoggedIn()}');
+      }
+
+      // ⚡ TASK 2: Wallet Data Hierarchy - ONLY call getUserInfo() first
+      // Then check walletBalance from userInfo before calling wallet API
+      if (AuthHelper.isLoggedIn()) {
+        final profileController = Get.find<ProfileController>();
+
+        // Step 1: Load user info if not already loaded
+        if (profileController.userInfoModel == null) {
+          try {
+            if (kDebugMode) {
+              debugPrint('🔄 MenuScreen: Loading user info...');
+            }
+            await profileController.getUserInfo();
+            if (kDebugMode) {
+              debugPrint('✅ MenuScreen: User info loaded successfully');
+            }
+          } catch (e) {
+            if (kDebugMode) {
+              debugPrint('❌ MenuScreen: Error loading user info: $e');
+            }
+          }
+        }
+
+        // Step 2: Check Qidha wallet data from userInfo
+        // ⚡ TASK 2: Show balance/limit instantly from pre-fetched data, refresh in background
+        final qidhaBalance =
+            profileController.userInfoModel?.qidhaWalletBalance;
+        final hasQidhaWallet =
+            profileController.userInfoModel?.hasQidhaWallet ?? false;
+        final kaidhaController = Get.find<KaidhaSubscription_Controller>();
+
+        if (hasQidhaWallet) {
+          // ⚡ TASK 2: Ensure wallet state is set with default creditLimit (5000.0) if not already set
+          // This prevents showing '0' if we know the user is a Qidha member
+          if (kaidhaController.walletKaidhaModel == null &&
+              qidhaBalance != null) {
+            if (kDebugMode) {
+              debugPrint(
+                  '⚡ MenuScreen: Setting wallet state with default creditLimit (5000.0) for instant display');
+            }
+            kaidhaController.setWalletStateFromLogin(
+              signed:
+                  profileController.userInfoModel?.qidhaWalletSigned == true,
+              active:
+                  profileController.userInfoModel?.qidhaWalletActive == true,
+              balance: qidhaBalance.toString(),
+            );
+          } else if (kaidhaController.walletKaidhaModel?.wallet != null) {
+            // ⚡ TASK 2: Ensure creditLimit is not null/empty - default to 5000.0 if needed
+            final wallet = kaidhaController.walletKaidhaModel!.wallet!;
+            final currentCreditLimit = wallet.creditLimit;
+            final bool needsDefault = currentCreditLimit == null ||
+                (currentCreditLimit is String &&
+                    (currentCreditLimit.isEmpty ||
+                        currentCreditLimit == '0')) ||
+                (currentCreditLimit is num && currentCreditLimit == 0);
+
+            if (needsDefault) {
+              wallet.creditLimit = 5000.0;
+              kaidhaController.update();
+              if (kDebugMode) {
+                debugPrint(
+                    '⚡ MenuScreen: Defaulted creditLimit to 5000.0 (was null/empty) - preventing "0" display');
+              }
+            }
+          }
+
+          // User has Qidha wallet - fire get-wallet API in background to refresh credit limit
+          // Don't await it - show balance/limit instantly, API will update in background
+          // ⚡ TASK 2: NEVER show '0' if we know the user is a Qidha member
+          kaidhaController.get_Wallet_Kaidh().catchError((e) {
+            if (kDebugMode) {
+              debugPrint(
+                  '❌ MenuScreen: Background wallet API call failed (non-critical): $e');
+            }
+          });
+
+          if (kDebugMode) {
+            debugPrint(
+                '⚡ MenuScreen: Fired background wallet API call to refresh credit limit');
+            debugPrint('   - Balance from userInfo: ${qidhaBalance ?? 'N/A'}');
+            debugPrint(
+                '   - Credit limit: ${kaidhaController.walletKaidhaModel?.wallet?.creditLimit ?? '5000.0 (default)'}');
+            debugPrint(
+                '   - UI shows balance/limit instantly, API refreshes in background');
+          }
+        } else {
+          // No Qidha wallet - check regular wallet balance
+          final walletBalance = profileController.userInfoModel?.walletBalance;
+          if (walletBalance == null) {
+            // Regular wallet balance not in userInfo - need to load from wallet API
+            final kaidhaController = Get.find<KaidhaSubscription_Controller>();
+            if (kaidhaController.walletKaidhaModel == null) {
+              try {
+                if (kDebugMode) {
+                  debugPrint(
+                      '🔄 MenuScreen: Wallet balance missing from userInfo - loading from wallet API...');
+                }
+                await kaidhaController.get_Wallet_Kaidh();
+                if (kDebugMode) {
+                  debugPrint('✅ MenuScreen: Wallet data loaded from API');
+                }
+              } catch (e) {
+                if (kDebugMode) {
+                  debugPrint('❌ MenuScreen: Error loading wallet data: $e');
+                }
+              }
+            } else {
+              if (kDebugMode) {
+                debugPrint(
+                    '⏭️ MenuScreen: Wallet already loaded - skipping API call');
+              }
+            }
+          } else {
+            if (kDebugMode) {
+              debugPrint(
+                  '⏭️ MenuScreen: Wallet balance found in userInfo ($walletBalance) - skipping wallet API call');
+            }
+          }
+        }
+      } else {
+        if (kDebugMode) {
+          debugPrint('ℹ️ MenuScreen: User not logged in - skipping data load');
+        }
+      }
+
+      if (AuthHelper.isLoggedIn()) {
+        debugPrint(
+            '🔄 MenuScreen: Loading delegate, deliveryman, and store registration data...');
+        Get.find<Delegate_Controller>().get_Delegate();
+        Get.find<DeliverymanRegistrationController>().getStatus();
+        Get.find<StoreRegistrationController>().getZoneList();
+        debugPrint('✅ MenuScreen: loadData() completed');
+      } else {
+        debugPrint(
+            'ℹ️ MenuScreen: Guest user - skipping delegate/store registration calls');
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Theme.of(context).cardColor,
+      body: GetBuilder<ProfileController>(builder: (profileController) {
+        final bool isLoggedIn = AuthHelper.isLoggedIn();
+
+        if (isLoggedIn && profileController.userInfoModel == null) {
+          return const Center(child: CircularProgressIndicator());
+        }
+
+        final splashController = Get.find<SplashController>();
+        final config = splashController.configModel;
+        final loyaltyPointStatus = config?.loyaltyPointStatus ?? 0;
+        final customerWalletStatus = config?.customerWalletStatus ?? 0;
+        final refEarningStatus = config?.refEarningStatus ?? 0;
+        final refundPolicyStatus = config?.refundPolicyStatus ?? 0;
+        final cancellationPolicyStatus = config?.cancellationPolicyStatus ?? 0;
+        final shippingPolicyStatus = config?.shippingPolicyStatus ?? 0;
+        final toggleDmRegistration = config?.toggleDmRegistration ?? false;
+        final toggleStoreRegistration =
+            config?.toggleStoreRegistration ?? false;
+
+        return GetBuilder<KaidhaSubscription_Controller>(
+            builder: (KaidhaSubController) {
+          // Log menu screen render state
+
+          return ListView(
+            padding: EdgeInsets.only(
+              bottom: MediaQuery.of(context).padding.bottom +
+                  Dimensions.paddingSizeLarge,
+            ),
+            children: [
+              Container(
+                constraints: const BoxConstraints(minHeight: 130),
+                decoration:
+                    BoxDecoration(color: Theme.of(context).primaryColor),
+                child: Padding(
+                  padding: const EdgeInsets.only(
+                    left: Dimensions.paddingSizeExtremeLarge,
+                    right: Dimensions.paddingSizeExtremeLarge,
+                    top: 50,
+                    bottom: Dimensions.paddingSizeDefault,
+                  ),
+                  child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        Container(
+                          decoration: BoxDecoration(
+                            color: Theme.of(context).primaryColor,
+                            shape: BoxShape.circle,
+                          ),
+                          padding: const EdgeInsets.all(1),
+                          child: ClipOval(child: Builder(
+                            builder: (context) {
+                              final String? imageUrl =
+                                  (profileController.userInfoModel != null &&
+                                          isLoggedIn &&
+                                          profileController.userInfoModel!
+                                                  .imageFullUrl !=
+                                              null &&
+                                          profileController.userInfoModel!
+                                              .imageFullUrl!.isNotEmpty)
+                                      ? profileController
+                                          .userInfoModel!.imageFullUrl!
+                                      : null;
+
+                              if (imageUrl == null || imageUrl.isEmpty) {
+                                return Container(
+                                  height: 60,
+                                  width: 60,
+                                  decoration: BoxDecoration(
+                                    color: Theme.of(context)
+                                        .cardColor
+                                        .withValues(alpha: 0.2),
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: Icon(
+                                    Icons.person,
+                                    color: Theme.of(context).cardColor,
+                                    size: 34,
+                                  ),
+                                );
+                              }
+
+                              return CustomImage(
+                                placeholder: Images.guestIconLight,
+                                image: imageUrl,
+                                height: 60,
+                                width: 60,
+                              );
+                            },
+                          )),
+                        ),
+                        const SizedBox(width: Dimensions.paddingSizeDefault),
+                        Expanded(
+                          child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                isLoggedIn &&
+                                        profileController.userInfoModel == null
+                                    ? Shimmer(
+                                        child: Container(
+                                          height: 15,
+                                          width: 150,
+                                          decoration: BoxDecoration(
+                                            color: Theme.of(context).cardColor,
+                                            borderRadius:
+                                                BorderRadius.circular(5),
+                                          ),
+                                        ),
+                                      )
+                                    : Text(
+                                        isLoggedIn
+                                            ? '${profileController.userInfoModel?.fName ?? ''} ${profileController.userInfoModel?.lName ?? ''}'
+                                            : 'guest_user'.tr,
+                                        style: robotoBold.copyWith(
+                                            fontSize:
+                                                Dimensions.fontSizeOverLarge,
+                                            color: Colors.white),
+                                      ),
+                                SizedBox(
+                                    height: isLoggedIn &&
+                                            profileController.userInfoModel ==
+                                                null
+                                        ? Dimensions.paddingSizeSmall
+                                        : Dimensions.paddingSizeExtraSmall),
+                                isLoggedIn &&
+                                        profileController.userInfoModel == null
+                                    ? Shimmer(
+                                        child: Container(
+                                          height: 15,
+                                          width: 100,
+                                          decoration: BoxDecoration(
+                                            color: Theme.of(context).cardColor,
+                                            borderRadius:
+                                                BorderRadius.circular(5),
+                                          ),
+                                        ),
+                                      )
+                                    : isLoggedIn
+                                        ?
+
+                                        // داخل الـ Widget:
+                                        Text(
+                                            DateConverter.formatDate(
+                                                DateTime.now()),
+                                            style: robotoMedium.copyWith(
+                                              fontSize:
+                                                  Dimensions.fontSizeSmall,
+                                              color:
+                                                  Theme.of(context).cardColor,
+                                            ),
+                                          )
+                                        : InkWell(
+                                            onTap: () async {
+                                              if (!ResponsiveHelper.isDesktop(
+                                                  context)) {
+                                                await Get.toNamed(
+                                                    RouteHelper.getSignInRoute(
+                                                        Get.currentRoute));
+                                                if (AuthHelper.isLoggedIn()) {
+                                                  profileController
+                                                      .getUserInfo();
+                                                }
+                                              } else {
+                                                Get.dialog(const Center(
+                                                    child: AuthDialogWidget(
+                                                        exitFromApp: true,
+                                                        backFromThis: true)));
+                                              }
+                                            },
+                                            child: Text(
+                                              'login_to_view_all_feature'.tr,
+                                              style: robotoMedium.copyWith(
+                                                  fontSize:
+                                                      Dimensions.fontSizeSmall,
+                                                  color: Theme.of(context)
+                                                      .cardColor),
+                                            ),
+                                          ),
+                              ]),
+                        ),
+
+                        // qr  =========================
+                        (() {
+                          final walletModel =
+                              KaidhaSubController.walletKaidhaModel;
+                          final wallet = walletModel?.wallet;
+                          if (walletModel == null) return const SizedBox();
+                          if (wallet != null) return const SizedBox();
+                          return InkWell(
+                            child: Container(
+                              decoration: BoxDecoration(
+                                  color: Theme.of(context).primaryColor,
+                                  shape: BoxShape.circle),
+                              padding: const EdgeInsets.all(1),
+                              child: Image.asset(Images.qr,
+                                  height: 50, width: 100),
+                            ),
+                            onTap: () {
+                              Get.toNamed(RouteHelper.getQr_screen());
+                            },
+                          );
+                        })(),
+                      ]),
+                ),
+              ),
+              GetBuilder<KaidhaSubscription_Controller>(
+                  builder: (KaidhaSubController) {
+                return GetBuilder<Delegate_Controller>(
+                    builder: (delegate_Controller) {
+                  return GetBuilder<DeliverymanRegistrationController>(
+                      builder: (DeliverymanReg_Controller) {
+                    return Ink(
+                      color:
+                          Theme.of(context).primaryColor.withValues(alpha: 0.1),
+                      padding: const EdgeInsets.only(
+                          top: Dimensions.paddingSizeLarge),
+                      child: Column(children: [
+                        Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Padding(
+                                padding: const EdgeInsets.only(
+                                    left: Dimensions.paddingSizeDefault,
+                                    right: Dimensions.paddingSizeDefault),
+                                child: Text(
+                                  'general'.tr,
+                                  style: robotoMedium.copyWith(
+                                      fontSize: Dimensions.fontSizeDefault,
+                                      color: Theme.of(context)
+                                          .primaryColor
+                                          .withValues(alpha: 0.5)),
+                                ),
+                              ),
+                              Container(
+                                decoration: BoxDecoration(
+                                  color: Theme.of(context).cardColor,
+                                  borderRadius: BorderRadius.circular(
+                                      Dimensions.radiusDefault),
+                                  boxShadow: const [
+                                    BoxShadow(
+                                        color: Colors.black12,
+                                        blurRadius: 5,
+                                        spreadRadius: 1)
+                                  ],
+                                ),
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: Dimensions.paddingSizeLarge,
+                                    vertical: Dimensions.paddingSizeDefault),
+                                margin: const EdgeInsets.all(
+                                    Dimensions.paddingSizeDefault),
+                                child: Column(children: [
+                                  PortionWidget(
+                                      icon: Images.profileIcon,
+                                      title: 'profile'.tr,
+                                      route: RouteHelper.getProfileRoute()),
+                                  PortionWidget(
+                                      icon: Images.addressIcon,
+                                      title: 'my_address'.tr,
+                                      route: RouteHelper.getAddressRoute()),
+                                  PortionWidget(
+                                      icon: Images.languageIcon,
+                                      title: 'language'.tr,
+                                      hideDivider: true,
+                                      onTap: () =>
+                                          _manageLanguageFunctionality(),
+                                      route: ''),
+                                ]),
+                              )
+                            ]),
+                        Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              //
+
+                              Padding(
+                                padding: const EdgeInsets.only(
+                                    left: Dimensions.paddingSizeDefault,
+                                    right: Dimensions.paddingSizeDefault),
+                                child: Text(
+                                  'promotional_activity'.tr,
+                                  style: robotoMedium.copyWith(
+                                      fontSize: Dimensions.fontSizeDefault,
+                                      color: Theme.of(context)
+                                          .primaryColor
+                                          .withValues(alpha: 0.5)),
+                                ),
+                              ),
+                              Container(
+                                decoration: BoxDecoration(
+                                  color: Theme.of(context).cardColor,
+                                  borderRadius: BorderRadius.circular(
+                                      Dimensions.radiusDefault),
+                                  boxShadow: const [
+                                    BoxShadow(
+                                        color: Colors.black12,
+                                        blurRadius: 5,
+                                        spreadRadius: 1)
+                                  ],
+                                ),
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: Dimensions.paddingSizeLarge,
+                                    vertical: Dimensions.paddingSizeDefault),
+                                margin: const EdgeInsets.all(
+                                    Dimensions.paddingSizeDefault),
+                                child: Column(children: [
+                                  //
+
+                                  // coupon  --------------------------------------------------------------------------------
+
+                                  PortionWidget(
+                                    icon: Images.couponIcon,
+                                    title: 'coupon'.tr,
+                                    route: RouteHelper.getCouponRoute(),
+                                    hideDivider: loyaltyPointStatus == 1 ||
+                                            customerWalletStatus == 1
+                                        ? false
+                                        : true,
+                                  ),
+                                  // (Get.find<SplashController>().configModel!.refEarningStatus == 1)
+                                  (1 == 1)
+                                      ? PortionWidget(
+                                          icon: Images.statistics,
+                                          title: 'statistics'.tr,
+                                          route: RouteHelper.getStatistics(),
+                                          onTap: () {
+                                            if (Get.find<AuthController>()
+                                                .isGuestLoggedIn()) {
+                                              showCustomSnackBar(
+                                                  'هذه الميزة متاحة للأعضاء المسجلين فقط');
+                                            } else {
+                                              Get.toNamed(
+                                                  RouteHelper.getStatistics());
+                                            }
+                                          },
+                                          hideDivider: (toggleDmRegistration &&
+                                                      !ResponsiveHelper
+                                                          .isDesktop(
+                                                              context)) ||
+                                                  (toggleStoreRegistration &&
+                                                      !ResponsiveHelper
+                                                          .isDesktop(context))
+                                              ? false
+                                              : true,
+                                        )
+                                      : const SizedBox(),
+                                  // (Get.find<SplashController>().configModel!.refEarningStatus == 1)
+                                  (1 == 1)
+                                      ? PortionWidget(
+                                          icon: Images.discount,
+                                          title: 'discount'.tr,
+                                          route: RouteHelper.getDiscount(),
+                                          hideDivider: (toggleDmRegistration &&
+                                                      !ResponsiveHelper
+                                                          .isDesktop(
+                                                              context)) ||
+                                                  (toggleStoreRegistration &&
+                                                      !ResponsiveHelper
+                                                          .isDesktop(context))
+                                              ? false
+                                              : true,
+                                        )
+                                      : const SizedBox(),
+
+                                  PortionWidget(
+                                    icon: Images.walletCreditIcon,
+                                    title: 'invest_her_bond'.tr,
+                                    route: '',
+                                    onTap: () {
+                                      _launchURL();
+                                    },
+                                    hideDivider: (toggleDmRegistration &&
+                                                !ResponsiveHelper.isDesktop(
+                                                    context)) ||
+                                            (toggleStoreRegistration &&
+                                                !ResponsiveHelper.isDesktop(
+                                                    context))
+                                        ? false
+                                        : true,
+                                  ),
+                                  if (!isLoggedIn)
+                                    PortionWidget(
+                                      icon: Images.walletCreditIcon,
+                                      title: 'KiadaWallet_Subscription'.tr,
+                                      route: '',
+                                      onTap: () => _launchExternalUrl(
+                                          AppConstants.qaydhaWebsiteUrl),
+                                      hideDivider: (toggleDmRegistration &&
+                                                  !ResponsiveHelper.isDesktop(
+                                                      context)) ||
+                                              (toggleStoreRegistration &&
+                                                  !ResponsiveHelper.isDesktop(
+                                                      context))
+                                          ? false
+                                          : true,
+                                    ),
+
+                                  // (Get.find<SplashController>().configModel!.refEarningStatus == 1)
+                                  // Debug: Print wallet status for troubleshooting
+                                  Builder(
+                                    builder: (context) {
+                                      try {
+                                        // Show KiadaWallet_Subscription if no wallet exists, or wallet exists but not signed/active
+                                        // ⚡ FIX: Check signatureStatus as int (1) or bool (true) for compatibility
+                                        final walletModel = KaidhaSubController
+                                            .walletKaidhaModel;
+                                        final wallet = walletModel?.wallet;
+                                        final signatureStatus =
+                                            wallet?.signatureStatus;
+                                        final isSigned = signatureStatus == 1 ||
+                                            signatureStatus == true;
+                                        final walletStatus =
+                                            wallet?.status?.toString().toLowerCase();
+                                        if (!AuthHelper.isGuestLoggedIn() &&
+                                            (walletModel == null ||
+                                                wallet == null ||
+                                                !isSigned ||
+                                                walletStatus != 'active')) {
+                                          return PortionWidget(
+                                            icon:
+                                                Images.KiadaWalletSubscription,
+                                            title:
+                                                'KiadaWallet_Subscription'.tr,
+                                            route: RouteHelper
+                                                .getKiadaWalletSubscription(),
+                                            hideDivider: (toggleDmRegistration &&
+                                                        !ResponsiveHelper
+                                                            .isDesktop(
+                                                                context)) ||
+                                                    (toggleStoreRegistration &&
+                                                        !ResponsiveHelper
+                                                            .isDesktop(context))
+                                                ? false
+                                                : true,
+                                          );
+                                        }
+
+                                        // Show Qidha Wallet only if wallet exists, is signed (signature_status = 1 or true) and active
+                                        // ⚡ FIX: Check signatureStatus as int (1) or bool (true) for compatibility
+                                        final walletSignatureStatus =
+                                            wallet?.signatureStatus;
+                                        final walletIsSigned =
+                                            walletSignatureStatus == 1 ||
+                                                walletSignatureStatus == true;
+                                        if (isLoggedIn &&
+                                            !AuthHelper.isGuestLoggedIn() &&
+                                            wallet != null &&
+                                            walletIsSigned &&
+                                            walletStatus == 'active') {
+                                          return PortionWidget(
+                                            icon: Images.walletIcon,
+                                            title: 'kiadha_wallet'.tr,
+                                            route:
+                                                RouteHelper.getKaidhaWallet(),
+                                            hideDivider: (toggleDmRegistration &&
+                                                        !ResponsiveHelper
+                                                            .isDesktop(
+                                                                context)) ||
+                                                    (toggleStoreRegistration &&
+                                                        !ResponsiveHelper
+                                                            .isDesktop(context))
+                                                ? false
+                                                : true,
+                                            suffix: PriceConverter.convertPrice(
+                                              () {
+                                                final balance =
+                                                    wallet.availableBalance;
+                                                if (balance == null) return 0.0;
+                                                if (balance is double)
+                                                  return balance;
+                                                if (balance is int)
+                                                  return balance.toDouble();
+                                                if (balance is String) {
+                                                  return double.tryParse(
+                                                          balance) ??
+                                                      0.0;
+                                                }
+                                                return 0.0;
+                                              }(),
+                                            ),
+                                          );
+                                        }
+
+                                        return const SizedBox();
+                                      } catch (e) {
+                                        // Fallback: show subscription option if there's an error
+                                        return PortionWidget(
+                                          icon: Images.KiadaWalletSubscription,
+                                          title: 'KiadaWallet_Subscription'.tr,
+                                          route: RouteHelper
+                                              .getKiadaWalletSubscription(),
+                                          hideDivider: (toggleDmRegistration &&
+                                                      !ResponsiveHelper
+                                                          .isDesktop(
+                                                              context)) ||
+                                                  (toggleStoreRegistration &&
+                                                      !ResponsiveHelper
+                                                          .isDesktop(context))
+                                              ? false
+                                              : true,
+                                        );
+                                      }
+                                    },
+                                  ),
+
+                                  (loyaltyPointStatus == 1)
+                                      ? PortionWidget(
+                                          icon: Images.pointIcon,
+                                          title: 'loyalty_points'.tr,
+                                          route: RouteHelper.getLoyaltyRoute(),
+                                          hideDivider: customerWalletStatus == 1
+                                              ? false
+                                              : true,
+                                          suffix: !isLoggedIn
+                                              ? null
+                                              : '${profileController.userInfoModel?.loyaltyPoint != null ? profileController.userInfoModel!.loyaltyPoint.toString() : '0'} ${'points'.tr}',
+                                        )
+                                      : const SizedBox(),
+
+                                  (customerWalletStatus == 1 &&
+                                          !AuthHelper.isGuestLoggedIn())
+                                      ? PortionWidget(
+                                          icon: Images.walletIcon,
+                                          title: 'my_wallet'.tr,
+                                          route: RouteHelper.getold_wallet(),
+                                          suffix: !isLoggedIn
+                                              ? null
+                                              : PriceConverter.convertPrice(
+                                                  profileController
+                                                              .userInfoModel !=
+                                                          null
+                                                      ? profileController
+                                                          .userInfoModel!
+                                                          .walletBalance
+                                                      : 0),
+                                        )
+                                      : const SizedBox(),
+
+                                  // Send Funds button - only for logged in users
+                                  (isLoggedIn && !AuthHelper.isGuestLoggedIn())
+                                      ? PortionWidget(
+                                          icon: Images.sendMoneyIcon,
+                                          title: 'send_funds'.tr,
+                                          hideDivider: true,
+                                          route:
+                                              RouteHelper.getSendFundsRoute(),
+                                        )
+                                      : const SizedBox(),
+                                ]),
+                              )
+                            ]),
+                        (refEarningStatus == 1) ||
+                                (toggleDmRegistration &&
+                                    !ResponsiveHelper.isDesktop(context)) ||
+                                (toggleStoreRegistration &&
+                                    !ResponsiveHelper.isDesktop(context))
+                            ? Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                    Padding(
+                                      padding: const EdgeInsets.only(
+                                          left: Dimensions.paddingSizeDefault,
+                                          right: Dimensions.paddingSizeDefault),
+                                      child: Text(
+                                        'earnings'.tr,
+                                        style: robotoMedium.copyWith(
+                                            fontSize:
+                                                Dimensions.fontSizeDefault,
+                                            color: Theme.of(context)
+                                                .primaryColor
+                                                .withValues(alpha: 0.5)),
+                                      ),
+                                    ),
+                                    Container(
+                                      decoration: BoxDecoration(
+                                        color: Theme.of(context).cardColor,
+                                        borderRadius: BorderRadius.circular(
+                                            Dimensions.radiusDefault),
+                                        boxShadow: const [
+                                          BoxShadow(
+                                              color: Colors.black12,
+                                              blurRadius: 5,
+                                              spreadRadius: 1)
+                                        ],
+                                      ),
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal:
+                                              Dimensions.paddingSizeLarge,
+                                          vertical:
+                                              Dimensions.paddingSizeDefault),
+                                      margin: const EdgeInsets.all(
+                                          Dimensions.paddingSizeDefault),
+                                      child: Column(children: [
+                                        // مشاركه الاصدقاء
+
+                                        // (Get.find<SplashController>().configModel!.refEarningStatus == 1)
+                                        //     ?
+                                        PortionWidget(
+                                          icon: Images.referIcon,
+                                          title: 'refer_and_earn'.tr,
+                                          route: RouteHelper
+                                              .getReferAndEarnRoute(),
+                                          hideDivider: (toggleDmRegistration &&
+                                                      !ResponsiveHelper
+                                                          .isDesktop(
+                                                              context)) ||
+                                                  (toggleStoreRegistration &&
+                                                      !ResponsiveHelper
+                                                          .isDesktop(context))
+                                              ? false
+                                              : true,
+                                        ),
+                                        // : const SizedBox(),
+
+                                        // رجل توصيل
+
+                                        PortionWidget(
+                                          icon: Images.dmIcon,
+                                          title: 'join_as_a_delivery_man'.tr,
+                                          route: getStatusRoute(
+                                              isLoggedIn,
+                                              DeliverymanReg_Controller
+                                                  .status_model),
+                                          suffix: getStatusSuffix(
+                                              isLoggedIn,
+                                              DeliverymanReg_Controller
+                                                  .status_model),
+                                        ),
+
+                                        // مندوب  delegate -----------------------------------------------------------------------
+
+                                        PortionWidget(
+                                          icon: Images.dmIcon,
+                                          title: 'delegate'.tr,
+                                          route: _getDelegateRoute(
+                                              isLoggedIn, delegate_Controller),
+                                          suffix: _getDelegateSuffix(
+                                              isLoggedIn, delegate_Controller),
+                                        ),
+
+                                        // ================================
+                                        //
+
+                                        // PortionWidget(
+                                        //   icon: Images.shippingPolicy,
+                                        //   title: 'QQQQQ QQQQ',
+                                        //   route: "",
+                                        //   hideDivider: true,
+                                        //   onTap: () {
+                                        //     //
+                                        //   },
+                                        // ),
+
+                                        //
+
+                                        (toggleStoreRegistration &&
+                                                !ResponsiveHelper.isDesktop(
+                                                    context))
+                                            ? PortionWidget(
+                                                icon: Images.storeIcon,
+                                                title: 'open_vendor'.tr,
+                                                hideDivider: true,
+                                                route: RouteHelper
+                                                    .getRestaurantRegistrationRoute(),
+                                              )
+                                            : const SizedBox(),
+                                      ]),
+                                    )
+                                  ])
+                            : const SizedBox(),
+                        Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Padding(
+                                padding: const EdgeInsets.only(
+                                    left: Dimensions.paddingSizeDefault,
+                                    right: Dimensions.paddingSizeDefault),
+                                child: Text(
+                                  'help_and_support'.tr,
+                                  style: robotoMedium.copyWith(
+                                      fontSize: Dimensions.fontSizeDefault,
+                                      color: Theme.of(context)
+                                          .primaryColor
+                                          .withValues(alpha: 0.5)),
+                                ),
+                              ),
+                              Container(
+                                decoration: BoxDecoration(
+                                  color: Theme.of(context).cardColor,
+                                  borderRadius: BorderRadius.circular(
+                                      Dimensions.radiusDefault),
+                                  boxShadow: const [
+                                    BoxShadow(
+                                        color: Colors.black12,
+                                        blurRadius: 5,
+                                        spreadRadius: 1)
+                                  ],
+                                ),
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: Dimensions.paddingSizeLarge,
+                                    vertical: Dimensions.paddingSizeDefault),
+                                margin: const EdgeInsets.all(
+                                    Dimensions.paddingSizeDefault),
+                                child: Column(children: [
+                                  PortionWidget(
+                                      icon: Images.chatIcon,
+                                      title: 'live_chat'.tr,
+                                      route:
+                                          RouteHelper.getConversationRoute()),
+                                  PortionWidget(
+                                      icon: Images.helpIcon,
+                                      title: 'help_and_support'.tr,
+                                      route: RouteHelper.getSupportRoute()),
+                                  PortionWidget(
+                                      icon: Images.helpIcon,
+                                      title: 'check_for_updates'.tr,
+                                      onTap: () => Get.find<UpdateController>()
+                                          .manualCheckForUpdates(),
+                                      route: ''),
+                                  PortionWidget(
+                                      icon: Images.aboutIcon,
+                                      title: 'about_us'.tr,
+                                      route:
+                                          RouteHelper.getHtmlRoute('about-us')),
+                                  PortionWidget(
+                                      icon: Images.termsIcon,
+                                      title: 'terms_conditions'.tr,
+                                      route: RouteHelper.getHtmlRoute(
+                                          'terms-and-condition')),
+                                  PortionWidget(
+                                      icon: Images.privacyIcon,
+                                      title: 'privacy_policy'.tr,
+                                      route: RouteHelper.getHtmlRoute(
+                                          'privacy-policy')),
+                                  (refundPolicyStatus == 1)
+                                      ? PortionWidget(
+                                          icon: Images.refundIcon,
+                                          title: 'refund_policy'.tr,
+                                          route: RouteHelper.getHtmlRoute(
+                                              'refund-policy'),
+                                        )
+                                      : const SizedBox(),
+
+                                  (cancellationPolicyStatus == 1)
+                                      ? PortionWidget(
+                                          icon: Images.cancelationIcon,
+                                          title: 'cancellation_policy'.tr,
+                                          route: RouteHelper.getHtmlRoute(
+                                              'cancellation-policy'),
+                                          hideDivider:
+                                              (shippingPolicyStatus == 1)
+                                                  ? false
+                                                  : true,
+                                        )
+                                      : const SizedBox(),
+
+                                  (shippingPolicyStatus == 1)
+                                      ? PortionWidget(
+                                          icon: Images.shippingIcon,
+                                          title: 'shipping_policy'.tr,
+                                          route: RouteHelper.getHtmlRoute(
+                                              'shipping-policy'),
+                                        )
+                                      : const SizedBox(),
+
+                                  //
+                                ]),
+                              )
+                            ]),
+                        InkWell(
+                          onTap: () async {
+                            if (AuthHelper.isLoggedIn()) {
+                              Get.dialog(
+                                  ConfirmationDialog(
+                                      icon: Images.support,
+                                      description: 'are_you_sure_to_logout'.tr,
+                                      isLogOut: true,
+                                      onYesPressed: () async {
+                                        // E-commerce data is completely independent of user authentication
+                                        // No need to invalidate anything - cache persists across login/logout
+
+                                        Get.find<ProfileController>()
+                                            .clearUserInfo();
+
+                                        await Get.find<AuthController>()
+                                            .socialLogout();
+
+                                        await Get.find<CartController>()
+                                            .clearCartList(
+                                                canRemoveOnline: false);
+
+                                        Get.find<FavouriteController>()
+                                            .removeFavourite();
+
+                                        await Get.find<AuthController>()
+                                            .clearSharedData();
+
+                                        Get.find<HomeController>()
+                                            .forcefullyNullCashBackOffers();
+
+                                        await Get.find<TaxiCartController>()
+                                            .getCarCartList();
+
+                                        // E-commerce cache remains valid after logout
+                                        // Ensure data is loaded before navigation
+                                        await _ensureDataLoadedBeforeNavigation();
+
+                                        await Get.offAllNamed(
+                                            RouteHelper.getInitialRoute());
+                                      }),
+                                  useSafeArea: false);
+                            } else {
+                              Get.find<FavouriteController>().removeFavourite();
+
+                              await Get.toNamed(
+                                  RouteHelper.getSignInRoute(Get.currentRoute));
+
+                              if (AuthHelper.isLoggedIn()) {
+                                await Get.find<FavouriteController>()
+                                    .getFavouriteList();
+                                profileController.getUserInfo();
+                              }
+                            }
+                          },
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(
+                                vertical: Dimensions.paddingSizeSmall),
+                            child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.all(2),
+                                    decoration: const BoxDecoration(
+                                        shape: BoxShape.circle,
+                                        color: Colors.red),
+                                    child: Icon(Icons.power_settings_new_sharp,
+                                        size: 18,
+                                        color: Theme.of(context).cardColor),
+                                  ),
+                                  const SizedBox(
+                                      width: Dimensions.paddingSizeExtraSmall),
+                                  Text(
+                                      AuthHelper.isLoggedIn()
+                                          ? 'logout'.tr
+                                          : 'sign_in'.tr,
+                                      style: robotoMedium.copyWith(
+                                          fontSize: Dimensions.fontSizeLarge))
+                                ]),
+                          ),
+                        ),
+                        const SizedBox(height: Dimensions.paddingSizeLarge),
+                      ]),
+                    );
+                  });
+                });
+              }),
+            ],
+          );
+        });
+      }),
+    );
+  }
+
+  String getStatusRoute(bool isLoggedIn, StatusModel? model) {
+    if (!isLoggedIn || model == null) {
+      return RouteHelper.getDeliverymanRegistrationRoute();
+    }
+
+    switch (model.status) {
+      case 'pending':
+        return ''; // لا يمكن الانتقال لأي صفحة تعديل
+      case 'active':
+        return RouteHelper.getDeliverymanRegistrationRoute();
+      case 'rejected':
+        return '';
+      default:
+        return '';
+    }
+  }
+
+  String getStatusSuffix(bool isLoggedIn, StatusModel? model) {
+    if (!isLoggedIn) return '';
+
+    if (model == null) return 'تسجيل جديد';
+
+    switch (model.status) {
+      case 'pending':
+        return 'قيد المراجعة';
+      case 'active':
+        return 'نشط';
+      case 'rejected':
+        return 'مرفوض';
+      default:
+        return 'قيد المراجعة';
+    }
+  }
+
+  // Delegate  ==============================================================================================
+
+  String _getDelegateRoute(bool isLoggedIn, Delegate_Controller controller) {
+    if (!isLoggedIn || controller.isLoading) return '';
+
+    final model = controller.delegate_model;
+    if (model == null) return RouteHelper.getAdd_DelegateScreen();
+
+    switch (model.delegateStatus) {
+      case 'pending':
+      case 'active':
+      case 'rejected':
+        return ''; // لا يمكن تعديل الطلب في هذه الحالات
+      default:
+        return '';
+    }
+  }
+
+  String _getDelegateSuffix(bool isLoggedIn, Delegate_Controller controller) {
+    if (!isLoggedIn) return '';
+    if (controller.isLoading) return 'الحالة';
+
+    final model = controller.delegate_model;
+    if (model == null) return 'قدم طلب';
+
+    switch (model.delegateStatus) {
+      case 'pending':
+        return 'قيد المراجعة';
+      case 'active':
+        return 'متاح';
+      case 'rejected':
+        return 'مرفوض';
+      default:
+        return 'الحالة';
+    }
+  }
+
+  Future<void> _launchURL() async {
+    final Uri _url = Uri.parse(AppConstants.investorJoinUrl);
+
+    if (!await launchUrl(_url, mode: LaunchMode.externalApplication)) {
+      throw 'Could not launch $_url';
+    }
+  }
+
+  Future<void> _launchExternalUrl(String url) async {
+    final Uri uri = Uri.parse(url);
+    if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
+      throw 'Could not launch $uri';
+    }
+  }
+
+  Future<void> _manageLanguageFunctionality() async {
+    Get.find<LocalizationController>().saveCacheLanguage(null);
+    Get.find<LocalizationController>().searchSelectedLanguage();
+
+    final BuildContext buildContext = context;
+    await showModalBottomSheet(
+      isScrollControlled: true,
+      useRootNavigator: true,
+      context: Get.context!,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.only(
+            topLeft: Radius.circular(Dimensions.radiusExtraLarge),
+            topRight: Radius.circular(Dimensions.radiusExtraLarge)),
+      ),
+      builder: (context) {
+        return ConstrainedBox(
+          constraints: BoxConstraints(
+              maxHeight: MediaQuery.of(context).size.height * 0.8),
+          child: const LanguageBottomSheetWidget(),
+        );
+      },
+    );
+    if (!buildContext.mounted) {
+      return;
+    }
+    Get.find<LocalizationController>().setLanguage(
+      buildContext,
+      Get.find<LocalizationController>().getCacheLocaleFromSharedPref(),
+    );
+  }
+
+  /// Ensure data is loaded before navigation after logout
+  Future<void> _ensureDataLoadedBeforeNavigation() async {
+    try {
+      debugPrint('🔄 MenuScreen: Ensuring data is loaded before navigation...');
+
+      // Check if cache is valid and restore data
+      if (await ComprehensiveHomeCacheManager.isCacheValid()) {
+        debugPrint('📦 MenuScreen: Cache is valid, restoring data...');
+
+        // Load cached data
+        final cachedData =
+            await ComprehensiveHomeCacheManager.loadAllHomeData();
+
+        if (cachedData.isNotEmpty) {
+          // Restore data to controllers
+          await ComprehensiveHomeCacheManager.restoreDataToControllers(
+              cachedData);
+          debugPrint('✅ MenuScreen: Data restored successfully');
+        }
+      } else {
+        debugPrint(
+            '⚠️ MenuScreen: Cache not valid, will load from API after navigation');
+      }
+    } catch (e) {
+      debugPrint('❌ MenuScreen: Error ensuring data loaded - $e');
+    }
+  }
+}

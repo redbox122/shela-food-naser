@@ -1,0 +1,22 @@
+// ignore_for_file: file_names, non_constant_identifier_names
+
+import 'package:sixam_mart/features/offers/domain/models/offers_model.dart';
+
+import '../../../item/domain/models/item_model.dart';
+
+abstract class OffersRepositoryInterface {
+  //
+
+  Future<OffersModel> getOffers();
+  Future<ItemModel?> getOffersItem({int? offset, int? limit, String? id});
+  Future<ItemModel?> getOffersSearchItemList(String searchText, String? offerId,
+      int offset, String type, int categoryId);
+  Future<ItemModel?> getOffersItemWithFilters({
+    String? id,
+    int? offset,
+    int? limit,
+    String? categoryId,
+    String? sortBy,
+    String? sortOrder,
+  });
+}

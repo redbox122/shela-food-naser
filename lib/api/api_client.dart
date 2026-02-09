@@ -1,0 +1,1710 @@
+import 'dart:convert';
+import 'package:flutter/foundation.dart';
+import 'package:get/get_connect/http/src/request/request.dart';
+import 'package:sixam_mart/api/api_checker.dart';
+import 'package:sixam_mart/features/address/domain/models/address_model.dart';
+import 'package:sixam_mart/helper/address_helper.dart';
+import 'package:sixam_mart/helper/auth_helper.dart';
+import 'package:sixam_mart/helper/module_helper.dart';
+import 'package:sixam_mart/common/models/error_response.dart';
+import 'package:sixam_mart/common/models/module_model.dart';
+import 'package:sixam_mart/util/app_constants.dart';
+import 'package:sixam_mart/util/backend_message_translator.dart';
+import 'package:get/get.dart';
+import 'package:intl/intl.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:http/http.dart' as http;
+import 'package:sixam_mart/common/security/secure_token_storage.dart';
+import 'package:sixam_mart/common/security/certificate_pinning_service.dart';
+import 'package:sixam_mart/common/security/secure_http_client.dart';
+import 'package:dio/dio.dart' hide Response, FormData, MultipartFile;
+import 'package:sixam_mart/util/environment_config.dart';
+import 'package:sixam_mart/common/utils/app_logger.dart';
+import 'package:sixam_mart/core/cache/hive_home_cache_service.dart';
+import 'package:sixam_mart/features/splash/controllers/splash_controller.dart';
+import 'package:sixam_mart/helper/date_converter.dart';
+
+class ApiClient extends GetxService {
+  final String appBaseUrl;
+  final SharedPreferences sharedPreferences;
+  static final String noInternetMessage = 'connection_to_api_server_failed'.tr;
+  final int timeoutInSeconds =
+      30; // 🔧 FIX: Consistent 30-second timeout (matches secure_http_client.dart)
+
+  String? token;
+  late Map<String, String> _mainHeaders;
+
+  // Secure HTTP client
+  late final SecureHttpClient _secureHttpClient;
+  bool _useSecureClient = false;
+
+  // ETag storage for conditional requests
+  static const String _etagPrefix = 'etag_';
+
+  ApiClient({required this.appBaseUrl, required this.sharedPreferences}) {
+    _initializeSecureServices();
+    token = sharedPreferences.getString(AppConstants.token);
+    AddressModel? addressModel;
+    try {
+      addressModel = AddressModel.fromJson(
+          jsonDecode(sharedPreferences.getString(AppConstants.userAddress)!)
+              as Map<String, dynamic>);
+    } catch (_) {}
+    int? moduleID;
+    if (GetPlatform.isWeb &&
+        sharedPreferences.containsKey(AppConstants.moduleId)) {
+      try {
+        moduleID = ModuleModel.fromJson(
+                jsonDecode(sharedPreferences.getString(AppConstants.moduleId)!)
+                    as Map<String, dynamic>)
+            .id;
+      } catch (_) {}
+    }
+    updateHeader(
+        token,
+        addressModel?.zoneIds,
+        addressModel?.areaIds,
+        sharedPreferences.getString(AppConstants.languageCode),
+        moduleID,
+        addressModel?.latitude,
+        addressModel
+            ?.longitude); // responseMode - will be set per-request in Phase 2
+  }
+
+  /// Initialize token from secure storage - ALWAYS check secure storage first
+  /// Secure token takes priority over legacy SharedPreferences token
+  /// This ensures hot restart uses the most up-to-date token
+  Future<void> initializeTokenFromSecureStorage() async {
+    try {
+      // 🔧 FIX: ALWAYS check secure storage first (even if legacy token exists)
+      // Secure token is the source of truth and may be more up-to-date after hot restart
+      final secureToken = await SecureTokenStorage.getToken();
+      if (secureToken != null && secureToken.isNotEmpty) {
+        token = secureToken;
+
+        if (kDebugMode) {
+          debugPrint(
+              '✅ ApiClient: Token loaded from secure storage (priority over legacy)');
+        }
+
+        // Update headers with the secure token
+        AddressModel? addressModel;
+        try {
+          addressModel = AddressModel.fromJson(
+              jsonDecode(sharedPreferences.getString(AppConstants.userAddress)!)
+                  as Map<String, dynamic>);
+        } catch (_) {}
+        int? moduleID;
+        if (GetPlatform.isWeb &&
+            sharedPreferences.containsKey(AppConstants.moduleId)) {
+          try {
+            moduleID = ModuleModel.fromJson(jsonDecode(
+                        sharedPreferences.getString(AppConstants.moduleId)!)
+                    as Map<String, dynamic>)
+                .id;
+          } catch (_) {}
+        }
+        updateHeader(
+            token,
+            addressModel?.zoneIds,
+            addressModel?.areaIds,
+            sharedPreferences.getString(AppConstants.languageCode),
+            moduleID,
+            addressModel?.latitude,
+            addressModel
+                ?.longitude); // responseMode - will be set per-request in Phase 2
+        return;
+      }
+
+      // Fallback to legacy token only if secure storage has no token
+      final legacyToken = sharedPreferences.getString(AppConstants.token);
+      if (legacyToken != null &&
+          legacyToken.isNotEmpty &&
+          (token == null || token!.isEmpty)) {
+        token = legacyToken;
+        if (kDebugMode) {
+          debugPrint('⚠️ ApiClient: Using legacy token (secure storage empty)');
+        }
+        // Update headers with legacy token
+        AddressModel? addressModel;
+        try {
+          addressModel = AddressModel.fromJson(
+              jsonDecode(sharedPreferences.getString(AppConstants.userAddress)!)
+                  as Map<String, dynamic>);
+        } catch (_) {}
+        int? moduleID;
+        if (GetPlatform.isWeb &&
+            sharedPreferences.containsKey(AppConstants.moduleId)) {
+          try {
+            moduleID = ModuleModel.fromJson(jsonDecode(
+                        sharedPreferences.getString(AppConstants.moduleId)!)
+                    as Map<String, dynamic>)
+                .id;
+          } catch (_) {}
+        }
+        updateHeader(
+            token,
+            addressModel?.zoneIds,
+            addressModel?.areaIds,
+            sharedPreferences.getString(AppConstants.languageCode),
+            moduleID,
+            addressModel?.latitude,
+            addressModel?.longitude);
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('❌ Error loading token from secure storage: $e');
+      }
+    }
+  }
+
+  /// Ensure headers are properly initialized for smooth operation
+  void ensureHeadersAreValid() {
+    // Get current address and zone information
+    final AddressModel? addressModel =
+        AddressHelper.getUserAddressFromSharedPref();
+
+    // Update headers with current information
+    updateHeader(
+      token,
+      addressModel?.zoneIds,
+      addressModel?.areaIds,
+      sharedPreferences.getString(AppConstants.languageCode),
+      ModuleHelper.getModule()?.id,
+      addressModel?.latitude,
+      addressModel
+          ?.longitude, // responseMode - will be set per-request in Phase 2
+    );
+  }
+
+  /// Initialize secure services
+  Future<void> _initializeSecureServices() async {
+    // Only initialize secure services for production environment
+    if (!EnvironmentConfig.useSecureHttpClient) {
+      return;
+    }
+
+    try {
+      // Initialize secure token storage
+      await SecureTokenStorage.initialize();
+
+      // Initialize certificate pinning service
+      await CertificatePinningService.initialize();
+
+      // Initialize secure HTTP client
+      _secureHttpClient = SecureHttpClient(
+        baseUrl: appBaseUrl,
+        defaultHeaders: {
+          'Content-Type': 'application/json; charset=UTF-8',
+        },
+      );
+      _useSecureClient = true;
+    } catch (e) {
+      _useSecureClient = false;
+      if (kDebugMode) {
+        debugPrint('❌ Failed to initialize secure services: $e');
+      }
+    }
+  }
+
+  /// Check if secure token is valid, fallback to legacy token if needed
+  Future<bool> _isSecureTokenValid() async {
+    // For local development, always use standard HTTP client
+    if (!EnvironmentConfig.useSecureHttpClient) {
+      return false;
+    }
+
+    try {
+      if (!_useSecureClient) return false;
+
+      // Check if secure token storage has a valid token
+      final hasValidToken = await SecureTokenStorage.hasValidToken();
+      if (hasValidToken) {
+        return true;
+      }
+
+      // If no secure token, check if legacy token exists and is still valid
+      if (token != null && token!.isNotEmpty) {
+        return true; // Allow legacy token to be used
+      }
+
+      return false;
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('❌ Token validation failed: $e');
+      }
+      return false;
+    }
+  }
+
+  Map<String, String> updateHeader(
+      String? token,
+      List<int>? zoneIDs,
+      List<int>? operationIds,
+      String? languageCode,
+      int? moduleID,
+      String? latitude,
+      String? longitude,
+      {bool setHeader = true,
+      String? responseMode}) {
+    final Map<String, String> header = {};
+
+    // Ensure we have valid zone IDs - no defaults (backend is source of truth)
+    List<int> validZoneIDs = zoneIDs ?? <int>[];
+    if (validZoneIDs.isEmpty) {
+      final AddressModel? addressModel =
+          AddressHelper.getUserAddressFromSharedPref();
+      validZoneIDs = addressModel?.zoneIds ?? <int>[];
+    }
+
+    // Use coordinates if available, otherwise omit
+    String? validLatitude = latitude;
+    String? validLongitude = longitude;
+    if (validLatitude == null || validLongitude == null) {
+      final AddressModel? addressModel =
+          AddressHelper.getUserAddressFromSharedPref();
+      validLatitude = addressModel?.latitude;
+      validLongitude = addressModel?.longitude;
+    }
+
+    if (moduleID != null ||
+        sharedPreferences.getString(AppConstants.cacheModuleId) != null) {
+      header.addAll({
+        AppConstants.moduleId:
+            '${moduleID ?? ModuleModel.fromJson(jsonDecode(sharedPreferences.getString(AppConstants.cacheModuleId)!) as Map<String, dynamic>).id}'
+      });
+    }
+
+    header.addAll({
+      'Content-Type': 'application/json; charset=UTF-8',
+      AppConstants.zoneId: jsonEncode(validZoneIDs),
+      AppConstants.localizationKey:
+          languageCode ?? AppConstants.languages[0].languageCode!,
+    });
+    if (validLatitude != null && validLongitude != null) {
+      header.addAll({
+        AppConstants.latitude: jsonEncode(validLatitude),
+        AppConstants.longitude: jsonEncode(validLongitude),
+      });
+    }
+    final String? sanitizedToken =
+        (token == null || token.isEmpty || token == 'null') ? null : token;
+    if (sanitizedToken != null && sanitizedToken.isNotEmpty) {
+      header['Authorization'] = 'Bearer $sanitizedToken';
+    } else {
+      if (kDebugMode && AuthHelper.isLoggedIn()) {
+        debugPrint(
+            '⚠️ ApiClient: Authorization header missing while user is logged in');
+      }
+    }
+
+    // Add X-Response-Mode header if responseMode is provided
+    if (responseMode != null && responseMode.isNotEmpty) {
+      header[AppConstants.responseModeHeader] = responseMode;
+    }
+
+    if (setHeader) {
+      _mainHeaders = header;
+    }
+    return header;
+  }
+
+  Map<String, String> getHeader() => _mainHeaders;
+
+  void resetHeaders() {
+    _mainHeaders = {};
+  }
+
+  /// Check if an API is a config/system API that doesn't require moduleId
+  /// Config APIs: /api/v1/config, /api/v1/module, /api/v1/business-settings, etc.
+  bool _isConfigApi(String uri) {
+    final configPaths = [
+      '/api/v1/config',
+      '/api/v1/module',
+      '/api/v1/business-settings',
+      '/api/v1/auth/',
+      '/api/v1/customer/update-zone',
+      '/api/v1/guest-login',
+      '/api/v1/app-init', // App-init doesn't require moduleId (returns all modules)
+    ];
+    return configPaths.any((path) => uri.contains(path));
+  }
+
+  /// Check if an API is a Home or Store feature API that REQUIRES moduleId
+  /// Home/Store APIs: /api/v2/home-unified, /api/v1/stores, /api/v1/banners, /api/v1/categories, etc.
+  bool _isHomeOrStoreApi(String uri) {
+    final homeStorePaths = [
+      '/api/v2/home-unified',
+      '/api/v1/stores',
+      '/api/v1/banners',
+      '/api/v1/categories',
+      '/api/v1/brands',
+      '/api/v1/offers',
+      '/api/v1/items',
+      '/api/v1/popular-stores',
+    ];
+    return homeStorePaths.any((path) => uri.contains(path));
+  }
+
+  /// Check if an API is public (no auth required)
+  bool _isPublicApi(String uri) {
+    if (_isConfigApi(uri)) {
+      return true;
+    }
+    if (uri.contains('/api/v1/customer/cart/list') &&
+        uri.contains('guest_id=')) {
+      return true;
+    }
+    final publicPaths = [
+      '/api/v1/categories',
+      '/api/v1/items',
+      '/api/v1/stores',
+      '/api/v1/banners',
+      '/api/v1/offers',
+      '/api/v1/brands',
+      '/api/v1/campaigns',
+      '/api/v1/popular-stores',
+      '/api/v1/app-init',
+      '/api/v1/guest-login',
+      '/api/v1/auth/guest',
+      '/api/v2/home-unified',
+    ];
+    return publicPaths.any((path) => uri.contains(path));
+  }
+
+  Future<Response<dynamic>> getData(String uri,
+      {Map<String, dynamic>? query,
+      Map<String, String>? headers,
+      bool handleError = true,
+      bool changeBaseUrl = false,
+      Uri? newUri,
+      bool useEtag = true,
+      CancelToken? cancelToken,
+      String? requestId}) async {
+    try {
+      final fullUri = changeBaseUrl ? newUri!.toString() : uri;
+      final String effectiveRequestId =
+          requestId ?? 'req_${DateTime.now().millisecondsSinceEpoch}';
+
+      // Detect /items/latest endpoint and debug modes
+      final bool isItemsLatestEndpoint =
+          uri.contains(AppConstants.storeItemUri);
+      final bool itemsFallbackOnlyMode =
+          AppConstants.debugItemsUseFallbackOnly && isItemsLatestEndpoint;
+      final bool isPublicApi = _isPublicApi(uri);
+
+      if (kDebugMode) {
+        final String clientMode = itemsFallbackOnlyMode
+            ? 'fallback-only'
+            : (_useSecureClient ? 'secure+fallback' : 'fallback');
+        appLogger.debug(
+            '[ApiClient] GET START | requestId=$effectiveRequestId | uri=$fullUri | query=$query | itemsLatest=$isItemsLatestEndpoint | clientMode=$clientMode');
+      }
+
+      // ⚠️ CRITICAL: Merge custom headers with default headers to ensure moduleId is always included
+      // Custom headers override defaults, but defaults provide moduleId, zoneId, etc.
+      final Map<String, String> finalHeaders =
+          Map<String, String>.from(_mainHeaders);
+      if (headers != null) {
+        finalHeaders.addAll(headers); // Custom headers override defaults
+      }
+      if (!useEtag) {
+        // Signal SecureHttpClient to skip ETag for this request
+        finalHeaders['X-Disable-ETag'] = 'true';
+      }
+
+      // Log API call start with full details (after headers are prepared)
+      appLogger.logApiCallStart('GET', fullUri,
+          query: query, headers: finalHeaders);
+
+      // ⚡ TASK 2: Ensure module-id is ALWAYS sent for Home and Store feature requests
+      // This is mandatory for backend's optimized filters
+      if (_isHomeOrStoreApi(uri) &&
+          !finalHeaders.containsKey(AppConstants.moduleId)) {
+        // Try to get moduleId from current module
+        try {
+          int? moduleId;
+          if (Get.isRegistered<SplashController>()) {
+            final splashController = Get.find<SplashController>();
+            moduleId = splashController.module?.id;
+          }
+
+          if (moduleId != null) {
+            finalHeaders[AppConstants.moduleId] = moduleId.toString();
+            if (kDebugMode) {
+              appLogger.debug(
+                  'API Client: Added moduleId=$moduleId to headers for Home/Store API: $uri');
+            }
+          } else {
+            // Try to get from cache
+            final cachedModuleId =
+                sharedPreferences.getString(AppConstants.cacheModuleId);
+            if (cachedModuleId != null) {
+              final moduleModel = ModuleModel.fromJson(
+                  jsonDecode(cachedModuleId) as Map<String, dynamic>);
+              finalHeaders[AppConstants.moduleId] = moduleModel.id.toString();
+              if (kDebugMode) {
+                appLogger.debug(
+                    'API Client: Added cached moduleId=${moduleModel.id} to headers for Home/Store API: $uri');
+              }
+            } else {
+              if (kDebugMode) {
+                appLogger.warning(
+                    'API Client: moduleId missing for Home/Store API: $uri - backend may return wrong data!');
+              }
+            }
+          }
+        } catch (e) {
+          if (kDebugMode) {
+            appLogger.warning(
+                'API Client: Could not add moduleId for Home/Store API: $uri - Error: $e');
+          }
+        }
+      }
+
+      // ⚡ TASK 2: Ensure zone-id (array) is ALWAYS sent for Home and Store feature requests
+      // zone-id is already sent as jsonEncode(array) which is correct format
+      if (_isHomeOrStoreApi(uri) &&
+          !finalHeaders.containsKey(AppConstants.zoneId)) {
+        // Try to get zoneIds from current address
+        try {
+          final addressModel = AddressHelper.getUserAddressFromSharedPref();
+          if (addressModel?.zoneIds != null &&
+              addressModel!.zoneIds!.isNotEmpty) {
+            finalHeaders[AppConstants.zoneId] =
+                jsonEncode(addressModel.zoneIds);
+            if (kDebugMode) {
+              appLogger.debug(
+                  'API Client: Added zoneId=${addressModel.zoneIds} to headers for Home/Store API: $uri');
+            }
+          } else {
+            if (kDebugMode) {
+              appLogger.warning(
+                  'API Client: zoneId missing for Home/Store API: $uri - backend may return wrong data!');
+            }
+          }
+        } catch (e) {
+          if (kDebugMode) {
+            appLogger.warning(
+                'API Client: Could not add zoneId for Home/Store API: $uri - Error: $e');
+          }
+        }
+      }
+
+      // Attach requestId to headers for tracing across layers & backend
+      finalHeaders['X-Request-ID'] = effectiveRequestId;
+
+      // Debug: Log moduleId in headers for data APIs
+      if (kDebugMode && !_isConfigApi(uri)) {
+        if (finalHeaders.containsKey(AppConstants.moduleId)) {
+          appLogger.debug(
+              'API Client: moduleId=${finalHeaders[AppConstants.moduleId]} included in headers for: $uri');
+        } else {
+          appLogger.warning(
+              'moduleId header missing for API: $uri - This may cause API to return wrong data or fail!');
+        }
+      }
+
+      final stopwatch = Stopwatch()..start();
+
+      // 🔧 Optional: Per-endpoint timeout override for diagnostics (items/latest only)
+      // This is intentionally very narrow-scoped to avoid impacting other APIs.
+      const bool enableItemsLatestTimeoutDebug = true;
+
+      // Use secure client if available. Public APIs do not require a token.
+      // For /items/latest we can force fallback-only mode via debug flag.
+      final bool canUseSecureClient = _useSecureClient &&
+          !itemsFallbackOnlyMode &&
+          (isPublicApi || await _isSecureTokenValid());
+
+      // ⚡ TASK 4: ETag handling moved to SecureHttpClient interceptor
+      // Only add ETag for fallback HTTP client (non-secure requests)
+      // SecureHttpClient interceptor handles ETags for secure requests
+      if (useEtag &&
+          !finalHeaders.containsKey('If-None-Match') &&
+          !canUseSecureClient) {
+        final storedEtag = await _getStoredEtag(uri);
+        if (storedEtag != null) {
+          finalHeaders['If-None-Match'] = storedEtag;
+        }
+      }
+
+      if (canUseSecureClient) {
+        try {
+          if (kDebugMode && isItemsLatestEndpoint) {
+            appLogger.debug(
+                '[ApiClient] SECURE START | requestId=$effectiveRequestId | uri=$uri | timeouts=${_secureHttpClient.dio.options.connectTimeout}/${_secureHttpClient.dio.options.receiveTimeout}');
+          }
+
+          final Duration? secureReceiveTimeoutOverride =
+              enableItemsLatestTimeoutDebug && isItemsLatestEndpoint
+                  ? const Duration(seconds: 120)
+                  : _secureHttpClient.dio.options.receiveTimeout;
+
+          final response = await _secureHttpClient.dio.get<dynamic>(
+            uri,
+            queryParameters: query,
+            options: Options(
+              headers: finalHeaders,
+              receiveTimeout: secureReceiveTimeoutOverride,
+              sendTimeout: _secureHttpClient.dio.options.sendTimeout,
+              receiveDataWhenStatusError:
+                  _secureHttpClient.dio.options.receiveDataWhenStatusError,
+              followRedirects: _secureHttpClient.dio.options.followRedirects,
+              validateStatus: _secureHttpClient.dio.options.validateStatus,
+            ),
+            cancelToken: cancelToken, // 🔧 FIX: Support request cancellation
+          );
+
+          stopwatch.stop();
+
+          // ⚡ TASK 4: ETag storage moved to SecureHttpClient interceptor
+          // This code is kept for backward compatibility but interceptor handles it
+          // Only store if interceptor didn't (shouldn't happen, but safety check)
+          if (useEtag && response.statusCode == 200) {
+            final etag = response.headers.value('etag') ??
+                response.headers.value('ETag');
+            if (etag != null) {
+              // Interceptor already stored it, but double-check won't hurt
+              await _storeEtag(uri, etag);
+            }
+          }
+
+          // ⚡ ETAG SUPPORT: Handle 304 Not Modified
+          if (response.statusCode == 304) {
+            // Convert headers to Map<String, String>
+            final headersMap = <String, String>{};
+            response.headers.forEach((key, values) {
+              if (values.isNotEmpty) {
+                headersMap[key] = values.first;
+              }
+            });
+            final localCacheResponse = Response<dynamic>(
+              statusCode: 304,
+              statusText: 'Not Modified',
+              bodyString: '',
+              headers: headersMap,
+            );
+            return localCacheResponse;
+          }
+
+          // Log API call success with full response details
+          try {
+            dynamic responseData;
+            try {
+              responseData = response.data;
+            } catch (e) {
+              responseData = response.toString();
+            }
+            appLogger.logApiCallSuccess(
+                'GET', uri, response.statusCode ?? 0, stopwatch.elapsed,
+                response: responseData);
+          } catch (e) {
+            appLogger.logApiCallSuccess(
+                'GET', uri, response.statusCode ?? 0, stopwatch.elapsed);
+          }
+
+          if (kDebugMode) {
+            appLogger.debug(
+                '[ApiClient] SECURE SUCCESS | requestId=$effectiveRequestId | uri=$uri | status=${response.statusCode} | durationMs=${stopwatch.elapsed.inMilliseconds}');
+          }
+
+          final converted = _convertDioResponseToGetResponse(response, uri);
+
+          if (kDebugMode) {
+            appLogger.debug(
+                '[ApiClient] RETURNING TO CALLER | requestId=$effectiveRequestId | uri=$uri | client=secure | status=${converted.statusCode} | durationMs=${stopwatch.elapsed.inMilliseconds}');
+          }
+
+          return converted;
+        } catch (e) {
+          stopwatch.stop();
+          if (kDebugMode) {
+            if (e is DioException) {
+              appLogger.error(
+                  '[ApiClient] SECURE ERROR | requestId=$effectiveRequestId | uri=$uri | type=${e.type} | status=${e.response?.statusCode} | message=${e.message} | durationMs=${stopwatch.elapsed.inMilliseconds}');
+            } else {
+              appLogger.error(
+                  '[ApiClient] SECURE ERROR | requestId=$effectiveRequestId | uri=$uri | error=$e | durationMs=${stopwatch.elapsed.inMilliseconds}');
+            }
+          }
+          if (kDebugMode) {
+            debugPrint(
+                '❌ Secure client failed, falling back to standard HTTP: $e');
+          }
+          _useSecureClient = false;
+        }
+      }
+
+      // Fallback to standard HTTP client
+      // 🔧 FIX: Ensure Authorization header is included when secure client fails
+      // Update headers with current token before fallback request
+      if (token != null && token!.isNotEmpty) {
+        finalHeaders['Authorization'] = 'Bearer $token';
+        if (kDebugMode) {
+          appLogger.debug(
+              '[ApiClient] FALLBACK: Updated Authorization header with current token');
+        }
+      } else if (!isPublicApi) {
+        if (kDebugMode) {
+          appLogger.warning(
+              '[ApiClient] FALLBACK: No token available - Authorization header missing');
+        }
+      }
+
+      if (kDebugMode) {
+        final String fallbackMode =
+            itemsFallbackOnlyMode ? 'fallback-only' : 'fallback';
+        final int previewTimeoutSeconds =
+            enableItemsLatestTimeoutDebug && isItemsLatestEndpoint
+                ? 120
+                : timeoutInSeconds;
+        appLogger.debug(
+            '[ApiClient] FALLBACK START | requestId=$effectiveRequestId | uri=$fullUri | mode=$fallbackMode | timeout=${previewTimeoutSeconds}s | hasAuth=${finalHeaders.containsKey('Authorization')} | public=$isPublicApi');
+      }
+
+      final int effectiveTimeoutSeconds =
+          enableItemsLatestTimeoutDebug && isItemsLatestEndpoint
+              ? 120
+              : timeoutInSeconds;
+
+      final http.Response response = await http
+          .get(changeBaseUrl ? newUri! : Uri.parse(appBaseUrl + uri),
+              headers: finalHeaders)
+          .timeout(Duration(seconds: effectiveTimeoutSeconds));
+
+      stopwatch.stop();
+
+      // ⚡ ETAG SUPPORT: Extract and store ETag from response headers
+      if (useEtag && response.statusCode == 200) {
+        final etag = response.headers['etag'] ?? response.headers['ETag'];
+        if (etag != null) {
+          await _storeEtag(uri, etag);
+        }
+      }
+
+      // ⚡ ETAG SUPPORT: Handle 304 Not Modified
+      if (response.statusCode == 304) {
+        appLogger.logApiCallSuccess('GET', uri, 304, stopwatch.elapsed,
+            response: 'Not Modified (cached)');
+        // Return a response indicating data is unchanged
+        // The caller should use cached data
+        final localCacheResponse = Response<dynamic>(
+          statusCode: 304,
+          statusText: 'Not Modified',
+          bodyString: '',
+          headers: response.headers,
+        );
+        return localCacheResponse;
+      }
+
+      // Log API call success with full response details
+      try {
+        dynamic responseData;
+        try {
+          responseData = jsonDecode(response.body);
+        } catch (e) {
+          responseData = response.body;
+        }
+        appLogger.logApiCallSuccess(
+            'GET', uri, response.statusCode, stopwatch.elapsed,
+            response: responseData);
+      } catch (e) {
+        appLogger.logApiCallSuccess(
+            'GET', uri, response.statusCode, stopwatch.elapsed);
+      }
+
+      if (kDebugMode) {
+        appLogger.debug(
+            '[ApiClient] FALLBACK SUCCESS | requestId=$effectiveRequestId | uri=$uri | status=${response.statusCode} | durationMs=${stopwatch.elapsed.inMilliseconds}');
+      }
+
+      final converted = handleResponse(response, uri, handleError);
+
+      if (kDebugMode) {
+        appLogger.debug(
+            '[ApiClient] RETURNING TO CALLER | requestId=$effectiveRequestId | uri=$uri | client=fallback | status=${converted.statusCode} | durationMs=${stopwatch.elapsed.inMilliseconds}');
+      }
+
+      return converted;
+    } catch (e) {
+      final String fullUriOnError = changeBaseUrl ? newUri!.toString() : uri;
+      appLogger.logApiCallError('GET', fullUriOnError, e.toString());
+
+      if (kDebugMode) {
+        appLogger.error(
+            '[ApiClient] FALLBACK ERROR | requestId=${requestId ?? 'n/a'} | uri=$fullUriOnError | error=$e');
+      }
+
+      return Response(
+        statusCode: 1,
+        statusText: noInternetMessage,
+      );
+    }
+  }
+
+  Future<Response<dynamic>> postData(String uri, dynamic body,
+      {Map<String, String>? headers,
+      int? timeout,
+      bool handleError = true,
+      ValidateStatus? validateStatus}) async {
+    try {
+      // ⚠️ CRITICAL: Merge custom headers with default headers to ensure moduleId is always included
+      final Map<String, String> finalHeaders =
+          Map<String, String>.from(_mainHeaders);
+      if (headers != null) {
+        finalHeaders.addAll(headers); // Custom headers override defaults
+      }
+
+      // Log API call start with full details
+      appLogger.logApiCallStart('POST', uri, headers: finalHeaders);
+      if (body != null) {
+        appLogger.debug(
+            'POST Body: ${body.toString().length > 500 ? "${body.toString().substring(0, 500)}..." : body.toString()}');
+      }
+
+      // Warn if moduleId is missing for data APIs
+      if (kDebugMode &&
+          !_isConfigApi(uri) &&
+          !finalHeaders.containsKey(AppConstants.moduleId)) {
+        appLogger.warning('moduleId header missing for API: $uri');
+      }
+
+      final stopwatch = Stopwatch()..start();
+
+      // Use secure client if available and token is valid, otherwise fallback to standard HTTP
+      if (_useSecureClient && await _isSecureTokenValid()) {
+        try {
+          final response = await _secureHttpClient.dio.post<dynamic>(
+            uri,
+            data: body,
+            options: Options(
+              headers: finalHeaders,
+              sendTimeout: Duration(seconds: timeout ?? timeoutInSeconds),
+              validateStatus: validateStatus,
+            ),
+          );
+
+          stopwatch.stop();
+
+          // Log API call success with full response details
+          try {
+            dynamic responseData;
+            try {
+              responseData = response.data;
+            } catch (e) {
+              responseData = response.toString();
+            }
+            appLogger.logApiCallSuccess(
+                'POST', uri, response.statusCode ?? 0, stopwatch.elapsed,
+                response: responseData);
+          } catch (e) {
+            appLogger.logApiCallSuccess(
+                'POST', uri, response.statusCode ?? 0, stopwatch.elapsed);
+          }
+
+          return _convertDioResponseToGetResponse(response, uri);
+        } catch (e) {
+          stopwatch.stop();
+          if (!uri.contains('registration-activity')) {
+            appLogger.logApiCallError('POST', uri, e.toString(),
+                duration: stopwatch.elapsed);
+          }
+          _useSecureClient = false;
+        }
+      }
+
+      // Fallback to standard HTTP client
+      final http.Response response = await http
+          .post(Uri.parse(appBaseUrl + uri),
+              body: jsonEncode(body), headers: finalHeaders)
+          .timeout(Duration(seconds: timeout ?? timeoutInSeconds));
+
+      stopwatch.stop();
+
+      // Log API call success with full response details
+      try {
+        dynamic responseData;
+        try {
+          responseData = jsonDecode(response.body);
+        } catch (e) {
+          responseData = response.body;
+        }
+        appLogger.logApiCallSuccess(
+            'POST', uri, response.statusCode, stopwatch.elapsed,
+            response: responseData);
+      } catch (e) {
+        appLogger.logApiCallSuccess(
+            'POST', uri, response.statusCode, stopwatch.elapsed);
+      }
+
+      return handleResponse(response, uri, handleError);
+    } catch (e) {
+      if (!uri.contains('registration-activity')) {
+        appLogger.logApiCallError('POST', uri, e.toString());
+      }
+      return Response(statusCode: 1, statusText: noInternetMessage);
+    }
+  }
+
+  Future<Response<dynamic>> postMultipartData(
+      String uri, Map<String, String> body, List<MultipartBody> multipartBody,
+      {Map<String, String>? headers, bool handleError = true}) async {
+    try {
+      // ⚠️ CRITICAL: Merge custom headers with default headers
+      final Map<String, String> finalHeaders =
+          Map<String, String>.from(_mainHeaders);
+      if (headers != null) {
+        finalHeaders.addAll(headers);
+      }
+
+      // Use secure client if available, otherwise fallback to standard HTTP
+      if (_useSecureClient) {
+        try {
+          // For multipart requests, fallback to standard HTTP client to avoid conflicts
+          _useSecureClient = false;
+        } catch (e) {
+          if (kDebugMode) {
+            debugPrint(
+                '❌ Secure client failed, falling back to standard HTTP: $e');
+          }
+          _useSecureClient = false;
+        }
+      }
+
+      // Fallback to standard HTTP client
+      // 🔧 FIX: Ensure Authorization header is included when secure client fails
+      if (token != null && token!.isNotEmpty) {
+        finalHeaders['Authorization'] = 'Bearer $token';
+        if (kDebugMode) {
+          debugPrint(
+              '[ApiClient] FALLBACK MULTIPART: Updated Authorization header with current token');
+        }
+      }
+
+      final http.MultipartRequest request =
+          http.MultipartRequest('POST', Uri.parse(appBaseUrl + uri));
+      request.headers.addAll(finalHeaders);
+      for (final MultipartBody multipart in multipartBody) {
+        if (multipart.file != null) {
+          final Uint8List list = await multipart.file!.readAsBytes();
+          request.files.add(http.MultipartFile(
+            multipart.key,
+            multipart.file!.readAsBytes().asStream(),
+            list.length,
+            filename: '${DateTime.now().toString()}.png',
+          ));
+        }
+      }
+      final Map<String, String> newBody = {};
+      body.forEach((s, i) {
+        if (i.isNotEmpty) {
+          newBody.addAll({s: i});
+        }
+      });
+      request.fields.addAll(newBody);
+      final http.Response response =
+          await http.Response.fromStream(await request.send());
+      return handleResponse(response, uri, handleError);
+    } catch (e) {
+      return Response(statusCode: 1, statusText: noInternetMessage);
+    }
+  }
+
+  /// Post Multipart Data using Dio FormData (for prescription orders)
+  /// This method sends FormData with files and fields using Dio
+  /// ⚠️ NOTE: This is a new method specifically for FormData, different from the existing postMultipartData
+  Future<Response<dynamic>> postFormData(
+    String uri,
+    dynamic formData, {
+    Map<String, String>? headers,
+    bool handleError = true,
+  }) async {
+    debugPrint('\x1B[35m🔥🔥🔥 apiClient.postFormData() CALLED 🔥🔥🔥\x1B[0m');
+    debugPrint('\x1B[35m - URI: $uri\x1B[0m');
+    debugPrint('\x1B[35m - formData type: ${formData.runtimeType}\x1B[0m');
+    
+    try {
+      // ⚠️ CRITICAL: Merge custom headers with default headers
+      final Map<String, dynamic> finalHeaders = Map<String, dynamic>.from(_mainHeaders);
+      if (headers != null) {
+        finalHeaders.addAll(headers);
+      }
+      
+      // 🔥 مهم: إزالة Content-Type header للسماح لـ dio بضبطه تلقائياً
+      finalHeaders.remove('Content-Type');
+      debugPrint('\x1B[35m - Content-Type removed (will be set by dio)\x1B[0m');
+      
+      // Convert to Map<String, String> for logging
+      final Map<String, String> logHeaders = finalHeaders.map((key, value) => MapEntry(key, value.toString()));
+      
+      // Log API call start
+      appLogger.logApiCallStart('POST (FormData)', uri, headers: logHeaders);
+      
+      // Try to get files count if formData is FormData
+      try {
+        // Use runtimeType check instead of 'is' to avoid import conflict
+        if (formData.runtimeType.toString().contains('FormData')) {
+          final formDataRef = formData as dynamic;
+          if (formDataRef.files != null) {
+            debugPrint('\x1B[35m - FormData files count: ${formDataRef.files.length}\x1B[0m');
+          }
+          if (formDataRef.fields != null) {
+            debugPrint('\x1B[35m - FormData fields count: ${formDataRef.fields.length}\x1B[0m');
+          }
+        }
+      } catch (e) {
+        debugPrint('\x1B[35m - Could not get FormData info: $e\x1B[0m');
+      }
+      
+      final stopwatch = Stopwatch()..start();
+      
+      // Use secure client if available and token is valid
+      if (_useSecureClient && await _isSecureTokenValid()) {
+        try {
+          debugPrint('\x1B[35m🔥 Using Secure Client (Dio) for FormData\x1B[0m');
+          debugPrint('\x1B[35m - URI: $uri\x1B[0m');
+          debugPrint('\x1B[35m - Headers: $finalHeaders\x1B[0m');
+          debugPrint('\x1B[35m - Content-Type in headers: ${finalHeaders.containsKey('Content-Type')}\x1B[0m');
+          
+          final response = await _secureHttpClient.dio.post<dynamic>(
+            uri,
+            data: formData,
+            options: Options(
+              headers: finalHeaders,
+              sendTimeout: Duration(seconds: timeoutInSeconds),
+              validateStatus: (int? status) => status != null && status < 500,
+            ),
+          );
+          
+          debugPrint('\x1B[35m✅ Secure Client Response:\x1B[0m');
+          debugPrint('\x1B[35m - Status: ${response.statusCode}\x1B[0m');
+          debugPrint('\x1B[35m - Headers: ${response.headers}\x1B[0m');
+          
+          stopwatch.stop();
+          appLogger.logApiCallSuccess(
+              'POST (FormData)', uri, response.statusCode ?? 0, stopwatch.elapsed);
+          
+          return _convertDioResponseToGetResponse(response, uri);
+        } on DioException catch (e) {
+          stopwatch.stop();
+          debugPrint('\x1B[31m❌❌❌ DioException in postFormData (Secure Client):\x1B[0m');
+          debugPrint('\x1B[31m - Status Code: ${e.response?.statusCode}\x1B[0m');
+          debugPrint('\x1B[31m - Status Message: ${e.response?.statusMessage}\x1B[0m');
+          debugPrint('\x1B[31m - Response Data: ${e.response?.data}\x1B[0m');
+          debugPrint('\x1B[31m - Response Headers: ${e.response?.headers}\x1B[0m');
+          if (e.response?.data is Map) {
+            final errorData = e.response!.data as Map;
+            if (errorData.containsKey('errors')) {
+              debugPrint('\x1B[31m - Validation Errors: ${errorData['errors']}\x1B[0m');
+            }
+            if (errorData.containsKey('message')) {
+              debugPrint('\x1B[31m - Error Message: ${errorData['message']}\x1B[0m');
+            }
+          }
+          appLogger.logApiCallError('POST (FormData)', uri, e.toString(),
+              duration: stopwatch.elapsed);
+          _useSecureClient = false;
+        } catch (e) {
+          stopwatch.stop();
+          debugPrint('\x1B[31m❌❌❌ General Exception in postFormData (Secure Client):\x1B[0m');
+          debugPrint('\x1B[31m - Error: $e\x1B[0m');
+          appLogger.logApiCallError('POST (FormData)', uri, e.toString(),
+              duration: stopwatch.elapsed);
+          _useSecureClient = false;
+        }
+      }
+      
+      // Fallback: Create new Dio instance for multipart
+      debugPrint('\x1B[35m🔥 Using Fallback Dio Client for FormData\x1B[0m');
+      debugPrint('\x1B[35m - Base URL: $appBaseUrl\x1B[0m');
+      debugPrint('\x1B[35m - URI: $uri\x1B[0m');
+      debugPrint('\x1B[35m - Full URL: $appBaseUrl$uri\x1B[0m');
+      debugPrint('\x1B[35m - Headers: $finalHeaders\x1B[0m');
+      debugPrint('\x1B[35m - Content-Type in headers: ${finalHeaders.containsKey('Content-Type')}\x1B[0m');
+      
+      final dioClient = Dio(BaseOptions(
+        baseUrl: appBaseUrl,
+        connectTimeout: Duration(seconds: timeoutInSeconds),
+        receiveTimeout: Duration(seconds: timeoutInSeconds),
+        headers: finalHeaders,
+      ));
+      
+      try {
+        debugPrint('\x1B[35m🔥 Sending Dio POST request...\x1B[0m');
+        final response = await dioClient.post<dynamic>(
+          uri,
+          data: formData,
+          options: Options(
+            headers: finalHeaders,
+            validateStatus: (int? status) => status != null && status < 500,
+          ),
+        );
+        
+        debugPrint('\x1B[35m✅ Dio Response received:\x1B[0m');
+        debugPrint('\x1B[35m - Status: ${response.statusCode}\x1B[0m');
+        debugPrint('\x1B[35m - Request Headers: ${response.requestOptions.headers}\x1B[0m');
+        debugPrint('\x1B[35m - Response Headers: ${response.headers}\x1B[0m');
+        
+        stopwatch.stop();
+        
+        // Log response details
+        debugPrint('\x1B[35m✅ postFormData Response:\x1B[0m');
+        debugPrint('\x1B[35m - Status Code: ${response.statusCode}\x1B[0m');
+        debugPrint('\x1B[35m - Status Message: ${response.statusMessage}\x1B[0m');
+        
+        // If error response (422, 400, etc), log the body
+        if (response.statusCode != null && response.statusCode! >= 400) {
+          debugPrint('\x1B[31m❌ ERROR RESPONSE BODY:\x1B[0m');
+          debugPrint('\x1B[31m${response.data}\x1B[0m');
+          if (response.data is Map) {
+            final errorData = response.data as Map;
+            if (errorData.containsKey('errors')) {
+              debugPrint('\x1B[31m - Validation Errors: ${errorData['errors']}\x1B[0m');
+            }
+            if (errorData.containsKey('message')) {
+              debugPrint('\x1B[31m - Error Message: ${errorData['message']}\x1B[0m');
+            }
+          }
+          // ✅ FIX: تسجيل كـ error وليس success
+          appLogger.logApiCallError('POST (FormData)', uri, 
+              'Status ${response.statusCode}: ${response.data}', 
+              duration: stopwatch.elapsed);
+        } else {
+          appLogger.logApiCallSuccess(
+              'POST (FormData)', uri, response.statusCode ?? 0, stopwatch.elapsed);
+        }
+        
+        // Convert DioResponse to GetResponse
+        return Response(
+          statusCode: response.statusCode ?? 0,
+          statusText: response.statusMessage,
+          body: response.data,
+        );
+      } on DioException catch (e) {
+        stopwatch.stop();
+        debugPrint('\x1B[31m❌❌❌ DioException in postFormData (Fallback):\x1B[0m');
+        debugPrint('\x1B[31m - Status Code: ${e.response?.statusCode}\x1B[0m');
+        debugPrint('\x1B[31m - Status Message: ${e.response?.statusMessage}\x1B[0m');
+        debugPrint('\x1B[31m - Response Data: ${e.response?.data}\x1B[0m');
+        debugPrint('\x1B[31m - Response Headers: ${e.response?.headers}\x1B[0m');
+        if (e.response?.data is Map) {
+          final errorData = e.response!.data as Map;
+          if (errorData.containsKey('errors')) {
+            debugPrint('\x1B[31m - Validation Errors: ${errorData['errors']}\x1B[0m');
+          }
+          if (errorData.containsKey('message')) {
+            debugPrint('\x1B[31m - Error Message: ${errorData['message']}\x1B[0m');
+          }
+        }
+        if (!uri.contains('registration-activity')) {
+          appLogger.logApiCallError('POST (FormData)', uri, e.toString());
+        }
+        // Return error response instead of generic error
+        if (e.response != null) {
+          return Response(
+            statusCode: e.response!.statusCode ?? 0,
+            statusText: e.response!.statusMessage,
+            body: e.response!.data,
+          );
+        }
+        return Response(statusCode: 1, statusText: noInternetMessage);
+      } catch (e) {
+        stopwatch.stop();
+        debugPrint('\x1B[31m❌❌❌ General Exception in postFormData (Fallback):\x1B[0m');
+        debugPrint('\x1B[31m - Error: $e\x1B[0m');
+        if (!uri.contains('registration-activity')) {
+          appLogger.logApiCallError('POST (FormData)', uri, e.toString());
+        }
+        return Response(statusCode: 1, statusText: noInternetMessage);
+      }
+    } catch (e) {
+      debugPrint('\x1B[31m❌❌❌ Outer Exception in postFormData:\x1B[0m');
+      debugPrint('\x1B[31m - Error: $e\x1B[0m');
+      if (!uri.contains('registration-activity')) {
+        appLogger.logApiCallError('POST (FormData)', uri, e.toString());
+      }
+      return Response(statusCode: 1, statusText: noInternetMessage);
+    }
+  }
+
+  Future<Response<dynamic>> putData(String uri, dynamic body,
+      {Map<String, String>? headers, bool handleError = true}) async {
+    try {
+      // ⚠️ CRITICAL: Merge custom headers with default headers
+      final Map<String, String> finalHeaders =
+          Map<String, String>.from(_mainHeaders);
+      if (headers != null) {
+        finalHeaders.addAll(headers);
+      }
+
+      // Log API call start
+      appLogger.logApiCallStart('PUT', uri, headers: finalHeaders);
+      if (body != null) {
+        appLogger.debug(
+            'PUT Body: ${body.toString().length > 500 ? "${body.toString().substring(0, 500)}..." : body.toString()}');
+      }
+
+      final stopwatch = Stopwatch()..start();
+
+      // Use secure client if available, otherwise fallback to standard HTTP
+      if (_useSecureClient) {
+        try {
+          final response = await _secureHttpClient.dio.put<dynamic>(
+            uri,
+            data: body,
+            options: Options(headers: finalHeaders),
+          );
+
+          stopwatch.stop();
+          try {
+            dynamic responseData;
+            try {
+              responseData = response.data;
+            } catch (e) {
+              responseData = response.toString();
+            }
+            appLogger.logApiCallSuccess(
+                'PUT', uri, response.statusCode ?? 0, stopwatch.elapsed,
+                response: responseData);
+          } catch (e) {
+            appLogger.logApiCallSuccess(
+                'PUT', uri, response.statusCode ?? 0, stopwatch.elapsed);
+          }
+
+          return _convertDioResponseToGetResponse(response, uri);
+        } catch (e) {
+          stopwatch.stop();
+          appLogger.logApiCallError('PUT', uri, e.toString(),
+              duration: stopwatch.elapsed);
+          if (kDebugMode) {
+            debugPrint(
+                '❌ Secure client failed, falling back to standard HTTP: $e');
+          }
+          _useSecureClient = false;
+        }
+      }
+
+      // Fallback to standard HTTP client
+      // 🔧 FIX: Ensure Authorization header is included when secure client fails
+      if (token != null && token!.isNotEmpty) {
+        finalHeaders['Authorization'] = 'Bearer $token';
+        if (kDebugMode) {
+          appLogger.debug(
+              '[ApiClient] FALLBACK PUT: Updated Authorization header with current token');
+        }
+      }
+
+      final http.Response response = await http
+          .put(
+            Uri.parse(appBaseUrl + uri),
+            body: jsonEncode(body),
+            headers: finalHeaders,
+          )
+          .timeout(Duration(seconds: timeoutInSeconds));
+
+      stopwatch.stop();
+      try {
+        dynamic responseData;
+        try {
+          responseData = jsonDecode(response.body);
+        } catch (e) {
+          responseData = response.body;
+        }
+        appLogger.logApiCallSuccess(
+            'PUT', uri, response.statusCode, stopwatch.elapsed,
+            response: responseData);
+      } catch (e) {
+        appLogger.logApiCallSuccess(
+            'PUT', uri, response.statusCode, stopwatch.elapsed);
+      }
+
+      return handleResponse(response, uri, handleError);
+    } catch (e) {
+      appLogger.logApiCallError('PUT', uri, e.toString());
+      return Response(statusCode: 1, statusText: noInternetMessage);
+    }
+  }
+
+  Future<Response<dynamic>> deleteData(String uri,
+      {Map<String, String>? headers, bool handleError = true}) async {
+    try {
+      // ⚠️ CRITICAL: Merge custom headers with default headers
+      final Map<String, String> finalHeaders =
+          Map<String, String>.from(_mainHeaders);
+      if (headers != null) {
+        finalHeaders.addAll(headers);
+      }
+
+      // Log API call start
+      appLogger.logApiCallStart('DELETE', uri, headers: finalHeaders);
+
+      final stopwatch = Stopwatch()..start();
+
+      // Use secure client if available, otherwise fallback to standard HTTP
+      if (_useSecureClient) {
+        try {
+          final response = await _secureHttpClient.dio.delete<dynamic>(
+            uri,
+            options: Options(headers: finalHeaders),
+          );
+
+          stopwatch.stop();
+          try {
+            dynamic responseData;
+            try {
+              responseData = response.data;
+            } catch (e) {
+              responseData = response.toString();
+            }
+            appLogger.logApiCallSuccess(
+                'DELETE', uri, response.statusCode ?? 0, stopwatch.elapsed,
+                response: responseData);
+          } catch (e) {
+            appLogger.logApiCallSuccess(
+                'DELETE', uri, response.statusCode ?? 0, stopwatch.elapsed);
+          }
+
+          return _convertDioResponseToGetResponse(response, uri);
+        } catch (e) {
+          stopwatch.stop();
+          appLogger.logApiCallError('DELETE', uri, e.toString(),
+              duration: stopwatch.elapsed);
+          if (kDebugMode) {
+            debugPrint(
+                '❌ Secure client failed, falling back to standard HTTP: $e');
+          }
+          _useSecureClient = false;
+        }
+      }
+
+      // Fallback to standard HTTP client
+      // 🔧 FIX: Ensure Authorization header is included when secure client fails
+      if (token != null && token!.isNotEmpty) {
+        finalHeaders['Authorization'] = 'Bearer $token';
+        if (kDebugMode) {
+          appLogger.debug(
+              '[ApiClient] FALLBACK DELETE: Updated Authorization header with current token');
+        }
+      }
+
+      final http.Response response = await http
+          .delete(Uri.parse(appBaseUrl + uri), headers: finalHeaders)
+          .timeout(Duration(seconds: timeoutInSeconds));
+
+      stopwatch.stop();
+      try {
+        dynamic responseData;
+        try {
+          responseData = jsonDecode(response.body);
+        } catch (e) {
+          responseData = response.body;
+        }
+        appLogger.logApiCallSuccess(
+            'DELETE', uri, response.statusCode, stopwatch.elapsed,
+            response: responseData);
+      } catch (e) {
+        appLogger.logApiCallSuccess(
+            'DELETE', uri, response.statusCode, stopwatch.elapsed);
+      }
+
+      return handleResponse(response, uri, handleError);
+    } catch (e) {
+      appLogger.logApiCallError('DELETE', uri, e.toString());
+      return Response(statusCode: 1, statusText: noInternetMessage);
+    }
+  }
+
+  Response<dynamic> _convertDioResponseToGetResponse(
+      dynamic dioResponse, String uri) {
+    try {
+      // -----------------------------
+      // 1️⃣ Body
+      // -----------------------------
+      final dynamic responseBody = dioResponse.data;
+      final String responseBodyString = responseBody?.toString() ?? '';
+
+      // -----------------------------
+      // 2️⃣ Headers
+      // -----------------------------
+      final Map<String, String> safeHeaders = <String, String>{};
+      if (dioResponse.headers.map != null) {
+        dioResponse.headers.map.forEach((String key, List<String> value) {
+          safeHeaders[key.toString()] = (value as List).join(',');
+        });
+      }
+      _updateServerTimeOffsetFromHeaders(safeHeaders);
+
+      // -----------------------------
+      // 3️⃣ URI
+      // -----------------------------
+      final Uri safeUri = dioResponse.requestOptions.uri is Uri
+          ? dioResponse.requestOptions.uri as Uri
+          : Uri.parse(dioResponse.requestOptions.uri.toString());
+
+      // -----------------------------
+      // 4️⃣ Status Code
+      // -----------------------------
+      final int? safeStatusCode = dioResponse.statusCode is int
+          ? dioResponse.statusCode as int
+          : int.tryParse(dioResponse.statusCode?.toString() ?? '');
+
+      // -----------------------------
+      // 5️⃣ Return GetX Response
+      // -----------------------------
+      return Response<dynamic>(
+        body: responseBody, // استخدام responseBody مباشرة (نوع dynamic)
+        bodyString: responseBodyString,
+        statusCode: safeStatusCode,
+        statusText: dioResponse.statusMessage?.toString(),
+        headers: safeHeaders,
+        request: Request(
+          url: safeUri,
+          method: dioResponse.requestOptions.method.toString(),
+          headers:
+              (dioResponse.requestOptions.headers as Map<String, dynamic>).map(
+            (key, value) => MapEntry(
+              key.toString(),
+              value.toString(),
+            ),
+          ),
+        ),
+      );
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('❌ Error converting Dio response: $e');
+      }
+      return const Response<dynamic>(
+        statusCode: 0,
+        statusText: 'Response conversion failed',
+      );
+    }
+  }
+
+  void _updateServerTimeOffsetFromHeaders(Map<String, String> headers) {
+    if (headers.isEmpty) return;
+    String? dateHeader;
+    headers.forEach((key, value) {
+      if (key.toLowerCase() == 'date') {
+        dateHeader = value;
+      }
+    });
+    if (dateHeader == null || dateHeader!.trim().isEmpty) return;
+
+    DateTime? serverTimeUtc;
+    try {
+      serverTimeUtc = DateFormat("EEE, dd MMM yyyy HH:mm:ss 'GMT'", 'en_US')
+          .parseUtc(dateHeader!);
+    } catch (_) {
+      try {
+        serverTimeUtc = DateTime.parse(dateHeader!).toUtc();
+      } catch (_) {}
+    }
+
+    if (serverTimeUtc == null) return;
+    final int offsetMs =
+        serverTimeUtc.millisecondsSinceEpoch - DateTime.now().toUtc().millisecondsSinceEpoch;
+    sharedPreferences.setInt(AppConstants.serverTimeOffsetMs, offsetMs);
+    DateConverter.updateServerTimeOffsetMs(offsetMs);
+  }
+
+  /// Get stored ETag for an endpoint
+  /// ⚡ TASK 3: Migrated from SharedPreferences to Hive app_config box
+  Future<String?> _getStoredEtag(String uri) async {
+    try {
+      // ⚡ TASK 3: Use Hive app_config box for ETag storage
+      final cacheService = HiveHomeCacheService();
+      return await cacheService.getEtag(uri);
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('❌ ApiClient: Error getting stored ETag: $e');
+      }
+      return null;
+    }
+  }
+
+  /// Store ETag for an endpoint
+  /// ⚡ TASK 3: Migrated from SharedPreferences to Hive app_config box
+  Future<void> _storeEtag(String uri, String etag) async {
+    try {
+      // ⚡ TASK 3: Use Hive app_config box for ETag storage
+      final cacheService = HiveHomeCacheService();
+      await cacheService.saveEtag(uri, etag);
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('❌ ApiClient: Error storing ETag: $e');
+      }
+    }
+  }
+
+  /// Clear stored ETag for an endpoint (useful for force refresh)
+  Future<void> clearEtag(String uri) async {
+    try {
+      final etagKey =
+          '$_etagPrefix${uri.replaceAll('/', '_').replaceAll(':', '_')}';
+      await sharedPreferences.remove(etagKey);
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('❌ ApiClient: Error clearing ETag: $e');
+      }
+    }
+  }
+
+  /// Clear all stored ETags
+  Future<void> clearAllEtags() async {
+    try {
+      final keys = sharedPreferences.getKeys();
+      for (final key in keys) {
+        if (key.startsWith(_etagPrefix)) {
+          await sharedPreferences.remove(key);
+        }
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('❌ ApiClient: Error clearing all ETags: $e');
+      }
+    }
+  }
+
+  Response<dynamic> handleResponse(
+      http.Response response, String uri, bool handleError) {
+    dynamic body;
+
+    // ⚡ PERFORMANCE: Use synchronous JSON decode for small responses
+    // Large responses (>10KB) should use JsonIsolateHelper.parseApiResponse()
+    // in async context. For handleResponse (sync), we use standard jsonDecode
+    // but the caller can pre-parse large responses using isolates.
+    try {
+      body = jsonDecode(response.body);
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('❌ Failed to parse response body: $e');
+      }
+      // Keep body as string if JSON parsing fails
+      body = response.body;
+    }
+
+    Response<dynamic> response0 = Response<dynamic>(
+      body: body ?? response.body,
+      bodyString: response.body.toString(),
+      request: Request(
+        headers: response.request?.headers ?? {},
+        method: response.request?.method ?? 'GET',
+        url: response.request?.url ?? Uri.parse(uri),
+      ),
+      headers: response.headers,
+      statusCode: response.statusCode,
+      statusText: response.reasonPhrase ?? 'Unknown',
+    );
+    _updateServerTimeOffsetFromHeaders(response.headers);
+
+    // Clean and translate message text
+    String cleanMessage(String? text) {
+      if (text == null) return '';
+      final String cleaned = text.replaceFirst('messages.', '').trim();
+      // Translate backend messages
+      return BackendMessageTranslator.translate(cleaned);
+    }
+
+    if (response0.statusCode != 200 &&
+        response0.body != null &&
+        response0.body is! String) {
+      try {
+        if (response0.body is Map<String, dynamic> &&
+            response0.body.toString().startsWith('{errors: [{code:')) {
+          final ErrorResponse errorResponse =
+              ErrorResponse.fromJson(response0.body as Map<String, dynamic>);
+
+          response0 = Response(
+            statusCode: response0.statusCode,
+            body: response0.body,
+            statusText: cleanMessage(
+              errorResponse.errors?.isNotEmpty == true
+                  ? errorResponse.errors!.first.message
+                  : 'Unknown error',
+            ),
+          );
+        } else if (response0.body.toString().startsWith('{message')) {
+          String messageText = '';
+          if (response0.body is Map) {
+            messageText = (response0.body as Map)['message']?.toString() ?? '';
+          }
+          response0 = Response(
+            statusCode: response0.statusCode,
+            body: response0.body,
+            statusText: cleanMessage(messageText),
+          );
+        } else if (response0.body is Map) {
+          // Handle other error response structures using the utility method
+          final String errorMessage =
+              extractErrorMessage(response0.body, response0.statusText);
+          response0 = Response(
+            statusCode: response0.statusCode,
+            body: response0.body,
+            statusText: cleanMessage(errorMessage),
+          );
+        }
+      } catch (e) {
+        if (kDebugMode) {
+          debugPrint('❌ Error parsing error response: $e');
+        }
+        response0 = Response(
+          statusCode: response0.statusCode,
+          body: response0.body,
+          statusText: 'Error parsing response',
+        );
+      }
+    } else if (response0.statusCode != 200 && response0.body == null) {
+      response0 = Response(statusCode: 0, statusText: noInternetMessage);
+    }
+
+    // Clean statusText from reasonPhrase
+    response0 = Response(
+      statusCode: response0.statusCode,
+      body: response0.body,
+      statusText: cleanMessage(response0.statusText),
+      bodyString: response0.bodyString,
+      request: response0.request,
+      headers: response0.headers,
+    );
+
+    // 🔒 AUTH-001 HANDLER: Check for auth-001 error code in response body
+    // This handles token expiration with automatic refresh before redirecting
+    if (response0.body is Map) {
+      try {
+        final bodyMap =
+            Map<String, dynamic>.from(response0.body as Map); // ← أضف as Map
+        if (bodyMap['code'] == 'auth-001') {
+          if (kDebugMode) {
+            debugPrint(
+                '🔒 ApiClient: auth-001 error detected, attempting token refresh');
+          }
+          // Handle auth-001 with token refresh
+          ApiChecker.handleAuth001Error(response0, uri);
+          // Return early - refresh handler manages redirect if needed
+          return response0;
+        }
+      } catch (e) {
+        if (kDebugMode) {
+          debugPrint('⚠️ ApiClient: Error checking for auth-001 code: $e');
+        }
+      }
+    }
+
+    if (handleError) {
+      if (response0.statusCode == 200 || response0.statusCode == 201) {
+        return response0;
+      } else if (response0.statusCode == 429) {
+        return response0;
+      } else if (response0.statusCode == 405) {
+        debugPrint('\x1B[32m     /////////////    \x1B[0m');
+        return response0;
+      } else {
+        ApiChecker.checkApi(response0, uri: uri);
+        return response0;
+      }
+    } else {
+      return response0;
+    }
+  }
+
+  /// Get security status
+  Map<String, dynamic> getSecurityStatus() {
+    return {
+      'secureTokenStorage': SecureTokenStorage.getSecurityStatus(),
+      'certificatePinning': CertificatePinningService.getSecurityStatus(),
+      'secureHttpClient': _useSecureClient
+          ? _secureHttpClient.getSecurityStatus()
+          : {'isInitialized': false},
+      'useSecureClient': _useSecureClient,
+    };
+  }
+
+  /// Test security features
+  Future<bool> testSecurityFeatures() async {
+    try {
+      // Test secure token storage
+      final tokenTest = await SecureTokenStorage.hasValidToken();
+      if (!tokenTest) {
+        if (kDebugMode) {
+          debugPrint('❌ Token storage test failed');
+        }
+        return false;
+      }
+
+      // Test certificate pinning
+      final certTest =
+          await CertificatePinningService.testCertificatePinning(appBaseUrl);
+      if (!certTest) {
+        if (kDebugMode) {
+          debugPrint('❌ Certificate pinning test failed');
+        }
+        return false;
+      }
+
+      // Test secure HTTP client if available
+      if (_useSecureClient) {
+        final httpTest = await _secureHttpClient.testSecurityFeatures();
+        if (!httpTest) {
+          if (kDebugMode) {
+            debugPrint('❌ Secure HTTP client test failed');
+          }
+          return false;
+        }
+      }
+
+      return true;
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('❌ API Client security test failed: $e');
+      }
+      return false;
+    }
+  }
+
+  /// Safely extract error message from response
+  String extractErrorMessage(dynamic responseBody, String? statusText) {
+    try {
+      if (responseBody == null) {
+        return statusText ?? 'Unknown error';
+      }
+
+      if (responseBody is String) {
+        return responseBody.isNotEmpty
+            ? responseBody
+            : (statusText ?? 'Unknown error');
+      }
+
+      if (responseBody is Map) {
+        final Map<String, dynamic> bodyMap =
+            Map<String, dynamic>.from(responseBody);
+
+        // Try different error message fields
+        final String? errorMessage = bodyMap['error_message']?.toString() ??
+            bodyMap['error']?.toString() ??
+            bodyMap['message']?.toString() ??
+            bodyMap['detail']?.toString() ??
+            bodyMap['description']?.toString();
+
+        if (errorMessage != null && errorMessage.isNotEmpty) {
+          return errorMessage;
+        }
+      }
+
+      return statusText ?? 'Unknown error';
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('❌ Error extracting error message: $e');
+      }
+      return statusText ?? 'Unknown error';
+    }
+  }
+}
+
+class MultipartBody {
+  String key;
+  XFile? file;
+
+  MultipartBody(this.key, this.file);
+}

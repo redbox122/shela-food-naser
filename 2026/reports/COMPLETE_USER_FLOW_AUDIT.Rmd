@@ -1,0 +1,1075 @@
+---
+title: "SHELLA APP - Complete User Flow & API Mapping Report"
+subtitle: "Consolidated Screen-by-Screen Analysis"
+author: "Technical Audit Team"
+date: "2024-12-24"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    theme: flatly
+    highlight: tango
+---
+
+# Executive Summary
+
+**App:** شلة (Shella) v3.7  
+**Base URL:** `https://shellafood.com`  
+**Architecture:** Flutter + GetX State Management + Hive Cache  
+**Total Screens:** 110+  
+**Total API Endpoints:** 100+  
+**Modules:** Food, Grocery, Pharmacy, Ecommerce, Rental/Taxi
+
+---
+
+# GLOBAL NAVIGATION COMPONENTS
+
+## Bottom Navigation Bar (Navbar)
+
+**File:** `lib/features/dashboard/screens/dashboard_screen.dart`  
+**Type:** `AnimatedBottomNavigationBar` with Center FAB
+
+### Navbar Tabs:
+| Index | Icon | Screen | Route |
+|-------|------|--------|-------|
+| 0 | `home_outlined` | HomeScreen | Dashboard child |
+| 1 | `favorite_border` OR `location_on_outlined` (parcel) | FavouriteScreen / AddressScreen | Dashboard child |
+| 2 (FAB) | Cart / Add (parcel) / Taxi Cart | CartScreen / ParcelBottomSheet / TaxiCartScreen | `/cart` or modal |
+| 3 | `list_alt` | OrderScreen | Dashboard child |
+| 4 | `more_horiz` | MenuScreen | Dashboard child |
+
+### Navbar Behavior Logic:
+```
+- FAB button in center (index 2 is skipped in page controller)
+- Maps nav index 0,1,2,3 → page index 0,1,3,4
+- FAB changes based on module type:
+  - Normal: Cart icon → /cart route
+  - Parcel: Add icon → ParcelBottomSheet modal
+  - Taxi: TaxiCartWidget → TaxiCartScreen
+```
+
+### API Endpoints Triggered on Navbar Tabs:
+| Tab | Endpoint | Purpose |
+|-----|----------|---------|
+| Home (0) | `/api/v2/home-unified` | Home data |
+| Favourites (1) | `/api/v1/customer/wish-list` | Wishlist items |
+| Cart (FAB) | `/api/v1/customer/cart/list` | Cart data |
+| Orders (3) | `/api/v1/customer/order/running-orders`<br>`/api/v1/customer/order/list` | Orders |
+| Menu (4) | `/api/qidha-wallet/get-wallet`<br>`/api/v1/customer/info` | Wallet + Profile |
+
+### Silent APIs on Dashboard Load:
+- `/api/v1/customer/order/running-orders` (if logged in) → Running order expandable bottom sheet
+
+---
+
+## Main Menu Screen (Hamburger/More)
+
+**File:** `lib/features/menu/screens/menu_screen.dart`  
+**Route:** Dashboard tab index 4
+
+### Menu Header:
+- [x] User avatar (`user.imageFullUrl`)
+- [x] User name (`user.fName`, `user.lName`) OR "Guest"
+- [x] Date / "Login to view all features" button
+- [x] QR Code button (if wallet exists)
+
+### API Endpoints on Menu Load:
+| Endpoint | Purpose |
+|----------|---------|
+| `/api/qidha-wallet/get-wallet` | Wallet balance |
+| `/api/v1/customer/info` | User profile |
+| `/api/v1/delivery-man/status` | Delivery man registration status |
+| `/api/v1/zones` | Zone list for store registration |
+| `/api/v1/customer/delegate` | Delegate status |
+
+### Menu Sections & Items:
+
+#### **General Section**
+| Item | Icon | Route | Data Displayed |
+|------|------|-------|----------------|
+| Profile | `profileIcon` | `/profile` | - |
+| My Address | `addressIcon` | `/address` | - |
+| Language | `languageIcon` | Modal | Language list |
+
+#### **Promotional Activity Section**
+| Item | Icon | Route | Data Displayed |
+|------|------|-------|----------------|
+| Coupon | `couponIcon` | `/coupon` | - |
+| Statistics | `statistics` | `/statistics` | - |
+| Discount | `discount` | `/discount` | - |
+| Invest Her Bond | `walletCreditIcon` | External URL | Opens browser |
+| Qidha Wallet Subscription | `KiadaWalletSubscription` | `/kiadha-wallet-subscription` | (if no active wallet) |
+| Qidha Wallet | `walletIcon` | `/kaidha-wallet` | Balance: `wallet.availableBalance` |
+| Loyalty Points | `pointIcon` | `/loyalty` | Points: `user.loyaltyPoint` |
+| My Wallet | `walletIcon` | `/wallet` | Balance: `user.walletBalance` |
+| Send Funds | `sendMoneyIcon` | `/send-funds` | (if logged in) |
+
+#### **Earnings Section**
+| Item | Icon | Route | Data Displayed |
+|------|------|-------|----------------|
+| Refer & Earn | `referIcon` | `/refer-and-earn` | - |
+| Join as Delivery Man | `dmIcon` | `/deliveryman-registration` | Status badge |
+| Delegate | `dmIcon` | `/delegate` | Status badge |
+| Open Vendor | `storeIcon` | `/restaurant-registration` | - |
+
+#### **Help & Support Section**
+| Item | Icon | Route |
+|------|------|-------|
+| Live Chat | `chatIcon` | `/chat` |
+| Help & Support | `supportIcon` | `/help-and-support` |
+| About Us | `aboutUsIcon` | `/about-us` |
+| Terms & Conditions | `termsIcon` | `/terms` |
+| Privacy Policy | `privacyIcon` | `/privacy` |
+| Refund Policy | `refundIcon` | `/refund` |
+| Cancellation Policy | `cancelPolicyIcon` | `/cancellation` |
+| Shipping Policy | `shippingPolicy` | `/shipping` |
+
+#### **Logout / Delete Account**
+| Item | Action |
+|------|--------|
+| Logout | Clears token, caches, navigates to splash |
+| Delete Account | Confirmation dialog → `/api/v1/customer/delete` |
+
+---
+
+## Search Screen with Module Chips
+
+**File:** `lib/features/search/screens/search_screen.dart`  
+**Route:** `/search`
+
+### Module Chips Section
+
+**Purpose:** Switch between modules (Food, Grocery, Pharmacy, Ecommerce) in search context
+
+**Behavior:**
+```
+1. Displays horizontal scrollable list of all modules
+2. Active module highlighted with red underline
+3. On tap: 
+   - Switch module via splashController.switchModule()
+   - Reload popular/trending categories for new module
+   - Re-execute current search query if exists
+```
+
+### API Endpoints on Module Switch:
+| Endpoint | Purpose |
+|----------|---------|
+| `/api/v1/categories/popular` | Popular categories for module |
+| `/api/v1/categories/trending` | Trending categories |
+| `/api/v1/items/item-or-store-search?query={q}` | Search with new module |
+
+### UI Data Fields for Module Chips:
+- [x] `module.moduleName`
+- [x] `module.iconFullUrl`
+- [x] `module.id`
+- [x] `module.moduleType`
+
+---
+
+## Search Tabs (Items vs Stores)
+
+**Behavior Based on Module Type:**
+
+| Module Type | Default Tab | Tab 1 | Tab 2 |
+|-------------|-------------|-------|-------|
+| **Ecommerce** (Module 3) | Items | Items | Categories (nav) |
+| **Food** | Stores | Items | Restaurants |
+| **Grocery** | Stores | Items | Stores |
+| **Pharmacy** | Stores | Items | Stores |
+
+### Tab Switch Logic:
+```dart
+// Default tab based on module type
+final isEcommerce = splashController.module?.moduleType == 'ecommerce';
+searchController.setStore(!isEcommerce); // Items default for ecommerce
+
+// Tab click behavior:
+- Items tab: setStore(false) → shows item results
+- Stores tab: setStore(true) → shows store results  
+- Categories tab (ecommerce): Navigates to /categories route
+```
+
+### API Endpoints for Search Results:
+| Tab | Endpoint | Response |
+|-----|----------|----------|
+| Items | `/api/v1/items/item-or-store-search?query={q}` | `itemModel[]` |
+| Stores | `/api/v1/items/item-or-store-search?query={q}` | `storeModel[]` |
+
+### Search Results Data Fields:
+
+**For Items:**
+- [x] `item.name`
+- [x] `item.price`
+- [x] `item.image_full_url`
+- [x] `item.rating`
+- [x] `item.store.name`
+
+**For Stores:**
+- [x] `store.name`
+- [x] `store.logo_full_url`
+- [x] `store.rating`
+- [x] `store.distance`
+
+### Other Search Sections:
+
+**Recent Searches (Local):**
+- Stored in SharedPreferences
+- No API call
+
+**Most Searched Section:**
+- API: `/api/v1/items/popular` or `/api/v1/items/trending`
+- Data: `item.name`, `item.image`, `item.price`
+
+**Category Tabs (Quick Filters):**
+- Labels: "Restaurant Categories", "Restaurants and Stores"
+- Navigates to category screens
+
+---
+
+## App Bar / Header Components
+
+### Home Screen App Bar:
+**File:** Various home screens
+
+| Component | Data Field | Source |
+|-----------|------------|--------|
+| Location Label | `address.address` | SharedPreferences `AddressModel` |
+| Notification Bell | Badge count | `/api/v1/customer/notifications` |
+| Search Icon | - | Navigates to `/search` |
+
+### Store Screen App Bar:
+| Component | Data Field | API |
+|-----------|------------|-----|
+| Store Name | `store.name` | `/api/v1/stores/details/{id}` |
+| Back Button | - | Navigation |
+| Favorite Toggle | Heart icon | `/api/v1/customer/wish-list/add` or `/remove` |
+| Share Button | - | Native share |
+
+---
+
+# CASE 1: First Time App Download
+
+## 1.1 Splash Screen
+
+**File:** `lib/features/splash/screens/splash_screen.dart`  
+**Route:** `/splash`  
+**Duration:** 5000ms (minimum for logo GIF)
+
+### API Endpoints Called:
+| Endpoint | Method | Purpose |
+|----------|--------|---------|
+| `/api/v1/app-init` | GET | Config, modules, zones, business settings |
+| `/api/v1/bootstrap` | GET | Alternative consolidated startup |
+| `/api/v2/home-unified?module_id=3` | GET | Pre-fetch promotional content (parallel) |
+| `/api/qidha-wallet/get-wallet` | GET | Wallet data if logged in (parallel, silent) |
+
+### UI Displays:
+- [x] App logo GIF
+- [x] Loading indicator
+
+### Controllers Initialized:
+- `SplashController` → loads config, modules, zones
+- `HomeUnifiedController` → pre-fetches home data
+- `KaidhaSubscription_Controller` → wallet data
+
+---
+
+## 1.2 Language Selection Screen
+
+**File:** `lib/features/language/screens/language_screen.dart`  
+**Route:** `/language`  
+**Trigger:** `showIntro == true` AND `AppConstants.languages.length > 1`
+
+### API Endpoints Called:
+| Endpoint | Method | Purpose |
+|----------|--------|---------|
+| None | - | Uses local language files |
+
+### UI Displays:
+- [x] Language list (Arabic, English, Spanish, Bengali)
+- [x] Flag icons
+- [x] Continue button
+
+### Data Fields Used:
+- `LanguageModel.languageName`
+- `LanguageModel.countryCode`
+- `LanguageModel.languageCode`
+- `LanguageModel.imageUrl`
+
+---
+
+## 1.3 Onboarding Screen
+
+**File:** `lib/features/onboard/screens/onboarding_screen.dart`  
+**Route:** `/on-boarding`  
+**Trigger:** After language selection OR if single language
+
+### API Endpoints Called:
+| Endpoint | Method | Purpose |
+|----------|--------|---------|
+| None | - | Static onboarding content |
+
+### UI Displays:
+- [x] Onboarding slides (images + text)
+- [x] Skip/Next buttons
+- [x] Page indicators
+
+### State Changes:
+- Sets `showIntro = false` in SharedPreferences
+
+---
+
+## 1.4 Location Picker Screen
+
+**File:** `lib/features/location/screens/pick_map_screen.dart`  
+**Route:** `/pick-map`  
+**Trigger:** No `AddressModel` in SharedPreferences
+
+### API Endpoints Called:
+| Endpoint | Method | Purpose |
+|----------|--------|---------|
+| `/api/v1/config/get-zone-id?lat={lat}&lng={lng}` | GET | Zone validation |
+| `/api/v1/config/place-api-autocomplete` | GET | Address search |
+| `/api/v1/config/place-api-details` | GET | Get address details |
+| `/api/v1/config/geocode-api` | GET | Reverse geocoding |
+
+### UI Displays:
+- [x] Google Map
+- [x] Current location button
+- [x] Search bar
+- [x] Address suggestions list
+- [x] Selected address card
+- [x] Confirm button
+
+### Data Fields Used:
+- `lat`, `lng` (coordinates)
+- `zoneIds[]`
+- `address` (formatted string)
+- `contactPersonName`, `contactPersonNumber`
+
+---
+
+## 1.5 Access Location Screen
+
+**File:** `lib/features/location/screens/access_location_screen.dart`  
+**Route:** `/access-location`
+
+### API Endpoints Called:
+| Endpoint | Method | Purpose |
+|----------|--------|---------|
+| None | - | Requests device permissions only |
+
+### UI Displays:
+- [x] Location permission request
+- [x] Enable location button
+- [x] Manual address entry option
+
+---
+
+# CASE 2: Returning User (Guest - Not First Time)
+
+## 2.1 Splash Screen (Fast Path)
+
+**File:** `lib/features/splash/screens/splash_screen.dart`
+
+### Flow Logic:
+```
+1. Check cache validity
+2. Load cached data immediately
+3. Start parallel API refresh
+4. Route to home without waiting for network
+```
+
+### API Endpoints Called:
+| Endpoint | Method | Purpose | Blocking? |
+|----------|--------|---------|-----------|
+| `/api/v1/app-init` | GET | Config refresh | No (SWR) |
+| `/api/v2/home-unified?module_id=3` | GET | Home data refresh | No (SWR) |
+
+### Cache Sources:
+- Hive `app_config` box → config, modules
+- Hive `home_unified_3` box → banners, offers, brands
+- SharedPreferences → user address, guest ID
+
+---
+
+## 2.2 Multi-Module Home Screen
+
+**File:** `lib/features/home/screens/multi_module/multi_module_home_screen.dart`  
+**Route:** Dashboard (child)  
+**Trigger:** `moduleList.length > 1` AND `splashController.module == null`
+
+### API Endpoints Called:
+| Endpoint | Method | Purpose |
+|----------|--------|---------|
+| `/api/v2/home-unified?module_id=3` | GET | Pre-fetched during splash |
+| `/api/v1/banners?module_id=3` | GET | Promotional banners |
+| `/api/v1/offers/active?module_id=3` | GET | Active offers |
+| `/api/qidha-wallet/get-wallet` | GET | Wallet (if logged in, silent) |
+| `/api/v1/customer/notifications` | GET | Notifications (if logged in, silent) |
+
+### UI Sections & Data Fields:
+
+#### Header / App Bar:
+- [x] Logo
+- [x] Location label (from `AddressModel.address`)
+- [x] Notification bell (badge count)
+
+#### Modules Grid:
+- [x] `module.moduleName`
+- [x] `module.icon` / `module.thumbnail`
+- [x] Module type indicator
+
+#### Banner Carousel:
+- [x] `banner.image_full_url`
+- [x] `banner.store_id` (for navigation)
+- [x] `banner.item_id` (for navigation)
+
+#### Offers Section:
+- [x] `offer.title`
+- [x] `offer.banner_full_url`
+- [x] `offer.discountAmount`
+- [x] `offer.discountType`
+
+#### Wallet Card (if logged in):
+- [x] `wallet.balance`
+- [x] Qidha wallet status
+
+### Waste Detection:
+- ⚠️ Banner data includes `description` field that is never displayed
+- ⚠️ Offers include `terms_conditions` that is never displayed on home
+
+---
+
+## 2.3 Each Module Home Screen
+
+### FOOD MODULE → Food Home Screen
+
+**File:** `lib/features/home/screens/all_sections/food_home_screen.dart`
+
+#### API Endpoints Called:
+| Endpoint | Method | Purpose |
+|----------|--------|---------|
+| `/api/v2/home-unified` | GET | All home data (BFF v2) |
+
+#### UI Sections & Data Fields:
+
+**Categories Section:**
+- [x] `category.id`
+- [x] `category.name`
+- [x] `category.image_full_url`
+
+**Banners Section:**
+- [x] `banner.image_full_url`
+- [x] `banner.store_id`
+- [x] `banner.item_id`
+
+**Top Restaurants Section:**
+- [x] `store.name`
+- [x] `store.logo_full_url`
+- [x] `store.rating`
+- [x] `store.delivery_time`
+- [x] `store.distance` (calculated)
+
+**All Restaurants Section:**
+- [x] `store.name`
+- [x] `store.logo_full_url`
+- [x] `store.rating`
+- [x] `store.ratingCount`
+- [x] `store.deliveryTime`
+- [x] `store.discount` (if applicable)
+- [x] `store.freeDelivery` flag
+
+#### Waste Detection:
+- ⚠️ Store list returns `categories[]` array - not displayed on food home
+
+---
+
+### GROCERY MODULE → Grocery Home Screen
+
+**File:** `lib/features/home/screens/all_sections/grocery_home_screen.dart`
+
+#### API Endpoints Called:
+| Endpoint | Method | Purpose |
+|----------|--------|---------|
+| `/api/v2/home-unified` | GET | All home data |
+| `/api/v1/brands` | GET | Brand list |
+
+#### UI Sections & Data Fields:
+
+**Categories Section:**
+- [x] `category.name`
+- [x] `category.image_full_url`
+
+**Brands Section:**
+- [x] `brand.name`
+- [x] `brand.image_full_url`
+
+**Popular Items:**
+- [x] `item.name`
+- [x] `item.price`
+- [x] `item.image_full_url`
+- [x] `item.discount`
+- [x] `item.unit`
+
+#### Waste Detection:
+- ⚠️ Brand list returns `products_count` - not displayed
+
+---
+
+### PHARMACY MODULE → Pharmacy Home Screen
+
+**File:** `lib/features/home/screens/all_sections/pharmacy_home_screen.dart`
+
+#### API Endpoints Called:
+| Endpoint | Method | Purpose |
+|----------|--------|---------|
+| `/api/v2/home-unified` | GET | All home data |
+| `/api/v1/common-condition` | GET | Common conditions |
+| `/api/v1/items/basic` | GET | Basic medicines |
+
+#### UI Sections & Data Fields:
+
+**Common Conditions:**
+- [x] `condition.name`
+- [x] `condition.image`
+
+**Basic Medicines:**
+- [x] `item.name`
+- [x] `item.price`
+- [x] `item.image_full_url`
+
+---
+
+### SHOP/ECOMMERCE MODULE → Shop Home Screen
+
+**File:** `lib/features/home/screens/all_sections/shop_home_screen.dart`
+
+#### API Endpoints Called:
+| Endpoint | Method | Purpose |
+|----------|--------|---------|
+| `/api/v2/home-unified` | GET | All home data |
+| `/api/v1/brands` | GET | Brand list |
+| `/api/v1/flash-sales` | GET | Flash sale items |
+
+#### UI Sections & Data Fields:
+
+**Flash Sale Section:**
+- [x] `flash_sale.title`
+- [x] `flash_sale.end_date`
+- [x] `item.name`
+- [x] `item.price`
+- [x] `item.flash_sale_price`
+- [x] `item.sold_quantity`
+- [x] `item.stock`
+
+**Brands Grid:**
+- [x] `brand.name`
+- [x] `brand.logo`
+
+#### Waste Detection:
+- ⚠️ Flash sale items return full `variations[]` - not displayed in list
+
+---
+
+## 2.4 Store/Restaurant Detail Screen
+
+**File:** `lib/features/store/screens/store_screen.dart`  
+**Route:** `/store?id={store_id}`
+
+### API Endpoints Called:
+| Endpoint | Method | Purpose |
+|----------|--------|---------|
+| `/api/v1/stores/details/{store_id}` | GET | Store info |
+| `/api/v1/items/latest?store_id={id}` | GET | Store items |
+| `/api/v1/stores/reviews` | GET | Store reviews |
+| `/api/v1/items/recommended?filter=store_id:{id}` | GET | Recommended items |
+| `/api/v1/customer/wish-list` | GET | Check if favorite (silent) |
+
+### UI Displays & Data Fields:
+
+**Store Header:**
+- [x] `store.name`
+- [x] `store.logo_full_url`
+- [x] `store.cover_photo_full_url`
+- [x] `store.rating`
+- [x] `store.rating_count`
+- [x] `store.distance`
+- [x] `store.delivery_time`
+- [x] `store.minimum_order`
+
+**Category Tabs:**
+- [x] `category.name`
+- [x] `category.id`
+
+**Item Cards:**
+- [x] `item.name`
+- [x] `item.price`
+- [x] `item.image_full_url`
+- [x] `item.discount`
+- [x] `item.in_stock`
+
+### Waste Detection:
+> ⚠️ **HIGH PRIORITY** - `/api/v1/stores/details/{id}` returns 50+ fields, UI uses ~15
+> 
+> **Unused fields:** `owner_id`, `input_type`, `commission`, `comission_status`, `module_id`, `zone_id`, `zone`, `vendor`, `vendor.*, ...`
+
+---
+
+## 2.5 Item Details Screen
+
+**File:** `lib/features/item/screens/item_details_screen.dart`  
+**Route:** `/item-details?id={item_id}`
+
+### API Endpoints Called:
+| Endpoint | Method | Purpose |
+|----------|--------|---------|
+| `/api/v1/items/details/{item_id}` | GET | Full item details |
+| `/api/v1/customer/wish-list` | GET | Check favorite (silent) |
+
+### UI Displays & Data Fields:
+- [x] `item.name`
+- [x] `item.description`
+- [x] `item.price`
+- [x] `item.image_full_url`
+- [x] `item.images[]` (gallery)
+- [x] `item.discount`
+- [x] `item.discount_type`
+- [x] `item.stock_type`
+- [x] `item.in_stock`
+
+**Variations:**
+- [x] `variation.name`
+- [x] `variation.values[].label`
+- [x] `variation.values[].price`
+
+**Add-ons:**
+- [x] `addon.name`
+- [x] `addon.price`
+
+### Waste Detection:
+- ⚠️ Returns full `store` object when only `store.name`, `store.logo` needed
+
+---
+
+## 2.6 Cart Screen
+
+**File:** `lib/features/cart/screens/cart_screen.dart`  
+**Route:** `/cart`
+
+### API Endpoints Called:
+| Endpoint | Method | Purpose |
+|----------|--------|---------|
+| `/api/v1/customer/cart/list` | GET | Cart items |
+| `/api/v1/items/suggested?store_id={id}` | GET | Suggested items |
+
+### UI Displays & Data Fields:
+
+**Cart Items:**
+- [x] `cart.item.name`
+- [x] `cart.item.price`
+- [x] `cart.item.image`
+- [x] `cart.quantity`
+- [x] `cart.variation`
+- [x] `cart.addons[]`
+
+**Price Summary:**
+- [x] Subtotal
+- [x] Tax (from `store.tax`)
+- [x] Delivery fee
+- [x] Total
+
+### Waste Detection:
+- ⚠️ Suggested items return full product objects
+
+---
+
+## 2.7 Checkout Screen
+
+**File:** `lib/features/checkout/screens/checkout_screen.dart`  
+**Route:** `/checkout`
+
+### API Endpoints Called:
+| Endpoint | Method | Purpose |
+|----------|--------|---------|
+| `/api/v2/checkout/store-summary/{store_id}` | GET | ✅ Optimized store data |
+| `/api/v1/customer/address/list` | GET | User addresses |
+| `/api/v1/coupon/apply?code={code}` | GET | Apply coupon |
+| `/api/v1/config/distance-api` | GET | Calculate distance |
+| `/api/v1/coupon/list` | GET | Available coupons |
+
+### UI Displays & Data Fields:
+
+**Delivery Address:**
+- [x] `address.label`
+- [x] `address.address`
+- [x] `address.floor`
+- [x] `address.house`
+
+**Store Summary:**
+- [x] `store.name`
+- [x] `store.delivery_time`
+- [x] `store.tax`
+- [x] `store.free_delivery_over`
+
+**Time Slots:**
+- [x] `slot.start_time`
+- [x] `slot.end_time`
+
+**Payment Methods:**
+- [x] COD
+- [x] Digital Payment (MyFatoorah)
+- [x] Wallet
+
+**Order Summary:**
+- [x] Items subtotal
+- [x] Addons total
+- [x] Discount
+- [x] Coupon discount
+- [x] Tax
+- [x] Delivery fee
+- [x] Additional charge (app fee)
+- [x] **Grand Total**
+
+### Waste Detection:
+- ✅ Uses optimized `/api/v2/checkout/store-summary` (17 fields vs 50+)
+
+---
+
+## 2.8 Search Screen
+
+**File:** `lib/features/search/screens/search_screen.dart`  
+**Route:** `/search`
+
+### API Endpoints Called:
+| Endpoint | Method | Purpose |
+|----------|--------|---------|
+| `/api/v1/items/item-or-store-search?query={q}` | GET | Search suggestions |
+| `/api/v1/categories/popular` | GET | Popular categories |
+
+### UI Displays & Data Fields:
+
+**Search Results:**
+- [x] `item.name`
+- [x] `item.price`
+- [x] `item.image`
+- [x] `item.rating`
+
+**Store Results:**
+- [x] `store.name`
+- [x] `store.logo`
+- [x] `store.rating`
+
+**Recent Searches:** (Local storage)
+- [x] Search query text
+
+### Waste Detection:
+- ⚠️ Search returns full item/store objects - only need name, image, price
+
+---
+
+## 2.9 Profile Screen
+
+**File:** `lib/features/profile/screens/profile_screen.dart`  
+**Route:** `/profile`
+
+### API Endpoints Called:
+| Endpoint | Method | Purpose |
+|----------|--------|---------|
+| `/api/v1/customer/info` | GET | User profile data |
+
+### UI Displays & Data Fields:
+- [x] `user.fName`
+- [x] `user.lName`
+- [x] `user.image_full_url`
+- [x] `user.createdAt`
+- [x] `user.loyaltyPoint`
+- [x] `user.orderCount`
+- [x] `user.walletBalance`
+
+### Waste Detection:
+- ⚠️ Customer info returns ALL user data - profile uses only 7 fields
+- **Unused:** `email`, `phone`, `addresses[]`, `orders[]`, `cm_firebase_token`, etc.
+
+---
+
+## 2.10 Orders Screen
+
+**File:** `lib/features/order/screens/order_screen.dart`  
+**Route:** `/order`
+
+### API Endpoints Called:
+| Endpoint | Method | Purpose |
+|----------|--------|---------|
+| `/api/v1/customer/order/running-orders` | GET | Active orders |
+| `/api/v1/customer/order/list` | GET | Order history |
+
+### UI Displays & Data Fields:
+- [x] `order.id`
+- [x] `order.order_status`
+- [x] `order.created_at`
+- [x] `order.order_amount`
+- [x] `order.store.name`
+- [x] `order.store.logo`
+
+### Waste Detection:
+- ⚠️ Order list returns full order details including all items
+- **Needed:** Only order id, status, amount, date, store name/logo
+
+---
+
+## 2.11 Order Tracking Screen
+
+**File:** `lib/features/order/screens/order_tracking_screen.dart`  
+**Route:** `/track-order`
+
+### API Endpoints Called:
+| Endpoint | Method | Purpose |
+|----------|--------|---------|
+| `/api/v1/customer/order/track?order_id={id}` | GET | Order tracking status |
+| `/api/v1/delivery-man/last-location?order_id={id}` | GET | Driver location |
+
+### UI Displays & Data Fields:
+- [x] Order status stepper
+- [x] `store.lat`, `store.lng`
+- [x] `deliveryMan.name`
+- [x] `deliveryMan.phone`
+- [x] `deliveryMan.lat`, `deliveryMan.lng`
+- [x] `address.lat`, `address.lng`
+- [x] Estimated delivery time
+
+---
+
+## 2.12 Wallet Screen
+
+**File:** `lib/features/wallet/screens/wallet_screen.dart`  
+**Route:** `/wallet`
+
+### API Endpoints Called:
+| Endpoint | Method | Purpose |
+|----------|--------|---------|
+| `/api/v1/customer/wallet/transactions` | GET | Transaction history |
+| `/api/v1/customer/wallet/bonuses` | GET | Wallet bonuses |
+| `/api/qidha-wallet/get-wallet` | GET | Qidha wallet |
+
+### UI Displays & Data Fields:
+- [x] Wallet balance
+- [x] Transaction list:
+  - [x] `transaction.type`
+  - [x] `transaction.amount`
+  - [x] `transaction.created_at`
+  - [x] `transaction.description`
+- [x] Bonus list:
+  - [x] `bonus.title`
+  - [x] `bonus.amount`
+  - [x] `bonus.minimum_purchase`
+
+---
+
+## 2.13 Notification Screen
+
+**File:** `lib/features/notification/screens/notification_screen.dart`  
+**Route:** `/notification`
+
+### API Endpoints Called:
+| Endpoint | Method | Purpose |
+|----------|--------|---------|
+| `/api/v1/customer/notifications` | GET | Notification list |
+
+### UI Displays & Data Fields:
+- [x] `notification.title`
+- [x] `notification.description`
+- [x] `notification.image_full_url`
+- [x] `notification.created_at`
+- [x] `notification.read_at` (for read/unread status)
+
+---
+
+## 2.14 Favourite Screen
+
+**File:** `lib/features/favourite/screens/favourite_screen.dart`  
+**Route:** `/favourite`
+
+### API Endpoints Called:
+| Endpoint | Method | Purpose |
+|----------|--------|---------|
+| `/api/v1/customer/wish-list` | GET | Favorite items/stores |
+
+### UI Displays & Data Fields:
+- [x] `item.name`
+- [x] `item.image_full_url`
+- [x] `item.price`
+- [x] `item.rating`
+- [x] `store.name`
+- [x] `store.logo_full_url`
+- [x] `store.rating`
+
+### Waste Detection:
+- ⚠️ Returns full item/store objects
+
+---
+
+## 2.15 Address Management Screen
+
+**File:** `lib/features/address/screens/address_screen.dart`  
+**Route:** `/address`
+
+### API Endpoints Called:
+| Endpoint | Method | Purpose |
+|----------|--------|---------|
+| `/api/v1/customer/address/list` | GET | Saved addresses |
+| `/api/v1/customer/address/add` | POST | Add new address |
+| `/api/v1/customer/address/update/{id}` | PUT | Update address |
+| `/api/v1/customer/address/delete?address_id={id}` | DELETE | Remove address |
+
+### UI Displays & Data Fields:
+- [x] `address.label`
+- [x] `address.address`
+- [x] `address.latitude`
+- [x] `address.longitude`
+- [x] `address.floor`
+- [x] `address.house`
+- [x] `address.road`
+
+---
+
+# CASE 3: Logged-In User
+
+## 3.1 Authentication Flow
+
+### Login
+**File:** `lib/features/auth/screens/sign_in_screen.dart`
+
+| Endpoint | Method | Purpose |
+|----------|--------|---------|
+| `/api/v1/auth/login` | POST | User login |
+
+### Registration
+**File:** `lib/features/auth/screens/sign_up_screen.dart`
+
+| Endpoint | Method | Purpose |
+|----------|--------|---------|
+| `/api/v1/auth/sign-up` | POST | User registration |
+| `/api/v1/auth/verify-phone` | POST | OTP verification |
+| `/api/v1/auth/verify-email` | POST | Email verification |
+| `/api/v1/auth/social-login` | POST | Google/Facebook login |
+
+---
+
+## 3.2 Additional APIs for Logged-In Users
+
+| Screen | Silent API | Purpose |
+|--------|-----------|---------|
+| Home | `/api/v1/customer/cart/list` | Cart badge |
+| Home | `/api/v1/customer/wish-list` | Favorite items |
+| Home | `/api/qidha-wallet/get-wallet` | Wallet balance |
+| Home | `/api/v1/customer/notifications` | Notification badge |
+| Dashboard | `/api/v1/customer/order/running-orders` | Order status |
+
+---
+
+# API Headers Reference
+
+All authenticated endpoints require these headers:
+
+```
+Authorization: Bearer {token}
+zoneId: {current_zone_id}
+moduleId: {current_module_id}
+X-localization: {ar|en}
+```
+
+---
+
+# Optimization Recommendations
+
+## HIGH PRIORITY
+
+1. **Store Details Endpoint** - Returns 50+ fields, UI uses ~15
+   - Create `/api/v2/stores/summary/{id}`
+
+2. **Item Listings** - Returns full variations/addons
+   - Add `?fields=summary` parameter
+
+3. **Customer Info** - Returns ALL user data
+   - Create `/api/v1/customer/profile-summary`
+
+4. **Order List** - Returns full orders
+   - Create `/api/v1/customer/order/list-summary`
+
+## ALREADY OPTIMIZED ✅
+
+1. Home screens use `/api/v2/home-unified` (single BFF call)
+2. Checkout uses `/api/v2/checkout/store-summary`
+3. SWR caching pattern for instant UI
+
+---
+
+# Appendix: Complete Endpoint List
+
+<details>
+<summary>Click to expand full endpoint list</summary>
+
+## Config & Init
+- `/api/v1/config`
+- `/api/v1/app-init`
+- `/api/v1/bootstrap`
+- `/api/v2/home-unified`
+- `/api/v1/module`
+
+## Auth
+- `/api/v1/auth/login`
+- `/api/v1/auth/sign-up`
+- `/api/v1/auth/forgot-password`
+- `/api/v1/auth/verify-phone`
+- `/api/v1/auth/verify-email`
+- `/api/v1/auth/social-login`
+
+## Home
+- `/api/v1/banners`
+- `/api/v1/categories`
+- `/api/v1/brands`
+- `/api/v1/offers/active`
+- `/api/v1/flash-sales`
+
+## Stores
+- `/api/v1/stores/get-stores`
+- `/api/v1/stores/details/{id}`
+- `/api/v1/stores/popular`
+- `/api/v1/stores/reviews`
+- `/api/v2/checkout/store-summary/{id}`
+
+## Items
+- `/api/v1/items/latest`
+- `/api/v1/items/details/{id}`
+- `/api/v1/items/popular`
+- `/api/v1/items/search`
+- `/api/v1/items/recommended`
+
+## Cart & Orders
+- `/api/v1/customer/cart/list`
+- `/api/v1/customer/cart/add`
+- `/api/v1/customer/order/place`
+- `/api/v1/customer/order/list`
+- `/api/v1/customer/order/track`
+
+## User
+- `/api/v1/customer/info`
+- `/api/v1/customer/address/list`
+- `/api/v1/customer/wish-list`
+- `/api/v1/customer/wallet/transactions`
+- `/api/v1/customer/notifications`
+
+## Wallet (Custom)
+- `/api/qidha-wallet/get-wallet`
+- `/api/qidha-wallet/credit`
+- `/api/qidha-wallet/debit`
+- `/api/qidha-wallet/nafath/initiate`
+
+</details>
+
+---
+
+*Report Generated: 2024-12-24*  
+*App Version: 3.7*  
+*Audit Files: operation_blackbox_audit.md, URL_CENTRALIZATION_VARIATION_RESILIENCE_REPORT.md, UX_FLOW_TECHNICAL_AUDIT_REPORT.md, UX_JOURNEY_DATA_HANDOVER_REPORT.md*

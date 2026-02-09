@@ -1,0 +1,255 @@
+import 'package:sixam_mart/common/widgets/custom_asset_image_widget.dart';
+import 'package:sixam_mart/features/splash/controllers/splash_controller.dart';
+import 'package:sixam_mart/features/item/domain/models/item_model.dart';
+import 'package:sixam_mart/features/order/domain/models/order_details_model.dart';
+import 'package:sixam_mart/features/order/domain/models/order_model.dart';
+import 'package:sixam_mart/helper/price_converter.dart';
+import 'package:sixam_mart/util/dimensions.dart';
+import 'package:sixam_mart/util/images.dart';
+import 'package:sixam_mart/util/styles.dart';
+import 'package:sixam_mart/common/widgets/custom_image.dart';
+import 'package:flutter/material.dart';
+import 'package:get/get.dart';
+
+class OrderItemWidget extends StatelessWidget {
+  final OrderModel order;
+  final OrderDetailsModel orderDetails;
+  const OrderItemWidget(
+      {super.key, required this.order, required this.orderDetails});
+
+  @override
+  Widget build(BuildContext context) {
+    String addOnText = '';
+    if (orderDetails.addOns != null && orderDetails.addOns!.isNotEmpty) {
+      for (final addOn in orderDetails.addOns!) {
+        addOnText =
+            '$addOnText${(addOnText.isEmpty) ? '' : ',  '}${addOn.name} (${addOn.quantity})';
+      }
+    }
+
+    String variationText = '';
+
+    // 🔍 DEBUG: Log variation data
+    print('🔍 [OrderItemWidget] Building variation text');
+    print(
+        '🔍 [OrderItemWidget] variation isNotEmpty: ${orderDetails.variation?.isNotEmpty ?? false}');
+    print(
+        '🔍 [OrderItemWidget] foodVariation isNotEmpty: ${orderDetails.foodVariation?.isNotEmpty ?? false}');
+
+    // Handle old variation format
+    if (orderDetails.variation != null && orderDetails.variation!.isNotEmpty) {
+      try {
+        final List<String> variationTypes =
+            orderDetails.variation![0].type!.split('-');
+        if (orderDetails.itemDetails?.choiceOptions != null &&
+            variationTypes.length ==
+                orderDetails.itemDetails!.choiceOptions!.length) {
+          int index = 0;
+          for (final choice in orderDetails.itemDetails!.choiceOptions!) {
+            variationText =
+                '$variationText${(index == 0) ? '' : ',  '}${choice.title} - ${variationTypes[index]}';
+            index = index + 1;
+          }
+        } else if (orderDetails.itemDetails?.variations != null &&
+            orderDetails.itemDetails!.variations!.isNotEmpty) {
+          variationText = orderDetails.itemDetails!.variations![0].type ?? '';
+        } else {
+          // Fallback: just show the type
+          variationText = orderDetails.variation![0].type ?? '';
+        }
+      } catch (e) {
+        print('❌ [OrderItemWidget] Error parsing old variation: $e');
+      }
+    }
+    // Handle new food variation format
+    else if (orderDetails.foodVariation != null &&
+        orderDetails.foodVariation!.isNotEmpty) {
+      print(
+          '🔍 [OrderItemWidget] Processing ${orderDetails.foodVariation!.length} food variations');
+      for (final FoodVariation variation in orderDetails.foodVariation!) {
+        if (variation.name != null && variation.name!.isNotEmpty) {
+          variationText =
+              '$variationText${variationText.isNotEmpty ? ', ' : ''}${variation.name}';
+
+          // Add selected values if available
+          if (variation.variationValues != null &&
+              variation.variationValues!.isNotEmpty) {
+            variationText = '$variationText (';
+            bool isFirst = true;
+            for (final VariationValue value in variation.variationValues!) {
+              if (value.level != null && value.level!.isNotEmpty) {
+                variationText =
+                    '$variationText${isFirst ? '' : ', '}${value.level}';
+                isFirst = false;
+              }
+            }
+            variationText = '$variationText)';
+          }
+        }
+      }
+      print('✅ [OrderItemWidget] Built variation text: $variationText');
+    }
+
+    // If still empty, check if itemDetails has foodVariations (fallback)
+    if (variationText.isEmpty &&
+        orderDetails.itemDetails?.foodVariations != null &&
+        orderDetails.itemDetails!.foodVariations!.isNotEmpty) {
+      print(
+          '🔍 [OrderItemWidget] Using itemDetails.foodVariations as fallback');
+      // Note: This shows available variations, not selected ones
+      // This is a fallback if order variation data is missing
+    }
+
+    return Container(
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardColor,
+        borderRadius: BorderRadius.circular(Dimensions.radiusDefault),
+        boxShadow: [
+          BoxShadow(
+              color: Theme.of(context).primaryColor.withValues(alpha: 0.05),
+              blurRadius: 10)
+        ],
+      ),
+      padding: const EdgeInsets.all(Dimensions.paddingSizeSmall),
+      margin: const EdgeInsets.only(bottom: Dimensions.paddingSizeSmall),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [
+          ClipRRect(
+            borderRadius: BorderRadius.circular(Dimensions.radiusSmall),
+            child: CustomImage(
+              height: 50,
+              width: 50,
+              image: '${orderDetails.imageFullUrl}',
+            ),
+          ),
+          const SizedBox(width: Dimensions.paddingSizeSmall),
+          Expanded(
+            child:
+                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Row(children: [
+                Expanded(
+                    child: Text(
+                  orderDetails.itemDetails!.name!,
+                  style:
+                      robotoMedium.copyWith(fontSize: Dimensions.fontSizeSmall),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                )),
+                Text('${'quantity'.tr}:',
+                    style: robotoRegular.copyWith(
+                        fontSize: Dimensions.fontSizeSmall)),
+                Text(
+                  orderDetails.quantity.toString(),
+                  style: robotoMedium.copyWith(
+                      color: Theme.of(context).primaryColor,
+                      fontSize: Dimensions.fontSizeSmall),
+                ),
+              ]),
+              const SizedBox(height: Dimensions.paddingSizeExtraSmall),
+              Row(children: [
+                Expanded(
+                  child: PriceConverter.convertPrice2(
+                      orderDetails.price! - (orderDetails.discountOnItem ?? 0)),
+                ),
+                ((Get.find<SplashController>()
+                                .configModel!
+                                .moduleConfig!
+                                .module!
+                                .unit! &&
+                            orderDetails.itemDetails!.unitType != null) ||
+                        (Get.find<SplashController>()
+                                .configModel!
+                                .moduleConfig!
+                                .module!
+                                .vegNonVeg! &&
+                            Get.find<SplashController>()
+                                .configModel!
+                                .toggleVegNonVeg!))
+                    ? (Get.find<SplashController>()
+                                .getModuleConfig(order.moduleType)
+                                .newVariation ??
+                            false)
+                        ? CustomAssetImageWidget(
+                            orderDetails.itemDetails!.veg == 0
+                                ? Images.nonVegImage
+                                : Images.vegImage,
+                            height: 11,
+                            width: 11,
+                          )
+                        : Container(
+                            padding: const EdgeInsets.symmetric(
+                                vertical: Dimensions.paddingSizeExtraSmall,
+                                horizontal: Dimensions.paddingSizeSmall),
+                            decoration: BoxDecoration(
+                              borderRadius:
+                                  BorderRadius.circular(Dimensions.radiusSmall),
+                              color: Theme.of(context)
+                                  .primaryColor
+                                  .withValues(alpha: 0.1),
+                            ),
+                            child: Text(
+                              orderDetails.itemDetails!.unitType ?? '',
+                              style: robotoMedium.copyWith(
+                                  fontSize: Dimensions.fontSizeExtraSmall,
+                                  color: Theme.of(context).primaryColor),
+                            ),
+                          )
+                    : const SizedBox(),
+                SizedBox(
+                    width: orderDetails.itemDetails!.isStoreHalalActive! &&
+                            orderDetails.itemDetails!.isHalalItem!
+                        ? Dimensions.paddingSizeExtraSmall
+                        : 0),
+                orderDetails.itemDetails!.isStoreHalalActive! &&
+                        orderDetails.itemDetails!.isHalalItem!
+                    ? const CustomAssetImageWidget(Images.halalTag,
+                        height: 13, width: 13)
+                    : const SizedBox(),
+              ]),
+            ]),
+          ),
+        ]),
+        ((Get.find<SplashController>()
+                        .getModuleConfig(order.moduleType)
+                        .addOn ??
+                    false) &&
+                addOnText.isNotEmpty)
+            ? Padding(
+                padding: const EdgeInsets.only(
+                    top: Dimensions.paddingSizeExtraSmall),
+                child: Row(children: [
+                  const SizedBox(width: 60),
+                  Text('${'addons'.tr}: ',
+                      style: robotoMedium.copyWith(
+                          fontSize: Dimensions.fontSizeSmall)),
+                  Flexible(
+                      child: Text(addOnText,
+                          style: robotoRegular.copyWith(
+                            fontSize: Dimensions.fontSizeSmall,
+                            color: Theme.of(context).disabledColor,
+                          ))),
+                ]),
+              )
+            : const SizedBox(),
+        variationText.isNotEmpty
+            ? Padding(
+                padding: const EdgeInsets.only(
+                    top: Dimensions.paddingSizeExtraSmall),
+                child: Row(children: [
+                  const SizedBox(width: 60),
+                  Text('${'variations'.tr}: ',
+                      style: robotoMedium.copyWith(
+                          fontSize: Dimensions.fontSizeSmall)),
+                  Flexible(
+                      child: Text(variationText,
+                          style: robotoRegular.copyWith(
+                            fontSize: Dimensions.fontSizeSmall,
+                            color: Theme.of(context).disabledColor,
+                          ))),
+                ]),
+              )
+            : const SizedBox(),
+      ]),
+    );
+  }
+}

@@ -1,0 +1,1802 @@
+import 'dart:async';
+import 'package:sixam_mart/features/search/controllers/search_controller.dart'
+    as search;
+import 'package:sixam_mart/helper/auth_helper.dart';
+import 'package:sixam_mart/helper/responsive_helper.dart';
+import 'package:sixam_mart/common/widgets/web_menu_bar.dart';
+import 'package:flutter/material.dart';
+import 'package:get/get.dart';
+import 'package:sixam_mart/helper/route_helper.dart';
+import 'package:sixam_mart/features/search/domain/models/popular_categories_model.dart';
+import 'package:sixam_mart/features/search/widgets/search_suggestions_dropdown.dart';
+import 'package:sixam_mart/util/design_tokens.dart';
+import 'package:sixam_mart/features/splash/controllers/splash_controller.dart';
+import 'package:sixam_mart/common/models/module_model.dart';
+import 'package:sixam_mart/util/app_constants.dart';
+import 'package:sixam_mart/common/widgets/custom_image.dart';
+import 'package:sixam_mart/common/widgets/smart_image.dart';
+import 'package:sixam_mart/util/images.dart';
+import 'package:sixam_mart/features/item/controllers/item_controller.dart';
+import 'package:sixam_mart/features/item/domain/models/item_model.dart';
+import 'package:sixam_mart/features/store/domain/models/store_model.dart';
+import 'package:sixam_mart/common/widgets/loading/loading.dart';
+
+class SearchScreen extends StatefulWidget {
+  final String? queryText;
+  const SearchScreen({super.key, required this.queryText});
+
+  @override
+  SearchScreenState createState() => SearchScreenState();
+}
+
+class SearchScreenState extends State<SearchScreen>
+    with TickerProviderStateMixin {
+  TabController? _tabController;
+
+  final TextEditingController _Search_Controller = TextEditingController();
+  final FocusNode _searchFocusNode = FocusNode();
+  late bool _isLoggedIn;
+
+  Timer? _debounceTimer;
+  static const Duration _debounceDelay = Duration(milliseconds: 400);
+  bool _showSuggestion = false;
+  bool _isLoadingSuggestions = false;
+
+  late AnimationController _focusAnimationController;
+  late Animation<double> _focusScaleAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _tabController = TabController(length: 2, vsync: this);
+    _isLoggedIn = AuthHelper.isLoggedIn();
+
+    _focusAnimationController = AnimationController(
+      duration: DesignTokens.animationDefault,
+      vsync: this,
+    );
+    _focusScaleAnimation = Tween<double>(begin: 1.0, end: 1.01).animate(
+      CurvedAnimation(
+          parent: _focusAnimationController, curve: DesignTokens.curveEaseOut),
+    );
+
+    _searchFocusNode.addListener(() {
+      if (_searchFocusNode.hasFocus) {
+        _focusAnimationController.forward();
+      } else {
+        _focusAnimationController.reverse();
+      }
+    });
+
+    Get.find<search.Search_Controller>().setSearchMode(true, canUpdate: false);
+
+    // Set default module to Module 3 (هايبر شله/Ecommerce) if not set
+    final splashController = Get.find<SplashController>();
+    if (splashController.moduleList != null &&
+        splashController.moduleList!.isNotEmpty) {
+      if (splashController.module == null) {
+        // Find Module 3 (ecommerce) or fallback to first module
+        final module3 = splashController.moduleList!.firstWhere(
+          (m) => m.id == 3 || m.moduleType == 'ecommerce',
+          orElse: () => splashController.moduleList!.first,
+        );
+        splashController.setModule(module3);
+      }
+    }
+
+    // Set default tab based on module type
+    // For Module 3 (ecommerce): default to Items (false)
+    // For other modules: default to Stores (true)
+    final isEcommerce = splashController.module?.moduleType == 'ecommerce';
+    Get.find<search.Search_Controller>().setStore(!isEcommerce);
+
+    Get.find<search.Search_Controller>().getPopularCategories();
+    Get.find<search.Search_Controller>().getTrendingCategories();
+    if (_isLoggedIn) {
+      Get.find<search.Search_Controller>().getSuggestedItems();
+    }
+    Get.find<search.Search_Controller>().getHistoryList();
+    if (widget.queryText!.isNotEmpty) {
+      _actionSearch(true, widget.queryText, true);
+    }
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _searchFocusNode.requestFocus();
+    });
+  }
+
+  Future<void> _searchSuggestions(String query) async {
+    _debounceTimer?.cancel();
+
+    if (query.isEmpty) {
+      _showSuggestion = false;
+      _isLoadingSuggestions = false;
+      setState(() {});
+      return;
+    }
+
+    setState(() {
+      _isLoadingSuggestions = true;
+      _showSuggestion = true;
+    });
+
+    _debounceTimer = Timer(_debounceDelay, () async {
+      await Get.find<search.Search_Controller>().getSearchSuggestions(query);
+      if (mounted) {
+        setState(() {
+          _isLoadingSuggestions = false;
+        });
+      }
+    });
+  }
+
+  void _actionSearch(bool isStore, String? queryText, bool fromHome) {
+    if (queryText != null && queryText.isNotEmpty) {
+      _showSuggestion = false;
+      _searchFocusNode.unfocus();
+      print(
+          '🔍 Search triggered: $queryText, isStore: $isStore, fromHome: $fromHome');
+      
+      final searchController = Get.find<search.Search_Controller>();
+      
+      // Set store mode first to update UI immediately
+      searchController.setStore(isStore);
+      
+      // Exit search mode so results can be displayed
+      searchController.setSearchMode(false);
+      
+      // Trigger search (will search both items and stores in parallel)
+      searchController.searchData(query: queryText, fromHome: fromHome);
+
+      // Force UI update
+      setState(() {});
+    }
+  }
+
+  void _switchTab(bool isStore) {
+    final searchController = Get.find<search.Search_Controller>();
+    
+    // Only switch if different from current mode
+    if (searchController.isStore != isStore) {
+      searchController.setStore(isStore);
+      // No need to re-search, data is already loaded
+      setState(() {});
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return PopScope(
+      onPopInvokedWithResult: (didPop, result) async {
+        if (Get.find<search.Search_Controller>().isSearchMode) {
+          return;
+        } else {
+          Get.find<search.Search_Controller>().setSearchMode(true);
+        }
+      },
+      child: Scaffold(
+        appBar: ResponsiveHelper.isDesktop(context) ? const WebMenuBar() : null,
+        body: SafeArea(
+          child: GetBuilder<search.Search_Controller>(
+            builder: (searchController) {
+              if (!GetPlatform.isWeb) {
+                _Search_Controller.text = searchController.searchText!;
+              }
+
+              return Directionality(
+                textDirection: Get.locale?.languageCode == 'ar'
+                    ? TextDirection.rtl
+                    : TextDirection.ltr,
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.fromLTRB(
+                    DesignTokens.spaceLarge,
+                    DesignTokens.spaceSmall,
+                    DesignTokens.spaceLarge,
+                    DesignTokens.spaceDefault,
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      // Search Input Field (with suggestions dropdown and back button)
+                      _SearchInputField(searchController),
+                      const SizedBox(height: DesignTokens.spaceMedium),
+
+                      // Module Chips Section
+                      _ModuleChipsSection(),
+                      const SizedBox(height: DesignTokens.spaceMedium),
+
+                      // Search tabs - shown ONLY when searching
+                      if (searchController.searchText != null &&
+                          searchController.searchText!.isNotEmpty) ...[
+                        _SearchCategoryTabs(),
+                        const SizedBox(height: DesignTokens.spaceMedium),
+                      ],
+
+                      // Discovery sections (category chips + content) - shown ONLY when NOT searching
+                      if (searchController.searchText == null ||
+                          searchController.searchText!.isEmpty) ...[
+                        // Category Filter Chips
+                        _CategoryTabs(),
+                        const SizedBox(height: DesignTokens.spaceDefault),
+
+                        // Recent Searches Section
+                        _RecentSearchesSection(searchController),
+                        const SizedBox(height: DesignTokens.spaceLarge),
+
+                        // Most Searched Section
+                        _MostSearchedSection(searchController),
+                      ],
+
+                      // Search Results Section - show when we have search text
+                      if (searchController.searchText != null &&
+                          searchController.searchText!.isNotEmpty) ...[
+                        const SizedBox(height: DesignTokens.spaceLarge),
+                        _SearchResultsSection(searchController),
+                      ],
+
+                      const SizedBox(height: DesignTokens.spaceSmall),
+
+                      // Home Indicator
+                      _HomeIndicator(),
+                    ],
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+      ),
+    );
+  }
+
+  // Removed: _SearchHeader() - No longer used after redesign
+
+  /// Module chips section for filtering by module
+  Widget _ModuleChipsSection() {
+    return GetBuilder<SplashController>(
+      builder: (splashController) {
+        final moduleList = splashController.moduleList ?? [];
+        final currentModule = splashController.module;
+
+        // Don't show if less than 2 modules
+        if (moduleList.length < 2) {
+          return const SizedBox.shrink();
+        }
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SizedBox(
+              height: 55,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                itemCount: moduleList.length,
+                separatorBuilder: (_, __) => const SizedBox(width: 8),
+                itemBuilder: (context, index) {
+                  final module = moduleList[index];
+                  final isActive =
+                      currentModule != null && module.id == currentModule.id;
+
+                  return _ModuleChip(
+                    module: module,
+                    isActive: isActive,
+                    onTap: () {
+                      if (!isActive) {
+                        // Switch module
+                        final moduleIndex = moduleList.indexOf(module);
+                        if (moduleIndex >= 0) {
+                          splashController.switchModule(
+                              context, moduleIndex, true);
+
+                          // Wait for module to switch, then reload all search data
+                          Future.delayed(const Duration(milliseconds: 500), () {
+                            final searchController =
+                                Get.find<search.Search_Controller>();
+
+                            // Reload trending and popular categories for new module
+                            searchController.getPopularCategories();
+                            searchController.getTrendingCategories();
+
+                            // Re-search if there's a query
+                            if (searchController.searchText != null &&
+                                searchController.searchText!.isNotEmpty) {
+                              _actionSearch(
+                                searchController.isStore,
+                                searchController.searchText,
+                                false,
+                              );
+                            }
+
+                            // Force UI update
+                            if (mounted) {
+                              setState(() {});
+                            }
+                          });
+                        }
+                      }
+                    },
+                  );
+                },
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  /// Individual module chip widget - clean minimal design
+  Widget _ModuleChip({
+    required ModuleModel module,
+    required bool isActive,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        padding: const EdgeInsets.symmetric(
+          horizontal: 12,
+          vertical: 8,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Module icon - simple, no circular container
+                CustomImage(
+                  image: module.iconFullUrl ?? '',
+                  width: 24,
+                  height: 24,
+                  placeholder: Images.placeholder,
+                ),
+                const SizedBox(width: 6),
+                // Module name
+                Text(
+                  module.moduleName ?? '',
+                  style: TextStyle(
+                    color: isActive ? Colors.red : Colors.grey.shade600,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: -0.1,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+            // Red underline for active state
+            if (isActive) ...[
+              const SizedBox(height: 2),
+              Container(
+                height: 2,
+                width: 40,
+                decoration: BoxDecoration(
+                  color: Colors.red,
+                  borderRadius: BorderRadius.circular(1),
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  // Removed: _LocationSection() - No longer used after redesign
+
+  /// Search input field with magnifying glass, clear button, back button, and focus animations
+  Widget _SearchInputField(search.Search_Controller searchController) {
+    final isRtl = Get.locale?.languageCode == 'ar';
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Row(
+          children: [
+            // Back button (on right for RTL, left for LTR)
+            if (isRtl) ...[
+              Expanded(
+                child: AnimatedBuilder(
+                  animation: _focusAnimationController,
+                  builder: (context, child) {
+                    final isFocused = _searchFocusNode.hasFocus;
+                    return Transform.scale(
+                      scale: _focusScaleAnimation.value,
+                      child: Container(
+                        decoration: BoxDecoration(
+                          borderRadius:
+                              BorderRadius.circular(DesignTokens.radiusDefault),
+                          boxShadow: isFocused
+                              ? DesignTokens.glowShadow(
+                                  DesignTokens.primaryGreen)
+                              : DesignTokens.shadowMedium,
+                        ),
+                        child: TextField(
+                          controller: _Search_Controller,
+                          focusNode: _searchFocusNode,
+                          textAlignVertical: TextAlignVertical.center,
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w400,
+                            color: DesignTokens.textDark,
+                            letterSpacing: -0.2,
+                          ),
+                          onChanged: (text) {
+                            _searchSuggestions(text);
+                            searchController.setSearchText(text);
+                            setState(() {});
+                          },
+                          onSubmitted: (text) {
+                            _showSuggestion = false;
+                            if (text.isNotEmpty) {
+                              _actionSearch(false, text, false);
+                            }
+                          },
+                          decoration: InputDecoration(
+                            hintText: 'search_hint'.tr,
+                            hintStyle: const TextStyle(
+                              color: DesignTokens.textLight,
+                              fontSize: 16,
+                              fontWeight: FontWeight.w400,
+                              letterSpacing: -0.2,
+                            ),
+                            prefixIcon: const Icon(
+                              Icons.search,
+                              color: DesignTokens.secondaryOrange,
+                              size: 22,
+                            ),
+                            suffixIcon: _Search_Controller.text.isNotEmpty
+                                ? IconButton(
+                                    onPressed: () {
+                                      _Search_Controller.clear();
+                                      _showSuggestion = false;
+                                      searchController.setSearchText('');
+                                      setState(() {});
+                                    },
+                                    icon: const Icon(
+                                      Icons.clear,
+                                      color: DesignTokens.textLight,
+                                      size: 20,
+                                    ),
+                                  )
+                                : null,
+                            filled: true,
+                            fillColor: DesignTokens.primaryGreen
+                                .withValues(alpha: 0.1),
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: DesignTokens.spaceDefault,
+                              vertical: DesignTokens.spaceSmall + 2,
+                            ),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(
+                                  DesignTokens.radiusDefault),
+                              borderSide: BorderSide(
+                                color: DesignTokens.primaryGreen
+                                    .withValues(alpha: 0.3),
+                              ),
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(
+                                  DesignTokens.radiusDefault),
+                              borderSide: BorderSide(
+                                color: DesignTokens.primaryGreen
+                                    .withValues(alpha: 0.3),
+                              ),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(
+                                  DesignTokens.radiusDefault),
+                              borderSide: const BorderSide(
+                                color: DesignTokens.primaryGreen,
+                                width: DesignTokens.borderMedium,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+              const SizedBox(width: DesignTokens.spaceSmall),
+              // Back button
+              Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  onTap: () => Get.back(),
+                  borderRadius: BorderRadius.circular(DesignTokens.radiusSmall),
+                  child: Container(
+                    width: DesignTokens.minTouchTarget,
+                    height: DesignTokens.minTouchTarget,
+                    decoration: BoxDecoration(
+                      color: DesignTokens.cardBackground,
+                      shape: BoxShape.circle,
+                      boxShadow: DesignTokens.shadowSubtle,
+                    ),
+                    alignment: Alignment.center,
+                    child: const Icon(
+                      Icons.arrow_forward_ios,
+                      color: DesignTokens.textDark,
+                      size: 18,
+                    ),
+                  ),
+                ),
+              ),
+            ] else ...[
+              // Back button (LTR)
+              Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  onTap: () => Get.back(),
+                  borderRadius: BorderRadius.circular(DesignTokens.radiusSmall),
+                  child: Container(
+                    width: DesignTokens.minTouchTarget,
+                    height: DesignTokens.minTouchTarget,
+                    decoration: BoxDecoration(
+                      color: DesignTokens.cardBackground,
+                      shape: BoxShape.circle,
+                      boxShadow: DesignTokens.shadowSubtle,
+                    ),
+                    alignment: Alignment.center,
+                    child: const Icon(
+                      Icons.arrow_back_ios,
+                      color: DesignTokens.textDark,
+                      size: 18,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: DesignTokens.spaceSmall),
+              Expanded(
+                child: AnimatedBuilder(
+                  animation: _focusAnimationController,
+                  builder: (context, child) {
+                    final isFocused = _searchFocusNode.hasFocus;
+                    return Transform.scale(
+                      scale: _focusScaleAnimation.value,
+                      child: Container(
+                        decoration: BoxDecoration(
+                          borderRadius:
+                              BorderRadius.circular(DesignTokens.radiusDefault),
+                          boxShadow: isFocused
+                              ? DesignTokens.glowShadow(
+                                  DesignTokens.primaryGreen)
+                              : DesignTokens.shadowMedium,
+                        ),
+                        child: TextField(
+                          controller: _Search_Controller,
+                          focusNode: _searchFocusNode,
+                          textAlignVertical: TextAlignVertical.center,
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w400,
+                            color: DesignTokens.textDark,
+                            letterSpacing: -0.2,
+                          ),
+                          onChanged: (text) {
+                            _searchSuggestions(text);
+                            searchController.setSearchText(text);
+                            setState(() {});
+                          },
+                          onSubmitted: (text) {
+                            _showSuggestion = false;
+                            if (text.isNotEmpty) {
+                              _actionSearch(false, text, false);
+                            }
+                          },
+                          decoration: InputDecoration(
+                            hintText: 'search_hint'.tr,
+                            hintStyle: const TextStyle(
+                              color: DesignTokens.textLight,
+                              fontSize: 16,
+                              fontWeight: FontWeight.w400,
+                              letterSpacing: -0.2,
+                            ),
+                            prefixIcon: const Icon(
+                              Icons.search,
+                              color: DesignTokens.secondaryOrange,
+                              size: 22,
+                            ),
+                            suffixIcon: _Search_Controller.text.isNotEmpty
+                                ? IconButton(
+                                    onPressed: () {
+                                      _Search_Controller.clear();
+                                      _showSuggestion = false;
+                                      searchController.setSearchText('');
+                                      setState(() {});
+                                    },
+                                    icon: const Icon(
+                                      Icons.clear,
+                                      color: DesignTokens.textLight,
+                                      size: 20,
+                                    ),
+                                  )
+                                : null,
+                            filled: true,
+                            fillColor: DesignTokens.primaryGreen
+                                .withValues(alpha: 0.1),
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: DesignTokens.spaceDefault,
+                              vertical: DesignTokens.spaceSmall + 2,
+                            ),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(
+                                  DesignTokens.radiusDefault),
+                              borderSide: BorderSide(
+                                color: DesignTokens.primaryGreen
+                                    .withValues(alpha: 0.3),
+                              ),
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(
+                                  DesignTokens.radiusDefault),
+                              borderSide: BorderSide(
+                                color: DesignTokens.primaryGreen
+                                    .withValues(alpha: 0.3),
+                              ),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(
+                                  DesignTokens.radiusDefault),
+                              borderSide: const BorderSide(
+                                color: DesignTokens.primaryGreen,
+                                width: DesignTokens.borderMedium,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ],
+          ],
+        ),
+        // Suggestions dropdown - hidden when search is active to prevent list under search bar
+        if (_showSuggestion &&
+            _Search_Controller.text.isNotEmpty &&
+            !searchController.isSearchMode)
+          SearchSuggestionsDropdown(
+            suggestionModel: searchController.searchSuggestionModel,
+            isLoading: _isLoadingSuggestions,
+            onSuggestionTap: (name, isStore, id) {
+              _Search_Controller.text = name;
+              searchController.setSearchText(name);
+              _showSuggestion = false;
+              _actionSearch(isStore, name, false);
+              setState(() {});
+            },
+          ),
+      ],
+    );
+  }
+
+  /// Category tabs for filtering search results (Stores vs Items, or Items vs Categories for Module 3)
+  Widget _SearchCategoryTabs() {
+    return GetBuilder<SplashController>(
+      builder: (splashController) {
+        return GetBuilder<search.Search_Controller>(
+          builder: (searchController) {
+            final isStoreTab = searchController.isStore;
+            final isEcommerce =
+                splashController.module?.moduleType == 'ecommerce';
+
+            return Row(
+              children: [
+                // First tab: Items/Products (or Items for ecommerce)
+                Expanded(
+                  child: InkWell(
+                    onTap: () {
+                      // Just switch the tab, data is already loaded
+                      _switchTab(false);
+                    },
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 8),
+                          child: Text(
+                            isEcommerce
+                                ? 'item'.tr
+                                : 'item'.tr,
+                            style: TextStyle(
+                              color: (isEcommerce ? !isStoreTab : !isStoreTab)
+                                  ? Colors.red
+                                  : Colors.grey.shade600,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                              letterSpacing: -0.1,
+                            ),
+                          ),
+                        ),
+                        if (isEcommerce ? !isStoreTab : !isStoreTab)
+                          Container(
+                            height: 2,
+                            decoration: BoxDecoration(
+                              color: Colors.red,
+                              borderRadius: BorderRadius.circular(1),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                ),
+                // Second tab: All Stores (or Categories for ecommerce)
+                Expanded(
+                  child: InkWell(
+                    onTap: () {
+                      if (isEcommerce) {
+                        // For ecommerce: Categories tab - navigate to categories
+                        Get.toNamed(RouteHelper.getCategoryRoute());
+                      } else {
+                        // For other modules: All Stores tab - just switch, data is already loaded
+                        _switchTab(true);
+                      }
+                    },
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 8),
+                          child: Text(
+                            isEcommerce
+                                ? 'categories'.tr
+                                : (splashController.configModel!.moduleConfig!
+                                        .module!.showRestaurantText!
+                                    ? 'restaurants'.tr
+                                    : 'stores'.tr),
+                            style: TextStyle(
+                              color: (isEcommerce
+                                      ? false
+                                      : isStoreTab)
+                                  ? Colors.red
+                                  : Colors.grey.shade600,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                              letterSpacing: -0.1,
+                            ),
+                          ),
+                        ),
+                        // Categories tab never shows underline (it's a navigation)
+                        if (!isEcommerce && isStoreTab)
+                          Container(
+                            height: 2,
+                            decoration: BoxDecoration(
+                              color: Colors.red,
+                              borderRadius: BorderRadius.circular(1),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  /// Category tabs for quick filters (navigation)
+  Widget _CategoryTabs() {
+    return SizedBox(
+      height: DesignTokens.minTouchTarget,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        itemBuilder: (_, i) {
+          final tabs = [
+            'restaurant_categories'.tr,
+            'restaurants_and_stores'.tr,
+            'store_categories'.tr,
+          ];
+          return Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: () {
+                switch (i) {
+                  case 0: // Restaurant Categories
+                    Get.toNamed(RouteHelper.getCategoryRoute());
+                    break;
+                  case 1: // Restaurants & Stores
+                    Get.toNamed(RouteHelper.getAllStoreRoute('all'));
+                    break;
+                  case 2: // Store Categories
+                    Get.toNamed(RouteHelper.getCategoryRoute());
+                    break;
+                }
+              },
+              borderRadius: BorderRadius.circular(DesignTokens.radiusFull),
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: DesignTokens.spaceDefault,
+                  vertical: DesignTokens.spaceSmall,
+                ),
+                decoration: BoxDecoration(
+                  gradient: DesignTokens.headerGreenGradient,
+                  borderRadius: BorderRadius.circular(DesignTokens.radiusFull),
+                  boxShadow: DesignTokens.shadowSubtle,
+                ),
+                child: Center(
+                  child: Text(
+                    tabs[i],
+                    style: const TextStyle(
+                      color: DesignTokens.textDark,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: -0.2,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          );
+        },
+        separatorBuilder: (_, __) => const SizedBox(width: DesignTokens.spaceSmall),
+        itemCount: 3,
+      ),
+    );
+  }
+
+  /// Recent searches section
+  Widget _RecentSearchesSection(search.Search_Controller searchController) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'previously_searched_for'.tr,
+          style: const TextStyle(
+            color: DesignTokens.textDark,
+            fontSize: 18,
+            fontWeight: FontWeight.w600,
+            letterSpacing: -0.3,
+          ),
+        ),
+        const SizedBox(height: DesignTokens.spaceSmall),
+
+        // Recent search items
+        if (searchController.historyList.isNotEmpty) ...[
+          for (int i = 0;
+              i < searchController.historyList.length && i < 3;
+              i++) ...[
+            _RecentSearchRow(
+              text: searchController.historyList[i],
+              onDelete: () => searchController.removeHistory(i),
+              onTap: () =>
+                  _actionSearch(false, searchController.historyList[i], false),
+            ),
+            if (i < 2) const SizedBox(height: DesignTokens.spaceSmall),
+          ],
+        ] else ...[
+          // Default recent searches if no history
+          _RecentSearchRow(
+            text: 'offers_and_discounts'.tr,
+            onDelete: () {},
+            onTap: () => _actionSearch(false, 'offers_and_discounts'.tr, false),
+          ),
+          const SizedBox(height: DesignTokens.spaceSmall),
+          _RecentSearchRow(
+            text: 'drinks'.tr,
+            onDelete: () {},
+            onTap: () => _actionSearch(false, 'drinks'.tr, false),
+          ),
+          const SizedBox(height: DesignTokens.spaceSmall),
+          _RecentSearchRow(
+            text: 'market'.tr,
+            onDelete: () {},
+            onTap: () => _actionSearch(false, 'market'.tr, false),
+          ),
+        ],
+      ],
+    );
+  }
+
+  /// A single recent search row
+  Widget _RecentSearchRow({
+    required String text,
+    required VoidCallback onDelete,
+    required VoidCallback onTap,
+  }) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(DesignTokens.radiusMedium),
+        child: Container(
+          padding: const EdgeInsets.symmetric(
+            horizontal: DesignTokens.spaceDefault,
+            vertical: DesignTokens.spaceMedium,
+          ),
+          decoration: BoxDecoration(
+            color: DesignTokens.cardBackground,
+            borderRadius: BorderRadius.circular(DesignTokens.radiusMedium),
+            boxShadow: DesignTokens.shadowSubtle,
+            border: Border.all(
+              color: DesignTokens.divider,
+            ),
+          ),
+          child: Row(
+            children: [
+              Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  onTap: onDelete,
+                  borderRadius: BorderRadius.circular(DesignTokens.radiusSmall),
+                  child: Container(
+                    width: 32,
+                    height: 32,
+                    alignment: Alignment.center,
+                    child: const Icon(
+                      Icons.close,
+                      color: DesignTokens.textLight,
+                      size: 18,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: DesignTokens.spaceSmall),
+              Expanded(
+                child: Text(
+                  text,
+                  style: const TextStyle(
+                    color: DesignTokens.textDark,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w500,
+                    letterSpacing: -0.2,
+                  ),
+                ),
+              ),
+              const Icon(
+                Icons.search,
+                color: DesignTokens.secondaryOrange,
+                size: 20,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Most searched section with product grid
+  Widget _MostSearchedSection(search.Search_Controller searchController) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Trending Categories (Last 24 Hours)
+        if (searchController.trendingCategoryList != null &&
+            searchController.trendingCategoryList!.isNotEmpty) ...[
+          Row(
+            children: [
+              const Icon(
+                Icons.trending_up,
+                color: DesignTokens.secondaryOrange,
+                size: 20,
+              ),
+              const SizedBox(width: DesignTokens.spaceSmall),
+              Text(
+                'trending_last_24h'.tr,
+                style: const TextStyle(
+                  color: DesignTokens.secondaryOrange,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: -0.3,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: DesignTokens.spaceSmall),
+
+          // Trending categories grid
+          SizedBox(
+            height: 120,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              itemBuilder: (_, i) {
+                final category = searchController.trendingCategoryList![i]!;
+                return _TrendingCategoryTile(
+                  category: category,
+                  onTap: () {
+                    Get.toNamed(RouteHelper.getCategoryItemRoute(
+                        category.id, category.name ?? 'Category'));
+                  },
+                );
+              },
+              separatorBuilder: (_, __) =>
+                  const SizedBox(width: DesignTokens.spaceMedium),
+              itemCount: searchController.trendingCategoryList!.length > 5
+                  ? 5
+                  : searchController.trendingCategoryList!.length,
+            ),
+          ),
+          const SizedBox(height: DesignTokens.spaceLarge),
+        ],
+
+        // Most Searched Categories
+        Text(
+          'most_searched'.tr,
+          style: const TextStyle(
+            color: DesignTokens.textDark,
+            fontSize: 18,
+            fontWeight: FontWeight.w600,
+            letterSpacing: -0.3,
+          ),
+        ),
+        const SizedBox(height: DesignTokens.spaceDefault),
+
+        // Product tiles - only show if API returns data
+        if (searchController.popularCategoryList != null &&
+            searchController.popularCategoryList!.isNotEmpty) ...[
+          for (int i = 0;
+              i < searchController.popularCategoryList!.length && i < 5;
+              i++) ...[
+            _MostSearchedTile(
+              category: searchController.popularCategoryList![i]!,
+              onTap: () {
+                // Navigate to category items
+                Get.toNamed(RouteHelper.getCategoryItemRoute(
+                    searchController.popularCategoryList![i]!.id,
+                    searchController.popularCategoryList![i]!.name ??
+                        'Category'));
+              },
+            ),
+            const SizedBox(height: DesignTokens.spaceMedium),
+          ],
+        ] else if (searchController.popularCategoryList == null) ...[
+          // Show loading state while fetching
+          const Center(
+            child: Padding(
+              padding: EdgeInsets.all(DesignTokens.spaceDefault),
+              child: CircularProgressIndicator(
+                color: DesignTokens.primaryGreen,
+              ),
+            ),
+          ),
+        ],
+        // If empty, just don't show anything (no hardcoded defaults)
+      ],
+    );
+  }
+
+  /// Search results section - filtered by selected tab (Products vs Stores)
+  Widget _SearchResultsSection(search.Search_Controller searchController) {
+    final isStoreTab = searchController.isStore;
+
+    // ✅ Show beautiful loading indicator while searching
+    if (searchController.isLoading) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: DesignTokens.spaceLarge * 2),
+        child: LoadingWidget(
+          messageKey: 'bringing_great_products',
+          showMessage: true,
+        ),
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (isStoreTab) ...[
+          // Show stores only
+          if (searchController.searchStoreList != null &&
+              searchController.searchStoreList!.isNotEmpty) ...[
+            for (final store in searchController.searchStoreList!.take(20)) ...[
+              _SearchResultItem(item: store, isStore: true),
+              const SizedBox(height: DesignTokens.spaceSmall),
+            ],
+          ] else if (searchController.searchStoreList != null &&
+              searchController.searchStoreList!.isEmpty) ...[
+            Center(
+              child: Padding(
+                padding: const EdgeInsets.all(DesignTokens.spaceLarge),
+                child: Text(
+                  'no_results_found'.tr,
+                  style: const TextStyle(
+                    color: DesignTokens.textLight,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w400,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ] else ...[
+          // Show stores with their items (grouped by store)
+          _StoresWithItemsView(searchController),
+        ],
+      ],
+    );
+  }
+
+  /// Widget to display stores with their items horizontally
+  Widget _StoresWithItemsView(search.Search_Controller searchController) {
+    // ✅ Show beautiful loading indicator while searching
+    if (searchController.isLoading) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: DesignTokens.spaceLarge * 2),
+        child: LoadingWidget(
+          messageKey: 'bringing_great_products',
+          showMessage: true,
+        ),
+      );
+    }
+
+    if (searchController.searchItemList == null) {
+      return const SizedBox.shrink();
+    }
+
+    if (searchController.searchItemList!.isEmpty) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(DesignTokens.spaceLarge),
+          child: Text(
+            'no_results_found'.tr,
+            style: const TextStyle(
+              color: DesignTokens.textLight,
+              fontSize: 14,
+              fontWeight: FontWeight.w400,
+            ),
+          ),
+        ),
+      );
+    }
+
+    // Group items by storeId
+    final Map<int, List<Item>> itemsByStore = {};
+    final Map<int, Store?> storeMap = {};
+
+    for (final item in searchController.searchItemList!) {
+      if (item.storeId != null) {
+        itemsByStore.putIfAbsent(item.storeId!, () => []).add(item);
+
+        // Try to find store in searchStoreList
+        if (searchController.searchStoreList != null) {
+          final store = searchController.searchStoreList!.firstWhereOrNull(
+            (s) => s.id == item.storeId,
+          );
+          if (store != null) {
+            storeMap[item.storeId!] = store;
+          }
+        }
+      }
+    }
+
+    if (itemsByStore.isEmpty) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(DesignTokens.spaceLarge),
+          child: Text(
+            'no_results_found'.tr,
+            style: const TextStyle(
+              color: DesignTokens.textLight,
+              fontSize: 14,
+              fontWeight: FontWeight.w400,
+            ),
+          ),
+        ),
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        for (final entry in itemsByStore.entries.take(20)) ...[
+          _StoreWithItemsCard(
+            store: storeMap[entry.key],
+            storeId: entry.key,
+            storeName: entry.value.first.storeName ?? 'Store',
+            items: entry.value,
+          ),
+          const SizedBox(height: DesignTokens.spaceMedium),
+        ],
+      ],
+    );
+  }
+
+  /// Card showing a store with its items horizontally
+  Widget _StoreWithItemsCard({
+    required Store? store,
+    required int storeId,
+    required String storeName,
+    required List<Item> items,
+  }) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: DesignTokens.spaceSmall),
+      decoration: BoxDecoration(
+        color: DesignTokens.cardBackground,
+        borderRadius: BorderRadius.circular(DesignTokens.radiusMedium),
+        border: Border.all(
+          color: DesignTokens.divider,
+        ),
+        boxShadow: DesignTokens.shadowMedium,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Store header
+          InkWell(
+            onTap: () {
+              if (store != null) {
+                Get.toNamed(
+                    RouteHelper.getStoreRoute(id: store.id, page: 'store'));
+              }
+            },
+            child: Padding(
+              padding: const EdgeInsets.all(DesignTokens.spaceDefault),
+              child: Row(
+                children: [
+                  // Store logo - ✅ FIX: Handle empty URL to prevent infinite shimmer loading
+                  ClipRRect(
+                    borderRadius:
+                        BorderRadius.circular(DesignTokens.radiusSmall),
+                    child: _buildStoreImage(store),
+                  ),
+                  const SizedBox(width: DesignTokens.spaceDefault),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          storeName,
+                          style: const TextStyle(
+                            color: DesignTokens.textDark,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            letterSpacing: -0.2,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        if (store != null && store.distance != null) ...[
+                          const SizedBox(height: DesignTokens.spaceExtraSmall),
+                          Text(
+                            '${store.distance!.toStringAsFixed(1)} km',
+                            style: const TextStyle(
+                              color: DesignTokens.textLight,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w400,
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                  const Icon(
+                    Icons.arrow_forward_ios,
+                    color: DesignTokens.textLight,
+                    size: 16,
+                  ),
+                ],
+              ),
+            ),
+          ),
+          // Items horizontal scroll
+          SizedBox(
+            height: 180,
+            child: ListView.builder(
+              scrollDirection: Axis.horizontal,
+              padding:
+                  const EdgeInsets.symmetric(horizontal: DesignTokens.spaceDefault),
+              itemCount: items.length,
+              itemBuilder: (context, index) {
+                final item = items[index];
+                return Container(
+                  width: 140,
+                  margin: const EdgeInsets.only(right: DesignTokens.spaceSmall),
+                  child: InkWell(
+                    onTap: () {
+                      Get.find<ItemController>().navigateToItemPage(
+                        item,
+                        context,
+                      );
+                    },
+                    borderRadius:
+                        BorderRadius.circular(DesignTokens.radiusSmall),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        ClipRRect(
+                          borderRadius:
+                              BorderRadius.circular(DesignTokens.radiusSmall),
+                          child: SmartImage(
+                            url: item.imageFullUrl ?? '',
+                            width: 140,
+                            height: 100,
+                            cacheWidth: 300,
+                            cacheHeight: 300,
+                            fit: BoxFit.cover,
+                            errorWidget: Container(
+                              width: 140,
+                              height: 100,
+                              color: DesignTokens.divider,
+                              child: const Icon(
+                                Icons.image_not_supported,
+                                color: DesignTokens.textLight,
+                                size: 24,
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: DesignTokens.spaceSmall),
+                        Text(
+                          item.name ?? '',
+                          style: const TextStyle(
+                            color: DesignTokens.textDark,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                            letterSpacing: -0.1,
+                          ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: DesignTokens.spaceExtraSmall),
+                        Text(
+                          '${item.price ?? 0} ${'currency'.tr}',
+                          style: const TextStyle(
+                            color: DesignTokens.secondaryOrange,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+          const SizedBox(height: DesignTokens.spaceDefault),
+        ],
+      ),
+    );
+  }
+
+  /// ✅ FIX: Build store image with proper handling for null/empty URLs
+  /// When store is null or has no logo URL, shows placeholder icon immediately
+  /// instead of infinite shimmer loading
+  Widget _buildStoreImage(Store? store) {
+    final String? imageUrl = store?.logoFullUrl ?? store?.coverPhotoFullUrl;
+
+    // If no valid URL, show placeholder directly (no shimmer loading)
+    if (imageUrl == null || imageUrl.isEmpty || imageUrl.trim().isEmpty) {
+      return Container(
+        width: 50,
+        height: 50,
+        decoration: BoxDecoration(
+          color: DesignTokens.divider,
+          borderRadius: BorderRadius.circular(DesignTokens.radiusSmall),
+        ),
+        child: const Icon(
+          Icons.store,
+          color: DesignTokens.textLight,
+          size: 24,
+        ),
+      );
+    }
+
+    // Valid URL - use SmartImage with proper error handling
+    return SmartImage(
+      url: imageUrl,
+      width: 50,
+      height: 50,
+      cacheWidth: 300,
+      cacheHeight: 300,
+      fit: BoxFit.cover,
+      errorWidget: Container(
+        width: 50,
+        height: 50,
+        decoration: BoxDecoration(
+          color: DesignTokens.divider,
+          borderRadius: BorderRadius.circular(DesignTokens.radiusSmall),
+        ),
+        child: const Icon(
+          Icons.store,
+          color: DesignTokens.textLight,
+          size: 24,
+        ),
+      ),
+    );
+  }
+
+  /// Trending category tile (horizontal scroll)
+  Widget _TrendingCategoryTile({
+    required PopularCategoryModel category,
+    required VoidCallback onTap,
+  }) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(DesignTokens.radiusMedium),
+        child: Container(
+          width: 100,
+          decoration: BoxDecoration(
+            color: DesignTokens.cardBackground,
+            borderRadius: BorderRadius.circular(DesignTokens.radiusMedium),
+            border: Border.all(
+              color: DesignTokens.divider,
+            ),
+            boxShadow: DesignTokens.shadowMedium,
+          ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              ClipRRect(
+                borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(DesignTokens.radiusMedium),
+                ),
+                child: Stack(
+                  children: [
+                    SmartImage(
+                      url: category.imageFullUrl ?? AppConstants.placeholderImageUrl,
+                      width: 100,
+                      height: 70,
+                      cacheWidth: 300,
+                      cacheHeight: 300,
+                      fit: BoxFit.cover,
+                      errorWidget: Container(
+                        width: 100,
+                        height: 70,
+                        color: DesignTokens.divider,
+                        child: const Icon(
+                          Icons.image_not_supported,
+                          size: 24,
+                          color: DesignTokens.textLight,
+                        ),
+                      ),
+                    ),
+                    // Gradient overlay for better text readability
+                    const Positioned.fill(
+                      child: DecoratedBox(
+                        decoration: BoxDecoration(
+                          gradient: DesignTokens.imageOverlayGradient,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: DesignTokens.spaceSmall),
+              Padding(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: DesignTokens.spaceSmall),
+                child: Text(
+                  category.name ?? 'Category',
+                  style: const TextStyle(
+                    color: DesignTokens.textDark,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: -0.1,
+                  ),
+                  textAlign: TextAlign.center,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Individual search result item
+  Widget _SearchResultItem({required dynamic item, required bool isStore}) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () {
+          if (isStore) {
+            Get.toNamed(RouteHelper.getStoreRoute(id: (item.id is int? ? item.id : (item.id != null ? int.tryParse(item.id.toString()) : null)) as int?, page: 'store'));
+          } else {
+            Get.toNamed(RouteHelper.getItemDetailsRoute((item.id is int? ? item.id : (item.id != null ? int.tryParse(item.id.toString()) : null)) as int?, false));
+          }
+        },
+        borderRadius: BorderRadius.circular(DesignTokens.radiusMedium),
+        child: Container(
+          padding: const EdgeInsets.all(DesignTokens.spaceMedium),
+          decoration: BoxDecoration(
+            color: DesignTokens.cardBackground,
+            border: Border.all(
+              color: DesignTokens.divider,
+            ),
+            borderRadius: BorderRadius.circular(DesignTokens.radiusMedium),
+            boxShadow: DesignTokens.shadowMedium,
+          ),
+          child: Row(
+            children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(DesignTokens.radiusSmall),
+                child: SmartImage(
+                  url: (isStore
+                      ? (item.logoFullUrl ??
+                          item.imageFullUrl ??
+                          AppConstants.placeholderImageUrl60)
+                      : (item.imageFullUrl ?? AppConstants.placeholderImageUrl60)) as String,
+                  width: 64,
+                  height: 64,
+                  cacheWidth: 300,
+                  cacheHeight: 300,
+                  fit: BoxFit.cover,
+                  errorWidget: Container(
+                    width: 64,
+                    height: 64,
+                    color: DesignTokens.divider,
+                    child: const Icon(
+                      Icons.image_not_supported,
+                      size: 24,
+                      color: DesignTokens.textLight,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: DesignTokens.spaceMedium),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      (item.name ?? (isStore ? 'Store Name' : 'Item Name')) as String,
+                      style: const TextStyle(
+                        color: DesignTokens.textDark,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        letterSpacing: -0.2,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    if (!isStore && item.price != null) ...[
+                      const SizedBox(height: DesignTokens.spaceExtraSmall),
+                      Text(
+                        '${item.price} ${'currency'.tr}',
+                        style: const TextStyle(
+                          color: DesignTokens.secondaryOrange,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
+                    if (isStore &&
+                        item.avgRating != null &&
+                        (item.avgRating is num && (item.avgRating as num) > 0)) ...[
+                      const SizedBox(height: DesignTokens.spaceExtraSmall),
+                      Row(
+                        children: [
+                          const Icon(
+                            Icons.star,
+                            color: DesignTokens.secondaryOrange,
+                            size: 16,
+                          ),
+                          const SizedBox(width: DesignTokens.spaceExtraSmall),
+                          Text(
+                            (item.avgRating is num ? (item.avgRating as num).toStringAsFixed(1) : '0.0'),
+                            style: const TextStyle(
+                              color: DesignTokens.textDark,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          if (item.ratingCount != null &&
+                              (item.ratingCount is num && (item.ratingCount as num) > 0)) ...[
+                            const SizedBox(width: DesignTokens.spaceExtraSmall),
+                            Text(
+                              '(${item.ratingCount})',
+                              style: const TextStyle(
+                                color: DesignTokens.textLight,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w400,
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              const Icon(
+                Icons.arrow_forward_ios,
+                color: DesignTokens.textLight,
+                size: 16,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Home indicator bar
+  Widget _HomeIndicator() {
+    return Center(
+      child: Container(
+        width: 80,
+        height: 4,
+        decoration: BoxDecoration(
+          color: DesignTokens.textLight.withValues(alpha: 0.3),
+          borderRadius: BorderRadius.circular(DesignTokens.radiusSmall),
+        ),
+      ),
+    );
+  }
+
+  @override
+  void dispose() {
+    _debounceTimer?.cancel();
+    _tabController?.dispose();
+    _searchFocusNode.dispose();
+    _focusAnimationController.dispose();
+    _Search_Controller.dispose();
+    super.dispose();
+  }
+}
+
+/// Data for "most searched" tiles
+class _CategoryTile {
+  final String title;
+  final String image;
+  final bool banner;
+
+  _CategoryTile({
+    required this.title,
+    required this.image,
+        required this.banner, // ✅ أضفناه
+
+  });
+}
+
+/// Visual card used for each entry in the "most searched" list
+class _MostSearchedTile extends StatelessWidget {
+  final dynamic category;
+  final VoidCallback? onTap;
+
+  const _MostSearchedTile({
+    this.category,
+    this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final radius = BorderRadius.circular(DesignTokens.radiusDefault);
+
+    // Use category data if available, otherwise use default tile
+final tile = category is _CategoryTile
+    ? category
+    : _CategoryTile(
+        title: (category?.name ?? 'Category') as String,
+        image: (category?.imageFullUrl ?? AppConstants.placeholderImageUrl) as String,
+        banner: false, // ✅ الحل
+      );
+
+
+    final img = ClipRRect(
+      borderRadius: radius,
+      child: AspectRatio(
+        aspectRatio: (tile.banner is bool && tile.banner == true) ? 16 / 6 : 1,
+        child: SmartImage(
+          url: tile.image as String,
+          cacheWidth: (tile.banner is bool && tile.banner == true) ? 800 : 300,
+          cacheHeight: (tile.banner is bool && tile.banner == true) ? 800 : 300,
+          fit: BoxFit.cover,
+          errorWidget: Container(
+            color: DesignTokens.divider,
+            child: const Center(
+              child: Icon(
+                Icons.image_not_supported,
+                color: DesignTokens.textLight,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    if (tile.banner is bool && tile.banner == true) {
+      // Full-width banner with label on the left
+      return Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: radius,
+          child: Container(
+            decoration: BoxDecoration(
+              borderRadius: radius,
+              boxShadow: DesignTokens.shadowMedium,
+            ),
+            child: Stack(
+              alignment: Alignment.centerRight,
+              children: [
+                img,
+                Positioned.fill(
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      borderRadius: radius,
+                      gradient: LinearGradient(
+                        colors: [
+                          Colors.black.withValues(alpha: 0.4),
+                          Colors.transparent,
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsetsDirectional.only(
+                    start: DesignTokens.spaceDefault,
+                  ),
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      tile.title as String,
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 20,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: -0.3,
+                        shadows: [
+                          Shadow(
+                            color: Colors.black.withValues(alpha: 0.4),
+                            blurRadius: 8,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    // Regular row tile
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: radius,
+        child: Container(
+          decoration: BoxDecoration(
+            color: DesignTokens.cardBackground,
+            border: Border.all(
+              color: DesignTokens.divider,
+            ),
+            borderRadius: radius,
+            boxShadow: DesignTokens.shadowMedium,
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(DesignTokens.spaceDefault),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    tile.title as String,
+                    style: const TextStyle(
+                      color: DesignTokens.textDark,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: -0.3,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: DesignTokens.spaceDefault),
+                SizedBox(
+                  width: 130,
+                  height: 100,
+                  child: img,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}

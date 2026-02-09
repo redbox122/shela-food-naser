@@ -1,0 +1,43 @@
+include: package:flutter_lints/flutter.yaml
+
+analyzer:
+  exclude: # تجاهل ملفات الكود المولد تلقائياً (لو عندك)
+    - "**/*.g.dart"
+    - "**/*.freezed.dart"
+
+  errors:
+    # 🚨 أخطاء حقيقية (ممنوع تجاهلها)
+    invalid_assignment: error
+    argument_type_not_assignable: error
+    return_of_invalid_type: error
+    unchecked_use_of_nullable_value: error
+    no_logic_in_create_state: error
+    use_build_context_synchronously: error # خطأ مشهور يسبب كراش
+
+    # ⚠️ تحذيرات (يفضل إصلاحها بس ما توقف الشغل)
+    deprecated_member_use: warning 
+    unused_import: warning
+    unused_element: warning
+    avoid_print: warning
+
+    # ✅ أشياء شكلية (إخفاء تماماً لتصفية الـ 2500)
+    prefer_const_constructors: ignore
+    prefer_const_literals_to_create_immutables: ignore
+    prefer_const_constructors_in_immutables: ignore
+    non_constant_identifier_names: ignore # عشان لو أسماء الـ API من السيرفر مختلفة
+    constant_identifier_names: ignore
+
+linter:
+  rules:
+    # القواعد الذهبية للأداء
+    avoid_dynamic_calls: true
+    depend_on_referenced_packages: true
+    
+    # تنظيف الكود تلقائياً
+    prefer_final_fields: true
+    unnecessary_this: true
+    annotate_overrides: true
+    
+    # تعطيل الـ const الإجباري حالياً لتنظيف القائمة
+    prefer_const_constructors: false
+    prefer_const_literals_to_create_immutables: false

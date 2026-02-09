@@ -1,0 +1,487 @@
+import 'dart:async';
+import 'dart:io';
+import 'package:expandable_bottom_sheet/expandable_bottom_sheet.dart';
+import 'package:flutter/cupertino.dart';
+import 'package:flutter/services.dart';
+import 'package:animated_bottom_navigation_bar/animated_bottom_navigation_bar.dart';
+import 'package:sixam_mart/features/rental_module/common/widgets/taxi_cart_widget.dart';
+import 'package:sixam_mart/features/dashboard/widgets/store_registration_success_bottom_sheet.dart';
+import 'package:sixam_mart/features/home/controllers/home_controller.dart';
+import 'package:sixam_mart/features/location/controllers/location_controller.dart';
+import 'package:sixam_mart/features/splash/controllers/splash_controller.dart';
+import 'package:sixam_mart/features/order/controllers/order_controller.dart';
+import 'package:sixam_mart/features/order/domain/models/order_model.dart';
+import 'package:sixam_mart/features/address/screens/address_screen.dart';
+import 'package:sixam_mart/features/auth/controllers/auth_controller.dart';
+import 'package:sixam_mart/features/parcel/controllers/parcel_controller.dart';
+import 'package:sixam_mart/features/rental_module/rental_cart_screen/taxi_cart_screen.dart';
+import 'package:sixam_mart/features/rental_module/rental_favourite/screens/vehicle_favourite_screen.dart';
+import 'package:sixam_mart/helper/auth_helper.dart';
+import 'package:sixam_mart/helper/responsive_helper.dart';
+import 'package:sixam_mart/helper/route_helper.dart';
+import 'package:sixam_mart/helper/taxi_helper.dart';
+import 'package:sixam_mart/util/app_constants.dart';
+import 'package:sixam_mart/util/dimensions.dart';
+import 'package:sixam_mart/common/widgets/cart_widget.dart';
+import 'package:sixam_mart/common/widgets/custom_dialog.dart';
+import 'package:sixam_mart/features/checkout/widgets/congratulation_dialogue.dart';
+import 'package:sixam_mart/features/dashboard/widgets/parcel_bottom_sheet_widget.dart';
+import 'package:sixam_mart/features/favourite/screens/favourite_screen.dart';
+import 'package:sixam_mart/features/favourite/controllers/favourite_controller.dart';
+import 'package:sixam_mart/features/home/screens/home_screen.dart';
+import 'package:sixam_mart/features/home/screens/multi_module/multi_module_home_screen.dart';
+import 'package:sixam_mart/features/menu/screens/menu_screen.dart';
+import 'package:sixam_mart/features/order/screens/order_screen.dart';
+import 'package:sixam_mart/common/models/module_model.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
+import 'package:get/get.dart';
+import 'package:sixam_mart/features/home/controllers/home_unified_controller.dart';
+import '../widgets/running_order_view_widget.dart';
+
+class DashboardScreen extends StatefulWidget {
+  final int pageIndex;
+  final bool fromSplash;
+  final bool skipSplash;
+  final int? moduleId;
+  final int? previousModuleId;
+  const DashboardScreen({
+    super.key,
+    required this.pageIndex,
+    this.fromSplash = false,
+    this.skipSplash = false,
+    this.moduleId,
+    this.previousModuleId,
+  });
+
+  @override
+  DashboardScreenState createState() => DashboardScreenState();
+}
+
+class DashboardScreenState extends State<DashboardScreen> {
+  PageController? _pageController;
+  int _pageIndex = 0;
+  late List<Widget> _screens;
+  final GlobalKey<ScaffoldMessengerState> _scaffoldKey = GlobalKey();
+  GlobalKey<ExpandableBottomSheetState> key = GlobalKey();
+  late bool _isLogin;
+  bool active = false;
+  ModuleModel? _previousModule;
+
+  @override
+  void initState() {
+    super.initState();
+
+    debugPrint('\x1B[32m     //////////////////////     \x1B[0m');
+
+    // ⚡ TITAN BOARD: Skip splash animation if skipSplash flag is set
+    // This enables direct navigation to HomeScreen without splash delay (100ms target)
+    if (widget.skipSplash) {
+      if (kDebugMode) {
+        debugPrint(
+            '⚡ DashboardScreen: skipSplash=true - bypassing splash animation');
+      }
+    }
+
+    _isLogin = AuthHelper.isLoggedIn();
+    _applyModuleOverrideIfNeeded();
+    _showRegistrationSuccessBottomSheet();
+    if (_isLogin) {
+      if (Get.find<SplashController>().configModel!.loyaltyPointStatus == 1 &&
+          Get.find<AuthController>().getEarningPint().isNotEmpty &&
+          (Get.context == null || !ResponsiveHelper.isDesktop(Get.context!))) {
+        Future.delayed(
+            const Duration(seconds: 1),
+            () => showAnimatedDialog(
+                Get.context!, const CongratulationDialogue()));
+      }
+      // 🚫 REMOVED: getRunningOrders() call from DashboardScreen initState
+      // OrderScreen now loads its own data in its own initState (Law of Isolation)
+      // This prevents 118-frame skips when MultiModuleHomeScreen is shown
+      // Orders will only load when user navigates to OrderScreen tab
+    }
+    _pageIndex = widget.pageIndex;
+    _pageController = PageController(initialPage: widget.pageIndex);
+    // ⚡ TASK 2: Conditional initialization - use MultiModuleHomeScreen if multiple modules exist
+    // This prevents legacy HomeScreen from being initialized when MultiModuleHomeScreen is active
+    _screens = [
+      _buildHomeRoot(),
+      const FavouriteScreen(),
+      const SizedBox(),
+      const OrderScreen(),
+      const MenuScreen()
+    ];
+  }
+
+  void _applyModuleOverrideIfNeeded() {
+    if (widget.moduleId == null) {
+      return;
+    }
+    final splashController = Get.find<SplashController>();
+    final ModuleModel? targetModule = _findModuleById(widget.moduleId);
+    _previousModule = _findModuleById(widget.previousModuleId) ??
+        splashController.selectedModule.value;
+
+    if (targetModule != null &&
+        splashController.selectedModule.value?.id != targetModule.id) {
+      Future.microtask(() async {
+        await splashController.setModule(targetModule);
+        if (targetModule.id != null &&
+            Get.isRegistered<HomeUnifiedController>()) {
+          await Get.find<HomeUnifiedController>().onModuleReady(targetModule.id!);
+        }
+      });
+    }
+  }
+
+  ModuleModel? _findModuleById(int? moduleId) {
+    if (moduleId == null) {
+      return null;
+    }
+    final moduleList = Get.find<SplashController>().moduleList;
+    if (moduleList == null) {
+      return null;
+    }
+    for (final module in moduleList) {
+      if (module.id == moduleId) {
+        return module;
+      }
+    }
+    return null;
+  }
+
+  Widget _buildHomeRoot() {
+    return Obx(() {
+      final splashController = Get.find<SplashController>();
+      final moduleListLength = splashController.moduleList?.length ?? 0;
+      final selectedModuleId = splashController.selectedModule.value?.id;
+      final bool showMultiModuleScreen =
+          splashController.selectedModule.value == null &&
+              splashController.module == null &&
+              moduleListLength > 1;
+
+      return showMultiModuleScreen
+          ? MultiModuleHomeScreen(
+              key: ValueKey('multi_$selectedModuleId'),
+              showBottomNavigation: false,
+            )
+          : const HomeScreen();
+    });
+  }
+
+  void _showRegistrationSuccessBottomSheet() {
+    final bool canShowBottomSheet =
+        Get.find<HomeController>().getRegistrationSuccessfulSharedPref();
+    if (canShowBottomSheet) {
+      Future.delayed(const Duration(seconds: 1), () {
+        Get.context != null && ResponsiveHelper.isDesktop(Get.context!)
+            ? Get.dialog(
+                    const Dialog(child: StoreRegistrationSuccessBottomSheet()))
+                .then((value) {
+                Get.find<HomeController>()
+                    .saveRegistrationSuccessfulSharedPref(false);
+                Get.find<HomeController>()
+                    .saveIsStoreRegistrationSharedPref(false);
+                setState(() {});
+              })
+            : showModalBottomSheet(
+                context: Get.context!,
+                isScrollControlled: true,
+                backgroundColor: Colors.transparent,
+                builder: (con) => const StoreRegistrationSuccessBottomSheet(),
+              ).then((value) {
+                Get.find<HomeController>()
+                    .saveRegistrationSuccessfulSharedPref(false);
+                Get.find<HomeController>()
+                    .saveIsStoreRegistrationSharedPref(false);
+                setState(() {});
+              });
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    final splashController = Get.find<SplashController>();
+    if (_previousModule != null &&
+        splashController.selectedModule.value?.id != _previousModule!.id) {
+      Future.microtask(() async {
+        await splashController.setModule(_previousModule);
+      });
+    }
+    _pageController?.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final bool keyboardVisible = MediaQuery.of(context).viewInsets.bottom != 0;
+    return GetBuilder<SplashController>(builder: (splashController) {
+      return PopScope(
+        onPopInvokedWithResult: (didPop, result) async {
+          if (GetPlatform.isAndroid) {
+            SystemNavigator.pop();
+          } else if (GetPlatform.isIOS) {
+            exit(0);
+          }
+        },
+        child: GetBuilder<OrderController>(builder: (orderController) {
+          List<OrderModel> runningOrder = [];
+          if (orderController.runningOrderModel != null &&
+              orderController.runningOrderModel!.orders != null) {
+            runningOrder = orderController.runningOrderModel!.orders!;
+          }
+          final List<OrderModel> reversOrder = List.from(runningOrder.reversed);
+
+          return GetBuilder<SplashController>(
+            builder: (splashController) {
+              bool isParcel = splashController
+                      .configModel?.moduleConfig?.module?.isParcel ??
+                  false;
+              final bool isTaxiWithCache = ((splashController.module?.moduleType
+                              .toString() ==
+                          AppConstants.taxi) ||
+                      (splashController.cacheModule?.moduleType.toString() ==
+                          AppConstants.taxi)) &&
+                  TaxiHelper.haveTaxiModule();
+              final bool isTaxi =
+                  splashController.module?.moduleType.toString() ==
+                      AppConstants.taxi;
+              isParcel = isParcel && !isTaxiWithCache;
+
+              // ⚡ TASK 2: Conditional initialization - use MultiModuleHomeScreen if multiple modules exist
+              // This prevents legacy HomeScreen from being initialized when MultiModuleHomeScreen is active
+              _screens = [
+                _buildHomeRoot(),
+                isParcel
+                    ? const AddressScreen(fromDashboard: true)
+                    : isTaxi
+                        ? const VehicleFavouriteScreen()
+                        : const FavouriteScreen(),
+                const SizedBox(),
+                OrderScreen(index: isTaxi ? 1 : 0),
+                const MenuScreen()
+              ];
+
+              // Map page index to nav bar index (0,1,3,4 -> 0,1,2,3)
+              final int navBarIndex =
+                  _pageIndex < 2 ? _pageIndex : _pageIndex - 1;
+
+              final iconList = <IconData>[
+                Icons.home_outlined,
+                isParcel ? Icons.location_on_outlined : Icons.favorite_border,
+                Icons.list_alt,
+                Icons.more_horiz,
+              ];
+
+              return Scaffold(
+                key: _scaffoldKey,
+                body: ExpandableBottomSheet(
+                  background: Stack(children: [
+                    PageView.builder(
+                      controller: _pageController,
+                      itemCount: _screens.length,
+                      physics: const NeverScrollableScrollPhysics(),
+                      itemBuilder: (context, index) => _screens[index],
+                    ),
+                  ]),
+                  persistentContentHeight: (widget.fromSplash &&
+                          Get.find<LocationController>()
+                              .showLocationSuggestion &&
+                          active)
+                      ? 0
+                      : GetPlatform.isIOS
+                          ? 110
+                          : 100,
+                  onIsContractedCallback: () {
+                    if (!orderController.showOneOrder) {
+                      orderController.showOrders();
+                    }
+                  },
+                  onIsExtendedCallback: () {
+                    if (orderController.showOneOrder) {
+                      orderController.showOrders();
+                    }
+                  },
+                  enableToggle: true,
+                  expandableContent: (widget.fromSplash &&
+                              Get.find<LocationController>()
+                                  .showLocationSuggestion &&
+                              active &&
+                              !ResponsiveHelper.isDesktop(context)) ||
+                          !_isLogin ||
+                          runningOrder.isEmpty ||
+                          !orderController.showBottomSheet
+                      ? const SizedBox()
+                      : Dismissible(
+                          key: UniqueKey(),
+                          onDismissed: (direction) =>
+                              orderController.showRunningOrders(),
+                          child: RunningOrderViewWidget(
+                            reversOrder: reversOrder,
+                            onOrderTap: () {
+                              _setPage(3);
+                              orderController.showRunningOrders();
+                            },
+                          ),
+                        ),
+                ),
+                floatingActionButton: (ResponsiveHelper.isDesktop(context) ||
+                        (widget.fromSplash &&
+                            Get.find<LocationController>()
+                                .showLocationSuggestion &&
+                            active) ||
+                        (orderController.showBottomSheet &&
+                            runningOrder.isNotEmpty &&
+                            _isLogin) ||
+                        keyboardVisible)
+                    ? null
+                    : FloatingActionButton(
+                        // 🔥 FIX: Add unique heroTag to prevent "multiple heroes" error
+                        // This ensures each FloatingActionButton has a unique tag for hero animations
+                        heroTag: null,
+                        backgroundColor: Theme.of(context).primaryColor,
+                        shape: const CircleBorder(),
+                        child: isTaxiWithCache
+                            ? const TaxiCartWidget(
+                                color: Colors.white, size: 22)
+                            : isParcel
+                                ? const Icon(CupertinoIcons.add,
+                                    size: 28, color: Colors.white)
+                                : const CartWidget(
+                                    color: Colors.white, size: 22),
+                        onPressed: () {
+                          // Handle cart navigation
+                          if (isParcel) {
+                            showModalBottomSheet(
+                              context: context,
+                              isScrollControlled: true,
+                              backgroundColor: Colors.transparent,
+                              builder: (con) => ParcelBottomSheetWidget(
+                                parcelCategoryList: Get.find<ParcelController>()
+                                    .parcelCategoryList,
+                              ),
+                            );
+                          } else if (isTaxiWithCache) {
+                            Get.to(() => const TaxiCartScreen());
+                          } else {
+                            Get.toNamed(RouteHelper.getCartRoute());
+                          }
+                        },
+                      ),
+                floatingActionButtonLocation:
+                    FloatingActionButtonLocation.centerDocked,
+                bottomNavigationBar: (ResponsiveHelper.isDesktop(context) ||
+                        (widget.fromSplash &&
+                            Get.find<LocationController>()
+                                .showLocationSuggestion &&
+                            active) ||
+                        (orderController.showBottomSheet &&
+                            runningOrder.isNotEmpty &&
+                            _isLogin) ||
+                        keyboardVisible)
+                    ? null
+                    : GetBuilder<FavouriteController>(
+                        builder: (favController) {
+                          final int favCount =
+                              (favController.wishItemList?.length ?? 0) +
+                                  (favController.wishStoreList?.length ?? 0);
+                          final String favBadgeText =
+                              favCount > 99 ? '99+' : favCount.toString();
+                          final bool showFavBadge =
+                              !isParcel && favCount > 0;
+                          return AnimatedBottomNavigationBar.builder(
+                            itemCount: iconList.length,
+                            tabBuilder: (index, isActive) {
+                              final Color iconColor = isActive
+                                  ? Theme.of(context).primaryColor
+                                  : Colors.grey.shade400;
+                              final bool isFavTab = !isParcel && index == 1;
+                              return SizedBox(
+                                width: 28,
+                                height: 28,
+                                child: Stack(
+                                  clipBehavior: Clip.none,
+                                  children: [
+                                    Center(
+                                      child: Icon(iconList[index],
+                                          size: 28, color: iconColor),
+                                    ),
+                                    if (isFavTab && showFavBadge)
+                                      Positioned.fill(
+                                        child: Center(
+                                          child: Text(
+                                            favBadgeText,
+                                            textAlign: TextAlign.center,
+                                            style: const TextStyle(
+                                              color: Colors.red,
+                                              fontSize: 9,
+                                              fontWeight: FontWeight.w700,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                  ],
+                                ),
+                              );
+                            },
+                          activeIndex: navBarIndex,
+                          gapLocation: GapLocation.center,
+                          notchSmoothness: NotchSmoothness.softEdge,
+                          leftCornerRadius: 0,
+                          rightCornerRadius: 0,
+                          backgroundColor: Colors.white,
+                            shadow: BoxShadow(
+                              offset: const Offset(0, 1),
+                              blurRadius: 12,
+                              spreadRadius: 0.5,
+                              color: Colors.grey.withValues(alpha: 0.2),
+                            ),
+                            onTap: (index) {
+                              if (index == 0) {
+                                Get.offAll<dynamic>(() =>
+                                    MultiModuleHomeScreen(
+                                      key: ValueKey(
+                                          'multi_${Get.find<SplashController>().selectedModule.value?.id}'),
+                                      showBottomNavigation: false,
+                                    ));
+                                return;
+                              }
+                              // Map nav bar index back to page index (0,1,2,3 -> 0,1,3,4)
+                              final int pageIndex =
+                                  index < 2 ? index : index + 1;
+                              _setPage(pageIndex);
+                            },
+                          );
+                        },
+                      ),
+              );
+            },
+          );
+        }),
+      );
+    });
+  }
+
+  void _setPage(int pageIndex) {
+    setState(() {
+      // Don't navigate to page 2 (cart) - it's handled separately
+      if (pageIndex != 2) {
+        _pageController!.jumpToPage(pageIndex);
+        _pageIndex = pageIndex;
+      }
+    });
+  }
+
+  Widget trackView(BuildContext context, {required bool status}) {
+    return Container(
+      height: 3,
+      decoration: BoxDecoration(
+        color: status
+            ? Theme.of(context).primaryColor
+            : Theme.of(context).disabledColor.withValues(alpha: 0.5),
+        borderRadius: BorderRadius.circular(Dimensions.radiusDefault),
+      ),
+    );
+  }
+}

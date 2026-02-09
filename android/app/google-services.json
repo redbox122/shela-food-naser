@@ -1,0 +1,87 @@
+{
+  "project_info": {
+    "project_number": "659410143816",
+    "firebase_url": "https://shella1-default-rtdb.firebaseio.com",
+    "project_id": "shella1",
+    "storage_bucket": "shella1.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:659410143816:android:0b440a8141bf3601f8267d",
+        "android_client_info": {
+          "package_name": "com.captain.shala"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDnnrJzlof502Ry1fSLmJCjLCkMXv-Ebg8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:659410143816:android:0c500a50ce81a00df8267d",
+        "android_client_info": {
+          "package_name": "com.delivery.shala"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDnnrJzlof502Ry1fSLmJCjLCkMXv-Ebg8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:659410143816:android:3f534452f40ab22ef8267d",
+        "android_client_info": {
+          "package_name": "com.delivery.shala.sixam_mart_delivery"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDnnrJzlof502Ry1fSLmJCjLCkMXv-Ebg8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:659410143816:android:73ccbd3aeb8ab5b2f8267d",
+        "android_client_info": {
+          "package_name": "com.food.shala"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDnnrJzlof502Ry1fSLmJCjLCkMXv-Ebg8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -1,0 +1,116 @@
+// ignore_for_file: avoid_print
+
+import 'package:flutter/material.dart';
+import 'package:get/get.dart';
+import 'package:sixam_mart/common/models/response_model.dart';
+import 'package:sixam_mart/features/profile/controllers/profile_controller.dart';
+import 'package:sixam_mart/features/verification/domein/services/verification_service_interface.dart';
+
+class VerificationController extends GetxController implements GetxService {
+  final VerificationServiceInterface verificationServiceInterface;
+
+  VerificationController({required this.verificationServiceInterface});
+
+  bool _isLoading = false;
+  bool get isLoading => _isLoading;
+
+  String _verificationCode = '';
+  String get verificationCode => _verificationCode;
+
+/*  void updateVerificationCode(String query) {
+    _verificationCode = query;
+    update();
+  }*/
+
+  void updateVerificationCode(String query, {bool canUpdate = true}) {
+    _verificationCode = query;
+    if (canUpdate) {
+      update();
+    }
+  }
+
+  Future<ResponseModel> forgetPassword(String? email) async {
+    _isLoading = true;
+    update();
+    final ResponseModel responseModel = await verificationServiceInterface.forgetPassword(email);
+    _isLoading = false;
+    update();
+    return responseModel;
+  }
+
+  Future<ResponseModel> resetPassword(String? resetToken, String number, String password, String confirmPassword) async {
+    _isLoading = true;
+    update();
+    final ResponseModel responseModel = await verificationServiceInterface.resetPassword(resetToken, number, password, confirmPassword);
+    _isLoading = false;
+    update();
+    return responseModel;
+  }
+
+  Future<ResponseModel> verifyPhone(String phone, String otp) async {
+    _isLoading = true;
+    update();
+
+    debugPrint('\x1B[32m  /$otp   $phone  \x1B[0m');
+
+    final ResponseModel responseModelNullable = await verificationServiceInterface.verifyPhone(phone, otp);
+    final ResponseModel responseModel = responseModelNullable;
+    if (responseModel.isSuccess &&
+        responseModel.authResponseModel != null &&
+        responseModel.authResponseModel!.isExistUser == null &&
+        responseModel.authResponseModel!.isPersonalInfo!) {
+      await Get.find<ProfileController>().getUserInfo();
+    }
+      _isLoading = false;
+    update();
+    return responseModelNullable ?? ResponseModel(false, 'error');
+  }
+
+  Future<ResponseModel> verifyToken(String? email) async {
+    _isLoading = true;
+    update();
+    final ResponseModel responseModel = await verificationServiceInterface.verifyToken(email, _verificationCode);
+    _isLoading = false;
+    update();
+    return responseModel;
+  }
+
+/*  Future<ResponseModel> verifyFirebaseOtp({required String phoneNumber, required String session, required String otp, required bool isSignUpPage, required String? token}) async {
+    _isLoading = true;
+    update();
+    ResponseModel responseModel = await verificationServiceInterface.verifyFirebaseOtp(phoneNumber: phoneNumber, session: session, otp: otp, isSignUpPage: isSignUpPage, token: token);
+    if (responseModel.isSuccess && isSignUpPage) {
+      Get.find<ProfileController>().getUserInfo();
+    }
+    _isLoading = false;
+    update();
+    return responseModel;
+  }*/
+
+  Future<ResponseModel> verifyFirebaseOtp(
+      {required String phoneNumber,
+      required String session,
+      required String otp,
+      required String loginType,
+      required String? token,
+      required bool isSignUpPage,
+      required bool isForgetPassPage}) async {
+    _isLoading = true;
+    update();
+    final ResponseModel responseModel = await verificationServiceInterface.verifyFirebaseOtp(
+        phoneNumber: phoneNumber,
+        session: session,
+        otp: otp,
+        loginType: loginType,
+        token: token,
+        isSignUpPage: isSignUpPage,
+        isForgetPassPage: isForgetPassPage);
+
+    if (responseModel.isSuccess && isSignUpPage && !isForgetPassPage) {
+      Get.find<ProfileController>().getUserInfo();
+    }
+    _isLoading = false;
+    update();
+    return responseModel;
+  }
+}

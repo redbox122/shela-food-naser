@@ -1,0 +1,2301 @@
+{
+    "info": {
+      "_postman_id": "shellafood-api-complete-2025",
+      "name": "Shellafood Customer API - Complete Collection",
+      "description": "Complete API collection for Shellafood Customer App\n\nBase URL: https://shellafood.com\nAPI Versions: v1, v2\n\n⚠️ IMPORTANT - How to Use:\n1. FIRST: Login using \"Login - Manual\" or \"Login - OTP\" endpoint\n2. Token will be automatically saved to {{auth_token}} variable\n3. All authenticated endpoints will use the saved token automatically\n\n🔧 CLOUDFLARE BYPASS (If getting SSL/Connection errors):\nIf you're experiencing SSL or connection issues through Cloudflare, you can bypass it:\n\nOption 1: Direct IP Access (Recommended for Testing)\n1. Change {{base_url}} variable from \"https://shellafood.com\" to:\n   - http://178.16.137.215 (HTTP, bypasses SSL)\n   - OR https://178.16.137.215 (if origin has SSL)\n2. Add Host header to every request:\n   - Header: Host\n   - Value: shellafood.com\n   This bypasses Cloudflare and hits origin directly.\n\nOption 2: Fix Cloudflare SSL Mode\n1. Go to Cloudflare Dashboard → SSL/TLS → Encryption mode\n2. Change from \"Flexible\" to \"Full\" (or vice versa if origin has no SSL)\n   - \"Full\" = Cloudflare expects valid SSL on origin\n   - \"Flexible\" = Cloudflare accepts HTTP from origin (less secure)\n\nImportant Headers:\n- Host: shellafood.com (Required if using direct IP bypass)\n- X-localization: ar | en (Language)\n- moduleId: string (Module ID, e.g., \"3\" for grocery/hyper)\n- zoneId: JSON array string (e.g., \"[2]\" or \"[2,4,3,5]\")\n- X-Response-Mode: minimal | standard (for list vs detail views)\n- Authorization: Bearer {token} (Auto-added for authenticated endpoints after login)\n\nReal Test Data:\n- Store IDs: 1, 18, 19, 20, 21, 22, 23, 24, 25, 26, 1915, 1887, 1986, 1920, 1976, 219\n- Module ID: 3 (grocery/hyper)\n- Zone IDs: [2,4,3,5] or [2]\n- Language: ar (Arabic)",
+      "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+    },
+    "auth": {
+      "type": "bearer",
+      "bearer": [
+        {
+          "key": "token",
+          "value": "{{auth_token}}",
+          "type": "string"
+        }
+      ]
+    },
+    "variable": [
+      {
+        "key": "base_url",
+        "value": "https://shellafood.com",
+        "type": "string",
+        "description": "Base URL. For Cloudflare bypass, change to: http://178.16.137.215 or https://178.16.137.215"
+      },
+      {
+        "key": "base_url_direct",
+        "value": "http://178.16.137.215",
+        "type": "string",
+        "description": "Direct IP bypass (bypasses Cloudflare). Use this if getting SSL errors. Remember to add Host: shellafood.com header!"
+      },
+      {
+        "key": "host_header",
+        "value": "shellafood.com",
+        "type": "string",
+        "description": "Host header value (required when using direct IP bypass)"
+      },
+      {
+        "key": "api_version",
+        "value": "v1",
+        "type": "string"
+      },
+      {
+        "key": "auth_token",
+        "value": "",
+        "type": "string"
+      },
+      {
+        "key": "module_id",
+        "value": "3",
+        "type": "string",
+        "description": "Module ID (3 = grocery/hyper)"
+      },
+      {
+        "key": "zone_id",
+        "value": "[2,4,3,5]",
+        "type": "string",
+        "description": "JSON array string format (e.g., \"[2]\" or \"[2,4,3,5]\")"
+      },
+      {
+        "key": "language",
+        "value": "ar",
+        "type": "string"
+      },
+      {
+        "key": "store_id",
+        "value": "18",
+        "type": "string",
+        "description": "Real store ID (ماكدونالدز السعودية) - Other real stores: 1, 19, 20, 21, 22, 23, 24, 25, 26"
+      },
+      {
+        "key": "item_id",
+        "value": "1",
+        "type": "string",
+        "description": "Real item ID (نادك حليب) - Other real items: 2-20"
+      },
+      {
+        "key": "category_id",
+        "value": "2",
+        "type": "string",
+        "description": "Real category ID (الألبان والبيض) - Other real categories: 3-11"
+      },
+      {
+        "key": "order_id",
+        "value": "1",
+        "type": "string",
+        "description": "Real order ID - Other real orders: 2, 3, 5, 6"
+      },
+      {
+        "key": "test_phone",
+        "value": "+966599966674",
+        "type": "string",
+        "description": "Real verified phone number for testing"
+      },
+      {
+        "key": "test_password",
+        "value": "12345678",
+        "type": "string",
+        "description": "Password for test account"
+      }
+    ],
+    "item": [
+      {
+        "name": "1. Authentication",
+        "item": [
+          {
+            "name": "Sign Up",
+            "request": {
+              "method": "POST",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                },
+                {
+                  "key": "Accept",
+                  "value": "application/json"
+                },
+                {
+                  "key": "Host",
+                  "value": "{{host_header}}",
+                  "description": "Required if using direct IP bypass ({{base_url_direct}})"
+                },
+                {
+                  "key": "X-localization",
+                  "value": "{{language}}"
+                }
+              ],
+              "url": {
+                "raw": "{{base_url}}/api/{{api_version}}/auth/sign-up",
+                "host": [
+                  "{{base_url}}"
+                ],
+                "path": [
+                  "api",
+                  "{{api_version}}",
+                  "auth",
+                  "sign-up"
+                ]
+              },
+              "description": "Register a new customer account\n\nAfter successful sign-up, token will be automatically saved.",
+              "body": {
+                "mode": "raw",
+                "raw": "{\n  \"f_name\": \"Test\",\n  \"l_name\": \"User\",\n  \"phone\": \"{{test_phone}}\",\n  \"email\": null,\n  \"password\": \"{{test_password}}\",\n  \"referral_code\": \"\"\n}"
+              }
+            },
+            "event": [
+              {
+                "listen": "test",
+                "script": {
+                  "exec": [
+                    "if (pm.response.code === 200) {",
+                    "    var jsonData = pm.response.json();",
+                    "    if (jsonData.token) {",
+                    "        pm.collectionVariables.set('auth_token', jsonData.token);",
+                    "        console.log('Token saved:', jsonData.token.substring(0, 20) + '...');",
+                    "    }",
+                    "}"
+                  ],
+                  "type": "text/javascript"
+                }
+              }
+            ]
+          },
+          {
+            "name": "Login - Manual (Email/Phone + Password)",
+            "request": {
+              "method": "POST",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                },
+                {
+                  "key": "Accept",
+                  "value": "application/json"
+                },
+                {
+                  "key": "Host",
+                  "value": "{{host_header}}",
+                  "description": "Required if using direct IP bypass ({{base_url_direct}})"
+                },
+                {
+                  "key": "X-localization",
+                  "value": "{{language}}"
+                }
+              ],
+              "url": {
+                "raw": "{{base_url}}/api/{{api_version}}/auth/login",
+                "host": [
+                  "{{base_url}}"
+                ],
+                "path": [
+                  "api",
+                  "{{api_version}}",
+                  "auth",
+                  "login"
+                ]
+              },
+              "description": "⚠️ DO THIS FIRST! Login with email/phone and password.\nAfter successful login, token is automatically saved.",
+              "body": {
+                "mode": "raw",
+                "raw": "{\n  \"login_type\": \"manual\",\n  \"email_or_phone\": \"{{test_phone}}\",\n  \"field_type\": \"phone\",\n  \"password\": \"{{test_password}}\",\n  \"guest_id\": \"\"\n}"
+              }
+            },
+            "event": [
+              {
+                "listen": "test",
+                "script": {
+                  "exec": [
+                    "if (pm.response.code === 200) {",
+                    "    var jsonData = pm.response.json();",
+                    "    if (jsonData.token) {",
+                    "        pm.collectionVariables.set('auth_token', jsonData.token);",
+                    "        console.log('Token saved:', jsonData.token.substring(0, 20) + '...');",
+                    "    }",
+                    "}"
+                  ],
+                  "type": "text/javascript"
+                }
+              }
+            ]
+          },
+          {
+            "name": "Login - OTP (Send OTP)",
+            "request": {
+              "method": "POST",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                },
+                {
+                  "key": "Accept",
+                  "value": "application/json"
+                },
+                {
+                  "key": "Host",
+                  "value": "{{host_header}}",
+                  "description": "Required if using direct IP bypass ({{base_url_direct}})"
+                },
+                {
+                  "key": "X-localization",
+                  "value": "{{language}}"
+                }
+              ],
+              "url": {
+                "raw": "{{base_url}}/api/{{api_version}}/auth/login",
+                "host": [
+                  "{{base_url}}"
+                ],
+                "path": [
+                  "api",
+                  "{{api_version}}",
+                  "auth",
+                  "login"
+                ]
+              },
+              "description": "Send OTP to phone number",
+              "body": {
+                "mode": "raw",
+                "raw": "{\n  \"login_type\": \"otp\",\n  \"phone\": \"{{test_phone}}\"\n}"
+              }
+            }
+          },
+          {
+            "name": "Login - OTP (Verify OTP)",
+            "request": {
+              "method": "POST",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                },
+                {
+                  "key": "Accept",
+                  "value": "application/json"
+                },
+                {
+                  "key": "Host",
+                  "value": "{{host_header}}",
+                  "description": "Required if using direct IP bypass ({{base_url_direct}})"
+                },
+                {
+                  "key": "X-localization",
+                  "value": "{{language}}"
+                }
+              ],
+              "url": {
+                "raw": "{{base_url}}/api/{{api_version}}/auth/login",
+                "host": [
+                  "{{base_url}}"
+                ],
+                "path": [
+                  "api",
+                  "{{api_version}}",
+                  "auth",
+                  "login"
+                ]
+              },
+              "description": "Verify OTP and login",
+              "body": {
+                "mode": "raw",
+                "raw": "{\n  \"login_type\": \"otp\",\n  \"phone\": \"{{test_phone}}\",\n  \"otp\": \"123456\",\n  \"verified\": true,\n  \"guest_id\": \"\"\n}"
+              }
+            },
+            "event": [
+              {
+                "listen": "test",
+                "script": {
+                  "exec": [
+                    "if (pm.response.code === 200) {",
+                    "    var jsonData = pm.response.json();",
+                    "    if (jsonData.token) {",
+                    "        pm.collectionVariables.set('auth_token', jsonData.token);",
+                    "        console.log('Token saved:', jsonData.token.substring(0, 20) + '...');",
+                    "    }",
+                    "}"
+                  ],
+                  "type": "text/javascript"
+                }
+              }
+            ]
+          },
+          {
+            "name": "Login - Social (Google/Facebook/Apple)",
+            "request": {
+              "method": "POST",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                },
+                {
+                  "key": "Accept",
+                  "value": "application/json"
+                },
+                {
+                  "key": "Host",
+                  "value": "{{host_header}}",
+                  "description": "Required if using direct IP bypass ({{base_url_direct}})"
+                },
+                {
+                  "key": "X-localization",
+                  "value": "{{language}}"
+                }
+              ],
+              "url": {
+                "raw": "{{base_url}}/api/{{api_version}}/auth/login",
+                "host": [
+                  "{{base_url}}"
+                ],
+                "path": [
+                  "api",
+                  "{{api_version}}",
+                  "auth",
+                  "login"
+                ]
+              },
+              "description": "Login with social media (Google, Facebook, Apple)",
+              "body": {
+                "mode": "raw",
+                "raw": "{\n  \"login_type\": \"social\",\n  \"medium\": \"google\",\n  \"token\": \"SOCIAL_PROVIDER_TOKEN\",\n  \"unique_id\": \"SOCIAL_PROVIDER_USER_ID\",\n  \"email\": \"user@example.com\"\n}"
+              }
+            },
+            "event": [
+              {
+                "listen": "test",
+                "script": {
+                  "exec": [
+                    "if (pm.response.code === 200) {",
+                    "    var jsonData = pm.response.json();",
+                    "    if (jsonData.token) {",
+                    "        pm.collectionVariables.set('auth_token', jsonData.token);",
+                    "        console.log('Token saved:', jsonData.token.substring(0, 20) + '...');",
+                    "    }",
+                    "}"
+                  ],
+                  "type": "text/javascript"
+                }
+              }
+            ]
+          },
+          {
+            "name": "Guest Request",
+            "request": {
+              "method": "POST",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                },
+                {
+                  "key": "Accept",
+                  "value": "application/json"
+                },
+                {
+                  "key": "Host",
+                  "value": "{{host_header}}",
+                  "description": "Required if using direct IP bypass ({{base_url_direct}})"
+                },
+                {
+                  "key": "X-localization",
+                  "value": "{{language}}"
+                }
+              ],
+              "body": {
+                "mode": "raw",
+                "raw": "{}"
+              },
+              "url": {
+                "raw": "{{base_url}}/api/{{api_version}}/auth/guest/request",
+                "host": [
+                  "{{base_url}}"
+                ],
+                "path": [
+                  "api",
+                  "{{api_version}}",
+                  "auth",
+                  "guest",
+                  "request"
+                ]
+              },
+              "description": "Get guest_id for guest cart sessions"
+            }
+          },
+          {
+            "name": "Forgot Password",
+            "request": {
+              "method": "POST",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                },
+                {
+                  "key": "Accept",
+                  "value": "application/json"
+                },
+                {
+                  "key": "Host",
+                  "value": "{{host_header}}",
+                  "description": "Required if using direct IP bypass ({{base_url_direct}})"
+                },
+                {
+                  "key": "X-localization",
+                  "value": "{{language}}"
+                }
+              ],
+              "body": {
+                "mode": "raw",
+                "raw": "{\n  \"email_or_phone\": \"{{test_phone}}\",\n  \"field_type\": \"phone\"\n}"
+              },
+              "url": {
+                "raw": "{{base_url}}/api/{{api_version}}/auth/forgot-password",
+                "host": [
+                  "{{base_url}}"
+                ],
+                "path": [
+                  "api",
+                  "{{api_version}}",
+                  "auth",
+                  "forgot-password"
+                ]
+              },
+              "description": "Request password reset"
+            }
+          }
+        ]
+      },
+      {
+        "name": "2. Config & System",
+        "item": [
+          {
+            "name": "App Init (Combined Initialization)",
+            "request": {
+              "method": "GET",
+              "header": [
+                {
+                  "key": "Accept",
+                  "value": "application/json"
+                },
+                {
+                  "key": "Host",
+                  "value": "{{host_header}}",
+                  "description": "Required if using direct IP bypass ({{base_url_direct}})"
+                },
+                {
+                  "key": "X-localization",
+                  "value": "{{language}}"
+                },
+                {
+                  "key": "moduleId",
+                  "value": "{{module_id}}"
+                },
+                {
+                  "key": "zoneId",
+                  "value": "{{zone_id}}"
+                }
+              ],
+              "url": {
+                "raw": "{{base_url}}/api/{{api_version}}/app-init?lat=24.6043&lng=46.5959",
+                "host": [
+                  "{{base_url}}"
+                ],
+                "path": [
+                  "api",
+                  "{{api_version}}",
+                  "app-init"
+                ],
+                "query": [
+                  {
+                    "key": "lat",
+                    "value": "24.6043",
+                    "description": "Latitude for zone detection"
+                  },
+                  {
+                    "key": "lng",
+                    "value": "46.5959",
+                    "description": "Longitude for zone detection"
+                  }
+                ]
+              },
+              "description": "Combined initialization endpoint returning config, modules, zones, and business settings.\n\n✅ Redis-cached for 30 days\n✅ ETag support\n✅ Returns < 5ms on cache hit"
+            }
+          },
+          {
+            "name": "Module List",
+            "request": {
+              "method": "GET",
+              "header": [
+                {
+                  "key": "Accept",
+                  "value": "application/json"
+                },
+                {
+                  "key": "Host",
+                  "value": "{{host_header}}",
+                  "description": "Required if using direct IP bypass ({{base_url_direct}})"
+                },
+                {
+                  "key": "X-localization",
+                  "value": "{{language}}"
+                }
+              ],
+              "url": {
+                "raw": "{{base_url}}/api/{{api_version}}/module",
+                "host": [
+                  "{{base_url}}"
+                ],
+                "path": [
+                  "api",
+                  "{{api_version}}",
+                  "module"
+                ]
+              },
+              "description": "Returns list of all available modules"
+            }
+          }
+        ]
+      },
+      {
+        "name": "3. Home Data",
+        "item": [
+          {
+            "name": "Home Unified (BFF Endpoint)",
+            "request": {
+              "method": "GET",
+              "header": [
+                {
+                  "key": "Accept",
+                  "value": "application/json"
+                },
+                {
+                  "key": "Host",
+                  "value": "{{host_header}}",
+                  "description": "Required if using direct IP bypass ({{base_url_direct}})"
+                },
+                {
+                  "key": "X-localization",
+                  "value": "{{language}}"
+                },
+                {
+                  "key": "moduleId",
+                  "value": "{{module_id}}"
+                },
+                {
+                  "key": "zoneId",
+                  "value": "{{zone_id}}"
+                },
+                {
+                  "key": "X-Response-Mode",
+                  "value": "minimal"
+                }
+              ],
+              "url": {
+                "raw": "{{base_url}}/api/v2/home-unified?module_id=3&limit=10&offset=1&include=banners,offers,popular_stores",
+                "host": [
+                  "{{base_url}}"
+                ],
+                "path": [
+                  "api",
+                  "v2",
+                  "home-unified"
+                ],
+                "query": [
+                  {
+                    "key": "module_id",
+                    "value": "3"
+                  },
+                  {
+                    "key": "limit",
+                    "value": "10"
+                  },
+                  {
+                    "key": "offset",
+                    "value": "1"
+                  },
+                  {
+                    "key": "include",
+                    "value": "banners,offers,popular_stores",
+                    "description": "Comma-separated: banners, categories, popular_stores, brands, offers, cashback, customer"
+                  }
+                ]
+              },
+              "description": "Backend for Frontend endpoint returning all home screen data in a single call.\n\n✅ Supports sparse fieldsets via ?include=\n✅ Redis-cached (zone-level)\n✅ Use X-Response-Mode: minimal for list views"
+            }
+          },
+          {
+            "name": "Banners",
+            "request": {
+              "method": "GET",
+              "header": [
+                {
+                  "key": "Accept",
+                  "value": "application/json"
+                },
+                {
+                  "key": "Host",
+                  "value": "{{host_header}}",
+                  "description": "Required if using direct IP bypass ({{base_url_direct}})"
+                },
+                {
+                  "key": "X-localization",
+                  "value": "{{language}}"
+                },
+                {
+                  "key": "moduleId",
+                  "value": "{{module_id}}"
+                },
+                {
+                  "key": "zoneId",
+                  "value": "{{zone_id}}"
+                }
+              ],
+              "url": {
+                "raw": "{{base_url}}/api/{{api_version}}/banners",
+                "host": [
+                  "{{base_url}}"
+                ],
+                "path": [
+                  "api",
+                  "{{api_version}}",
+                  "banners"
+                ]
+              },
+              "description": "Returns active banners for the module"
+            }
+          },
+          {
+            "name": "Categories",
+            "request": {
+              "method": "GET",
+              "header": [
+                {
+                  "key": "Accept",
+                  "value": "application/json"
+                },
+                {
+                  "key": "Host",
+                  "value": "{{host_header}}",
+                  "description": "Required if using direct IP bypass ({{base_url_direct}})"
+                },
+                {
+                  "key": "X-localization",
+                  "value": "{{language}}"
+                },
+                {
+                  "key": "moduleId",
+                  "value": "{{module_id}}"
+                },
+                {
+                  "key": "zoneId",
+                  "value": "{{zone_id}}"
+                }
+              ],
+              "url": {
+                "raw": "{{base_url}}/api/{{api_version}}/categories",
+                "host": [
+                  "{{base_url}}"
+                ],
+                "path": [
+                  "api",
+                  "{{api_version}}",
+                  "categories"
+                ]
+              },
+              "description": "Returns list of categories for the module"
+            }
+          },
+          {
+            "name": "Brands",
+            "request": {
+              "method": "GET",
+              "header": [
+                {
+                  "key": "Accept",
+                  "value": "application/json"
+                },
+                {
+                  "key": "Host",
+                  "value": "{{host_header}}",
+                  "description": "Required if using direct IP bypass ({{base_url_direct}})"
+                },
+                {
+                  "key": "X-localization",
+                  "value": "{{language}}"
+                },
+                {
+                  "key": "moduleId",
+                  "value": "{{module_id}}"
+                },
+                {
+                  "key": "zoneId",
+                  "value": "{{zone_id}}"
+                }
+              ],
+              "url": {
+                "raw": "{{base_url}}/api/{{api_version}}/brand",
+                "host": [
+                  "{{base_url}}"
+                ],
+                "path": [
+                  "api",
+                  "{{api_version}}",
+                  "brand"
+                ]
+              },
+              "description": "Returns list of brands for the module"
+            }
+          },
+          {
+            "name": "Offers (Active)",
+            "request": {
+              "method": "GET",
+              "header": [
+                {
+                  "key": "Accept",
+                  "value": "application/json"
+                },
+                {
+                  "key": "Host",
+                  "value": "{{host_header}}",
+                  "description": "Required if using direct IP bypass ({{base_url_direct}})"
+                },
+                {
+                  "key": "X-localization",
+                  "value": "{{language}}"
+                },
+                {
+                  "key": "moduleId",
+                  "value": "{{module_id}}"
+                },
+                {
+                  "key": "zoneId",
+                  "value": "{{zone_id}}"
+                }
+              ],
+              "url": {
+                "raw": "{{base_url}}/api/{{api_version}}/offers/active",
+                "host": [
+                  "{{base_url}}"
+                ],
+                "path": [
+                  "api",
+                  "{{api_version}}",
+                  "offers",
+                  "active"
+                ]
+              },
+              "description": "Returns active offers for the module"
+            }
+          }
+        ]
+      },
+      {
+        "name": "4. Items/Products",
+        "item": [
+          {
+            "name": "Items Latest (List)",
+            "request": {
+              "method": "GET",
+              "header": [
+                {
+                  "key": "Accept",
+                  "value": "application/json"
+                },
+                {
+                  "key": "Host",
+                  "value": "{{host_header}}",
+                  "description": "Required if using direct IP bypass ({{base_url_direct}})"
+                },
+                {
+                  "key": "X-localization",
+                  "value": "{{language}}"
+                },
+                {
+                  "key": "moduleId",
+                  "value": "{{module_id}}"
+                },
+                {
+                  "key": "zoneId",
+                  "value": "{{zone_id}}"
+                },
+                {
+                  "key": "X-Response-Mode",
+                  "value": "minimal"
+                }
+              ],
+              "url": {
+                "raw": "{{base_url}}/api/{{api_version}}/items/latest?store_id={{store_id}}&category_id=0&limit=20&offset=1",
+                "host": [
+                  "{{base_url}}"
+                ],
+                "path": [
+                  "api",
+                  "{{api_version}}",
+                  "items",
+                  "latest"
+                ],
+                "query": [
+                  {
+                    "key": "store_id",
+                    "value": "{{store_id}}",
+                    "description": "Required: Store ID"
+                  },
+                  {
+                    "key": "category_id",
+                    "value": "0",
+                    "description": "Required: Category ID (use 0 for all categories)"
+                  },
+                  {
+                    "key": "limit",
+                    "value": "20",
+                    "description": "Required: Items per page (max 50)"
+                  },
+                  {
+                    "key": "offset",
+                    "value": "1",
+                    "description": "Required: Page offset (starts from 1)"
+                  }
+                ]
+              },
+              "description": "Get list of latest items/products\n\n✅ Uses ItemSummaryResource in minimal mode\n✅ Strips variations/add-ons arrays (replaced with boolean flags)\n✅ Payload: ~6-7 KB for 10 items"
+            }
+          },
+          {
+            "name": "Item Details",
+            "request": {
+              "method": "GET",
+              "header": [
+                {
+                  "key": "Accept",
+                  "value": "application/json"
+                },
+                {
+                  "key": "Host",
+                  "value": "{{host_header}}",
+                  "description": "Required if using direct IP bypass ({{base_url_direct}})"
+                },
+                {
+                  "key": "X-localization",
+                  "value": "{{language}}"
+                },
+                {
+                  "key": "moduleId",
+                  "value": "{{module_id}}"
+                },
+                {
+                  "key": "zoneId",
+                  "value": "{{zone_id}}"
+                },
+                {
+                  "key": "X-Response-Mode",
+                  "value": "standard"
+                }
+              ],
+              "url": {
+                "raw": "{{base_url}}/api/{{api_version}}/items/details/{{item_id}}",
+                "host": [
+                  "{{base_url}}"
+                ],
+                "path": [
+                  "api",
+                  "{{api_version}}",
+                  "items",
+                  "details",
+                  "{{item_id}}"
+                ]
+              },
+              "description": "Get full item details including variations and add-ons\n\n⚠️ Use X-Response-Mode: standard for full data"
+            }
+          },
+          {
+            "name": "Items Search",
+            "request": {
+              "method": "GET",
+              "header": [
+                {
+                  "key": "Accept",
+                  "value": "application/json"
+                },
+                {
+                  "key": "Host",
+                  "value": "{{host_header}}",
+                  "description": "Required if using direct IP bypass ({{base_url_direct}})"
+                },
+                {
+                  "key": "X-localization",
+                  "value": "{{language}}"
+                },
+                {
+                  "key": "moduleId",
+                  "value": "{{module_id}}"
+                },
+                {
+                  "key": "zoneId",
+                  "value": "{{zone_id}}"
+                },
+                {
+                  "key": "X-Response-Mode",
+                  "value": "minimal"
+                }
+              ],
+              "url": {
+                "raw": "{{base_url}}/api/{{api_version}}/items/search?name=apple&limit=20&offset=1",
+                "host": [
+                  "{{base_url}}"
+                ],
+                "path": [
+                  "api",
+                  "{{api_version}}",
+                  "items",
+                  "search"
+                ],
+                "query": [
+                  {
+                    "key": "name",
+                    "value": "apple",
+                    "description": "Required: Search query"
+                  },
+                  {
+                    "key": "limit",
+                    "value": "20"
+                  },
+                  {
+                    "key": "offset",
+                    "value": "1"
+                  }
+                ]
+              },
+              "description": "Search for items by name"
+            }
+          }
+        ]
+      },
+      {
+        "name": "5. Stores",
+        "item": [
+          {
+            "name": "Store Details",
+            "request": {
+              "method": "GET",
+              "header": [
+                {
+                  "key": "Accept",
+                  "value": "application/json"
+                },
+                {
+                  "key": "Host",
+                  "value": "{{host_header}}",
+                  "description": "Required if using direct IP bypass ({{base_url_direct}})"
+                },
+                {
+                  "key": "X-localization",
+                  "value": "{{language}}"
+                },
+                {
+                  "key": "moduleId",
+                  "value": "{{module_id}}"
+                },
+                {
+                  "key": "zoneId",
+                  "value": "{{zone_id}}"
+                }
+              ],
+              "url": {
+                "raw": "{{base_url}}/api/{{api_version}}/stores/details/{{store_id}}?limit=20&offset=1",
+                "host": [
+                  "{{base_url}}"
+                ],
+                "path": [
+                  "api",
+                  "{{api_version}}",
+                  "stores",
+                  "details",
+                  "{{store_id}}"
+                ],
+                "query": [
+                  {
+                    "key": "limit",
+                    "value": "20",
+                    "description": "Optional: Limit for category_details pagination"
+                  },
+                  {
+                    "key": "offset",
+                    "value": "1",
+                    "description": "Optional: Offset for category_details pagination"
+                  }
+                ]
+              },
+              "description": "Get full store details\n\n✅ Always uses standard mode (no minimal mode for details)\n✅ Payload: ~15-20 KB"
+            }
+          },
+          {
+            "name": "Popular Stores",
+            "request": {
+              "method": "GET",
+              "header": [
+                {
+                  "key": "Accept",
+                  "value": "application/json"
+                },
+                {
+                  "key": "Host",
+                  "value": "{{host_header}}",
+                  "description": "Required if using direct IP bypass ({{base_url_direct}})"
+                },
+                {
+                  "key": "X-localization",
+                  "value": "{{language}}"
+                },
+                {
+                  "key": "moduleId",
+                  "value": "{{module_id}}"
+                },
+                {
+                  "key": "zoneId",
+                  "value": "{{zone_id}}"
+                }
+              ],
+              "url": {
+                "raw": "{{base_url}}/api/{{api_version}}/stores/popular?limit=20&offset=1",
+                "host": [
+                  "{{base_url}}"
+                ],
+                "path": [
+                  "api",
+                  "{{api_version}}",
+                  "stores",
+                  "popular"
+                ],
+                "query": [
+                  {
+                    "key": "limit",
+                    "value": "20"
+                  },
+                  {
+                    "key": "offset",
+                    "value": "1"
+                  }
+                ]
+              },
+              "description": "Get list of popular stores"
+            }
+          }
+        ]
+      },
+      {
+        "name": "6. Customer Profile",
+        "item": [
+          {
+            "name": "Get Customer Info",
+            "request": {
+              "method": "GET",
+              "header": [
+                {
+                  "key": "Accept",
+                  "value": "application/json"
+                },
+                {
+                  "key": "Host",
+                  "value": "{{host_header}}",
+                  "description": "Required if using direct IP bypass ({{base_url_direct}})"
+                },
+                {
+                  "key": "X-localization",
+                  "value": "{{language}}"
+                },
+                {
+                  "key": "X-Response-Mode",
+                  "value": "minimal"
+                },
+                {
+                  "key": "Authorization",
+                  "value": "Bearer {{auth_token}}"
+                }
+              ],
+              "url": {
+                "raw": "{{base_url}}/api/{{api_version}}/customer/info",
+                "host": [
+                  "{{base_url}}"
+                ],
+                "path": [
+                  "api",
+                  "{{api_version}}",
+                  "customer",
+                  "info"
+                ]
+              },
+              "description": "Get customer profile information\n\n✅ Uses UserProfileLiteResource\n✅ Payload: < 0.5 KB\n✅ Stripped fields: email, phone, addresses, userinfo, storage"
+            }
+          },
+          {
+            "name": "Update Profile",
+            "request": {
+              "method": "POST",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                },
+                {
+                  "key": "Accept",
+                  "value": "application/json"
+                },
+                {
+                  "key": "Host",
+                  "value": "{{host_header}}",
+                  "description": "Required if using direct IP bypass ({{base_url_direct}})"
+                },
+                {
+                  "key": "X-localization",
+                  "value": "{{language}}"
+                },
+                {
+                  "key": "Authorization",
+                  "value": "Bearer {{auth_token}}"
+                }
+              ],
+              "body": {
+                "mode": "raw",
+                "raw": "{\n  \"name\": \"Test User\",\n  \"email\": null,\n  \"phone\": \"+966500016421\",\n  \"image\": null,\n  \"password\": null\n}"
+              },
+              "url": {
+                "raw": "{{base_url}}/api/{{api_version}}/customer/update-profile",
+                "host": [
+                  "{{base_url}}"
+                ],
+                "path": [
+                  "api",
+                  "{{api_version}}",
+                  "customer",
+                  "update-profile"
+                ]
+              },
+              "description": "Update customer profile"
+            }
+          },
+          {
+            "name": "Get Addresses List",
+            "request": {
+              "method": "GET",
+              "header": [
+                {
+                  "key": "Accept",
+                  "value": "application/json"
+                },
+                {
+                  "key": "Host",
+                  "value": "{{host_header}}",
+                  "description": "Required if using direct IP bypass ({{base_url_direct}})"
+                },
+                {
+                  "key": "X-localization",
+                  "value": "{{language}}"
+                },
+                {
+                  "key": "Authorization",
+                  "value": "Bearer {{auth_token}}"
+                }
+              ],
+              "url": {
+                "raw": "{{base_url}}/api/{{api_version}}/customer/address/list?limit=10&offset=1",
+                "host": [
+                  "{{base_url}}"
+                ],
+                "path": [
+                  "api",
+                  "{{api_version}}",
+                  "customer",
+                  "address",
+                  "list"
+                ],
+                "query": [
+                  {
+                    "key": "limit",
+                    "value": "10"
+                  },
+                  {
+                    "key": "offset",
+                    "value": "1"
+                  }
+                ]
+              },
+              "description": "Get list of customer addresses"
+            }
+          },
+          {
+            "name": "Add New Address",
+            "request": {
+              "method": "POST",
+              "header": [
+                {
+                  "key": "Accept",
+                  "value": "application/json"
+                },
+                {
+                  "key": "Host",
+                  "value": "{{host_header}}",
+                  "description": "Required if using direct IP bypass ({{base_url_direct}})"
+                },
+                {
+                  "key": "X-localization",
+                  "value": "{{language}}"
+                },
+                {
+                  "key": "Authorization",
+                  "value": "Bearer {{auth_token}}"
+                }
+              ],
+              "body": {
+                "mode": "raw",
+                "raw": "{\n  \"contact_person_name\": \"John Doe\",\n  \"address_type\": \"home\",\n  \"contact_person_number\": \"+966501234567\",\n  \"address\": \"123 Main Street, City\",\n  \"latitude\": \"24.7136\",\n  \"longitude\": \"46.6753\",\n  \"floor\": \"3\",\n  \"road\": \"Main Street\",\n  \"house\": \"123\"\n}"
+              },
+              "url": {
+                "raw": "{{base_url}}/api/{{api_version}}/customer/address/add",
+                "host": [
+                  "{{base_url}}"
+                ],
+                "path": [
+                  "api",
+                  "{{api_version}}",
+                  "customer",
+                  "address",
+                  "add"
+                ]
+              },
+              "description": "Add a new address"
+            }
+          },
+          {
+            "name": "Wish List",
+            "request": {
+              "method": "GET",
+              "header": [
+                {
+                  "key": "Accept",
+                  "value": "application/json"
+                },
+                {
+                  "key": "Host",
+                  "value": "{{host_header}}",
+                  "description": "Required if using direct IP bypass ({{base_url_direct}})"
+                },
+                {
+                  "key": "X-localization",
+                  "value": "{{language}}"
+                },
+                {
+                  "key": "moduleId",
+                  "value": "{{module_id}}"
+                },
+                {
+                  "key": "X-Response-Mode",
+                  "value": "minimal"
+                },
+                {
+                  "key": "Authorization",
+                  "value": "Bearer {{auth_token}}"
+                }
+              ],
+              "url": {
+                "raw": "{{base_url}}/api/{{api_version}}/customer/wish-list",
+                "host": [
+                  "{{base_url}}"
+                ],
+                "path": [
+                  "api",
+                  "{{api_version}}",
+                  "customer",
+                  "wish-list"
+                ]
+              },
+              "description": "Returns user's wish list items"
+            }
+          },
+          {
+            "name": "Notifications",
+            "request": {
+              "method": "GET",
+              "header": [
+                {
+                  "key": "Accept",
+                  "value": "application/json"
+                },
+                {
+                  "key": "Host",
+                  "value": "{{host_header}}",
+                  "description": "Required if using direct IP bypass ({{base_url_direct}})"
+                },
+                {
+                  "key": "X-localization",
+                  "value": "{{language}}"
+                },
+                {
+                  "key": "Authorization",
+                  "value": "Bearer {{auth_token}}"
+                }
+              ],
+              "url": {
+                "raw": "{{base_url}}/api/{{api_version}}/customer/notifications",
+                "host": [
+                  "{{base_url}}"
+                ],
+                "path": [
+                  "api",
+                  "{{api_version}}",
+                  "customer",
+                  "notifications"
+                ]
+              },
+              "description": "Returns user's notifications"
+            }
+          }
+        ]
+      },
+      {
+        "name": "7. Cart",
+        "item": [
+          {
+            "name": "Get Cart List",
+            "request": {
+              "method": "GET",
+              "header": [
+                {
+                  "key": "Accept",
+                  "value": "application/json"
+                },
+                {
+                  "key": "Host",
+                  "value": "{{host_header}}",
+                  "description": "Required if using direct IP bypass ({{base_url_direct}})"
+                },
+                {
+                  "key": "X-localization",
+                  "value": "{{language}}"
+                },
+                {
+                  "key": "moduleId",
+                  "value": "{{module_id}}"
+                },
+                {
+                  "key": "zoneId",
+                  "value": "{{zone_id}}"
+                },
+                {
+                  "key": "Authorization",
+                  "value": "Bearer {{auth_token}}"
+                }
+              ],
+              "url": {
+                "raw": "{{base_url}}/api/{{api_version}}/customer/cart/list?guest_id=",
+                "host": [
+                  "{{base_url}}"
+                ],
+                "path": [
+                  "api",
+                  "{{api_version}}",
+                  "customer",
+                  "cart",
+                  "list"
+                ],
+                "query": [
+                  {
+                    "key": "guest_id",
+                    "value": "",
+                    "description": "Required if not authenticated"
+                  }
+                ]
+              },
+              "description": "Get cart items list\n\nFor guest users, include guest_id in query params"
+            }
+          },
+          {
+            "name": "Add to Cart",
+            "request": {
+              "method": "POST",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                },
+                {
+                  "key": "Accept",
+                  "value": "application/json"
+                },
+                {
+                  "key": "Host",
+                  "value": "{{host_header}}",
+                  "description": "Required if using direct IP bypass ({{base_url_direct}})"
+                },
+                {
+                  "key": "X-localization",
+                  "value": "{{language}}"
+                },
+                {
+                  "key": "moduleId",
+                  "value": "{{module_id}}"
+                },
+                {
+                  "key": "zoneId",
+                  "value": "{{zone_id}}"
+                },
+                {
+                  "key": "Authorization",
+                  "value": "Bearer {{auth_token}}"
+                }
+              ],
+              "body": {
+                "mode": "raw",
+                "raw": "{\n  \"item_id\": 1,\n  \"quantity\": 2,\n  \"model\": \"Item\",\n  \"price\": 22.5,\n  \"variation\": [],\n  \"add_on_ids\": [],\n  \"add_on_qtys\": [],\n  \"guest_id\": \"\"\n}"
+              },
+              "url": {
+                "raw": "{{base_url}}/api/{{api_version}}/customer/cart/add",
+                "host": [
+                  "{{base_url}}"
+                ],
+                "path": [
+                  "api",
+                  "{{api_version}}",
+                  "customer",
+                  "cart",
+                  "add"
+                ]
+              },
+              "description": "Add item to cart\n\n⚠️ REQUIRED FIELDS:\n- item_id: Item ID (integer)\n- quantity: Quantity (integer, min: 1)\n- model: \"Item\" or \"ItemCampaign\" (string) - REQUIRED\n- price: Item price (numeric) - REQUIRED - Get from item details endpoint first\n- variation: Array of variations (optional)\n- add_on_ids: Array of add-on IDs (optional)\n- add_on_qtys: Array of add-on quantities (optional)\n- guest_id: Guest ID if not authenticated (string)\n\n💡 TIP: Get item price from \"Item Details\" endpoint first, then use that price here."
+            }
+          },
+          {
+            "name": "Update Cart Item",
+            "request": {
+              "method": "POST",
+              "header": [
+                {
+                  "key": "Accept",
+                  "value": "application/json"
+                },
+                {
+                  "key": "Host",
+                  "value": "{{host_header}}",
+                  "description": "Required if using direct IP bypass ({{base_url_direct}})"
+                },
+                {
+                  "key": "X-localization",
+                  "value": "{{language}}"
+                },
+                {
+                  "key": "moduleId",
+                  "value": "{{module_id}}"
+                },
+                {
+                  "key": "zoneId",
+                  "value": "{{zone_id}}"
+                },
+                {
+                  "key": "Authorization",
+                  "value": "Bearer {{auth_token}}"
+                }
+              ],
+              "body": {
+                "mode": "raw",
+                "raw": "{\n  \"cart_id\": 1,\n  \"quantity\": 3,\n  \"price\": 22.5,\n  \"guest_id\": \"\"\n}"
+              },
+              "url": {
+                "raw": "{{base_url}}/api/{{api_version}}/customer/cart/update",
+                "host": [
+                  "{{base_url}}"
+                ],
+                "path": [
+                  "api",
+                  "{{api_version}}",
+                  "customer",
+                  "cart",
+                  "update"
+                ]
+              },
+              "description": "Update cart item quantity\n\n⚠️ REQUIRED FIELDS:\n- cart_id: Cart item ID (integer)\n- quantity: New quantity (integer, min: 1)\n- price: Item price (numeric) - Get from item details endpoint\n- guest_id: Guest ID if not authenticated (string)"
+            }
+          },
+          {
+            "name": "Remove Cart Item",
+            "request": {
+              "method": "DELETE",
+              "header": [
+                {
+                  "key": "Accept",
+                  "value": "application/json"
+                },
+                {
+                  "key": "Host",
+                  "value": "{{host_header}}",
+                  "description": "Required if using direct IP bypass ({{base_url_direct}})"
+                },
+                {
+                  "key": "X-localization",
+                  "value": "{{language}}"
+                },
+                {
+                  "key": "moduleId",
+                  "value": "{{module_id}}"
+                },
+                {
+                  "key": "zoneId",
+                  "value": "{{zone_id}}"
+                },
+                {
+                  "key": "Authorization",
+                  "value": "Bearer {{auth_token}}"
+                }
+              ],
+              "body": {
+                "mode": "raw",
+                "raw": "{\n  \"cart_id\": 1,\n  \"guest_id\": \"\"\n}"
+              },
+              "url": {
+                "raw": "{{base_url}}/api/{{api_version}}/customer/cart/remove-item",
+                "host": [
+                  "{{base_url}}"
+                ],
+                "path": [
+                  "api",
+                  "{{api_version}}",
+                  "customer",
+                  "cart",
+                  "remove-item"
+                ]
+              },
+              "description": "Remove item from cart"
+            }
+          },
+          {
+            "name": "Clear Cart",
+            "request": {
+              "method": "DELETE",
+              "header": [
+                {
+                  "key": "Accept",
+                  "value": "application/json"
+                },
+                {
+                  "key": "Host",
+                  "value": "{{host_header}}",
+                  "description": "Required if using direct IP bypass ({{base_url_direct}})"
+                },
+                {
+                  "key": "X-localization",
+                  "value": "{{language}}"
+                },
+                {
+                  "key": "moduleId",
+                  "value": "{{module_id}}"
+                },
+                {
+                  "key": "zoneId",
+                  "value": "{{zone_id}}"
+                },
+                {
+                  "key": "Authorization",
+                  "value": "Bearer {{auth_token}}"
+                }
+              ],
+              "body": {
+                "mode": "raw",
+                "raw": "{\n  \"guest_id\": \"\"\n}"
+              },
+              "url": {
+                "raw": "{{base_url}}/api/{{api_version}}/customer/cart/remove",
+                "host": [
+                  "{{base_url}}"
+                ],
+                "path": [
+                  "api",
+                  "{{api_version}}",
+                  "customer",
+                  "cart",
+                  "remove"
+                ]
+              },
+              "description": "Clear entire cart"
+            }
+          }
+        ]
+      },
+      {
+        "name": "8. Orders",
+        "item": [
+          {
+            "name": "Get Order List",
+            "request": {
+              "method": "GET",
+              "header": [
+                {
+                  "key": "Accept",
+                  "value": "application/json"
+                },
+                {
+                  "key": "Host",
+                  "value": "{{host_header}}",
+                  "description": "Required if using direct IP bypass ({{base_url_direct}})"
+                },
+                {
+                  "key": "X-localization",
+                  "value": "{{language}}"
+                },
+                {
+                  "key": "X-Response-Mode",
+                  "value": "minimal"
+                },
+                {
+                  "key": "Authorization",
+                  "value": "Bearer {{auth_token}}"
+                }
+              ],
+              "url": {
+                "raw": "{{base_url}}/api/{{api_version}}/customer/order/list?limit=20&offset=1",
+                "host": [
+                  "{{base_url}}"
+                ],
+                "path": [
+                  "api",
+                  "{{api_version}}",
+                  "customer",
+                  "order",
+                  "list"
+                ],
+                "query": [
+                  {
+                    "key": "limit",
+                    "value": "20",
+                    "description": "Required"
+                  },
+                  {
+                    "key": "offset",
+                    "value": "1",
+                    "description": "Required"
+                  },
+                  {
+                    "key": "guest_id",
+                    "value": "",
+                    "description": "Optional: For guest checkout"
+                  }
+                ]
+              },
+              "description": "Get list of customer orders\n\n✅ Uses OrderLiteResource in minimal mode\n✅ Payload: < 5 KB for 10 orders"
+            }
+          },
+          {
+            "name": "Get Order Details",
+            "request": {
+              "method": "GET",
+              "header": [
+                {
+                  "key": "Accept",
+                  "value": "application/json"
+                },
+                {
+                  "key": "Host",
+                  "value": "{{host_header}}",
+                  "description": "Required if using direct IP bypass ({{base_url_direct}})"
+                },
+                {
+                  "key": "X-localization",
+                  "value": "{{language}}"
+                },
+                {
+                  "key": "Authorization",
+                  "value": "Bearer {{auth_token}}"
+                }
+              ],
+              "url": {
+                "raw": "{{base_url}}/api/{{api_version}}/customer/order/details?order_id=1",
+                "host": [
+                  "{{base_url}}"
+                ],
+                "path": [
+                  "api",
+                  "{{api_version}}",
+                  "customer",
+                  "order",
+                  "details"
+                ],
+                "query": [
+                  {
+                    "key": "order_id",
+                    "value": "1",
+                    "description": "Required: Order ID"
+                  }
+                ]
+              },
+              "description": "Get order details including items"
+            }
+          },
+          {
+            "name": "Place Order - Cash on Delivery",
+            "request": {
+              "method": "POST",
+              "header": [
+                {
+                  "key": "Accept",
+                  "value": "application/json"
+                },
+                {
+                  "key": "Host",
+                  "value": "{{host_header}}",
+                  "description": "Required if using direct IP bypass ({{base_url_direct}})"
+                },
+                {
+                  "key": "X-localization",
+                  "value": "{{language}}"
+                },
+                {
+                  "key": "moduleId",
+                  "value": "{{module_id}}"
+                },
+                {
+                  "key": "zoneId",
+                  "value": "{{zone_id}}"
+                },
+                {
+                  "key": "Authorization",
+                  "value": "Bearer {{auth_token}}"
+                }
+              ],
+              "body": {
+                "mode": "raw",
+                "raw": "{\n  \"cart\": [\n    {\n      \"item_id\": 1,\n      \"quantity\": 1,\n      \"variation\": [],\n      \"add_on_ids\": [],\n      \"add_on_qtys\": []\n    }\n  ],\n  \"order_type\": \"delivery\",\n  \"store_id\": 18,\n  \"order_amount\": 50.0,\n  \"payment_method\": \"cash_on_delivery\",\n  \"distance\": 2.5,\n  \"address\": \"123 Main Street, Riyadh\",\n  \"latitude\": 24.7136,\n  \"longitude\": 46.6753,\n  \"coupon_code\": \"\",\n  \"order_note\": \"\",\n  \"delivery_instruction\": \"\"\n}"
+              },
+              "url": {
+                "raw": "{{base_url}}/api/{{api_version}}/customer/order/place",
+                "host": [
+                  "{{base_url}}"
+                ],
+                "path": [
+                  "api",
+                  "{{api_version}}",
+                  "customer",
+                  "order",
+                  "place"
+                ]
+              },
+              "description": "Place order with Cash on Delivery payment\n\n✅ FIXED: All required fields included\n- order_type: required (\"take_away\" | \"delivery\" | \"parcel\")\n- store_id: required (unless order_type is \"parcel\")\n- distance, address, latitude, longitude: required (unless order_type is \"take_away\")\n- cart: required array with at least 1 item"
+            }
+          },
+          {
+            "name": "Place Order - Wallet (Regular)",
+            "request": {
+              "method": "POST",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                },
+                {
+                  "key": "Accept",
+                  "value": "application/json"
+                },
+                {
+                  "key": "Host",
+                  "value": "{{host_header}}",
+                  "description": "Required if using direct IP bypass ({{base_url_direct}})"
+                },
+                {
+                  "key": "X-localization",
+                  "value": "{{language}}"
+                },
+                {
+                  "key": "moduleId",
+                  "value": "{{module_id}}"
+                },
+                {
+                  "key": "zoneId",
+                  "value": "{{zone_id}}"
+                },
+                {
+                  "key": "Authorization",
+                  "value": "Bearer {{auth_token}}"
+                }
+              ],
+              "body": {
+                "mode": "raw",
+                "raw": "{\n  \"cart\": [\n    {\n      \"item_id\": 1,\n      \"quantity\": 1,\n      \"variation\": [],\n      \"add_on_ids\": [],\n      \"add_on_qtys\": []\n    }\n  ],\n  \"order_type\": \"delivery\",\n  \"store_id\": 1915,\n  \"order_amount\": 50.0,\n  \"payment_method\": \"wallet\",\n  \"distance\": 2.5,\n  \"address\": \"123 Main Street, Riyadh\",\n  \"latitude\": 24.7136,\n  \"longitude\": 46.6753,\n  \"coupon_code\": \"\",\n  \"order_note\": \"\",\n  \"delivery_instruction\": \"\"\n}"
+              },
+              "url": {
+                "raw": "{{base_url}}/api/{{api_version}}/customer/order/place",
+                "host": [
+                  "{{base_url}}"
+                ],
+                "path": [
+                  "api",
+                  "{{api_version}}",
+                  "customer",
+                  "order",
+                  "place"
+                ]
+              },
+              "description": "Place order with Regular Wallet payment\n\n⚠️ Requires: User must have sufficient wallet balance"
+            }
+          },
+          {
+            "name": "Place Order - Wallet Qidha",
+            "request": {
+              "method": "POST",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                },
+                {
+                  "key": "Accept",
+                  "value": "application/json"
+                },
+                {
+                  "key": "Host",
+                  "value": "{{host_header}}",
+                  "description": "Required if using direct IP bypass ({{base_url_direct}})"
+                },
+                {
+                  "key": "X-localization",
+                  "value": "{{language}}"
+                },
+                {
+                  "key": "moduleId",
+                  "value": "{{module_id}}"
+                },
+                {
+                  "key": "zoneId",
+                  "value": "{{zone_id}}"
+                },
+                {
+                  "key": "Authorization",
+                  "value": "Bearer {{auth_token}}"
+                }
+              ],
+              "body": {
+                "mode": "raw",
+                "raw": "{\n  \"cart\": [\n    {\n      \"item_id\": 1,\n      \"quantity\": 1,\n      \"variation\": [],\n      \"add_on_ids\": [],\n      \"add_on_qtys\": []\n    }\n  ],\n  \"order_type\": \"delivery\",\n  \"store_id\": 1915,\n  \"order_amount\": 50.0,\n  \"payment_method\": \"wallet_qidha\",\n  \"distance\": 2.5,\n  \"address\": \"123 Main Street, Riyadh\",\n  \"latitude\": 24.7136,\n  \"longitude\": 46.6753,\n  \"coupon_code\": \"\",\n  \"order_note\": \"\",\n  \"delivery_instruction\": \"\"\n}"
+              },
+              "url": {
+                "raw": "{{base_url}}/api/{{api_version}}/customer/order/place",
+                "host": [
+                  "{{base_url}}"
+                ],
+                "path": [
+                  "api",
+                  "{{api_version}}",
+                  "customer",
+                  "order",
+                  "place"
+                ]
+              },
+              "description": "Place order with Qidha Wallet payment\n\n⚠️ Requires: User must have active Qidha wallet with sufficient balance/credit limit"
+            }
+          },
+          {
+            "name": "Place Order - MyFatoorah (Digital Payment)",
+            "request": {
+              "method": "POST",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                },
+                {
+                  "key": "Accept",
+                  "value": "application/json"
+                },
+                {
+                  "key": "Host",
+                  "value": "{{host_header}}",
+                  "description": "Required if using direct IP bypass ({{base_url_direct}})"
+                },
+                {
+                  "key": "X-localization",
+                  "value": "{{language}}"
+                },
+                {
+                  "key": "moduleId",
+                  "value": "{{module_id}}"
+                },
+                {
+                  "key": "zoneId",
+                  "value": "{{zone_id}}"
+                },
+                {
+                  "key": "Authorization",
+                  "value": "Bearer {{auth_token}}"
+                }
+              ],
+              "body": {
+                "mode": "raw",
+                "raw": "{\n  \"cart\": [\n    {\n      \"item_id\": 1,\n      \"quantity\": 1,\n      \"variation\": [],\n      \"add_on_ids\": [],\n      \"add_on_qtys\": []\n    }\n  ],\n  \"order_type\": \"delivery\",\n  \"store_id\": 1915,\n  \"order_amount\": 50.0,\n  \"payment_method\": \"digital_payment\",\n  \"distance\": 2.5,\n  \"address\": \"123 Main Street, Riyadh\",\n  \"latitude\": 24.7136,\n  \"longitude\": 46.6753,\n  \"coupon_code\": \"\",\n  \"order_note\": \"\",\n  \"delivery_instruction\": \"\"\n}"
+              },
+              "url": {
+                "raw": "{{base_url}}/api/{{api_version}}/customer/order/place",
+                "host": [
+                  "{{base_url}}"
+                ],
+                "path": [
+                  "api",
+                  "{{api_version}}",
+                  "customer",
+                  "order",
+                  "place"
+                ]
+              },
+              "description": "Place order with MyFatoorah payment (Digital Payment)\n\n⚠️ Requires: Digital payment must be enabled\n\nResponse will include payment URL for redirect to payment gateway"
+            }
+          },
+          {
+            "name": "Cancel Order",
+            "request": {
+              "method": "PUT",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                },
+                {
+                  "key": "Accept",
+                  "value": "application/json"
+                },
+                {
+                  "key": "Host",
+                  "value": "{{host_header}}",
+                  "description": "Required if using direct IP bypass ({{base_url_direct}})"
+                },
+                {
+                  "key": "X-localization",
+                  "value": "{{language}}"
+                },
+                {
+                  "key": "Authorization",
+                  "value": "Bearer {{auth_token}}"
+                }
+              ],
+              "body": {
+                "mode": "raw",
+                "raw": "{\n  \"order_id\": 1,\n  \"reason\": \"Changed my mind\"\n}"
+              },
+              "url": {
+                "raw": "{{base_url}}/api/{{api_version}}/customer/order/cancel",
+                "host": [
+                  "{{base_url}}"
+                ],
+                "path": [
+                  "api",
+                  "{{api_version}}",
+                  "customer",
+                  "order",
+                  "cancel"
+                ]
+              },
+              "description": "Cancel an order"
+            }
+          }
+        ]
+      },
+      {
+        "name": "9. Qidha Wallet",
+        "item": [
+          {
+            "name": "Get Wallet",
+            "request": {
+              "method": "GET",
+              "header": [
+                {
+                  "key": "Accept",
+                  "value": "application/json"
+                },
+                {
+                  "key": "Host",
+                  "value": "{{host_header}}",
+                  "description": "Required if using direct IP bypass ({{base_url_direct}})"
+                },
+                {
+                  "key": "Authorization",
+                  "value": "Bearer {{auth_token}}"
+                }
+              ],
+              "url": {
+                "raw": "{{base_url}}/api/qidha-wallet/get-wallet",
+                "host": [
+                  "{{base_url}}"
+                ],
+                "path": [
+                  "api",
+                  "qidha-wallet",
+                  "get-wallet"
+                ]
+              },
+              "description": "Returns user's Qidha wallet information"
+            }
+          },
+          {
+            "name": "Create Wallet (Step 2)",
+            "request": {
+              "method": "POST",
+              "header": [
+                {
+                  "key": "Accept",
+                  "value": "application/json"
+                },
+                {
+                  "key": "Host",
+                  "value": "{{host_header}}",
+                  "description": "Required if using direct IP bypass ({{base_url_direct}})"
+                },
+                {
+                  "key": "Authorization",
+                  "value": "Bearer {{auth_token}}"
+                }
+              ],
+              "body": {
+                "mode": "formdata",
+                "formdata": [
+                  {
+                    "key": "first_name",
+                    "value": "محمد",
+                    "type": "text"
+                  },
+                  {
+                    "key": "grandfather_name",
+                    "value": "أحمد",
+                    "type": "text"
+                  },
+                  {
+                    "key": "father_name",
+                    "value": "علي",
+                    "type": "text"
+                  },
+                  {
+                    "key": "last_name",
+                    "value": "السالم",
+                    "type": "text"
+                  },
+                  {
+                    "key": "birth_date",
+                    "value": "1990-01-15",
+                    "type": "text"
+                  },
+                  {
+                    "key": "national_id",
+                    "value": "1234567890",
+                    "type": "text"
+                  },
+                  {
+                    "key": "marital_status",
+                    "value": "married",
+                    "type": "text"
+                  },
+                  {
+                    "key": "number_of_family_members",
+                    "value": "5",
+                    "type": "text"
+                  },
+                  {
+                    "key": "identity_card_number",
+                    "value": "1234567890",
+                    "type": "text"
+                  },
+                  {
+                    "key": "end_date",
+                    "value": "2025-12-31",
+                    "type": "text"
+                  },
+                  {
+                    "key": "mobile",
+                    "value": "0501234567",
+                    "type": "text"
+                  },
+                  {
+                    "key": "house_type",
+                    "value": "apartment",
+                    "type": "text"
+                  },
+                  {
+                    "key": "city",
+                    "value": "الرياض",
+                    "type": "text"
+                  },
+                  {
+                    "key": "neighborhood",
+                    "value": "حي النرجس",
+                    "type": "text"
+                  },
+                  {
+                    "key": "name_of_employer",
+                    "value": "شركة ABC",
+                    "type": "text"
+                  },
+                  {
+                    "key": "total_salary",
+                    "value": "15000",
+                    "type": "text"
+                  },
+                  {
+                    "key": "Installments",
+                    "value": "2000",
+                    "type": "text"
+                  },
+                  {
+                    "key": "source_of_income",
+                    "value": "government",
+                    "type": "text"
+                  },
+                  {
+                    "key": "monthly_amount",
+                    "value": "13000",
+                    "type": "text"
+                  },
+                  {
+                    "key": "salary_day",
+                    "value": "5",
+                    "type": "text"
+                  }
+                ]
+              },
+              "url": {
+                "raw": "{{base_url}}/api/qidha-wallet/store",
+                "host": [
+                  "{{base_url}}"
+                ],
+                "path": [
+                  "api",
+                  "qidha-wallet",
+                  "store"
+                ]
+              },
+              "description": "Creates a new Qidha wallet (Step 2 of wallet creation flow)\n\n⚠️ Requires: multipart/form-data with attachments"
+            }
+          },
+          {
+            "name": "Nafath Initiate",
+            "request": {
+              "method": "POST",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                },
+                {
+                  "key": "Accept",
+                  "value": "application/json"
+                },
+                {
+                  "key": "Host",
+                  "value": "{{host_header}}",
+                  "description": "Required if using direct IP bypass ({{base_url_direct}})"
+                },
+                {
+                  "key": "Authorization",
+                  "value": "Bearer {{auth_token}}"
+                }
+              ],
+              "body": {
+                "mode": "raw",
+                "raw": "{\n  \"national_id\": \"1234567890\"\n}"
+              },
+              "url": {
+                "raw": "{{base_url}}/api/qidha-wallet/nafath/initiate",
+                "host": [
+                  "{{base_url}}"
+                ],
+                "path": [
+                  "api",
+                  "qidha-wallet",
+                  "nafath",
+                  "initiate"
+                ]
+              },
+              "description": "Initiates Nafath verification request"
+            }
+          },
+          {
+            "name": "Nafath Check Status",
+            "request": {
+              "method": "POST",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                },
+                {
+                  "key": "Accept",
+                  "value": "application/json"
+                },
+                {
+                  "key": "Host",
+                  "value": "{{host_header}}",
+                  "description": "Required if using direct IP bypass ({{base_url_direct}})"
+                },
+                {
+                  "key": "Authorization",
+                  "value": "Bearer {{auth_token}}"
+                }
+              ],
+              "body": {
+                "mode": "raw",
+                "raw": "{\n  \"national_id\": \"1234567890\"\n}"
+              },
+              "url": {
+                "raw": "{{base_url}}/api/qidha-wallet/nafath/checkStatus",
+                "host": [
+                  "{{base_url}}"
+                ],
+                "path": [
+                  "api",
+                  "qidha-wallet",
+                  "nafath",
+                  "checkStatus"
+                ]
+              },
+              "description": "Checks Nafath verification status\n\nStatus values: pending, approved, failed"
+            }
+          },
+          {
+            "name": "Nafath Sign",
+            "request": {
+              "method": "POST",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                },
+                {
+                  "key": "Accept",
+                  "value": "application/json"
+                },
+                {
+                  "key": "Host",
+                  "value": "{{host_header}}",
+                  "description": "Required if using direct IP bypass ({{base_url_direct}})"
+                },
+                {
+                  "key": "Authorization",
+                  "value": "Bearer {{auth_token}}"
+                }
+              ],
+              "body": {
+                "mode": "raw",
+                "raw": "{\n  \"national_id\": \"1234567890\",\n  \"city\": \"\\u0627\\u0644\\u0631\\u064a\\u0627\\u0636\",\n  \"neighborhood\": \"\\u062d\\u064a \\u0627\\u0644\\u0646\\u0631\\u062c\\u0633\",\n  \"house_type\": \"apartment\"\n}"
+              },
+              "url": {
+                "raw": "{{base_url}}/api/qidha-wallet/nafath/sign",
+                "host": [
+                  "{{base_url}}"
+                ],
+                "path": [
+                  "api",
+                  "qidha-wallet",
+                  "nafath",
+                  "sign"
+                ]
+              },
+              "description": "Signs contract via Nafath (Step 3 of wallet creation)"
+            }
+          }
+        ]
+      }
+    ]
+  }
