@@ -740,7 +740,9 @@ class _HomeScreenState extends State<HomeScreen> {
           final stopwatch = Stopwatch()..start();
           appLogger.info(
               '📡 HomeScreen: Calling category API: ${AppConstants.categoryUri}');
-          await Get.find<CategoryController>().getCategoryList(true);
+          await Get.find<CategoryController>().getCategoryList(true,
+              expectedModuleId:
+                  Get.find<SplashController>().selectedModule.value?.id);
           stopwatch.stop();
           appLogger.info(
               '✅ HomeScreen: Category API completed in ${stopwatch.elapsedMilliseconds}ms');

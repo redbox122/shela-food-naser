@@ -1,0 +1,127 @@
+import 'dart:collection';
+import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_inappwebview/flutter_inappwebview.dart';
+import 'package:get/get.dart';
+import 'package:sixam_mart/common/widgets/custom_app_bar.dart';
+
+/// WebView screen used to complete a MyFatoorah payment flow.
+///
+/// Returns `'success'` via [Get.back] when [successUrlContains] is detected
+/// in the loaded URL, or `'error'` when [errorUrlContains] is detected.
+class MyFatoorahPaymentWebViewScreen extends StatefulWidget {
+  final String initialUrl;
+  final String successUrlContains;
+  final String errorUrlContains;
+
+  const MyFatoorahPaymentWebViewScreen({
+    super.key,
+    required this.initialUrl,
+    required this.successUrlContains,
+    required this.errorUrlContains,
+  });
+
+  @override
+  State<MyFatoorahPaymentWebViewScreen> createState() =>
+      _MyFatoorahPaymentWebViewScreenState();
+}
+
+class _MyFatoorahPaymentWebViewScreenState
+    extends State<MyFatoorahPaymentWebViewScreen> {
+  bool _isLoading = true;
+  bool _hasRedirected = false;
+  InAppWebViewController? _webViewController;
+  PullToRefreshController? _pullToRefreshController;
+  final GlobalKey _webViewKey = GlobalKey();
+
+  @override
+  void initState() {
+    super.initState();
+    _pullToRefreshController = GetPlatform.isWeb ||
+            ![TargetPlatform.iOS, TargetPlatform.android]
+                .contains(defaultTargetPlatform)
+        ? null
+        : PullToRefreshController(
+            onRefresh: () async {
+              if (defaultTargetPlatform == TargetPlatform.android) {
+                _webViewController?.reload();
+              } else {
+                _webViewController?.loadUrl(
+                  urlRequest: URLRequest(
+                    url: await _webViewController?.getUrl(),
+                  ),
+                );
+              }
+            },
+          );
+  }
+
+  void _handleUrl(String? url) {
+    if (url == null || _hasRedirected) return;
+
+    if (url.contains(widget.successUrlContains)) {
+      _hasRedirected = true;
+      Get.back(result: 'success');
+    } else if (url.contains(widget.errorUrlContains)) {
+      _hasRedirected = true;
+      Get.back(result: 'error');
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) {
+        if (!didPop) Get.back(result: 'cancelled');
+      },
+      child: Scaffold(
+        appBar: CustomAppBar(
+          title: 'payment'.tr,
+          onBackPressed: () => Get.back(result: 'cancelled'),
+        ),
+        body: Stack(
+          children: [
+            InAppWebView(
+              key: _webViewKey,
+              initialUrlRequest:
+                  URLRequest(url: WebUri(widget.initialUrl)),
+              initialUserScripts: UnmodifiableListView([]),
+              pullToRefreshController: _pullToRefreshController,
+              initialSettings: InAppWebViewSettings(
+                isInspectable: kDebugMode,
+                mediaPlaybackRequiresUserGesture: false,
+                allowsInlineMediaPlayback: true,
+              ),
+              onWebViewCreated: (controller) {
+                _webViewController = controller;
+              },
+              onLoadStart: (controller, url) {
+                _handleUrl(url?.toString());
+                setState(() => _isLoading = true);
+              },
+              onLoadStop: (controller, url) {
+                _pullToRefreshController?.endRefreshing();
+                _handleUrl(url?.toString());
+                setState(() => _isLoading = false);
+              },
+              onProgressChanged: (controller, progress) {
+                if (progress == 100) {
+                  _pullToRefreshController?.endRefreshing();
+                }
+              },
+            ),
+            if (_isLoading)
+              Center(
+                child: CircularProgressIndicator(
+                  valueColor: AlwaysStoppedAnimation<Color>(
+                    Theme.of(context).primaryColor,
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}

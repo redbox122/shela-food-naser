@@ -753,6 +753,7 @@ class OptimizedHomeDataLoader {
       await ApiCallManager.instance.executeCall(
         'categories_module_$moduleId',
         () => Get.find<CategoryController>().getCategoryList(reload,
+            expectedModuleId: moduleId,
             dataSource: reload ? DataSourceEnum.client : DataSourceEnum.local),
         cacheDuration: const Duration(minutes: 15),
       ).then((data) {

@@ -1280,7 +1280,8 @@ class HiveHomeCacheService {
 
     try {
       final box = await _getLazyBox(HiveCacheConfig.appConfigBoxName);
-      final etagKey = 'etag_${uri.replaceAll('/', '_').replaceAll(':', '_')}';
+      final uriHash = uri.hashCode.toRadixString(36);
+      final etagKey = 'etag_$uriHash';
       await box.put(etagKey, etag);
       // 🔧 CRITICAL FIX: Flush to ensure data is persisted to disk immediately
       await box.flush();
@@ -1302,7 +1303,8 @@ class HiveHomeCacheService {
 
     try {
       final box = await _getLazyBox(HiveCacheConfig.appConfigBoxName);
-      final etagKey = 'etag_${uri.replaceAll('/', '_').replaceAll(':', '_')}';
+      final uriHash = uri.hashCode.toRadixString(36);
+      final etagKey = 'etag_$uriHash';
       final etag = await box.get(etagKey);
       return etag is String ? etag : null;
     } catch (e) {
@@ -1321,7 +1323,8 @@ class HiveHomeCacheService {
 
     try {
       final box = await _getLazyBox(HiveCacheConfig.appConfigBoxName);
-      final etagKey = 'etag_${uri.replaceAll('/', '_').replaceAll(':', '_')}';
+      final uriHash = uri.hashCode.toRadixString(36);
+      final etagKey = 'etag_$uriHash';
       await box.delete(etagKey);
 
       if (kDebugMode) {

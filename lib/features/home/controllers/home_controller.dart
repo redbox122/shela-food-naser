@@ -570,7 +570,7 @@ class HomeController extends GetxController implements GetxService {
       if (Get.isRegistered<CategoryController>()) {
         futures.add(
           Get.find<CategoryController>()
-              .getCategoryList(forceRefresh)
+              .getCategoryList(forceRefresh, expectedModuleId: moduleId)
               .catchError((dynamic e) {
             if (kDebugMode) {
               print('⚠️ HomeController: Error loading categories - $e');

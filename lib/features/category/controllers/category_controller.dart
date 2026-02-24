@@ -620,7 +620,8 @@ class CategoryController extends GetxController implements GetxService {
   Future<List<CategoryModel>?> getCategoryList(bool reload,
       {bool allCategory = false,
       DataSourceEnum dataSource = DataSourceEnum.local,
-      bool fromRecall = false}) async {
+      bool fromRecall = false,
+      int? expectedModuleId}) async {
     // OPTIMIZATION: Early return if categories already loaded and no reload requested
     // This prevents redundant cache reads and API calls when navigating between screens
     if (!reload &&
@@ -683,7 +684,7 @@ class CategoryController extends GetxController implements GetxService {
                     'âœ… CategoryController: Loading ${cachedCategoryList.length} categories from comprehensive cache');
                 _prepareCategoryList(
                   cachedCategoryList,
-                  expectedModuleId: _getCurrentModuleId(),
+                  expectedModuleId: expectedModuleId,
                 );
                 debugPrintCategoryIndex(source: 'comprehensive_cache');
                 return _categoryList;
@@ -703,7 +704,7 @@ class CategoryController extends GetxController implements GetxService {
 
           _prepareCategoryList(
             categoryList,
-            expectedModuleId: _getCurrentModuleId(),
+            expectedModuleId: expectedModuleId,
           );
           debugPrintCategoryIndex(source: 'local_cache');
           // Don't automatically call API when loading from cache
@@ -714,7 +715,7 @@ class CategoryController extends GetxController implements GetxService {
 
           _prepareCategoryList(
             categoryList,
-            expectedModuleId: _getCurrentModuleId(),
+            expectedModuleId: expectedModuleId,
           );
           debugPrintCategoryIndex(source: 'api');
         }
@@ -771,17 +772,15 @@ class CategoryController extends GetxController implements GetxService {
 
     final int? currentModuleId = _getCurrentModuleId();
 
-    // Reject stale payloads that arrive after module switch.
-    if (categoryList != null &&
-        categoryList.isNotEmpty &&
-        expectedModuleId != null &&
-        currentModuleId != null &&
-        expectedModuleId != currentModuleId) {
-      if (kDebugMode) {
-        print(
-            '🛡️ CategoryController: REJECTED stale categories (expectedModuleId=$expectedModuleId, currentModuleId=$currentModuleId, count=${categoryList.length})');
+    // ✅ GUARD: Reject stale payloads by expected module token before any state mutation.
+    if (expectedModuleId != null) {
+      if (currentModuleId != null && expectedModuleId != currentModuleId) {
+        if (kDebugMode) {
+          print(
+              '🛡️ CategoryController: REJECTED stale categories (expected=$expectedModuleId, current=$currentModuleId, count=${categoryList?.length ?? 0})');
+        }
+        return;
       }
-      return;
     }
 
     // Preserve existing categories if a transient empty/null response arrives

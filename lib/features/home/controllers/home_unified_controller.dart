@@ -156,7 +156,8 @@ class HomeUnifiedController extends GetxController implements GetxService {
         if (memoryData.isValid) {
           // 🔧 FIX: Wrap distribution AND update in Future.microtask to fix setState during build
           Future.microtask(() {
-            _distributeDataToControllers(memoryData, loadStores: loadStores);
+            _distributeDataToControllers(memoryData,
+                loadStores: loadStores, sourceModuleId: moduleId);
             update();
           });
           if (kDebugMode) {
@@ -175,7 +176,8 @@ class HomeUnifiedController extends GetxController implements GetxService {
         _moduleDataCache[moduleId] = cachedData;
         // 🔧 FIX: Wrap distribution AND update in Future.microtask to fix setState during build
         Future.microtask(() {
-          _distributeDataToControllers(cachedData, loadStores: loadStores);
+          _distributeDataToControllers(cachedData,
+              loadStores: loadStores, sourceModuleId: moduleId);
           update();
         });
         if (kDebugMode) {
@@ -400,7 +402,7 @@ class HomeUnifiedController extends GetxController implements GetxService {
       if (memoryData.isValid) {
         // 🔧 TASK 2: Wrap in Future.microtask to fix setState during build
         Future.microtask(
-            () => _distributeDataToControllers(memoryData, loadStores: true));
+            () => _distributeDataToControllers(memoryData, loadStores: true, sourceModuleId: effectiveModuleId));
         _isLoading = false;
         update();
         if (kDebugMode) {
@@ -489,7 +491,7 @@ class HomeUnifiedController extends GetxController implements GetxService {
           _moduleDataCache[effectiveModuleId] = cachedData;
           // 🔧 TASK 2: Wrap in Future.microtask to fix setState during build
           Future.microtask(
-              () => _distributeDataToControllers(cachedData, loadStores: true));
+              () => _distributeDataToControllers(cachedData, loadStores: true, sourceModuleId: effectiveModuleId));
           update();
 
           // 🔧 FIX: Check if data was just pre-fetched before triggering background refresh
@@ -620,7 +622,7 @@ class HomeUnifiedController extends GetxController implements GetxService {
           if (_isStaleGeneration(genAtDistribute, 'distribution')) {
             return;
           }
-          _distributeDataToControllers(dataToDistribute, loadStores: true);
+          _distributeDataToControllers(dataToDistribute, loadStores: true, sourceModuleId: effectiveModuleId);
         });
 
         // Save to cache
@@ -660,7 +662,7 @@ class HomeUnifiedController extends GetxController implements GetxService {
             if (_isStaleGeneration(currentGeneration, 'fallback distribution')) {
               return;
             }
-            _distributeDataToControllers(fallbackData, loadStores: true);
+            _distributeDataToControllers(fallbackData, loadStores: true, sourceModuleId: effectiveModuleId);
           });
           _isLoading = false;
           update();
@@ -712,10 +714,22 @@ class HomeUnifiedController extends GetxController implements GetxService {
   bool _distributeDataToControllers(HomeUnifiedModel data,
       {bool skipUpdateIfIdentical = false,
       bool loadStores = true,
-      bool force = false}) {
+      bool force = false,
+      int? sourceModuleId}) {
     final int? currentModuleId =
         data.meta?.moduleId ?? ModuleHelper.getModule()?.id;
     final dataHash = data.hashCode;
+
+    // Reject stale cached payloads when module switched before microtask execution.
+    if (sourceModuleId != null &&
+        currentModuleId != null &&
+        sourceModuleId != currentModuleId) {
+      if (kDebugMode) {
+        appLogger.debug(
+            'HomeUnifiedController: REJECTED cache from module $sourceModuleId (current=$currentModuleId)');
+      }
+      return false;
+    }
 
     // 🔧 FIX 3: Detect module change for hard reset logic
     final bool isModuleChange = _lastDistributedModuleId != null &&
@@ -1484,7 +1498,9 @@ class HomeUnifiedController extends GetxController implements GetxService {
                   return;
                 }
                 final shouldUpdateUI = _distributeDataToControllers(apiData,
-                    skipUpdateIfIdentical: true, loadStores: true);
+                    skipUpdateIfIdentical: true,
+                    loadStores: true,
+                    sourceModuleId: moduleId);
 
                 // ⚡ Save to cache (always save to update timestamps)
                 await _saveToCache(moduleId, apiData);
