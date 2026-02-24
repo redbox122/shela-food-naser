@@ -228,11 +228,7 @@ class _AnimatedModuleIconState extends State<AnimatedModuleIcon> {
       case ModuleIconFormat.gif:
       case ModuleIconFormat.webp:
       case ModuleIconFormat.static:
-        content = _buildImage();
-        break;
       case ModuleIconFormat.unknown:
-      default:
-        // Try to render as image (fallback)
         content = _buildImage();
         break;
     }

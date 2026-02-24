@@ -53,8 +53,7 @@ class VerificationController extends GetxController implements GetxService {
 
     debugPrint('\x1B[32m  /$otp   $phone  \x1B[0m');
 
-    final ResponseModel responseModelNullable = await verificationServiceInterface.verifyPhone(phone, otp);
-    final ResponseModel responseModel = responseModelNullable;
+    final ResponseModel responseModel = await verificationServiceInterface.verifyPhone(phone, otp);
     if (responseModel.isSuccess &&
         responseModel.authResponseModel != null &&
         responseModel.authResponseModel!.isExistUser == null &&
@@ -63,7 +62,7 @@ class VerificationController extends GetxController implements GetxService {
     }
       _isLoading = false;
     update();
-    return responseModelNullable ?? ResponseModel(false, 'error');
+    return responseModel;
   }
 
   Future<ResponseModel> verifyToken(String? email) async {

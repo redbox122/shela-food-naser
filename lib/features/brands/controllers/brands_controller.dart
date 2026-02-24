@@ -26,16 +26,15 @@ class BrandsController extends GetxController implements GetxService {
   final ApiScheduler _apiScheduler = ApiScheduler();
   static const int _itemsPerPage = 12;
   static const int _paginationBatchPages = 5;
-  
+
   // Track active API calls for cancellation
   CancellationToken? _currentBrandItemsToken;
   CancellationToken? _currentCategoriesToken;
-  
+
   BrandsController({
     required this.brandsServiceInterface,
     required this.itemRepository,
   });
-  
 
   List<BrandModel>? _brandList;
   List<BrandModel>? get brandList => _brandList;
@@ -53,17 +52,19 @@ class BrandsController extends GetxController implements GetxService {
 
   int? _pageSize;
   int? get pageSize => _pageSize;
-  
+
   // 🔧 FIX: Track unique items count from last request to prevent infinite pagination
   int? _lastRequestUniqueItemsCount;
   int? get lastRequestUniqueItemsCount => _lastRequestUniqueItemsCount;
   bool _hasReachedEnd = false;
   bool get hasReachedEnd => _hasReachedEnd;
+  bool _isEndReached = false;
+  bool get isEndReached => _isEndReached;
   static final Set<int> _brandsReachedEnd = <int>{};
 
   bool _isLoading = false;
   bool get isLoading => _isLoading;
-  
+
   // 🔧 FIX: Separate flag for pagination loading (different from initial loading)
   bool _isLoadingMore = false;
   bool get isLoadingMore => _isLoadingMore;
@@ -73,14 +74,21 @@ class BrandsController extends GetxController implements GetxService {
   // pageSize represents total available items from API
   bool get hasMoreData {
     if (_hasReachedEnd) return false;
-    if (_pageSize == null || _brandItems == null) return false;
-    
-    // Check if loaded items are less than total available items
-    final loadedCount = _brandItems!.length;
-    final totalAvailable = _pageSize!;
-    
-    // Return true if we haven't loaded all available items
-    return loadedCount < totalAvailable;
+    if (_brandItems == null) return false;
+
+    // Primary strategy: rely on backend total size when available
+    if (_pageSize != null) {
+      final loadedCount = _brandItems!.length;
+      final totalAvailable = _pageSize!;
+      return loadedCount < totalAvailable;
+    }
+
+    // Fallback strategy: when total size is missing, keep paginating
+    // until a request marks the end (empty/duplicate-only response).
+    if (_lastRequestUniqueItemsCount == null) {
+      return true;
+    }
+    return _lastRequestUniqueItemsCount! > 0;
   }
 
   // Search and filter properties
@@ -133,11 +141,23 @@ class BrandsController extends GetxController implements GetxService {
 
   Timer? _searchDebounceTimer;
 
+  @override
+  void onInit() {
+    super.onInit();
+    if (kDebugMode) {
+      appLogger.info('[BRANDS_CTRL] onInit hash=$hashCode');
+    }
+  }
+
   Future<List<BrandModel>?> getBrandList(
-      {DataSourceEnum dataSource = DataSourceEnum.local, bool forceRefresh = false}) async {
+      {DataSourceEnum dataSource = DataSourceEnum.local,
+      bool forceRefresh = false}) async {
     // 🔍 DEBUG: Entry point verification
-    print('🚀 getBrandList() ENTRY - dataSource: $dataSource, forceRefresh: $forceRefresh');
-    
+    if (kDebugMode) {
+      appLogger.debug(
+          '🚀 getBrandList() ENTRY - dataSource: $dataSource, forceRefresh: $forceRefresh');
+    }
+
     // ⚠️ CRITICAL: Handle case when HomeController is not registered
     HomeController? homeController;
     try {
@@ -145,11 +165,16 @@ class BrandsController extends GetxController implements GetxService {
         homeController = Get.find<HomeController>();
       }
     } catch (e) {
-      print('⚠️ BrandsController: HomeController not available: $e');
+      if (kDebugMode) {
+        appLogger
+            .warning('⚠️ BrandsController: HomeController not available: $e');
+      }
     }
     final businessSettings = homeController?.business_Settings;
-    print(
-        '🏷️ BrandsController: brandSection = ${businessSettings?.brandSection}');
+    if (kDebugMode) {
+      appLogger.debug(
+          '🏷️ BrandsController: brandSection = ${businessSettings?.brandSection}');
+    }
 
     // ✅ تحقق من تفعيل قسم العلامات التجارية
     // ⚡ PERFORMANCE: Skip brands API call for pharmacy module (returns 404)
@@ -157,17 +182,24 @@ class BrandsController extends GetxController implements GetxService {
     try {
       if (Get.isRegistered<SplashController>()) {
         final splashController = Get.find<SplashController>();
-        final currentModuleType = splashController.module?.moduleType.toString();
+        final currentModuleType =
+            splashController.module?.moduleType.toString();
         if (currentModuleType == AppConstants.pharmacy) {
-          print('🏷️ BrandsController: Skipping brands API call for pharmacy module (endpoint not available)');
+          if (kDebugMode) {
+            appLogger.debug(
+                '🏷️ BrandsController: Skipping brands API call for pharmacy module (endpoint not available)');
+          }
           return _brandList; // Return existing data if any, otherwise null
         }
       }
     } catch (e) {
-      print('⚠️ BrandsController: Error checking module type: $e');
+      if (kDebugMode) {
+        appLogger
+            .warning('⚠️ BrandsController: Error checking module type: $e');
+      }
       // Continue with brands loading if check fails
     }
-    
+
     if (businessSettings?.brandSection?.toString() == '1') {
       // Load brands if:
       // 1. _brandList is null (first load)
@@ -175,12 +207,14 @@ class BrandsController extends GetxController implements GetxService {
       // 3. dataSource is local (always load from cache)
       // 4. forceRefresh is true (force reload even if data exists)
       final isEmpty = _brandList != null && _brandList!.isEmpty;
-      if (_brandList == null || 
+      if (_brandList == null ||
           (isEmpty && dataSource == DataSourceEnum.client) ||
-          dataSource == DataSourceEnum.local || 
+          dataSource == DataSourceEnum.local ||
           forceRefresh) {
-        print(
-            '🏷️ BrandsController: Loading brands with dataSource = $dataSource');
+        if (kDebugMode) {
+          appLogger.debug(
+              '🏷️ BrandsController: Loading brands with dataSource = $dataSource');
+        }
         List<BrandModel>? brandList;
 
         // ⚡ CACHE FIRST: Check comprehensive cache before making API calls
@@ -188,30 +222,40 @@ class BrandsController extends GetxController implements GetxService {
           try {
             final splashController = Get.find<SplashController>();
             final moduleId = splashController.module?.id;
-            final cachedData = await ComprehensiveHomeCacheManager.loadAllHomeData(moduleId);
+            final cachedData =
+                await ComprehensiveHomeCacheManager.loadAllHomeData(moduleId);
             if (cachedData.containsKey('brands')) {
               final brandData = cachedData['brands'] as Map<String, dynamic>;
               if (brandData['brandList'] != null) {
                 final cachedBrandList = (brandData['brandList'] as List)
-                    .map((json) => BrandModel.fromJson(json as Map<String, dynamic>))
+                    .map((json) =>
+                        BrandModel.fromJson(json as Map<String, dynamic>))
                     .toList();
                 if (cachedBrandList.isNotEmpty) {
-                  print('✅ BrandsController: Loading ${cachedBrandList.length} brands from comprehensive cache');
+                  if (kDebugMode) {
+                    appLogger.info(
+                        '✅ BrandsController: Loading ${cachedBrandList.length} brands from comprehensive cache');
+                  }
                   _prepareBandList(cachedBrandList);
                   return _brandList;
                 }
               }
             }
           } catch (e) {
-            print('⚠️ BrandsController: Error loading from comprehensive cache: $e');
+            if (kDebugMode) {
+              appLogger.warning(
+                  '⚠️ BrandsController: Error loading from comprehensive cache: $e');
+            }
           }
         }
 
         if (dataSource == DataSourceEnum.local) {
           brandList =
               await brandsServiceInterface.getBrandList(DataSourceEnum.local);
-          print(
-              '🏷️ BrandsController: Local brands loaded: ${brandList?.length ?? 0}');
+          if (kDebugMode) {
+            appLogger.debug(
+                '🏷️ BrandsController: Local brands loaded: ${brandList?.length ?? 0}');
+          }
           _prepareBandList(brandList);
 
           // Don't automatically call API when loading from cache
@@ -219,16 +263,23 @@ class BrandsController extends GetxController implements GetxService {
         } else {
           brandList =
               await brandsServiceInterface.getBrandList(DataSourceEnum.client);
-          print(
-              '🏷️ BrandsController: Client brands loaded: ${brandList?.length ?? 0}');
+          if (kDebugMode) {
+            appLogger.debug(
+                '🏷️ BrandsController: Client brands loaded: ${brandList?.length ?? 0}');
+          }
           _prepareBandList(brandList);
         }
       } else {
-        print('🏷️ BrandsController: Skipping load - brandList already populated and not forcing refresh');
+        if (kDebugMode) {
+          appLogger.debug(
+              '🏷️ BrandsController: Skipping load - brandList already populated and not forcing refresh');
+        }
       }
     } else {
-      print(
-          '🏷️ BrandsController: Brand section disabled, skipping brands loading');
+      if (kDebugMode) {
+        appLogger.debug(
+            '🏷️ BrandsController: Brand section disabled, skipping brands loading');
+      }
     }
     return _brandList;
   }
@@ -238,19 +289,20 @@ class BrandsController extends GetxController implements GetxService {
       // ⚡ ZERO-FLICKER: Deep equality check - only update if data actually changed
       final oldBrandList = _brandList;
       final newBrandList = List<BrandModel>.from(brandList);
-      
+
       if (oldBrandList != null) {
         final oldJson = oldBrandList.map((b) => b.toJson()).toList();
         final newJson = newBrandList.map((b) => b.toJson()).toList();
         if (_deepEquality.equals(oldJson, newJson)) {
           _isLoading = false;
           if (kDebugMode) {
-            print('✅ BrandsController: Data unchanged (deep equality check), skipping UI update to prevent flicker');
+            appLogger.debug(
+                '✅ BrandsController: Data unchanged (deep equality check), skipping UI update to prevent flicker');
           }
           return;
         }
       }
-      
+
       _brandList = [];
       _brandList!.addAll(brandList);
     }
@@ -261,7 +313,10 @@ class BrandsController extends GetxController implements GetxService {
   /// This ensures fresh data is loaded for the new module
   void clearBrandList() {
     _brandList = null;
-    print('🧹 BrandsController: Cleared brand list for module switch');
+    if (kDebugMode) {
+      appLogger
+          .debug('🧹 BrandsController: Cleared brand list for module switch');
+    }
     update();
   }
 
@@ -271,15 +326,17 @@ class BrandsController extends GetxController implements GetxService {
     // ⚡ PERFORMANCE: Prevent reset + load + reset cycles
     if (_isResetting) {
       if (kDebugMode) {
-        debugPrint('🚫 BrandsController: Reset already in progress, skipping duplicate reset');
+        debugPrint(
+            '🚫 BrandsController: Reset already in progress, skipping duplicate reset');
       }
       return;
     }
-    
+
     _isResetting = true;
     try {
       if (kDebugMode) {
-        debugPrint('🔄 BrandsController: Resetting to default state (force: $force)');
+        debugPrint(
+            '🔄 BrandsController: Resetting to default state (force: $force)');
       }
 
       // ⚡ TASK 1: AUTONOMOUS DETECTION - Fetch current module ID
@@ -296,13 +353,14 @@ class BrandsController extends GetxController implements GetxService {
       }
 
       // ⚡ TASK 1: PRESERVE brands if same module AND not forced AND brands exist
-      if (!force && 
-          _brandList != null && 
+      if (!force &&
+          _brandList != null &&
           _brandList!.isNotEmpty &&
           currentModuleId != null &&
           _lastModuleId == currentModuleId) {
-        appLogger.debug('🛡️ Brands: Same module detected (ID: $currentModuleId), preserving brand data');
-        
+        appLogger.debug(
+            '🛡️ Brands: Same module detected (ID: $currentModuleId), preserving brand data');
+
         // Reset only non-brand fields (items, search, filters)
         _brandItems = null;
         _liveSearchResults = null;
@@ -328,7 +386,8 @@ class BrandsController extends GetxController implements GetxService {
         _isLoading = false;
 
         if (kDebugMode) {
-          debugPrint('✅ BrandsController: Partial reset completed (brands preserved)');
+          debugPrint(
+              '✅ BrandsController: Partial reset completed (brands preserved)');
         }
         update();
         return; // ✅ ELITE: Exit early - brands preserved!
@@ -339,40 +398,48 @@ class BrandsController extends GetxController implements GetxService {
         try {
           if (currentModuleId != null) {
             final prefs = await SharedPreferences.getInstance();
-            final brandCacheKey = 'comprehensive_brand_cache_module_$currentModuleId';
-            
+            final brandCacheKey =
+                'comprehensive_brand_cache_module_$currentModuleId';
+
             final brandData = {
               'brandList': _brandList!.map((b) => b.toJson()).toList(),
             };
-            
+
             // Use isolate for JSON encoding to avoid blocking main thread
             final jsonString = await JsonIsolateHelper.encodeJson(brandData);
             await prefs.setString(brandCacheKey, jsonString);
-            
-            appLogger.debug('💾 Brands: Saved ${_brandList!.length} brands to persistent cache before reset');
+
+            appLogger.debug(
+                '💾 Brands: Saved ${_brandList!.length} brands to persistent cache before reset');
           }
         } catch (e) {
           if (kDebugMode) {
-            debugPrint('⚠️ BrandsController: Error saving to cache before reset: $e');
+            debugPrint(
+                '⚠️ BrandsController: Error saving to cache before reset: $e');
           }
         }
       }
 
       // ⚡ TASK 2: PERSISTENT BRAND HYDRATION - If module switching, try to restore from persistent cache
       // Detect module switch BEFORE tracking the new module ID
-      final bool isModuleSwitching = currentModuleId != null && _lastModuleId != null && _lastModuleId != currentModuleId;
-      
+      final bool isModuleSwitching = currentModuleId != null &&
+          _lastModuleId != null &&
+          _lastModuleId != currentModuleId;
+
       if (isModuleSwitching && !force) {
         try {
-          final cachedData = await ComprehensiveHomeCacheManager.loadAllHomeData();
+          final cachedData =
+              await ComprehensiveHomeCacheManager.loadAllHomeData();
           if (cachedData.containsKey('brands')) {
             final brandData = cachedData['brands'] as Map<String, dynamic>;
             if (brandData['brandList'] != null) {
               final cachedBrandList = (brandData['brandList'] as List)
-                  .map((json) => BrandModel.fromJson(json as Map<String, dynamic>))
+                  .map((json) =>
+                      BrandModel.fromJson(json as Map<String, dynamic>))
                   .toList();
               if (cachedBrandList.isNotEmpty) {
-                appLogger.debug('🔄 Brands: Module switch detected, restoring ${cachedBrandList.length} brands from persistent cache');
+                appLogger.debug(
+                    '🔄 Brands: Module switch detected, restoring ${cachedBrandList.length} brands from persistent cache');
                 _brandList = cachedBrandList;
                 // Continue with reset of other fields below, but preserve _brandList
               }
@@ -380,7 +447,8 @@ class BrandsController extends GetxController implements GetxService {
           }
         } catch (e) {
           if (kDebugMode) {
-            debugPrint('⚠️ BrandsController: Error restoring from persistent cache: $e');
+            debugPrint(
+                '⚠️ BrandsController: Error restoring from persistent cache: $e');
           }
         }
       }
@@ -390,7 +458,8 @@ class BrandsController extends GetxController implements GetxService {
 
       // Full reset for module switch or force reset
       if (kDebugMode && isModuleSwitching) {
-        debugPrint('🔄 BrandsController: Module switch detected ($_lastModuleId → $currentModuleId), full reset');
+        debugPrint(
+            '🔄 BrandsController: Module switch detected ($_lastModuleId → $currentModuleId), full reset');
       }
 
       // ⚡ TASK 2: PERSISTENT BRAND HYDRATION - Only clear if not module switching (brands restored from cache above)
@@ -438,70 +507,91 @@ class BrandsController extends GetxController implements GetxService {
   }
 
   /// 🔥 BACKGROUND SYNC PATTERN: Display cache immediately, update in background
-  /// 
+  ///
   /// Flow:
   /// 1️⃣ Read from Cache → Display instantly
   /// 2️⃣ Start API in background (no await)
   /// 3️⃣ When API returns → Update cache & UI smoothly
   Future<void> getBrandItemList(int brandId, int offset, bool notify) async {
+    if (kDebugMode) {
+      appLogger.info(
+        '[BRANDS_CTRL] request brandId=$brandId offset=$offset '
+        'currentOffset=$_offset isLoading=$_isLoading isLoadingMore=$_isLoadingMore '
+        'isEndReached=$_isEndReached hasReachedEnd=$_hasReachedEnd hasMoreData=$hasMoreData',
+      );
+    }
     if (offset > 1 && _brandsReachedEnd.contains(brandId)) {
       if (kDebugMode) {
-        appLogger.info('🚫 Skipping pagination: brandId=$brandId marked as reached end');
+        appLogger.info(
+          '[BRANDS_CTRL] skip: brandId=$brandId marked as reached end',
+        );
       }
       return;
     }
     if (offset > 1 && _hasReachedEnd) {
       if (kDebugMode) {
-        appLogger.info('🚫 Skipping pagination: global end flag is true (brandId=$brandId)');
+        appLogger.info(
+          '[BRANDS_CTRL] skip: global end flag true (brandId=$brandId)',
+        );
       }
       return;
     }
     // 🔧 FIX: Prevent duplicate API calls for same offset
     if (_isLoading && _offset == offset) {
       if (kDebugMode) {
-        appLogger.info('🚫 Skipping duplicate request: offset=$offset already loading');
+        appLogger.info('[BRANDS_CTRL] skip: offset=$offset already loading');
       }
       return;
     }
-    
+
     // 🔧 FIX: If offset is same as current and we have items, skip (already loaded)
-    if (_offset == offset && _brandItems != null && _brandItems!.isNotEmpty && offset > 1) {
+    if (_offset == offset &&
+        _brandItems != null &&
+        _brandItems!.isNotEmpty &&
+        offset > 1) {
       if (kDebugMode) {
-        appLogger.info('🚫 Skipping duplicate request: offset=$offset already loaded (${_brandItems!.length} items)');
+        appLogger.info(
+          '[BRANDS_CTRL] skip: offset=$offset already loaded (${_brandItems!.length} items)',
+        );
       }
       return;
     }
-    
+
     // 🔧 FIX: Set pagination loading flag (different from initial loading)
     if (offset > 1) {
       _isLoadingMore = true;
     }
-    
+
     _offset = offset;
     _currentBrandId = brandId;
     if (offset == 1) {
       if (!_brandsReachedEnd.contains(brandId)) {
         _hasReachedEnd = false;
       }
+      _isEndReached = false;
       _lastRequestUniqueItemsCount = null;
     }
 
     if (offset == 1) {
       // 🔥 STEP 1: Try to load from cache FIRST (instant display)
-      final ItemModel? cachedData = await _getBrandItemsFromCache(brandId, offset);
-      if (cachedData != null && cachedData.items != null && cachedData.items!.isNotEmpty) {
+      final ItemModel? cachedData =
+          await _getBrandItemsFromCache(brandId, offset);
+      if (cachedData != null &&
+          cachedData.items != null &&
+          cachedData.items!.isNotEmpty) {
         _brandItems = List<Item>.from(cachedData.items!);
         _pageSize = cachedData.totalSize;
         setCategoryListFromResponse(cachedData);
-        
+
         // 🎯 Display cached data instantly (no loading spinner)
         if (notify) {
           update(['items_list']);
         }
-        
+
         // Log cache hit
         if (kDebugMode) {
-          appLogger.info('⚡ BACKGROUND SYNC: Displayed cached brand items (brandId=$brandId, offset=$offset, items=${cachedData.items!.length})');
+          appLogger.info(
+              '⚡ BACKGROUND SYNC: Displayed cached brand items (brandId=$brandId, offset=$offset, items=${cachedData.items!.length})');
         }
       } else {
         // No cache - show loading state
@@ -523,7 +613,7 @@ class BrandsController extends GetxController implements GetxService {
     if (_currentBrandItemsToken != null && offset == 1) {
       _apiScheduler.cancel(_currentBrandItemsToken!);
     }
-    
+
     // 🔥 STEP 3: Fetch from API via scheduler (HIGH priority - current screen)
     _currentBrandItemsToken = _apiScheduler.add(
       () async {
@@ -544,6 +634,11 @@ class BrandsController extends GetxController implements GetxService {
                 page: offset,
                 limit: candidateLimit ?? 12,
               );
+              if (kDebugMode) {
+                appLogger.info(
+                  '[BRANDS_API] request brandId=$brandId page=$offset limit=${candidateLimit ?? 12}',
+                );
+              }
               break;
             } on TimeoutException {
               if (kDebugMode) {
@@ -553,65 +648,81 @@ class BrandsController extends GetxController implements GetxService {
               }
             }
           }
-          
+
           if (brandItemModel != null) {
             bool reachedEndThisRequest = false;
             if (offset == 1) {
               _brandItems = [];
               // Extract categories from the response
               setCategoryListFromResponse(brandItemModel);
-              
+
               // 🎯 Prefetch categories for filtering (MEDIUM priority)
               _prefetchBrandCategories(brandId);
             }
-            
+
             // 🔧 FIX: Prevent duplicate items - deduplicate by ID before adding
-            if (brandItemModel.items != null && brandItemModel.items!.isNotEmpty) {
+            if (brandItemModel.items != null &&
+                brandItemModel.items!.isNotEmpty) {
               final existingIds = _brandItems!.map((e) => e.id).toSet();
               final newItems = brandItemModel.items!
                   .where((item) => !existingIds.contains(item.id))
                   .toList();
-              
+
               // 🔧 FIX: Track unique items count for prefetch logic
               _lastRequestUniqueItemsCount = newItems.length;
-              
+
               // 🛑 CRITICAL FIX: Stop pagination if unique items <= 1
-              // This prevents infinite loops when API returns mostly duplicates
+              // This prevents infinite loops when API returns mostly duplicates.
               if ((_lastRequestUniqueItemsCount ?? 0) <= 1 && offset > 1) {
                 reachedEndThisRequest = true;
                 _hasReachedEnd = true;
+                _isEndReached = true;
                 _brandsReachedEnd.add(brandId);
                 if (kDebugMode) {
-                  appLogger.warning('🛑 Stopping pagination: Only $_lastRequestUniqueItemsCount unique item(s) (offset=$offset, loaded=${_brandItems!.length})');
+                  appLogger.warning(
+                    '🛑 Stopping pagination: Only $_lastRequestUniqueItemsCount unique item(s) (offset=$offset, loaded=${_brandItems!.length})',
+                  );
                 }
-                _pageSize = _brandItems!.length; // Set to loaded count to stop pagination
+                _pageSize = _brandItems!
+                    .length; // Set to loaded count to stop pagination
                 _isLoadingMore = false;
                 if (newItems.isNotEmpty) {
                   _brandItems!.addAll(newItems);
                 }
               } else if (newItems.isNotEmpty) {
                 _brandItems!.addAll(newItems);
-                if (kDebugMode && newItems.length < brandItemModel.items!.length) {
-                  appLogger.info('🛡️ Deduplication: Filtered out ${brandItemModel.items!.length - newItems.length} duplicate items (unique: ${newItems.length})');
+                if (kDebugMode &&
+                    newItems.length < brandItemModel.items!.length) {
+                  appLogger.info(
+                      '🛡️ Deduplication: Filtered out ${brandItemModel.items!.length - newItems.length} duplicate items (unique: ${newItems.length})');
                 }
               } else {
                 // 🔧 FIX: If all items are duplicates, backend might be returning wrong page
                 // Stop pagination to prevent infinite loop
                 reachedEndThisRequest = true;
                 _hasReachedEnd = true;
+                _isEndReached = true;
                 _brandsReachedEnd.add(brandId);
                 if (kDebugMode) {
-                  appLogger.warning('⚠️ All items are duplicates - stopping pagination (offset=$offset, loaded=${_brandItems!.length})');
+                  appLogger.warning(
+                      '⚠️ All items are duplicates - stopping pagination (offset=$offset, loaded=${_brandItems!.length})');
                 }
-                _pageSize = _brandItems!.length; // Set to loaded count to stop pagination
+                _pageSize = _brandItems!
+                    .length; // Set to loaded count to stop pagination
                 _isLoadingMore = false;
               }
             } else {
               // No items returned - track as 0 unique items
               reachedEndThisRequest = true;
               _hasReachedEnd = true;
+              _isEndReached = true;
               _brandsReachedEnd.add(brandId);
               _lastRequestUniqueItemsCount = 0;
+              if (kDebugMode) {
+                appLogger.info(
+                  '🏁 Pagination end reached: fetched=0 (offset=$offset)',
+                );
+              }
             }
             if (!reachedEndThisRequest) {
               _pageSize = brandItemModel.totalSize;
@@ -620,26 +731,29 @@ class BrandsController extends GetxController implements GetxService {
             _offset = offset;
             _isLoading = false;
             _isLoadingMore = false; // 🔧 FIX: Reset pagination loading flag
-            
+
             // 🎯 STEP 4: Smooth update (no spinner, no reload - just refresh data)
             if (notify) {
               update(['items_list']);
             }
-            
+
             // Log background sync completion
             if (kDebugMode) {
-              appLogger.info('✅ PRIORITY API: Updated brand items from API (brandId=$brandId, offset=$offset, items=${brandItemModel.items!.length})');
+              appLogger.info(
+                  '✅ PRIORITY API: Updated brand items from API (brandId=$brandId, offset=$offset, items=${brandItemModel.items!.length})');
             }
           }
         } catch (error) {
           // Error handling - don't break UI if API fails
           _isLoading = false;
-          _isLoadingMore = false; // 🔧 FIX: Reset pagination loading flag on error
+          _isLoadingMore =
+              false; // 🔧 FIX: Reset pagination loading flag on error
           if (notify) {
             update(['items_list']);
           }
           if (kDebugMode) {
-            appLogger.error('❌ PRIORITY API: Error for brand items (brandId=$brandId): $error');
+            appLogger.error(
+                '❌ PRIORITY API: Error for brand items (brandId=$brandId): $error');
           }
           rethrow; // Re-throw to let scheduler handle it
         }
@@ -653,40 +767,41 @@ class BrandsController extends GetxController implements GetxService {
     _brandsReachedEnd.remove(brandId);
     if (_currentBrandId == brandId) {
       _hasReachedEnd = false;
+      _isEndReached = false;
     }
   }
-  
+
   /// 🔥 Helper: Read brand items from cache (for instant display)
   Future<ItemModel?> _getBrandItemsFromCache(int brandId, int offset) async {
     try {
       // Use same cache key as repository
       final moduleId = Get.find<SplashController>().module?.id;
       if (moduleId == null) return null;
-      
+
       final String cacheKey = 'brand_items_${brandId}_${offset}_$moduleId';
       final String? cacheResponseData = await LocalClient.organize(
-        DataSourceEnum.local, 
-        cacheKey, 
-        null, 
-        null
-      );
-      
+          DataSourceEnum.local, cacheKey, null, null);
+
       if (cacheResponseData != null) {
         try {
           // 🎯 Parse JSON from cache (using dart:convert which is imported)
-          final Map<String, dynamic> jsonData = jsonDecode(cacheResponseData) as Map<String, dynamic>;
+          final Map<String, dynamic> jsonData =
+              jsonDecode(cacheResponseData) as Map<String, dynamic>;
           final brandItemModel = ItemModel.fromJson(jsonData);
-          
+
           // Verify cache has required fields
-          if (brandItemModel.items != null && brandItemModel.items!.isNotEmpty) {
-            final hasOriginalPrice = brandItemModel.items!.first.originalPrice != null;
+          if (brandItemModel.items != null &&
+              brandItemModel.items!.isNotEmpty) {
+            final hasOriginalPrice =
+                brandItemModel.items!.first.originalPrice != null;
             if (hasOriginalPrice) {
               return brandItemModel;
             }
           }
         } catch (e) {
           if (kDebugMode) {
-            appLogger.warning('⚠️ Cache corrupted for brand items (brandId=$brandId): $e');
+            appLogger.warning(
+                '⚠️ Cache corrupted for brand items (brandId=$brandId): $e');
           }
         }
       }
@@ -702,7 +817,7 @@ class BrandsController extends GetxController implements GetxService {
     _isLoading = true;
     update();
   }
-  
+
   /// 🔥 Prefetch brand categories for filtering (MEDIUM priority)
   /// Called after main brand items are loaded
   void _prefetchBrandCategories(int brandId) {
@@ -710,7 +825,7 @@ class BrandsController extends GetxController implements GetxService {
     if (_currentCategoriesToken != null) {
       _apiScheduler.cancel(_currentCategoriesToken!);
     }
-    
+
     // Prefetch categories with MEDIUM priority (runs when HIGH queue is empty)
     _currentCategoriesToken = _apiScheduler.add(
       () async {
@@ -718,11 +833,13 @@ class BrandsController extends GetxController implements GetxService {
           // TODO: Add method to prefetch categories for brand filtering
           // This is a placeholder - implement when category prefetch API is available
           if (kDebugMode) {
-            appLogger.info('📦 PRIORITY API: Prefetching categories for brand $brandId (MEDIUM priority)');
+            appLogger.info(
+                '📦 PRIORITY API: Prefetching categories for brand $brandId (MEDIUM priority)');
           }
         } catch (e) {
           if (kDebugMode) {
-            appLogger.warning('⚠️ PRIORITY API: Failed to prefetch categories: $e');
+            appLogger
+                .warning('⚠️ PRIORITY API: Failed to prefetch categories: $e');
           }
         }
       },
@@ -730,7 +847,7 @@ class BrandsController extends GetxController implements GetxService {
       tag: 'prefetchCategories_$brandId',
     );
   }
-  
+
   /// 🔥 Cancel all non-critical API calls when user navigates away
   void cancelBackgroundRequests() {
     _apiScheduler.clearNonCritical();
@@ -743,7 +860,7 @@ class BrandsController extends GetxController implements GetxService {
   /// Set brand data directly from cache (handles both List<BrandModel> and raw JSON)
   void setBrandDataFromCache(dynamic data) {
     if (data == null) return;
-    
+
     try {
       List<BrandModel>? newBrandList;
       if (data is List<BrandModel>) {
@@ -751,12 +868,17 @@ class BrandsController extends GetxController implements GetxService {
         newBrandList = data;
       } else if (data is List) {
         // Raw JSON list from disk cache - deserialize it
-        newBrandList = data.map((item) => BrandModel.fromJson(item as Map<String, dynamic>)).toList();
+        newBrandList = data
+            .map((item) => BrandModel.fromJson(item as Map<String, dynamic>))
+            .toList();
       } else {
-        print('⚠️ BrandsController: Unexpected data type: ${data.runtimeType}');
+        if (kDebugMode) {
+          appLogger.warning(
+              '⚠️ BrandsController: Unexpected data type: ${data.runtimeType}');
+        }
         return;
       }
-      
+
       // ⚡ ZERO-FLICKER: Deep equality check - only update if data actually changed
       if (_brandList != null) {
         final oldJson = _brandList!.map((b) => b.toJson()).toList();
@@ -764,17 +886,24 @@ class BrandsController extends GetxController implements GetxService {
         if (_deepEquality.equals(oldJson, newJson)) {
           _isLoading = false;
           if (kDebugMode) {
-            print('✅ BrandsController: Data unchanged (deep equality check), skipping UI update to prevent flicker');
+            appLogger.debug(
+                '✅ BrandsController: Data unchanged (deep equality check), skipping UI update to prevent flicker');
           }
           return;
         }
       }
-      
+
       _brandList = newBrandList;
       update();
-      print('✅ BrandsController: Loaded ${_brandList!.length} brands from cache');
+      if (kDebugMode) {
+        appLogger.info(
+            '✅ BrandsController: Loaded ${_brandList!.length} brands from cache');
+      }
     } catch (e) {
-      print('❌ BrandsController: Error setting brands from cache: $e');
+      if (kDebugMode) {
+        appLogger.error(
+            '❌ BrandsController: Error setting brands from cache: $e', e);
+      }
     }
   }
 
@@ -794,7 +923,9 @@ class BrandsController extends GetxController implements GetxService {
       getBrandSearchItemList(_searchText, _currentBrandId!);
     } else if (_currentBrandId != null) {
       // For regular items, reload with filters
-      final categoryId = _categoryIndex > 0 && _categoryList != null && _categoryList!.isNotEmpty
+      final categoryId = _categoryIndex > 0 &&
+              _categoryList != null &&
+              _categoryList!.isNotEmpty
           ? _categoryList![_categoryIndex].id.toString()
           : null;
       getBrandItemWithFilters(
@@ -834,6 +965,7 @@ class BrandsController extends GetxController implements GetxService {
   void resetSearchState() {
     _offset = 1;
     _hasReachedEnd = false;
+    _isEndReached = false;
     _isLoading = false;
     _isLoadingMore = false;
     _liveSearchResults = null;
@@ -856,11 +988,11 @@ class BrandsController extends GetxController implements GetxService {
     _searchDebounceTimer = Timer(const Duration(milliseconds: 300), () async {
       // ✅ CRITICAL: Reset state before new search (NO CACHE)
       resetSearchState();
-      
+
       _isLiveSearching = true;
       _isSearching = true; // Set searching state for UI
       _searchText = query; // Update search text
-      
+
       // ❌ REMOVED: Local search filtering - use unified API instead
       // Use ItemRepository.searchItems() for live search
       if (_currentBrandId != null) {
@@ -873,7 +1005,7 @@ class BrandsController extends GetxController implements GetxService {
             page: 1,
             limit: 50,
           );
-          
+
           if (itemModel != null && itemModel.items != null) {
             _liveSearchResults = List<Item>.from(itemModel.items ?? []);
           } else {
@@ -886,7 +1018,7 @@ class BrandsController extends GetxController implements GetxService {
       } else {
         _liveSearchResults = [];
       }
-      
+
       // 🎯 PERFORMANCE: Update only items list, not entire screen
       update(['items_list']);
     });
@@ -897,7 +1029,9 @@ class BrandsController extends GetxController implements GetxService {
     _isSearching = false; // Reset searching state
     _searchText = ''; // Clear search text
     _liveSearchResults = null;
-    print('🔍 Live search cleared');
+    if (kDebugMode) {
+      appLogger.debug('🔍 Live search cleared');
+    }
     // 🎯 PERFORMANCE: Update only items list, not entire screen
     update(['items_list']);
   }
@@ -912,7 +1046,7 @@ class BrandsController extends GetxController implements GetxService {
       if (offset == 1) {
         resetSearchState();
       }
-      
+
       _isSearching = true;
       _searchText = searchText;
       _currentBrandId = brandId;
@@ -946,15 +1080,18 @@ class BrandsController extends GetxController implements GetxService {
           if (brandSearchItemModel.items != null &&
               brandSearchItemModel.items!.isNotEmpty) {
             // 🔧 FIX: Prevent duplicate items - deduplicate by ID before adding
-            final existingIds = _brandSearchItemModel!.items!.map((e) => e.id).toSet();
+            final existingIds =
+                _brandSearchItemModel!.items!.map((e) => e.id).toSet();
             final newItems = brandSearchItemModel.items!
                 .where((item) => !existingIds.contains(item.id))
                 .toList();
-            
+
             if (newItems.isNotEmpty) {
               _brandSearchItemModel!.items!.addAll(newItems);
-              if (kDebugMode && newItems.length < brandSearchItemModel.items!.length) {
-                debugPrint('🛡️ Search Deduplication: Filtered out ${brandSearchItemModel.items!.length - newItems.length} duplicate items');
+              if (kDebugMode &&
+                  newItems.length < brandSearchItemModel.items!.length) {
+                debugPrint(
+                    '🛡️ Search Deduplication: Filtered out ${brandSearchItemModel.items!.length - newItems.length} duplicate items');
               }
             }
           }
@@ -966,7 +1103,10 @@ class BrandsController extends GetxController implements GetxService {
         if (offset == 1) {
           _brandSearchItemModel = ItemModel(items: []);
         }
-        print('❌ Failed to load search results - API returned null');
+        if (kDebugMode) {
+          appLogger
+              .warning('❌ Failed to load search results - API returned null');
+        }
       }
 
       _isLoading = false;
@@ -1036,6 +1176,25 @@ class BrandsController extends GetxController implements GetxService {
     }
   }
 
+  void resetFilterState({bool notify = true}) {
+    _selectedCategoryIds.clear();
+    _categoryIndex = 0;
+    _isPriceAscending = true;
+    _isVertical = false;
+    _type = 'all';
+    _isFilterModalOpen = false;
+
+    _searchText = '';
+    _isSearching = false;
+    _isLiveSearching = false;
+    _liveSearchResults = null;
+    _brandSearchItemModel = null;
+
+    if (notify) {
+      update(['filter_controls', 'filter_modal', 'items_list']);
+    }
+  }
+
   // Category list management
   void setCategoryListFromResponse(ItemModel response) {
     if (response.items != null && response.items!.isNotEmpty) {
@@ -1063,14 +1222,19 @@ class BrandsController extends GetxController implements GetxService {
           ));
 
       _categoryList = categories;
-      print('✅ Categories extracted from brand items: ${categories.length}');
+      if (kDebugMode) {
+        appLogger.info(
+            '✅ Categories extracted from brand items: ${categories.length}');
+      }
     }
   }
 
   void setCategoryIndex(int index, {bool itemSearching = false}) {
     _categoryIndex = index;
-    print(
-        '🔍 Category filter selected: index=$index, itemSearching=$itemSearching');
+    if (kDebugMode) {
+      appLogger.debug(
+          '🔍 Category filter selected: index=$index, itemSearching=$itemSearching');
+    }
 
     if (itemSearching) {
       _brandSearchItemModel = null;
@@ -1082,8 +1246,10 @@ class BrandsController extends GetxController implements GetxService {
       _brandItems = null;
       if (_currentBrandId != null) {
         if (index > 0 && _categoryList != null && _categoryList!.isNotEmpty) {
-          print(
-              '📡 Making API call for category: ${_categoryList![index].name}');
+          if (kDebugMode) {
+            appLogger.debug(
+                '📡 Making API call for category: ${_categoryList![index].name}');
+          }
           getBrandItemWithFilters(
             brandId: _currentBrandId!,
             categoryId: _categoryList![index].id.toString(),
@@ -1091,7 +1257,9 @@ class BrandsController extends GetxController implements GetxService {
             sortOrder: _isPriceAscending ? 'asc' : 'desc',
           );
         } else {
-          print('📡 Making API call for all products');
+          if (kDebugMode) {
+            appLogger.debug('📡 Making API call for all products');
+          }
           getBrandItemList(_currentBrandId!, 1, true);
         }
       }
@@ -1135,24 +1303,25 @@ class BrandsController extends GetxController implements GetxService {
       limit: limit ?? 12,
     );
 
-      if (brandItemModel != null) {
+    if (brandItemModel != null) {
       if (offset == 1) {
         _brandItems = [];
         // Extract categories from the response for filtering
         setCategoryListFromResponse(brandItemModel);
       }
-      
+
       // 🔧 FIX: Prevent duplicate items - deduplicate by ID before adding
       if (brandItemModel.items != null && brandItemModel.items!.isNotEmpty) {
         final existingIds = _brandItems!.map((e) => e.id).toSet();
         final newItems = brandItemModel.items!
             .where((item) => !existingIds.contains(item.id))
             .toList();
-        
+
         if (newItems.isNotEmpty) {
           _brandItems!.addAll(newItems);
           if (kDebugMode && newItems.length < brandItemModel.items!.length) {
-            debugPrint('🛡️ Filter Deduplication: Filtered out ${brandItemModel.items!.length - newItems.length} duplicate items');
+            debugPrint(
+                '🛡️ Filter Deduplication: Filtered out ${brandItemModel.items!.length - newItems.length} duplicate items');
           }
         }
       }
@@ -1162,13 +1331,19 @@ class BrandsController extends GetxController implements GetxService {
       // Handle null response (API error) - fallback to regular brand API
       if (offset == 1) {
         _brandItems = [];
-        print('❌ Filter API failed, falling back to regular brand API');
+        if (kDebugMode) {
+          appLogger.warning(
+              '❌ Filter API failed, falling back to regular brand API');
+        }
         // Try to load regular brand items as fallback
         await getBrandItemList(brandId!, offset, notify);
         return;
       }
       _isLoading = false;
-      print('❌ Failed to load brand items with filters - API returned null');
+      if (kDebugMode) {
+        appLogger.warning(
+            '❌ Failed to load brand items with filters - API returned null');
+      }
     }
     update();
   }
@@ -1179,6 +1354,7 @@ class BrandsController extends GetxController implements GetxService {
     _isSearching = false;
     _isLiveSearching = false;
     _isFilterModalOpen = false;
+    _isEndReached = false;
     if (notify) {
       update();
     }
@@ -1194,18 +1370,20 @@ class BrandsController extends GetxController implements GetxService {
       if (_deepEquality.equals(oldJson, newJson)) {
         _isLoading = false;
         if (kDebugMode) {
-          print('✅ BrandsController: Data unchanged (deep equality check), skipping UI update to prevent flicker');
+          appLogger.debug(
+              '✅ BrandsController: Data unchanged (deep equality check), skipping UI update to prevent flicker');
         }
         return;
       }
     }
-    
+
     // ⚡ TASK 2: PERSISTENT CACHE - Data is saved automatically via ComprehensiveHomeCacheManager.saveAllHomeData()
     // This cache survives module switches and is restored in resetToDefault() when isModuleSwitching is true
     _brandList = brands;
     update();
     if (kDebugMode) {
-      print('✅ BrandsController: Brand data set from bootstrap (${brands.length} brands)');
+      appLogger.info(
+          '✅ BrandsController: Brand data set from bootstrap (${brands.length} brands)');
     }
   }
 

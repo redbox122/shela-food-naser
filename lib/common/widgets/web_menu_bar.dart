@@ -406,12 +406,13 @@ class MenuIconButton extends StatelessWidget {
         icon: GetBuilder<CartController>(
           id: 'cart_count', // 🔥 FIX: Use cart_count ID to receive updates from _onCartMutated()
           builder: (cartController) {
+          final int cartQuantity = cartController.totalCartQuantity;
           return Stack(clipBehavior: Clip.none, children: [
             Icon(
               icon,
               color: hovered ? Theme.of(context).primaryColor : Theme.of(context).textTheme.bodyLarge!.color,
             ),
-            (isCart && cartController.cartList.isNotEmpty)
+            (isCart && cartQuantity > 0)
                 ? Positioned(
                     top: -5,
                     right: -5,
@@ -421,7 +422,7 @@ class MenuIconButton extends StatelessWidget {
                       alignment: Alignment.center,
                       decoration: BoxDecoration(shape: BoxShape.circle, color: Theme.of(context).primaryColor),
                       child: Text(
-                        cartController.cartList.length.toString(),
+                        cartQuantity.toString(),
                         style: robotoRegular.copyWith(fontSize: 12, color: Theme.of(context).cardColor),
                       ),
                     ),

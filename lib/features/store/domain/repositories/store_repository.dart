@@ -25,6 +25,7 @@ import 'package:sixam_mart/features/store/domain/models/subcategory_samples_mode
 import 'package:sixam_mart/features/store/domain/models/slim_menu_model.dart';
 import 'package:sixam_mart/core/isolate/json_isolate_helper.dart';
 import 'package:sixam_mart/core/cache/hive_home_cache_service.dart';
+import 'package:sixam_mart/common/utils/app_logger.dart';
 
 class StoreRepository implements StoreRepositoryInterface {
   final ApiClient apiClient;
@@ -230,7 +231,7 @@ class StoreRepository implements StoreRepositoryInterface {
               addressModel.zoneIds == null ||
               addressModel.zoneIds!.isEmpty) {
             if (kDebugMode) {
-              print(
+              appLogger.warning(
                   '⚠️ No address data available, attempting to get zone data...');
             }
             // Try to get zone data from current position (backend is source of truth)
@@ -256,14 +257,14 @@ class StoreRepository implements StoreRepositoryInterface {
                     areaIds: zoneResponse.areaIds,
                   );
                   if (kDebugMode) {
-                    print(
+                    appLogger.info(
                         '✅ Zone data obtained from current position: ${zoneResponse.zoneIds}');
                   }
                 }
               }
             } catch (e) {
               if (kDebugMode) {
-                print('❌ Failed to get zone data: $e');
+                appLogger.error('❌ Failed to get zone data: $e', e);
               }
             }
           }
@@ -280,8 +281,8 @@ class StoreRepository implements StoreRepositoryInterface {
           );
 
           // Debug: Print headers to verify zone IDs are included
-          if (kDebugMode) {
-            print(
+          if (kDebugMode && AppConstants.enableVerboseLogs) {
+            appLogger.debug(
                 '🔧 Updated headers with zone IDs: ${addressModel?.zoneIds}, coords: ${addressModel?.latitude}, ${addressModel?.longitude}');
           }
 
@@ -322,51 +323,56 @@ class StoreRepository implements StoreRepositoryInterface {
           final filterQueryString =
               filterParams.isNotEmpty ? '&${filterParams.join('&')}' : '';
 
-          if (kDebugMode) {
+          if (kDebugMode && AppConstants.enableVerboseLogs) {
             final safeHeaders = Map<String, String>.from(headers);
             if (safeHeaders.containsKey('Authorization')) {
               safeHeaders['Authorization'] = 'Bearer ***';
             }
-            print(
+            appLogger.debug(
                 '🏪 Making stores API call: ${AppConstants.storeUri}/$filterBy?store_type=$storeType&offset=$offset&limit=$effectiveLimit$filterParam$filterQueryString');
-            print('🏪 Headers: $safeHeaders');
+            appLogger.debug('🏪 Headers: $safeHeaders');
             if (shouldUseNearbyFilter) {
-              print(
+              appLogger.debug(
                   '📍 Food module detected - using filter=nearby to sort by distance (nearest first)');
             }
             if (filterQueryString.isNotEmpty) {
-              print('🔍 Filter parameters: $filterQueryString');
+              appLogger.debug('🔍 Filter parameters: $filterQueryString');
             }
           }
 
           // Debug: Verify moduleId is in headers
-          print('🔍 StoreRepository: API call headers check:');
-          final nonNullHeaders = headers;
-          print(
-              '   - moduleId in headers: ${nonNullHeaders.containsKey(AppConstants.moduleId)}');
-          if (nonNullHeaders.containsKey(AppConstants.moduleId)) {
-            print(
-                '   - moduleId value: ${nonNullHeaders[AppConstants.moduleId]}');
+          if (kDebugMode && AppConstants.enableVerboseLogs) {
+            appLogger.debug('🔍 StoreRepository: API call headers check:');
+            final nonNullHeaders = headers;
+            appLogger.debug(
+                '   - moduleId in headers: ${nonNullHeaders.containsKey(AppConstants.moduleId)}');
+            if (nonNullHeaders.containsKey(AppConstants.moduleId)) {
+              appLogger.debug(
+                  '   - moduleId value: ${nonNullHeaders[AppConstants.moduleId]}');
+            }
+            appLogger.debug(
+                '   - zoneId in headers: ${nonNullHeaders.containsKey(AppConstants.zoneId)}');
+            if (nonNullHeaders.containsKey(AppConstants.zoneId)) {
+              appLogger.debug(
+                  '   - zoneId value: ${nonNullHeaders[AppConstants.zoneId]}');
+            }
+            appLogger.debug(
+                '   - latitude in headers: ${nonNullHeaders.containsKey(AppConstants.latitude)}');
+            appLogger.debug(
+                '   - longitude in headers: ${nonNullHeaders.containsKey(AppConstants.longitude)}');
           }
-          print(
-              '   - zoneId in headers: ${nonNullHeaders.containsKey(AppConstants.zoneId)}');
-          if (nonNullHeaders.containsKey(AppConstants.zoneId)) {
-            print('   - zoneId value: ${nonNullHeaders[AppConstants.zoneId]}');
-          }
-          print(
-              '   - latitude in headers: ${nonNullHeaders.containsKey(AppConstants.latitude)}');
-          print(
-              '   - longitude in headers: ${nonNullHeaders.containsKey(AppConstants.longitude)}');
 
           Response response = await apiClient.getData(
             '${AppConstants.storeUri}/$filterBy?store_type=$storeType&offset=$offset&limit=$effectiveLimit$filterParam$filterQueryString',
             headers: headers,
           );
 
-          print(
-              '   📡 SECTION 3 API REPO - Response status: ${response.statusCode}');
-          print(
-              '   📦 SECTION 3 API REPO - Response body type: ${response.body.runtimeType}');
+          if (kDebugMode && AppConstants.enableVerboseLogs) {
+            appLogger.debug(
+                '   📡 SECTION 3 API REPO - Response status: ${response.statusCode}');
+            appLogger.debug(
+                '   📦 SECTION 3 API REPO - Response body type: ${response.body.runtimeType}');
+          }
           // ⚡ TASK 4: Pagination Retry Logic - Backend pagination bug with filter=nearby
           // If we get 0 stores but totalSize > 0, retry without the nearby filter
           // This ensures the user sees *something* instead of a blank screen
@@ -378,9 +384,9 @@ class StoreRepository implements StoreRepositoryInterface {
               ((response.body as Map)['total_size'] as int?) != null &&
               ((response.body as Map)['total_size'] as int) > 0) {
             if (kDebugMode) {
-              print(
+              appLogger.warning(
                   '⚠️ TASK 4: Backend pagination bug detected: filter=nearby returned 0 stores for offset=$offset, totalSize=${((response.body as Map)['total_size'] as int)}');
-              print(
+              appLogger.debug(
                   '   🔄 Retrying without filter=nearby to ensure user sees *something*...');
             }
             // Retry without filter=nearby
@@ -391,7 +397,7 @@ class StoreRepository implements StoreRepositoryInterface {
             if (kDebugMode && response.body is Map) {
               final retryStoresCount =
                   ((response.body as Map)['stores'] as List?)?.length ?? 0;
-              print(
+              appLogger.info(
                   '   ✅ TASK 4: Retry result: $retryStoresCount stores (without filter=nearby)');
             }
           }
@@ -408,8 +414,10 @@ class StoreRepository implements StoreRepositoryInterface {
                 storeModel.totalSize! > 0) {
               final limit = int.tryParse(storeModel.limit ?? '12') ?? 12;
               final totalPages = (storeModel.totalSize! / limit).ceil();
-              print(
-                  '   - Pagination info: $totalPages pages (${storeModel.totalSize} stores / $limit per page)');
+              if (AppConstants.enableVerboseLogs) {
+                appLogger.debug(
+                    '   - Pagination info: $totalPages pages (${storeModel.totalSize} stores / $limit per page)');
+              }
 
               // Warn if API returns 0 stores but totalSize suggests there should be more
               if (storeModel.stores != null &&
@@ -417,26 +425,29 @@ class StoreRepository implements StoreRepositoryInterface {
                   storeModel.offset != null &&
                   storeModel.offset! > 1 &&
                   storeModel.offset! < totalPages) {
-                print(
+                appLogger.warning(
                     '   ⚠️ BACKEND PAGINATION BUG: API returned 0 stores for offset=${storeModel.offset} but totalSize=${storeModel.totalSize} suggests there should be more stores.');
-                print(
+                appLogger.warning(
                     '   → This is likely a backend issue with filter=nearby pagination.');
                 if (shouldUseNearbyFilter) {
-                  print(
+                  appLogger.warning(
                       '   → The filter=nearby parameter may be causing pagination issues on the backend.');
                 }
               }
             }
-            if (storeModel.stores != null && storeModel.stores!.isNotEmpty) {
+            if (storeModel.stores != null &&
+                storeModel.stores!.isNotEmpty &&
+                kDebugMode &&
+                AppConstants.enableVerboseLogs) {
               final firstStore = storeModel.stores!.first;
-              print(
+              appLogger.debug(
                   '   - First store: id=${firstStore.id}, name=${firstStore.name}, moduleId=${firstStore.moduleId}, distance=${firstStore.distance}');
 
               // Log distance info for Food module
               if (shouldUseNearbyFilter) {
                 final storesWithDistance =
                     storeModel.stores!.where((s) => s.distance != null).length;
-                print(
+                appLogger.debug(
                     '📍 Distance info: $storesWithDistance/${storeModel.stores!.length} stores have distance data');
                 if (storeModel.stores!.isNotEmpty) {
                   final distances = storeModel.stores!
@@ -445,7 +456,7 @@ class StoreRepository implements StoreRepositoryInterface {
                       .toList();
                   if (distances.isNotEmpty) {
                     distances.sort();
-                    print(
+                    appLogger.debug(
                         '📍 Distance range: ${distances.first.toStringAsFixed(1)}m - ${distances.last.toStringAsFixed(1)}m');
                   }
                 }
@@ -479,8 +490,8 @@ class StoreRepository implements StoreRepositoryInterface {
                   storeModel.stores != null &&
                   storeModel.stores!.isNotEmpty) {
                 _sortOpenFirst(storeModel.stores!, thenByDistance: true);
-                if (kDebugMode) {
-                  print(
+                if (kDebugMode && AppConstants.enableVerboseLogs) {
+                  appLogger.debug(
                       '📍 Client-side sorted ${storeModel.stores!.length} restaurants: open first, then distance');
                 }
               }
@@ -607,10 +618,10 @@ class StoreRepository implements StoreRepositoryInterface {
               // If cache key location doesn't match current location, skip cache
               if (!cacheId.contains(currentLocationHash)) {
                 if (kDebugMode) {
-                  print(
+                  appLogger.debug(
                       '📍 Location changed detected - skipping cache to get fresh distance data');
-                  print('   Cache key: $cacheId');
-                  print('   Current location: $currentLocationHash');
+                  appLogger.debug('   Cache key: $cacheId');
+                  appLogger.debug('   Current location: $currentLocationHash');
                 }
                 // Force API call instead of using cache
                 storeModel = await _getStoreList(offset, filterBy, storeType,
@@ -697,8 +708,10 @@ class StoreRepository implements StoreRepositoryInterface {
 
     switch (source) {
       case DataSourceEnum.client:
-        print(
-            '   🌐 SECTION 2 API REPO - Making API call: ${AppConstants.popularStoreUri}?type=$type');
+        if (kDebugMode && AppConstants.enableVerboseLogs) {
+          appLogger.debug(
+              '   🌐 SECTION 2 API REPO - Making API call: ${AppConstants.popularStoreUri}?type=$type');
+        }
         // Build headers with current module ID
         final Map<String, String> headers = apiClient.updateHeader(
             sharedPreferences.getString(AppConstants.token),
@@ -709,21 +722,25 @@ class StoreRepository implements StoreRepositoryInterface {
             null,
             null,
             setHeader: false);
-        if (kDebugMode) {
-          print('🔧 Popular stores request headers: $headers');
+        if (kDebugMode && AppConstants.enableVerboseLogs) {
+          appLogger.debug('🔧 Popular stores request headers: $headers');
         }
         final Response response = await apiClient.getData(
             '${AppConstants.popularStoreUri}?type=$type',
             headers: headers);
-        print(
-            '   📡 SECTION 2 API REPO - Response status: ${response.statusCode}');
+        if (kDebugMode && AppConstants.enableVerboseLogs) {
+          appLogger.debug(
+              '   📡 SECTION 2 API REPO - Response status: ${response.statusCode}');
+        }
         if (response.statusCode == 200) {
-          print(
-              '   📦 SECTION 2 API REPO - Response body type: ${response.body.runtimeType}');
-          if (response.body is Map &&
-              (response.body as Map).containsKey('stores')) {
-            print(
-                '   📋 SECTION 2 API REPO - Raw stores count from API: ${(response.body['stores'] as List).length}');
+          if (kDebugMode && AppConstants.enableVerboseLogs) {
+            appLogger.debug(
+                '   📦 SECTION 2 API REPO - Response body type: ${response.body.runtimeType}');
+            if (response.body is Map &&
+                (response.body as Map).containsKey('stores')) {
+              appLogger.debug(
+                  '   📋 SECTION 2 API REPO - Raw stores count from API: ${(response.body['stores'] as List).length}');
+            }
           }
           popularStoreList = [];
           if (response.body is Map && response.body['stores'] is List) {
@@ -733,12 +750,16 @@ class StoreRepository implements StoreRepositoryInterface {
             }
           }
 
-          print(
-              '   🔍 SECTION 2 API REPO - Before module filter: ${popularStoreList.length} stores');
+          if (kDebugMode && AppConstants.enableVerboseLogs) {
+            appLogger.debug(
+                '   🔍 SECTION 2 API REPO - Before module filter: ${popularStoreList.length} stores');
+          }
           // ⚠️ CRITICAL: Client-side filtering by module ID
           popularStoreList = _filterStoresByModule(popularStoreList);
-          print(
-              '   ✅ SECTION 2 API REPO - After module filter: ${popularStoreList.length} stores');
+          if (kDebugMode && AppConstants.enableVerboseLogs) {
+            appLogger.debug(
+                '   ✅ SECTION 2 API REPO - After module filter: ${popularStoreList.length} stores');
+          }
 
           // Cache the filtered results
           LocalClient.organize(
@@ -747,31 +768,46 @@ class StoreRepository implements StoreRepositoryInterface {
               jsonEncode(popularStoreList.map((s) => s.toJson()).toList()),
               apiClient.getHeader());
         } else {
-          print(
-              '   ❌ SECTION 2 API REPO - API call failed with status: ${response.statusCode}');
+          if (kDebugMode) {
+            appLogger.warning(
+                '   ❌ SECTION 2 API REPO - API call failed with status: ${response.statusCode}');
+          }
         }
         break;
 
       case DataSourceEnum.local:
-        print('   📦 SECTION 2 API REPO - Loading from cache: $cacheId');
+        if (kDebugMode && AppConstants.enableVerboseLogs) {
+          appLogger
+              .debug('   📦 SECTION 2 API REPO - Loading from cache: $cacheId');
+        }
         final String? cacheResponseData = await LocalClient.organize(
             DataSourceEnum.local, cacheId, null, null);
         if (cacheResponseData != null) {
-          print('   ✅ SECTION 2 API REPO - Cache hit, parsing data...');
+          if (kDebugMode && AppConstants.enableVerboseLogs) {
+            appLogger
+                .debug('   ✅ SECTION 2 API REPO - Cache hit, parsing data...');
+          }
           popularStoreList = [];
           final decodedCache = jsonDecode(cacheResponseData) as List;
           for (var store in decodedCache) {
             popularStoreList.add(Store.fromJson(store as Map<String, dynamic>));
           }
 
-          print(
-              '   🔍 SECTION 2 API REPO - Before module filter: ${popularStoreList.length} stores');
+          if (kDebugMode && AppConstants.enableVerboseLogs) {
+            appLogger.debug(
+                '   🔍 SECTION 2 API REPO - Before module filter: ${popularStoreList.length} stores');
+          }
           // ⚠️ CRITICAL: Filter cached stores by module ID too
           popularStoreList = _filterStoresByModule(popularStoreList);
-          print(
-              '   ✅ SECTION 2 API REPO - After module filter: ${popularStoreList.length} stores');
+          if (kDebugMode && AppConstants.enableVerboseLogs) {
+            appLogger.debug(
+                '   ✅ SECTION 2 API REPO - After module filter: ${popularStoreList.length} stores');
+          }
         } else {
-          print('   ⚠️ SECTION 2 API REPO - Cache miss (no data found)');
+          if (kDebugMode && AppConstants.enableVerboseLogs) {
+            appLogger
+                .debug('   ⚠️ SECTION 2 API REPO - Cache miss (no data found)');
+          }
         }
         break;
     }
@@ -1120,11 +1156,11 @@ class StoreRepository implements StoreRepositoryInterface {
     final String requestId =
         'items_latest_${DateTime.now().millisecondsSinceEpoch}_store_${storeID}_cat_${categoryID}_off_${offset}_lim_${effectiveLimit}_mod_$moduleId';
 
-    // Create cache key for this specific request (include limit to avoid cache conflicts)
-    // Add cache version (v2) to invalidate old cache entries created before backend fix.
-    // Old cache entries had only 1 item per category due to backend bug.
+    // Create cache key for this specific request (include limit to avoid cache conflicts).
+    // Cache version bumped to v3 to invalidate old entries created before backend
+    // merge/total_size fixes on store+category endpoints.
     final String cacheKey =
-        'store_items_v2_${storeID}_${categoryID}_${offset}_${effectiveLimit}_${type}_$moduleId';
+        'store_items_v3_${storeID}_${categoryID}_${offset}_${effectiveLimit}_${type}_$moduleId';
 
     // 🔍 DEBUG: Log cache check
     if (kDebugMode) {
@@ -1157,7 +1193,9 @@ class StoreRepository implements StoreRepositoryInterface {
         if (cachedItemCount == 0 && offset == 1) {
           shouldInvalidateCache = true;
           invalidationReason = 'Cache has 0 items';
-        } else if (cachedTotalSize > 0 && cachedItemCount < cachedTotalSize) {
+        } else if (offset == 1 &&
+            cachedTotalSize > 0 &&
+            cachedItemCount < cachedTotalSize) {
           // Cache is incomplete - total_size indicates more items should be available
           // This catches stale cache entries created before backend fix (when only 1 item was cached)
           shouldInvalidateCache = true;

@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:sixam_mart/features/category/controllers/category_controller.dart';
-import 'package:sixam_mart/features/store/controllers/store_controller.dart';
-import 'package:sixam_mart/features/store/domain/models/store_model.dart';
+import 'package:sixam_mart/features/splash/controllers/splash_controller.dart';
+import 'package:sixam_mart/common/utils/app_logger.dart';
+import 'package:sixam_mart/util/app_constants.dart';
 import 'package:sixam_mart/util/dimensions.dart';
 import 'package:sixam_mart/util/styles.dart';
 
@@ -17,7 +18,6 @@ class CategoryFilterBar extends StatefulWidget {
 }
 
 class _CategoryFilterBarState extends State<CategoryFilterBar> {
-  Store? _selectedStore;
   String _selectedSort = 'popular';
   String _selectedPriceLabel = 'الكل';
   String _minPrice = '';
@@ -42,8 +42,10 @@ class _CategoryFilterBarState extends State<CategoryFilterBar> {
     {'label': '500 - 700', 'min': '500', 'max': '700'},
     {'label': '700 - 1000', 'min': '700', 'max': '1000'},
   ];
-
-  List<Store> _storesList = [];
+  void _logFilter(String message) {
+    debugPrint('[CAT_FILTER] $message');
+    appLogger.debug('[CAT_FILTER] $message');
+  }
 
   @override
   void initState() {
@@ -57,41 +59,61 @@ class _CategoryFilterBarState extends State<CategoryFilterBar> {
           (range) => range['min'] == _minPrice && range['max'] == _maxPrice,
           orElse: () => _priceRanges.first,
         )['label']!;
-    _loadFilterData();
-  }
-
-  Future<void> _loadFilterData() async {
-    final storeController = Get.find<StoreController>();
-    if (storeController.storeModel?.stores != null) {
-      setState(() {
-        _storesList = storeController.storeModel!.stores!;
-      });
-    }
   }
 
   void _applyFilters() {
     final categoryController = Get.find<CategoryController>();
+    final splashController = Get.find<SplashController>();
+
+    final String rawQuery = _productNameController.text.trim();
+    final bool hasQuery = rawQuery.isNotEmpty;
+    final bool isEcommerceModule =
+        splashController.module?.moduleType == AppConstants.ecommerce ||
+            splashController.module?.id == 3;
+
+    // Option 1 (Hyper): when searching by name from category filter,
+    // search across all Hyper categories (do not pin to current category).
+    final bool shouldSearchAllHyperCategories = isEcommerceModule && hasQuery;
+    final String effectiveCategoryId =
+        shouldSearchAllHyperCategories ? '' : widget.categoryID;
+    final bool shouldUseApiSearch = shouldSearchAllHyperCategories;
+
+    // If we are leaving API-search mode, return to normal category-local mode.
+    if (!shouldUseApiSearch && categoryController.isSearching) {
+      categoryController.toggleSearch(context);
+    }
+
+    final payload = {
+      'research_Name': hasQuery ? rawQuery : ' ',
+      'product_arrangement': _selectedSort,
+      'id_category': effectiveCategoryId,
+      'id_stores': '',
+      'min': _minPrice,
+      'max': _maxPrice,
+      'discount': false,
+      'fromHome': !shouldUseApiSearch,
+      'scope': shouldSearchAllHyperCategories
+          ? 'hyper_all_categories'
+          : 'current_category',
+    };
+    _logFilter('_applyFilters payload => $payload');
     categoryController.applyFilters(
-      research_Name: _productNameController.text.isNotEmpty
-          ? _productNameController.text
-          : ' ',
-      product_arrangement: _selectedSort,
-      id_category: widget.categoryID,
-      id_stores: _selectedStore == null
-          ? ''
-          : _selectedStore!.id!.toString(),
-      min: _minPrice,
-      max: _maxPrice,
-      discount: false,
-      fromHome: true,
+      research_Name: payload['research_Name'] as String,
+      product_arrangement: payload['product_arrangement'] as String,
+      id_category: payload['id_category'] as String,
+      id_stores: payload['id_stores'] as String,
+      min: payload['min'] as String,
+      max: payload['max'] as String,
+      discount: payload['discount'] as bool,
+      fromHome: payload['fromHome'] as bool,
     );
   }
 
   void _resetFilters({StateSetter? modalSetState}) {
+    _logFilter('_resetFilters: resetting local filter state');
     final updater = modalSetState ?? setState;
     updater(() {
       _productNameController.clear();
-      _selectedStore = null;
       _selectedSort = 'popular';
       _selectedPriceLabel = '????????';
       _minPrice = '';
@@ -116,7 +138,6 @@ class _CategoryFilterBarState extends State<CategoryFilterBar> {
             _selectedSort != 'popular' ||
             (_minPrice.isNotEmpty && _minPrice != '0') ||
             (_maxPrice.isNotEmpty && _maxPrice != '0') ||
-            _selectedStore != null ||
             _productNameController.text.trim().isNotEmpty;
 
         return Container(
@@ -184,7 +205,11 @@ class _CategoryFilterBarState extends State<CategoryFilterBar> {
 
               // زر الفلاتر المتقدمة
               InkWell(
-                onTap: () => _showFilterBottomSheet(context),
+                onTap: () {
+                  _logFilter(
+                      'filter button tapped (categoryID=${widget.categoryID})');
+                  _showFilterBottomSheet(context);
+                },
                 child: Container(
                   padding: const EdgeInsets.symmetric(
                     horizontal: Dimensions.paddingSizeSmall,
@@ -224,12 +249,48 @@ class _CategoryFilterBarState extends State<CategoryFilterBar> {
               const Spacer(),
 
               // عدد المنتجات
-              Text(
-                '${categoryController.pageSize ?? 0} ${'products'.tr}',
-                style: robotoRegular.copyWith(
-                  fontSize: Dimensions.fontSizeSmall,
-                  color: Theme.of(context).disabledColor,
-                ),
+              Builder(
+                builder: (_) {
+                  final bool isSearching = categoryController.isSearching;
+                  final bool loadingItems = !categoryController.isStore &&
+                      categoryController.isLoading &&
+                      ((isSearching
+                                  ? categoryController.searchItemList
+                                  : categoryController.categoryItemList) ==
+                              null);
+                  final bool loadingStores = categoryController.isStore &&
+                      categoryController.isLoading &&
+                      ((isSearching
+                                  ? categoryController.searchStoreList
+                                  : categoryController.categoryStoreList) ==
+                              null);
+
+                  final String countText = (loadingItems || loadingStores)
+                      ? '...'
+                      : categoryController.isStore
+                          ? '${(isSearching ? categoryController.searchStoreList?.length : categoryController.categoryStoreList?.length) ?? 0}'
+                          : '${(isSearching ? categoryController.searchItemList?.length : categoryController.categoryItemList?.length) ?? 0}';
+
+                  final bool showRestaurantsText =
+                      Get.isRegistered<SplashController>() &&
+                          (Get.find<SplashController>()
+                                  .configModel
+                                  ?.moduleConfig
+                                  ?.module
+                                  ?.showRestaurantText ??
+                              false);
+                  final String labelText = categoryController.isStore
+                      ? (showRestaurantsText ? 'restaurants'.tr : 'stores'.tr)
+                      : 'products'.tr;
+
+                  return Text(
+                    '$countText $labelText',
+                    style: robotoRegular.copyWith(
+                      fontSize: Dimensions.fontSizeSmall,
+                      color: Theme.of(context).disabledColor,
+                    ),
+                  );
+                },
               ),
             ],
           ),
@@ -239,6 +300,9 @@ class _CategoryFilterBarState extends State<CategoryFilterBar> {
   }
 
   void _showFilterBottomSheet(BuildContext context) {
+    _logFilter(
+        '_showFilterBottomSheet open with state => '
+        'sort=$_selectedSort, price=$_selectedPriceLabel($_minPrice-$_maxPrice), query="${_productNameController.text}"');
     showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
@@ -267,7 +331,10 @@ class _CategoryFilterBarState extends State<CategoryFilterBar> {
                     ),
                     const Spacer(),
                     IconButton(
-                      onPressed: () => Navigator.pop(context),
+                      onPressed: () {
+                        _logFilter('bottom sheet closed from X');
+                        Navigator.pop(context);
+                      },
                       icon: const Icon(Icons.close),
                     ),
                   ],
@@ -283,12 +350,6 @@ class _CategoryFilterBarState extends State<CategoryFilterBar> {
                         // ?????????? ??????
                         _buildSectionTitle('sort_by'.tr),
                         _buildSortOptions(modalSetState: modalSetState),
-
-                        const SizedBox(height: Dimensions.paddingSizeDefault),
-
-                        // ??????????????
-                        _buildSectionTitle('all_stores'.tr),
-                        _buildStoreChips(modalSetState: modalSetState),
 
                         const SizedBox(height: Dimensions.paddingSizeDefault),
 
@@ -332,6 +393,7 @@ class _CategoryFilterBarState extends State<CategoryFilterBar> {
                     Expanded(
                       child: ElevatedButton(
                         onPressed: () {
+                          _logFilter('apply tapped in bottom sheet');
                           _applyFilters();
                           Navigator.pop(context);
                         },
@@ -385,44 +447,8 @@ class _CategoryFilterBarState extends State<CategoryFilterBar> {
               updater(() {
                 _selectedSort = _sortOptions[label]!;
               });
+              _logFilter('sort changed => label="$label", value=$_selectedSort');
             }
-          },
-          selectedColor: selectedChipColor,
-          labelStyle: TextStyle(
-            color: isSelected
-                ? const Color(0xFF1B5E20)
-                : Theme.of(context).textTheme.bodyLarge?.color,
-          ),
-        );
-      }).toList(),
-    );
-  }
-
-  Widget _buildStoreChips({StateSetter? modalSetState}) {
-    if (_storesList.isEmpty) {
-      return Text(
-        'غير متاح',
-        style: robotoRegular.copyWith(
-          color: Theme.of(context).disabledColor,
-        ),
-      );
-    }
-    const Color selectedChipColor = Color(0xFFC8E6C9);
-    return Wrap(
-      spacing: Dimensions.paddingSizeSmall,
-      runSpacing: Dimensions.paddingSizeSmall,
-      children: _storesList.map((store) {
-        final isSelected = _selectedStore?.id == store.id;
-        return ChoiceChip(
-          label: Text(store.name ?? ''),
-          selected: isSelected,
-          showCheckmark: true,
-          checkmarkColor: const Color(0xFF1B5E20),
-          onSelected: (selected) {
-            final updater = modalSetState ?? setState;
-            updater(() {
-              _selectedStore = selected ? store : null;
-            });
           },
           selectedColor: selectedChipColor,
           labelStyle: TextStyle(
@@ -455,6 +481,8 @@ class _CategoryFilterBarState extends State<CategoryFilterBar> {
                 _minPrice = range['min']!;
                 _maxPrice = range['max']!;
               });
+              _logFilter(
+                  'price range changed => $_selectedPriceLabel ($_minPrice-$_maxPrice)');
             }
           },
           selectedColor: selectedChipColor,
@@ -468,4 +496,5 @@ class _CategoryFilterBarState extends State<CategoryFilterBar> {
     );
   }
 }
+
 

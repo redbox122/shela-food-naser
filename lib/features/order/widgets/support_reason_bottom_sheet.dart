@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
 import 'package:sixam_mart/common/widgets/custom_button.dart';
 import 'package:sixam_mart/common/widgets/custom_text_field.dart';
@@ -13,8 +14,8 @@ import 'package:sixam_mart/util/styles.dart';
 class SupportReasonBottomSheet extends StatefulWidget {
   final int? orderId;
   final bool fromChatPage;
-  final Function? timerCancel;
-  final Function? startApiCall;
+  final VoidCallback? timerCancel;
+  final VoidCallback? startApiCall;
   const SupportReasonBottomSheet({super.key, required this.orderId, this.fromChatPage = false, this.timerCancel, this.startApiCall});
 
   @override
@@ -31,6 +32,11 @@ class _SupportReasonBottomSheetState extends State<SupportReasonBottomSheet> {
     super.initState();
 
     massageTextController = TextEditingController();
+    if (kDebugMode) {
+      debugPrint('[SupportFlow] SupportReasonBottomSheet opened');
+      debugPrint('   - orderId: ${widget.orderId}');
+      debugPrint('   - fromChatPage: ${widget.fromChatPage}');
+    }
     Get.find<OrderController>().getSupportReasons();
   }
 
@@ -45,7 +51,7 @@ class _SupportReasonBottomSheetState extends State<SupportReasonBottomSheet> {
   Widget build(BuildContext context) {
     return Container(
       width: 550,
-      margin: EdgeInsets.only(top: GetPlatform.isWeb ? 0 : 30),
+      margin: EdgeInsets.only(top: ResponsiveHelper.isDesktop(context) ? 0 : 30),
       decoration: BoxDecoration(
         color: Theme.of(context).cardColor,
         borderRadius: ResponsiveHelper.isMobile(context) ? const BorderRadius.vertical(top: Radius.circular(Dimensions.radiusExtraLarge))
@@ -69,7 +75,12 @@ class _SupportReasonBottomSheetState extends State<SupportReasonBottomSheet> {
                       padding: const EdgeInsets.symmetric(horizontal: Dimensions.paddingSizeLarge),
                       child: Column(mainAxisSize: MainAxisSize.min, children: [
 
-                        orderController.supportReasons != null ? orderController.supportReasons!.isNotEmpty ? Column(mainAxisSize: MainAxisSize.min, children: [
+                        orderController.isSupportReasonsLoading ? const Center(
+                          child: Padding(
+                            padding: EdgeInsets.symmetric(vertical: Dimensions.paddingSizeLarge),
+                            child: CircularProgressIndicator(),
+                          ),
+                        ) : orderController.supportReasons != null && orderController.supportReasons!.isNotEmpty ? Column(mainAxisSize: MainAxisSize.min, children: [
                           Padding(
                             padding: const EdgeInsets.symmetric(vertical: Dimensions.paddingSizeDefault),
                             child: Text('choose_the_reason_for_support'.tr, style: robotoBold.copyWith(fontSize: Dimensions.fontSizeDefault)),
@@ -119,10 +130,11 @@ class _SupportReasonBottomSheetState extends State<SupportReasonBottomSheet> {
                             },
                           ),
 
-                        ]) : const SizedBox() : const Center(
-                          child: Padding(
-                            padding: EdgeInsets.symmetric(vertical: Dimensions.paddingSizeLarge),
-                            child: CircularProgressIndicator(),
+                        ]) : Padding(
+                          padding: const EdgeInsets.symmetric(vertical: Dimensions.paddingSizeLarge),
+                          child: Text(
+                            'no_data_found'.tr,
+                            style: robotoRegular.copyWith(color: Theme.of(context).disabledColor),
                           ),
                         ),
 
@@ -160,21 +172,55 @@ class _SupportReasonBottomSheetState extends State<SupportReasonBottomSheet> {
                       child: CustomButton(
                         buttonText: 'send_message'.tr,
                         onPressed: (selectIndex != -1 || isTextFieldNotEmpty) ? () async {
+                          final String selectedReason = (orderController.supportReasons != null &&
+                                  orderController.supportReasons!.isNotEmpty &&
+                                  selectIndex != -1)
+                              ? (orderController.supportReasons![selectIndex] ?? '')
+                              : '';
+                          final customMessage = massageTextController.text.trim();
+
+                          if (kDebugMode) {
+                            debugPrint('[SupportFlow] Send message tapped');
+                            debugPrint('   - orderId: ${widget.orderId}');
+                            debugPrint('   - selectedReason: $selectedReason');
+                            debugPrint('   - customMessageLength: ${customMessage.length}');
+                            debugPrint('   - currentRoute(before close): ${Get.currentRoute}');
+                          }
+
+                          if (selectedReason.isEmpty && customMessage.isEmpty) {
+                            if (kDebugMode) {
+                              debugPrint('[SupportFlow] send aborted: empty reason and empty custom message');
+                            }
+                            return;
+                          }
 
                           Get.back();
                           if(widget.timerCancel != null) {
                             widget.timerCancel!();
                           }
-                          await Get.toNamed(RouteHelper.getChatRoute(
+                          final chatRoute = RouteHelper.getChatRoute(
                             notificationBody: NotificationBodyModel(
                               type: 'admin', notificationType: NotificationType.message,
                               adminId: 0,
                             ),
                             orderChatModel: OrderChatModel(
-                              orderId: widget.orderId.toString(), reason: (orderController.supportReasons != null && orderController.supportReasons!.isNotEmpty && selectIndex != -1) ? orderController.supportReasons![selectIndex] : '',
-                              customMessage: massageTextController.text.trim(),
+                              orderId: widget.orderId.toString(), reason: selectedReason,
+                              customMessage: customMessage,
                             ),
-                          ));
+                          );
+
+                          if (kDebugMode) {
+                            debugPrint('[SupportFlow] Navigating to chat route');
+                            debugPrint('   - route: $chatRoute');
+                          }
+
+                          final navResult = await Get.toNamed(chatRoute);
+
+                          if (kDebugMode) {
+                            debugPrint('[SupportFlow] Returned from chat route');
+                            debugPrint('   - navResult: $navResult');
+                            debugPrint('   - currentRoute(after): ${Get.currentRoute}');
+                          }
                           if(widget.startApiCall != null) {
                             widget.startApiCall!();
                           }

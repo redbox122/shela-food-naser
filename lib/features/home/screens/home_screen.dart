@@ -1,12 +1,12 @@
 // ignore_for_file: avoid_unnecessary_containers, deprecated_member_use, prefer_const_constructors, prefer_const_literals_to_create_immutables
 
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 import 'package:sixam_mart/features/home/controllers/home_controller.dart';
 import 'package:sixam_mart/features/home/screens/all_sections/food_home_screen.dart';
 import 'package:sixam_mart/features/home/screens/all_sections/pharmacy_home_screen.dart';
-import 'package:sixam_mart/features/home/screens/multi_module/multi_module_home_screen.dart';
-import 'package:sixam_mart/features/home/widgets/shop_home_skeleton.dart';
 import 'package:sixam_mart/features/home/widgets/cashback_logo_widget.dart';
 import 'package:sixam_mart/features/home/widgets/cashback_dialog_widget.dart';
 import 'package:sixam_mart/features/home/widgets/custom_appBar_widget.dart';
@@ -54,6 +54,9 @@ import 'package:sixam_mart/common/utils/app_logger.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
+  static bool _isBackgroundRefreshInProgress = false;
+  static DateTime? _lastBackgroundRefreshAt;
+  static const Duration _backgroundRefreshThrottle = Duration(seconds: 5);
 
   /// ✅ FIX: Reset static flags when switching modules
   /// This prevents stale state from previous module
@@ -79,42 +82,70 @@ class HomeScreen extends StatefulWidget {
         final cacheValid = await ComprehensiveHomeCacheManager.isCacheValid();
         if (cacheValid) {
           if (kDebugMode) {
-            print('⚡ HomeScreen.loadData: Module switch detected, restoring from cache instantly');
+            print(
+                '⚡ HomeScreen.loadData: Module switch detected, restoring from cache instantly');
           }
-          
+
           // Load cached data immediately WITHOUT clearing controllers
-          final cachedData = await ComprehensiveHomeCacheManager.loadAllHomeData();
+          final cachedData =
+              await ComprehensiveHomeCacheManager.loadAllHomeData();
           if (cachedData.isNotEmpty) {
             // Restore data to controllers (this updates controllers in place, doesn't clear them)
-            await ComprehensiveHomeCacheManager.restoreDataToControllers(cachedData);
-            
+            await ComprehensiveHomeCacheManager.restoreDataToControllers(
+                cachedData);
+
             // Verify critical data was restored (categories or stores)
             bool hasCriticalData = false;
             if (Get.isRegistered<CategoryController>()) {
               final categoryController = Get.find<CategoryController>();
-              hasCriticalData = categoryController.categoryList != null && 
-                              categoryController.categoryList!.isNotEmpty;
+              hasCriticalData = categoryController.categoryList != null &&
+                  categoryController.categoryList!.isNotEmpty;
             }
             if (!hasCriticalData && Get.isRegistered<StoreController>()) {
               final storeController = Get.find<StoreController>();
               hasCriticalData = storeController.storeModel != null &&
-                              storeController.storeModel!.stores != null &&
-                              storeController.storeModel!.stores!.isNotEmpty;
+                  storeController.storeModel!.stores != null &&
+                  storeController.storeModel!.stores!.isNotEmpty;
             }
-            
+
             if (hasCriticalData) {
-              if (kDebugMode) {
-                print('✅ HomeScreen.loadData: Cache restored successfully, skipping API calls');
+              bool hasBannerData = true;
+              if (Get.isRegistered<BannerController>()) {
+                final bannerController = Get.find<BannerController>();
+                hasBannerData = bannerController.featuredBannerList != null &&
+                    bannerController.featuredBannerList!.isNotEmpty;
+                if (!hasBannerData) {
+                  if (kDebugMode) {
+                    print(
+                        '⚠️ HomeScreen.loadData: Critical cache present but banners missing, forcing banner reload');
+                  }
+                  // Trigger immediate banner fetch for current module.
+                  bannerController.getFeaturedBanner();
+                }
               }
-              // Refresh in background only (without clearing controllers)
-              if (!buildContext.mounted) {
-                return;
+
+              if (!hasBannerData) {
+                if (kDebugMode) {
+                  print(
+                      '⚠️ HomeScreen.loadData: Skipping early return because banners are missing');
+                }
+                // Fall through to normal loading to recover missing sections.
+              } else {
+                if (kDebugMode) {
+                  print(
+                      '✅ HomeScreen.loadData: Cache restored successfully, skipping API calls');
+                }
+                // Refresh in background only (without clearing controllers)
+                if (!buildContext.mounted) {
+                  return;
+                }
+                _refreshInBackground(buildContext);
+                return; // Exit early - data is already loaded from cache
               }
-              _refreshInBackground(buildContext);
-              return; // Exit early - data is already loaded from cache
             } else {
               if (kDebugMode) {
-                print('⚠️ HomeScreen.loadData: Cache restored but no critical data, falling back to API');
+                print(
+                    '⚠️ HomeScreen.loadData: Cache restored but no critical data, falling back to API');
               }
               // Fall through to normal loading
             }
@@ -122,7 +153,8 @@ class HomeScreen extends StatefulWidget {
         }
       } catch (e) {
         if (kDebugMode) {
-          print('⚠️ HomeScreen.loadData: Cache check failed, falling back to normal load - $e');
+          print(
+              '⚠️ HomeScreen.loadData: Cache check failed, falling back to normal load - $e');
         }
         // Fall through to normal loading
       }
@@ -158,18 +190,31 @@ class HomeScreen extends StatefulWidget {
   /// Refresh data in background without blocking UI
   /// ⚡ BFF API v2: Use unified endpoint if enabled
   static void _refreshInBackground(BuildContext context) {
+    if (_isBackgroundRefreshInProgress) {
+      return;
+    }
+    final now = DateTime.now();
+    if (_lastBackgroundRefreshAt != null &&
+        now.difference(_lastBackgroundRefreshAt!) <
+            _backgroundRefreshThrottle) {
+      return;
+    }
+    _isBackgroundRefreshInProgress = true;
+    _lastBackgroundRefreshAt = now;
+
     // Run in background without blocking
     Future.microtask(() async {
       try {
         // ⚡ BFF API v2: Use unified endpoint if enabled
-        if (AppConstants.useBffV2Endpoint && Get.isRegistered<HomeUnifiedController>()) {
+        if (AppConstants.useBffV2Endpoint &&
+            Get.isRegistered<HomeUnifiedController>()) {
           final unifiedController = Get.find<HomeUnifiedController>();
           await unifiedController.loadHomeData(
             showLoading: false,
           );
           return;
         }
-        
+
         // Fallback to legacy loader if unified endpoint disabled
         if (!context.mounted) {
           return;
@@ -182,8 +227,48 @@ class HomeScreen extends StatefulWidget {
         if (kDebugMode) {
           print('⚠️ HomeScreen: Background refresh failed - $e');
         }
+      } finally {
+        _isBackgroundRefreshInProgress = false;
       }
     });
+  }
+
+  /// Hard refresh for pull-to-refresh gesture.
+  /// This explicitly invalidates module cache + ETag, then fetches fresh API data.
+  static Future<void> performHardRefresh(BuildContext context) async {
+    final splashController = Get.find<SplashController>();
+    final int? moduleId = splashController.module?.id;
+
+    if (AppConstants.useBffV2Endpoint &&
+        Get.isRegistered<HomeUnifiedController>()) {
+      final unifiedController = Get.find<HomeUnifiedController>();
+
+      if (moduleId != null) {
+        await unifiedController.clearCacheAndForceRefresh(moduleId: moduleId);
+        if (Get.isRegistered<BannerController>()) {
+          Get.find<BannerController>().invalidateModule(moduleId);
+        }
+        unifiedController.allowImmediateFetchForModule(moduleId);
+      }
+
+      final bool success = await unifiedController.loadHomeData(
+        forceRefresh: true,
+        showLoading: false,
+      );
+
+      if (!success && Get.isRegistered<HomeController>()) {
+        await Get.find<HomeController>().loadHomeData(forceRefresh: true);
+      }
+      return;
+    }
+
+    if (!context.mounted) {
+      return;
+    }
+    await ComprehensiveHomeLoader.loadAllHomeData(
+      context,
+      forceRefresh: true,
+    );
   }
 
   @override
@@ -194,9 +279,13 @@ class _HomeScreenState extends State<HomeScreen> {
   final ScrollController scrollController = ScrollController();
   bool searchBgShow = false;
   final GlobalKey headerKey = GlobalKey();
-  
+  Timer? _deferredLoadTimer;
+  bool _deferredLoadQueued = false;
+
   // ⚡ Cache-First Fix: Track if first load completed
   static bool _hasLoadedOnce = false;
+  DateTime? _lastUiDiagAt;
+  String? _lastUiDiagSignature;
 
   @override
   void initState() {
@@ -242,15 +331,15 @@ class _HomeScreenState extends State<HomeScreen> {
           }
 
           // 🔧 FIX: Null-safe address access - prevent crash for new users without address
-          final AddressModel? userAddress = AddressHelper.getUserAddressFromSharedPref();
+          final AddressModel? userAddress =
+              AddressHelper.getUserAddressFromSharedPref();
           if (userAddress?.latitude != null && userAddress?.longitude != null) {
             Get.find<LocationController>().getZone(
-                userAddress!.latitude,
-                userAddress.longitude,
-                false,
+                userAddress!.latitude, userAddress.longitude, false,
                 updateInAddress: true);
           } else {
-            debugPrint('⚠️ HomeScreen: No saved address found - skipping zone validation');
+            debugPrint(
+                '⚠️ HomeScreen: No saved address found - skipping zone validation');
           }
         }
       });
@@ -277,26 +366,62 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void dispose() {
     appLogger.logPageExit();
+    _deferredLoadTimer?.cancel();
     super.dispose();
     scrollController.dispose();
+  }
+
+  void _scheduleDeferredLoadCheck() {
+    if (_deferredLoadQueued || !mounted) {
+      return;
+    }
+    _deferredLoadQueued = true;
+    _deferredLoadTimer?.cancel();
+    _deferredLoadTimer = Timer(const Duration(milliseconds: 700), () async {
+      _deferredLoadQueued = false;
+      if (!mounted) {
+        return;
+      }
+
+      final loadingManager = LoadingStateManager();
+      if (loadingManager.isComprehensiveLoading ||
+          loadingManager.isHomeLoading) {
+        _scheduleDeferredLoadCheck();
+        return;
+      }
+
+      final hasData = await _checkControllersHaveData();
+      if (!hasData) {
+        await _checkAndLoadData();
+      }
+    });
   }
 
   /// ⚡ PERFORMANCE: Load stores after first frame
   /// This ensures first frame renders quickly with banners, categories, offers
   /// Stores are loaded separately after UI is visible
   void _loadStoresAfterFirstFrame() {
+    if (AppConstants.useBffV2Endpoint) {
+      if (kDebugMode) {
+        print(
+            '🛡️ HomeScreen: Unified-only policy - skipping post-frame legacy store fetch');
+      }
+      return;
+    }
+
     if (!Get.isRegistered<StoreController>()) {
       return;
     }
-    
+
     final storeController = Get.find<StoreController>();
-    
+
     // ⚡ PERFORMANCE: Only load if stores are not already loaded
     if (storeController.allStoreModel == null && !storeController.isLoading) {
       if (kDebugMode) {
-        print('📡 HomeScreen: Loading stores after first frame (post-frame callback)');
+        print(
+            '📡 HomeScreen: Loading stores after first frame (post-frame callback)');
       }
-      
+
       // ⚡ PERFORMANCE: Load with small limit (7) for first frame
       // Pagination will load more as user scrolls
       storeController.getStoreList(1, false, limit: 7);
@@ -307,12 +432,13 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _checkAndLoadData() async {
     try {
       final splashController = Get.find<SplashController>();
-      
+
       // ⚡ Cache-First Fix: If module is null, don't try to load data
       // Module must be selected first (will show skeleton until module is selected)
       if (splashController.module == null) {
         if (kDebugMode) {
-          print('[Cache-First] HomeScreen: Skipping data load - module is null (will show skeleton)');
+          print(
+              '[Cache-First] HomeScreen: Skipping data load - module is null (will show skeleton)');
         }
         return;
       }
@@ -349,7 +475,8 @@ class _HomeScreenState extends State<HomeScreen> {
 
       if (isFirstLoad && splashController.module != null) {
         if (kDebugMode) {
-          print('[Cache-First] HomeScreen: First load detected - marking as loaded');
+          print(
+              '[Cache-First] HomeScreen: First load detected - marking as loaded');
         }
         _hasLoadedOnce = true;
         // 🛡️ LOOP PREVENTION: Do NOT manually trigger loadHomeData here
@@ -359,24 +486,30 @@ class _HomeScreenState extends State<HomeScreen> {
 
       // ⚠️ CRITICAL FIX: Avoid duplicate comprehensive loads
       final loadingManager = LoadingStateManager();
-      if (loadingManager.isComprehensiveLoading || loadingManager.isHomeLoading) {
+      if (loadingManager.isComprehensiveLoading ||
+          loadingManager.isHomeLoading) {
         if (kDebugMode) {
-          print('⚠️ HomeScreen: Loading already in progress - skipping duplicate load');
+          print(
+              '⚠️ HomeScreen: Loading already in progress - skipping duplicate load');
         }
+        _scheduleDeferredLoadCheck();
         return;
       }
 
       // ⚡ BFF API v2: Check HomeUnifiedController first (single source of truth)
-      if (AppConstants.useBffV2Endpoint && Get.isRegistered<HomeUnifiedController>()) {
+      if (AppConstants.useBffV2Endpoint &&
+          Get.isRegistered<HomeUnifiedController>()) {
         final unifiedController = Get.find<HomeUnifiedController>();
-        
+
         // ⚡ PERFORMANCE: First frame - load from cache only (banners, categories, offers) without stores
-        final cacheLoaded = await unifiedController.loadCachedDataForInstantUI(loadStores: false);
+        final cacheLoaded = await unifiedController.loadCachedDataForInstantUI(
+            loadStores: false);
         if (cacheLoaded) {
           if (kDebugMode) {
-            print('⚡ HomeScreen: First frame loaded from cache (banners, categories, offers)');
+            print(
+                '⚡ HomeScreen: First frame loaded from cache (banners, categories, offers)');
           }
-          
+
           // ⚡ PERFORMANCE: Trigger background refresh AFTER first frame
           // This ensures UI appears instantly while data refreshes in background
           Future.microtask(() {
@@ -385,7 +518,7 @@ class _HomeScreenState extends State<HomeScreen> {
             }
             HomeScreen._refreshInBackground(context);
           });
-          
+
           // ⚡ PERFORMANCE: Load stores AFTER first frame (post-frame callback)
           WidgetsBinding.instance.addPostFrameCallback((_) {
             Future.delayed(const Duration(milliseconds: 100), () {
@@ -394,11 +527,11 @@ class _HomeScreenState extends State<HomeScreen> {
               }
             });
           });
-          
+
           _handlePostLoadActions();
           return;
         }
-        
+
         // If no cached data, trigger unified load (but still skip stores for first frame)
         if (!unifiedController.isLoading) {
           // ⚡ Cache-First Fix: Force fetch on first load
@@ -407,7 +540,7 @@ class _HomeScreenState extends State<HomeScreen> {
             showLoading: false,
             forceRefresh: isFirstLoad, // Force fetch on first load
           );
-          
+
           // Load stores after first frame
           WidgetsBinding.instance.addPostFrameCallback((_) {
             Future.delayed(const Duration(milliseconds: 100), () {
@@ -435,7 +568,8 @@ class _HomeScreenState extends State<HomeScreen> {
           await ComprehensiveHomeCacheManager.shouldForceDataRestoration();
 
       // Check if cache is valid and restore data from cache first
-      final bool cacheValid = await ComprehensiveHomeCacheManager.isCacheValid();
+      final bool cacheValid =
+          await ComprehensiveHomeCacheManager.isCacheValid();
 
       if (cacheValid || forceRestoration) {
         await _restoreDataFromCache();
@@ -558,10 +692,12 @@ class _HomeScreenState extends State<HomeScreen> {
     try {
       appLogger.logPageEntry('HomeScreen');
       appLogger.info('🔄 HomeScreen: Starting fallback data loading');
-      
+
       // ⚡ BFF API v2: Use unified endpoint if enabled
-      if (AppConstants.useBffV2Endpoint && Get.isRegistered<HomeUnifiedController>()) {
-        appLogger.info('📡 HomeScreen: Using unified endpoint: ${AppConstants.homeUnifiedUri}');
+      if (AppConstants.useBffV2Endpoint &&
+          Get.isRegistered<HomeUnifiedController>()) {
+        appLogger.info(
+            '📡 HomeScreen: Using unified endpoint: ${AppConstants.homeUnifiedUri}');
         final stopwatch = Stopwatch()..start();
         try {
           final unifiedController = Get.find<HomeUnifiedController>();
@@ -570,7 +706,8 @@ class _HomeScreenState extends State<HomeScreen> {
             showLoading: false, // Silent refresh
           );
           stopwatch.stop();
-          appLogger.info('✅ HomeScreen: Unified endpoint completed in ${stopwatch.elapsedMilliseconds}ms');
+          appLogger.info(
+              '✅ HomeScreen: Unified endpoint completed in ${stopwatch.elapsedMilliseconds}ms');
         } catch (e) {
           stopwatch.stop();
           appLogger.error('❌ HomeScreen: Unified endpoint failed', e);
@@ -588,10 +725,12 @@ class _HomeScreenState extends State<HomeScreen> {
       if (Get.isRegistered<BannerController>()) {
         try {
           final stopwatch = Stopwatch()..start();
-          appLogger.info('📡 HomeScreen: Calling banner API: ${AppConstants.bannerUri}');
+          appLogger.info(
+              '📡 HomeScreen: Calling banner API: ${AppConstants.bannerUri}');
           await Get.find<BannerController>().getBannerList(true);
           stopwatch.stop();
-          appLogger.info('✅ HomeScreen: Banner API completed in ${stopwatch.elapsedMilliseconds}ms');
+          appLogger.info(
+              '✅ HomeScreen: Banner API completed in ${stopwatch.elapsedMilliseconds}ms');
         } catch (e) {
           appLogger.error('❌ HomeScreen: Error loading banners in fallback', e);
         }
@@ -599,12 +738,15 @@ class _HomeScreenState extends State<HomeScreen> {
       if (Get.isRegistered<CategoryController>()) {
         try {
           final stopwatch = Stopwatch()..start();
-          appLogger.info('📡 HomeScreen: Calling category API: ${AppConstants.categoryUri}');
+          appLogger.info(
+              '📡 HomeScreen: Calling category API: ${AppConstants.categoryUri}');
           await Get.find<CategoryController>().getCategoryList(true);
           stopwatch.stop();
-          appLogger.info('✅ HomeScreen: Category API completed in ${stopwatch.elapsedMilliseconds}ms');
+          appLogger.info(
+              '✅ HomeScreen: Category API completed in ${stopwatch.elapsedMilliseconds}ms');
         } catch (e) {
-          appLogger.error('❌ HomeScreen: Error loading categories in fallback', e);
+          appLogger.error(
+              '❌ HomeScreen: Error loading categories in fallback', e);
         }
       }
       if (Get.isRegistered<BrandsController>()) {
@@ -613,7 +755,8 @@ class _HomeScreenState extends State<HomeScreen> {
           appLogger.info('📡 HomeScreen: Calling brands API');
           await Get.find<BrandsController>().getBrandList();
           stopwatch.stop();
-          appLogger.info('✅ HomeScreen: Brands API completed in ${stopwatch.elapsedMilliseconds}ms');
+          appLogger.info(
+              '✅ HomeScreen: Brands API completed in ${stopwatch.elapsedMilliseconds}ms');
         } catch (e) {
           appLogger.error('❌ HomeScreen: Error loading brands in fallback', e);
         }
@@ -621,10 +764,12 @@ class _HomeScreenState extends State<HomeScreen> {
       if (Get.isRegistered<StoreController>()) {
         try {
           final stopwatch = Stopwatch()..start();
-          appLogger.info('📡 HomeScreen: Calling store API: ${AppConstants.storeUri}?offset=1&limit=12');
+          appLogger.info(
+              '📡 HomeScreen: Calling store API: ${AppConstants.storeUri}?offset=1&limit=12');
           await Get.find<StoreController>().getStoreList(1, true);
           stopwatch.stop();
-          appLogger.info('✅ HomeScreen: Store API completed in ${stopwatch.elapsedMilliseconds}ms');
+          appLogger.info(
+              '✅ HomeScreen: Store API completed in ${stopwatch.elapsedMilliseconds}ms');
         } catch (e) {
           appLogger.error('❌ HomeScreen: Error loading stores in fallback', e);
         }
@@ -633,11 +778,13 @@ class _HomeScreenState extends State<HomeScreen> {
           Get.isRegistered<Offers_Controller>()) {
         try {
           final stopwatch = Stopwatch()..start();
-          appLogger.info('📡 HomeScreen: Calling offers API: ${AppConstants.offersUri}');
+          appLogger.info(
+              '📡 HomeScreen: Calling offers API: ${AppConstants.offersUri}');
           // getOffers() will use current module ID from SplashController
           await Get.find<Offers_Controller>().getOffers();
           stopwatch.stop();
-          appLogger.info('✅ HomeScreen: Offers API completed in ${stopwatch.elapsedMilliseconds}ms');
+          appLogger.info(
+              '✅ HomeScreen: Offers API completed in ${stopwatch.elapsedMilliseconds}ms');
         } catch (e) {
           appLogger.error('❌ HomeScreen: Error loading offers in fallback', e);
         }
@@ -646,12 +793,15 @@ class _HomeScreenState extends State<HomeScreen> {
       if (AuthHelper.isLoggedIn() && Get.isRegistered<ProfileController>()) {
         try {
           final stopwatch = Stopwatch()..start();
-          appLogger.info('📡 HomeScreen: Calling user info API: ${AppConstants.customerInfoUri}');
+          appLogger.info(
+              '📡 HomeScreen: Calling user info API: ${AppConstants.customerInfoUri}');
           await Get.find<ProfileController>().getUserInfo();
           stopwatch.stop();
-          appLogger.info('✅ HomeScreen: User info API completed in ${stopwatch.elapsedMilliseconds}ms');
+          appLogger.info(
+              '✅ HomeScreen: User info API completed in ${stopwatch.elapsedMilliseconds}ms');
         } catch (e) {
-          appLogger.error('❌ HomeScreen: Error loading user info in fallback', e);
+          appLogger.error(
+              '❌ HomeScreen: Error loading user info in fallback', e);
         }
       }
     } catch (e) {
@@ -662,8 +812,14 @@ class _HomeScreenState extends State<HomeScreen> {
   /// Force load individual controllers when data is missing
   Future<void> _forceLoadIndividualControllers() async {
     try {
+      if (AppConstants.useBffV2Endpoint) {
+        appLogger.info(
+            '🛡️ HomeScreen: Unified-only policy - skipping force load of individual controllers');
+        return;
+      }
+
       appLogger.info('🔄 HomeScreen: Force loading individual controllers');
-      
+
       // ⚠️ CRITICAL: Ensure headers are valid with moduleId before making API calls
       final apiClient = Get.find<ApiClient>();
       apiClient.ensureHeadersAreValid();
@@ -684,7 +840,8 @@ class _HomeScreenState extends State<HomeScreen> {
         futures.add(Get.find<CategoryController>()
             .getCategoryList(true, dataSource: DataSourceEnum.client)
             .then((_) {
-          appLogger.info('✅ HomeScreen: Category controller loaded successfully');
+          appLogger
+              .info('✅ HomeScreen: Category controller loaded successfully');
         }).catchError((e) {
           appLogger.error('❌ HomeScreen: Error loading categories', e);
         }));
@@ -699,8 +856,7 @@ class _HomeScreenState extends State<HomeScreen> {
         }));
       }
       if (Get.isRegistered<StoreController>()) {
-        futures.add(
-            Get.find<StoreController>().getStoreList(1, true).then((_) {
+        futures.add(Get.find<StoreController>().getStoreList(1, true).then((_) {
           appLogger.info('✅ HomeScreen: Store controller loaded successfully');
         }).catchError((e) {
           appLogger.error('❌ HomeScreen: Error loading stores', e);
@@ -718,9 +874,13 @@ class _HomeScreenState extends State<HomeScreen> {
       final stopwatch = Stopwatch()..start();
       await Future.wait(futures);
       stopwatch.stop();
-      appLogger.info('✅ HomeScreen: All controllers loaded in ${stopwatch.elapsedMilliseconds}ms');
+      appLogger.info(
+          '✅ HomeScreen: All controllers loaded in ${stopwatch.elapsedMilliseconds}ms');
     } catch (e, stackTrace) {
-      appLogger.error('❌ HomeScreen: Error force loading individual controllers', e, stackTrace);
+      appLogger.error(
+          '❌ HomeScreen: Error force loading individual controllers',
+          e,
+          stackTrace);
     }
   }
 
@@ -800,6 +960,48 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  void _logUiStateSnapshot(String source, SplashController splashController) {
+    if (!kDebugMode) {
+      return;
+    }
+
+    int bannerCount = -1;
+    int categoryCount = -1;
+    int offersCount = -1;
+    if (Get.isRegistered<BannerController>()) {
+      final bannerController = Get.find<BannerController>();
+      bannerCount = bannerController.featuredBannerList?.length ??
+          bannerController.bannerImageList?.length ??
+          0;
+    }
+    if (Get.isRegistered<CategoryController>()) {
+      categoryCount = Get.find<CategoryController>().categoryList?.length ?? 0;
+    }
+    if (Get.isRegistered<Offers_Controller>()) {
+      offersCount = Get.find<Offers_Controller>().offersMode?.data.length ?? 0;
+    }
+
+    final signature = [
+      'm=${splashController.module?.id}',
+      'b=$bannerCount',
+      'c=$categoryCount',
+      'o=$offersCount',
+    ].join('|');
+
+    final now = DateTime.now();
+    final shouldLog = _lastUiDiagSignature != signature ||
+        _lastUiDiagAt == null ||
+        now.difference(_lastUiDiagAt!) > const Duration(seconds: 3);
+    if (!shouldLog) {
+      return;
+    }
+
+    _lastUiDiagAt = now;
+    _lastUiDiagSignature = signature;
+    debugPrint(
+        '[Diag][$source] UI => module=${splashController.module?.id}, banners=$bannerCount, categories=$categoryCount, offers=$offersCount');
+  }
+
   @override
   Widget build(BuildContext context) {
     return GetBuilder<SplashController>(builder: (splashController) {
@@ -808,7 +1010,8 @@ class _HomeScreenState extends State<HomeScreen> {
       final selectedModule = splashController.selectedModule.value;
       if (selectedModule == null && splashController.module == null) {
         if (kDebugMode) {
-          debugPrint('🏗️ [Module-First] HomeScreen: Module is null - showing skeleton (defensive layer)');
+          debugPrint(
+              '🏗️ [Module-First] HomeScreen: Module is null - showing skeleton (defensive layer)');
         }
         return Scaffold(
           backgroundColor: Colors.white,
@@ -830,7 +1033,7 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         );
       }
-      
+
       // FIRST: Check if we should show multi-module selection screen (MAIN ENTRY POINT)
       // Multi-module screen is ALWAYS the main home screen when multiple modules exist
       // This check must happen BEFORE any auto-switching or config module logic
@@ -983,6 +1186,8 @@ class _HomeScreenState extends State<HomeScreen> {
       final bool isTaxi = currentModule != null &&
           currentModule.moduleType.toString() == AppConstants.taxi;
 
+      _logUiStateSnapshot('HomeScreen.build', splashController);
+
       return GetBuilder<HomeController>(builder: (homeController) {
         return Scaffold(
           appBar: ResponsiveHelper.isDesktop(context)
@@ -991,7 +1196,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   child: WebMenuBar(),
                 )
               : PreferredSize(
-                  preferredSize: const Size.fromHeight(120.0),
+                  preferredSize: const Size.fromHeight(140.0),
                   child: Container(
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
@@ -999,24 +1204,29 @@ class _HomeScreenState extends State<HomeScreen> {
                         end: Alignment.bottomCenter,
                         colors: [
                           Theme.of(context).primaryColor,
-                          Theme.of(context).primaryColor.withValues(alpha: 0.95),
+                          Theme.of(context)
+                              .primaryColor
+                              .withValues(alpha: 0.95),
                         ],
                       ),
                       boxShadow: [
                         BoxShadow(
-                          color:
-                              Theme.of(context).primaryColor.withValues(alpha: 0.2),
+                          color: Theme.of(context)
+                              .primaryColor
+                              .withValues(alpha: 0.2),
                           blurRadius: 8,
                           offset: const Offset(0, 2),
                         ),
                       ],
                     ),
                     padding: EdgeInsets.only(
-                      top: MediaQuery.of(context).padding.top + 6,
-                      bottom: 8,
+                      top: MediaQuery.of(context).padding.top + 4,
+                      bottom: 2,
                     ),
-                    child: FlattenedAppBarContent( // ⚡ TASK 1: Flattened widget tree
-                      searchWidget: build_Search(context, showMobileModule, isTaxi),
+                    child: FlattenedAppBarContent(
+                      // ⚡ TASK 1: Flattened widget tree
+                      searchWidget:
+                          build_Search(context, showMobileModule, isTaxi),
                       addressWidget: build_Address(context, splashController),
                     ),
                   ),
@@ -1031,11 +1241,11 @@ class _HomeScreenState extends State<HomeScreen> {
                   child: RefreshIndicator(
                     onRefresh: () async {
                       splashController.setRefreshing(true);
-                      await ComprehensiveHomeLoader.loadAllHomeData(
-                        context,
-                        forceRefresh: true,
-                      );
-                      splashController.setRefreshing(false);
+                      try {
+                        await HomeScreen.performHardRefresh(context);
+                      } finally {
+                        splashController.setRefreshing(false);
+                      }
                     },
                     child: ResponsiveHelper.isDesktop(context)
                         ? WebNewHomeScreen(
@@ -1067,10 +1277,12 @@ class _HomeScreenState extends State<HomeScreen> {
 
                               // Module-specific home screens content
                               SliverToBoxAdapter(
-                                child: FlattenedModuleContent( // ⚡ TASK 1: Flattened widget tree
+                                child: FlattenedModuleContent(
+                                  // ⚡ TASK 1: Flattened widget tree
                                   moduleWidget: !showMobileModule
                                       ? Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
                                           children: [
                                             isGrocery
                                                 ? GroceryHomeScreen()
@@ -1085,7 +1297,8 @@ class _HomeScreenState extends State<HomeScreen> {
                                                                 : const SizedBox(),
                                           ],
                                         )
-                                      : ModuleView(splashController: splashController),
+                                      : ModuleView(
+                                          splashController: splashController),
                                 ),
                               ),
 

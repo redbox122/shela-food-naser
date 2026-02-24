@@ -1,4 +1,4 @@
-// ignore_for_file: avoid_print, unused_import
+﻿// ignore_for_file: avoid_print, unused_import
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -71,17 +71,17 @@ class CategoryController extends GetxController implements GetxService {
   @override
   void onInit() {
     super.onInit();
-    // ⚡ SINGLETON VERIFICATION: Log instance hash to detect multiple instances
+    // âš¡ SINGLETON VERIFICATION: Log instance hash to detect multiple instances
     // If you see multiple different hashCodes in logs, there are multiple instances (BUG)
-    // If you see same hashCode always, singleton is working correctly ✅
+    // If you see same hashCode always, singleton is working correctly âœ…
     if (kDebugMode) {
-      debugPrint('🧠 CategoryController INIT: hashCode=$hashCode');
+      debugPrint('ðŸ§  CategoryController INIT: hashCode=$hashCode');
     }
   }
 
   //
 
-  // 🔧 TASK 1: CATEGORY DATA ISOLATION - Separate buckets for Home and Store
+  // ðŸ”§ TASK 1: CATEGORY DATA ISOLATION - Separate buckets for Home and Store
   List<CategoryModel>?
       _homeCategoryList; // For Home Screen (NEVER overwritten by Store)
   List<CategoryModel>? _storeCategoryList; // For Store Menu
@@ -90,7 +90,9 @@ class CategoryController extends GetxController implements GetxService {
   int? _homeCategoryModuleId;
   int? get homeCategoryModuleId => _homeCategoryModuleId;
   // Preserve last known good lists to avoid UI disappearing on transient empty responses
+  // ignore: unused_field
   List<CategoryModel>? _lastNonEmptyHomeCategoryList;
+  // ignore: unused_field
   List<CategoryModel>? _lastNonEmptyStoreCategoryList;
   bool hasHomeCategoriesForModule(int? moduleId) {
     if (moduleId == null) return false;
@@ -119,7 +121,23 @@ class CategoryController extends GetxController implements GetxService {
         _categoryList; // Fallback to legacy _categoryList for compatibility
   }
 
-  // ⚡ PERFORMANCE: Progressive loading - show initial batch immediately
+  void debugPrintCategoryIndex({String source = 'unknown'}) {
+    if (!kDebugMode) {
+      return;
+    }
+    final List<CategoryModel>? list = _categoryList;
+    if (list == null || list.isEmpty) {
+      debugPrint('ðŸ“š Category index [$source]: empty');
+      return;
+    }
+    debugPrint('ðŸ“š Category index [$source]: ${list.length} categories');
+    for (final category in list) {
+      debugPrint(
+          '   - id=${category.id} | name=${category.name ?? ''} | module=${category.moduleId}');
+    }
+  }
+
+  // âš¡ PERFORMANCE: Progressive loading - show initial batch immediately
   List<CategoryModel>? _initialCategoryBatch;
   List<CategoryModel>? _initialHomeCategoryBatch;
   List<CategoryModel>? _initialStoreCategoryBatch;
@@ -144,7 +162,7 @@ class CategoryController extends GetxController implements GetxService {
         _initialCategoryBatch; // Fallback to legacy for compatibility
   }
 
-  /// 🎯 PERFORMANCE: Pre-computed filtered category list (no calculations in build)
+  /// ðŸŽ¯ PERFORMANCE: Pre-computed filtered category list (no calculations in build)
   /// Filters out categories with null id
   List<CategoryModel> getFilteredCategoryList(
       List<CategoryModel>? originalList) {
@@ -177,7 +195,7 @@ class CategoryController extends GetxController implements GetxService {
   bool _isLoadingMoreCategories = false;
   bool get isLoadingMoreCategories => _isLoadingMoreCategories;
 
-  // ✅ Lazy loading: عدد الأقسام المرئية
+  // âœ… Lazy loading: Ø¹Ø¯Ø¯ Ø§Ù„Ø£Ù‚Ø³Ø§Ù… Ø§Ù„Ù…Ø±Ø¦ÙŠØ©
   int visibleCount = 6;
   int _homeCategoryLoadToken = 0;
   final int loadStep = 5;
@@ -188,11 +206,11 @@ class CategoryController extends GetxController implements GetxService {
     final int cap = hardCap ?? total;
     final int renderCount = total < cap ? total : cap;
     debugPrint(
-      '🧭 CategoryController: renderCount=$renderCount (total=$total, cap=${hardCap ?? "none"}, visibleCount=$visibleCount, context=$contextLabel)',
+      'ðŸ§­ CategoryController: renderCount=$renderCount (total=$total, cap=${hardCap ?? "none"}, visibleCount=$visibleCount, context=$contextLabel)',
     );
   }
 
-  /// ✅ تحميل المزيد من الأقسام عند الـ scroll
+  /// âœ… ØªØ­Ù…ÙŠÙ„ Ø§Ù„Ù…Ø²ÙŠØ¯ Ù…Ù† Ø§Ù„Ø£Ù‚Ø³Ø§Ù… Ø¹Ù†Ø¯ Ø§Ù„Ù€ scroll
   void loadMoreCategories() {
     final currentList = categoryList;
     if (currentList != null && visibleCount < currentList.length) {
@@ -202,9 +220,9 @@ class CategoryController extends GetxController implements GetxService {
         visibleCount = currentList.length;
       }
 
-      // ✅ Logging للتأكد من عمل الدالة
+      // âœ… Logging Ù„Ù„ØªØ£ÙƒØ¯ Ù…Ù† Ø¹Ù…Ù„ Ø§Ù„Ø¯Ø§Ù„Ø©
       if (kDebugMode) {
-        print('🧩 Categories visible: $visibleCount / ${currentList.length}');
+        print('ðŸ§© Categories visible: $visibleCount / ${currentList.length}');
       }
 
       update(); // GetX
@@ -217,7 +235,7 @@ class CategoryController extends GetxController implements GetxService {
   List<CategoryModel>? _subCategoryList;
   List<CategoryModel>? get subCategoryList => _subCategoryList;
 
-  // ⚡ RACE CONDITION FIX: Track request ID and parent category ID to prevent stale state
+  // âš¡ RACE CONDITION FIX: Track request ID and parent category ID to prevent stale state
   String? _currentSubCategoryRequestId;
   int? _currentParentCategoryId;
 
@@ -233,14 +251,14 @@ class CategoryController extends GetxController implements GetxService {
   final Map<String, int> _lastCompletedCategoryStoreOffsets = {};
   CancelToken? _categoryItemsCancelToken;
 
-  // ⚡ GENERATION ID: Prevents stale pagination responses from being applied
+  // âš¡ GENERATION ID: Prevents stale pagination responses from being applied
   // When switching categories quickly, older requests may complete after newer ones
   // Generation ID ensures only the latest category's data is applied
   int _categoryItemGeneration = 0;
   int get categoryItemGeneration => _categoryItemGeneration;
   String? _currentCategoryItemId;
 
-  /// ⚡ FIX: Deduplicate by NAME (not just ID)
+  /// âš¡ FIX: Deduplicate by NAME (not just ID)
   /// Backend may have same product with different IDs
   /// Use name + storeId as the unique key to prevent visual duplicates
   String _itemDedupKey(Item item) {
@@ -265,12 +283,12 @@ class CategoryController extends GetxController implements GetxService {
     final withoutDiacritics =
         withoutTatweel.replaceAll(RegExp(r'[\u064B-\u0652\u0670]'), '');
     final normalizedArabic = withoutDiacritics
-        .replaceAll('أ', 'ا')
-        .replaceAll('إ', 'ا')
-        .replaceAll('آ', 'ا')
-        .replaceAll('ى', 'ي');
+        .replaceAll('Ø£', 'Ø§')
+        .replaceAll('Ø¥', 'Ø§')
+        .replaceAll('Ø¢', 'Ø§')
+        .replaceAll('Ù‰', 'ÙŠ');
     final normalizedDashes =
-        normalizedArabic.replaceAll('–', '-').replaceAll('—', '-');
+        normalizedArabic.replaceAll('â€“', '-').replaceAll('â€”', '-');
     return normalizedDashes.replaceAll(RegExp(r'\s+'), ' ').trim();
   }
 
@@ -332,7 +350,7 @@ class CategoryController extends GetxController implements GetxService {
   List<Store>? _searchStoreList = [];
   List<Store>? get searchStoreList => _searchStoreList;
 
-  // 🎯 PERFORMANCE: Pre-computed getters to avoid calculations in build()
+  // ðŸŽ¯ PERFORMANCE: Pre-computed getters to avoid calculations in build()
   /// Returns items list based on search state (pre-computed in controller)
   List<Item>? get displayItemList {
     if (_isSearching) {
@@ -385,7 +403,7 @@ class CategoryController extends GetxController implements GetxService {
   bool _isVertical = false;
   bool get isVertical => _isVertical;
 
-  bool _isPriceAscending = true; // ✅ Mutable
+  bool _isPriceAscending = true; // âœ… Mutable
   bool get isPriceAscending => _isPriceAscending;
 
   String _currentProductArrangement = 'popular';
@@ -398,6 +416,11 @@ class CategoryController extends GetxController implements GetxService {
   String get currentMaxPrice => _currentMaxPrice;
   bool get currentHasDiscount => _currentHasDiscount;
   String get currentSearchName => _currentSearchName;
+  static const int _searchPageSize = 10;
+  int _searchOffset = 1;
+  bool _hasMoreSearchResults = true;
+  Search_FilterModel? _activeSearchFilterModel;
+  bool get hasMoreSearchResults => _hasMoreSearchResults;
 
   // ==================================================================================
 
@@ -422,6 +445,9 @@ class CategoryController extends GetxController implements GetxService {
     _categoryStoreList = null;
     _searchItemList = [];
     _searchStoreList = [];
+    _searchOffset = 1;
+    _hasMoreSearchResults = true;
+    _activeSearchFilterModel = null;
     _categoryPageSignatureByKey.clear();
     _inFlightCategoryItemOffsets.clear();
     _inFlightCategoryStoreOffsets.clear();
@@ -438,7 +464,7 @@ class CategoryController extends GetxController implements GetxService {
       await categoryServiceInterface.clearCategoryItemCache(categoryId);
     } catch (e) {
       if (kDebugMode) {
-        print('⚠️ CategoryController.clearCacheForCategory failed: $e');
+        print('âš ï¸ CategoryController.clearCacheForCategory failed: $e');
       }
     }
   }
@@ -465,7 +491,7 @@ class CategoryController extends GetxController implements GetxService {
         },
         'A');
     // #endregion
-    // 🔧 TASK 1: Clear only the appropriate list based on context
+    // ðŸ”§ TASK 1: Clear only the appropriate list based on context
     if (isStoreDetail) {
       _storeCategoryList = null;
       _initialStoreCategoryBatch = null;
@@ -478,7 +504,7 @@ class CategoryController extends GetxController implements GetxService {
     _categoryList = null;
     _initialCategoryBatch = null;
     _interestSelectedList = null;
-    // ⚡ FIX: Defer update() if widget tree is locked (during dispose)
+    // âš¡ FIX: Defer update() if widget tree is locked (during dispose)
     if (!skipUpdate) {
       // Schedule update for next frame to avoid setState() during dispose
       Future.microtask(() {
@@ -489,12 +515,12 @@ class CategoryController extends GetxController implements GetxService {
     }
   }
 
-  /// ⚡ TITAN BOARD: Reset controller to default state without deleting instance
+  /// âš¡ TITAN BOARD: Reset controller to default state without deleting instance
   /// Used during module switching to preserve controller in memory
   Future<void> resetToDefault() async {
     try {
       if (kDebugMode) {
-        debugPrint('🔄 CategoryController: Resetting to default state');
+        debugPrint('ðŸ”„ CategoryController: Resetting to default state');
       }
 
       // Clear all lists
@@ -507,9 +533,9 @@ class CategoryController extends GetxController implements GetxService {
       _initialCategoryBatch = null; // Legacy
       _subCategoryList = null;
       _currentSubCategoryRequestId =
-          null; // ⚡ RACE CONDITION FIX: Clear request ID tracking
+          null; // âš¡ RACE CONDITION FIX: Clear request ID tracking
       _currentParentCategoryId =
-          null; // ⚡ RACE CONDITION FIX: Clear parent ID tracking
+          null; // âš¡ RACE CONDITION FIX: Clear parent ID tracking
       _subSubCategoryList = null;
       _categoryItemList = null;
       _categoryStoreList = null;
@@ -524,7 +550,7 @@ class CategoryController extends GetxController implements GetxService {
       _isSearching = false;
       _isLoadingMoreCategories = false;
 
-      // ✅ إعادة تعيين visibleCount
+      // âœ… Ø¥Ø¹Ø§Ø¯Ø© ØªØ¹ÙŠÙŠÙ† visibleCount
       visibleCount = 6;
 
       // Reset pagination
@@ -541,50 +567,53 @@ class CategoryController extends GetxController implements GetxService {
       _subSubCategoryIndex = 0;
 
       if (kDebugMode) {
-        debugPrint('✅ CategoryController: Reset to default state completed');
+        debugPrint('âœ… CategoryController: Reset to default state completed');
       }
     } catch (e, stackTrace) {
       if (kDebugMode) {
-        debugPrint('❌ CategoryController.resetToDefault: Error - $e');
+        debugPrint('âŒ CategoryController.resetToDefault: Error - $e');
         debugPrint('Stack trace: $stackTrace');
       }
     }
   }
 
   /// Set category data from bootstrap endpoint
-  /// ⚡ PERFORMANCE: Uses progressive loading - shows first 4 categories immediately
+  /// âš¡ PERFORMANCE: Uses progressive loading - shows first 4 categories immediately
   void setCategoryDataFromBootstrap(List<CategoryModel> categories) {
     // Use _prepareCategoryList to enable progressive loading and filtering
-    _prepareCategoryList(categories);
+    _prepareCategoryList(
+      categories,
+      expectedModuleId: _getCurrentModuleId(),
+    );
     if (kDebugMode) {
       print(
-          '✅ CategoryController: Category data set from bootstrap (${categories.length} categories)');
+          'âœ… CategoryController: Category data set from bootstrap (${categories.length} categories)');
       if (_initialCategoryBatch != null) {
         print(
-            '⚡ CategoryController: Initial batch ready (${_initialCategoryBatch!.length} categories)');
+            'âš¡ CategoryController: Initial batch ready (${_initialCategoryBatch!.length} categories)');
       }
     }
   }
 
-  /// 🎯 API OVERLAP FIX: Set category data from unified endpoint
+  /// ðŸŽ¯ API OVERLAP FIX: Set category data from unified endpoint
   ///
   /// This method is called by HomeController when data comes from unified endpoint.
   /// It's a safe setter that doesn't trigger API calls.
-  void setFromUnified(List<CategoryModel>? data) {
+  void setFromUnified(List<CategoryModel>? data, {int? expectedModuleId}) {
     if (data == null || data.isEmpty) {
       if (kDebugMode) {
         print(
-            '⚠️ CategoryController: setFromUnified called with null or empty data');
+            'âš ï¸ CategoryController: setFromUnified called with null or empty data');
       }
       return;
     }
 
     // Use _prepareCategoryList to enable progressive loading and filtering
-    _prepareCategoryList(data);
+    _prepareCategoryList(data, expectedModuleId: expectedModuleId);
 
     if (kDebugMode) {
       print(
-          '✅ CategoryController: Category data set from unified endpoint (${data.length} categories)');
+          'âœ… CategoryController: Category data set from unified endpoint (${data.length} categories)');
     }
   }
 
@@ -599,7 +628,8 @@ class CategoryController extends GetxController implements GetxService {
         _categoryList != null &&
         _categoryList!.isNotEmpty) {
       print(
-          '✅ CategoryController: Categories already loaded (${_categoryList!.length}), skipping redundant fetch');
+          'âœ… CategoryController: Categories already loaded (${_categoryList!.length}), skipping redundant fetch');
+      debugPrintCategoryIndex(source: 'memory');
       return _categoryList;
     }
 
@@ -613,29 +643,29 @@ class CategoryController extends GetxController implements GetxService {
 
       // Settings ===============
 
-      // ⚠️ CRITICAL: Handle case when HomeController is not registered
+      // âš ï¸ CRITICAL: Handle case when HomeController is not registered
       HomeController? homeController;
       try {
         if (Get.isRegistered<HomeController>()) {
           homeController = Get.find<HomeController>();
         }
       } catch (e) {
-        print('⚠️ CategoryController: HomeController not available: $e');
+        print('âš ï¸ CategoryController: HomeController not available: $e');
       }
       final businessSettings = homeController?.business_Settings;
 
       // Log business settings for debugging
       if (businessSettings?.categoriesSection?.toString() != '1') {
         print(
-            '⚠️ CategoryController: Categories section is disabled in business settings (categoriesSection: ${businessSettings?.categoriesSection})');
+            'âš ï¸ CategoryController: Categories section is disabled in business settings (categoriesSection: ${businessSettings?.categoriesSection})');
       } else {
         print(
-            '✅ CategoryController: Categories section is enabled (categoriesSection: 1)');
+            'âœ… CategoryController: Categories section is enabled (categoriesSection: 1)');
       }
 
       //
 
-      // ⚡ CACHE FIRST: Check comprehensive cache before making API calls
+      // âš¡ CACHE FIRST: Check comprehensive cache before making API calls
       if (!reload && dataSource != DataSourceEnum.client) {
         try {
           final cachedData =
@@ -650,15 +680,19 @@ class CategoryController extends GetxController implements GetxService {
                   .toList();
               if (cachedCategoryList.isNotEmpty) {
                 print(
-                    '✅ CategoryController: Loading ${cachedCategoryList.length} categories from comprehensive cache');
-                _prepareCategoryList(cachedCategoryList);
+                    'âœ… CategoryController: Loading ${cachedCategoryList.length} categories from comprehensive cache');
+                _prepareCategoryList(
+                  cachedCategoryList,
+                  expectedModuleId: _getCurrentModuleId(),
+                );
+                debugPrintCategoryIndex(source: 'comprehensive_cache');
                 return _categoryList;
               }
             }
           }
         } catch (e) {
           print(
-              '⚠️ CategoryController: Error loading from comprehensive cache: $e');
+              'âš ï¸ CategoryController: Error loading from comprehensive cache: $e');
         }
       }
 
@@ -667,17 +701,25 @@ class CategoryController extends GetxController implements GetxService {
           categoryList = await categoryServiceInterface
               .getCategoryList(allCategory, source: DataSourceEnum.local);
 
-          _prepareCategoryList(categoryList);
+          _prepareCategoryList(
+            categoryList,
+            expectedModuleId: _getCurrentModuleId(),
+          );
+          debugPrintCategoryIndex(source: 'local_cache');
           // Don't automatically call API when loading from cache
           // The background refresh will handle API updates
         } else {
           categoryList = await categoryServiceInterface
               .getCategoryList(allCategory, source: DataSourceEnum.client);
 
-          _prepareCategoryList(categoryList);
+          _prepareCategoryList(
+            categoryList,
+            expectedModuleId: _getCurrentModuleId(),
+          );
+          debugPrintCategoryIndex(source: 'api');
         }
       } catch (e) {
-        // 🎯 ERROR HANDLER PILOT: Use unified error handling (logging only, no UI changes)
+        // ðŸŽ¯ ERROR HANDLER PILOT: Use unified error handling (logging only, no UI changes)
         ErrorHandler().handleError(
           e,
           context: 'CategoryController.getCategoryList',
@@ -691,7 +733,8 @@ class CategoryController extends GetxController implements GetxService {
     return _categoryList;
   }
 
-  void _prepareCategoryList(List<CategoryModel>? categoryList) {
+  void _prepareCategoryList(List<CategoryModel>? categoryList,
+      {int? expectedModuleId}) {
     // #region agent log
     _writeDebugLog(
         'category_controller.dart:253',
@@ -708,9 +751,9 @@ class CategoryController extends GetxController implements GetxService {
     // Debug: Log input categories for troubleshooting
     if (categoryList != null && categoryList.isNotEmpty) {
       print(
-          '🔍 CategoryController: _prepareCategoryList called with ${categoryList.length} categories');
+          'ðŸ” CategoryController: _prepareCategoryList called with ${categoryList.length} categories');
       print(
-          '🔍 CategoryController: useBffV2Endpoint = ${AppConstants.useBffV2Endpoint}');
+          'ðŸ” CategoryController: useBffV2Endpoint = ${AppConstants.useBffV2Endpoint}');
       // Log first 3 categories for debugging
       final sampleCount = categoryList.length > 3 ? 3 : categoryList.length;
       for (int i = 0; i < sampleCount; i++) {
@@ -720,10 +763,25 @@ class CategoryController extends GetxController implements GetxService {
       }
     } else if (categoryList != null && categoryList.isEmpty) {
       print(
-          '⚠️ CategoryController: _prepareCategoryList called with EMPTY list (0 categories)');
+          'âš ï¸ CategoryController: _prepareCategoryList called with EMPTY list (0 categories)');
     } else {
       print(
-          '⚠️ CategoryController: _prepareCategoryList called with NULL categoryList');
+          'âš ï¸ CategoryController: _prepareCategoryList called with NULL categoryList');
+    }
+
+    final int? currentModuleId = _getCurrentModuleId();
+
+    // Reject stale payloads that arrive after module switch.
+    if (categoryList != null &&
+        categoryList.isNotEmpty &&
+        expectedModuleId != null &&
+        currentModuleId != null &&
+        expectedModuleId != currentModuleId) {
+      if (kDebugMode) {
+        print(
+            '🛡️ CategoryController: REJECTED stale categories (expectedModuleId=$expectedModuleId, currentModuleId=$currentModuleId, count=${categoryList.length})');
+      }
+      return;
     }
 
     // Preserve existing categories if a transient empty/null response arrives
@@ -733,9 +791,26 @@ class CategoryController extends GetxController implements GetxService {
             (_categoryList?.isNotEmpty ?? false);
     if ((categoryList == null || categoryList.isEmpty) &&
         hasExistingCategories) {
+      final bool moduleChanged = _homeCategoryModuleId != null &&
+          currentModuleId != null &&
+          _homeCategoryModuleId != currentModuleId;
+      if (moduleChanged) {
+        if (kDebugMode) {
+          print(
+              'CategoryController: Empty categories with module change ($_homeCategoryModuleId -> $currentModuleId) - clearing old home categories');
+        }
+        _homeCategoryList = null;
+        _initialHomeCategoryBatch = null;
+        _categoryList = null;
+        _initialCategoryBatch = null;
+        _interestSelectedList = null;
+        _homeCategoryModuleId = currentModuleId;
+        update();
+        return;
+      }
       if (kDebugMode) {
         print(
-            '✅ CategoryController: Empty categories received - preserving existing categories');
+            'âœ… CategoryController: Empty categories received - preserving existing categories');
       }
       return;
     }
@@ -746,7 +821,7 @@ class CategoryController extends GetxController implements GetxService {
     final List<Map<String, dynamic>>? oldStoreJson =
         _storeCategoryList?.map((category) => category.toJson()).toList();
 
-    // 🔧 TASK 1: ECOMMERCE CATEGORY BYPASS - If request is for a Store (Restaurant OR Ecommerce Shop), DISABLE ALL FILTERS
+    // ðŸ”§ TASK 1: ECOMMERCE CATEGORY BYPASS - If request is for a Store (Restaurant OR Ecommerce Shop), DISABLE ALL FILTERS
     // Check if we're on a store detail screen by checking if StoreController has a store
     bool isStore = false;
     try {
@@ -755,28 +830,28 @@ class CategoryController extends GetxController implements GetxService {
         isStore = storeController.store != null;
         if (isStore && kDebugMode) {
           print(
-              '✅ CategoryController: Store detail screen detected (Store ID: ${storeController.store?.id}) - DISABLING ALL FILTERS');
+              'âœ… CategoryController: Store detail screen detected (Store ID: ${storeController.store?.id}) - DISABLING ALL FILTERS');
           print(
-              '   📦 Returning all ${categoryList?.length ?? 0} categories without filtering');
+              '   ðŸ“¦ Returning all ${categoryList?.length ?? 0} categories without filtering');
         }
       }
     } catch (e) {
       // StoreController not available - not a store detail screen
       if (kDebugMode) {
         print(
-            '🔍 CategoryController: StoreController not available or error: $e');
+            'ðŸ” CategoryController: StoreController not available or error: $e');
       }
     }
 
     if (isStore && categoryList != null) {
-      // 🔧 TASK 1: CATEGORY DATA ISOLATION - Store categories NEVER overwrite Home categories
+      // ðŸ”§ TASK 1: CATEGORY DATA ISOLATION - Store categories NEVER overwrite Home categories
       // For Store Details, we TRUST the backend. Do not filter by count, do not filter by module.
       // Populate ONLY _storeCategoryList - _homeCategoryList remains untouched
       _storeCategoryList = List.from(categoryList);
       if (_storeCategoryList!.isNotEmpty) {
         _lastNonEmptyStoreCategoryList = List.from(_storeCategoryList!);
       }
-      // ✅ إعادة تعيين visibleCount عند تحميل بيانات جديدة
+      // âœ… Ø¥Ø¹Ø§Ø¯Ø© ØªØ¹ÙŠÙŠÙ† visibleCount Ø¹Ù†Ø¯ ØªØ­Ù…ÙŠÙ„ Ø¨ÙŠØ§Ù†Ø§Øª Ø¬Ø¯ÙŠØ¯Ø©
       visibleCount = 6;
       // Only update _interestSelectedList if it's null or needs to match store category count
       if (_interestSelectedList == null ||
@@ -794,7 +869,7 @@ class CategoryController extends GetxController implements GetxService {
 
       if (kDebugMode) {
         print(
-            '✅ CategoryController: Store categories set - ${_storeCategoryList!.length} categories (Home categories preserved: ${_homeCategoryList?.length ?? 0})');
+            'âœ… CategoryController: Store categories set - ${_storeCategoryList!.length} categories (Home categories preserved: ${_homeCategoryList?.length ?? 0})');
       }
 
       update();
@@ -802,21 +877,20 @@ class CategoryController extends GetxController implements GetxService {
     }
 
     if (categoryList != null) {
-      // 🔧 TASK 1: CATEGORY DATA ISOLATION - Always populate _homeCategoryList for Home Screen
+      // ðŸ”§ TASK 1: CATEGORY DATA ISOLATION - Always populate _homeCategoryList for Home Screen
       _homeCategoryList = [];
       _interestSelectedList = [];
       // Legacy support - will be updated later
       _categoryList = [];
 
-      // ✅ Lazy loading: استخدام visibleCount بدلاً من رقم ثابت
+      // âœ… Lazy loading: Ø§Ø³ØªØ®Ø¯Ø§Ù… visibleCount Ø¨Ø¯Ù„Ø§Ù‹ Ù…Ù† Ø±Ù‚Ù… Ø«Ø§Ø¨Øª
       // This allows the categories section (first section) to render quickly with only 6 categories
 
       // Get current module ID for filtering (matches backend documentation requirements)
       final splashController = Get.find<SplashController>();
-      final currentModuleId = splashController.module?.id;
       _homeCategoryModuleId = currentModuleId;
 
-      // ⚠️ CRITICAL: When using v2/home-unified endpoint, backend has ALREADY filtered categories by module
+      // âš ï¸ CRITICAL: When using v2/home-unified endpoint, backend has ALREADY filtered categories by module
       // We should NOT filter by module_id again, only filter by store_id to exclude restaurant menu categories
       const bool useV2Endpoint = AppConstants.useBffV2Endpoint;
 
@@ -826,15 +900,15 @@ class CategoryController extends GetxController implements GetxService {
       List<CategoryModel> moduleFilteredList;
 
       if (useV2Endpoint) {
-        // ⚡ V2 ENDPOINT: Backend has already filtered by module_id, TRUST the backend and DISABLE client-side module_id filtering
+        // âš¡ V2 ENDPOINT: Backend has already filtered by module_id, TRUST the backend and DISABLE client-side module_id filtering
         // Only filter by store_id (exclude restaurant menu categories)
         if (kDebugMode) {
           print(
-              '✅ CategoryController: [BFF v2] Using v2 endpoint - TRUSTING backend, DISABLING module_id filter');
+              'âœ… CategoryController: [BFF v2] Using v2 endpoint - TRUSTING backend, DISABLING module_id filter');
           print(
-              '🔍 CategoryController: [BFF v2] Input categories count: ${categoryList.length}');
+              'ðŸ” CategoryController: [BFF v2] Input categories count: ${categoryList.length}');
           print(
-              '🔍 CategoryController: [BFF v2] Current module ID from SplashController: $currentModuleId');
+              'ðŸ” CategoryController: [BFF v2] Current module ID from SplashController: $currentModuleId');
         }
 
         int filteredByStore = 0;
@@ -842,7 +916,7 @@ class CategoryController extends GetxController implements GetxService {
           if (category.storeId != null) filteredByStore++;
         }
 
-        // ⚡ FIX: Only filter by store_id (exclude restaurant menu categories)
+        // âš¡ FIX: Only filter by store_id (exclude restaurant menu categories)
         // DO NOT filter by module_id - backend has already done this
         moduleFilteredList =
             categoryList.where((category) => category.storeId == null).toList();
@@ -850,17 +924,17 @@ class CategoryController extends GetxController implements GetxService {
         if (kDebugMode) {
           if (filteredByStore > 0) {
             print(
-                '⚠️ CategoryController: [BFF v2] Filtered out $filteredByStore store-specific categories (store_id != null)');
+                'âš ï¸ CategoryController: [BFF v2] Filtered out $filteredByStore store-specific categories (store_id != null)');
           }
           print(
-              '✅ CategoryController: [BFF v2] After store_id filter: ${moduleFilteredList.length} categories (from ${categoryList.length} total)');
+              'âœ… CategoryController: [BFF v2] After store_id filter: ${moduleFilteredList.length} categories (from ${categoryList.length} total)');
           print(
-              '✅ CategoryController: [BFF v2] Module_id filtering DISABLED - trusting backend');
+              'âœ… CategoryController: [BFF v2] Module_id filtering DISABLED - trusting backend');
 
           // Debug: Log sample categories to verify they're not being filtered incorrectly
           if (moduleFilteredList.isEmpty && categoryList.isNotEmpty) {
             print(
-                '❌ CategoryController: [BFF v2] WARNING: All categories filtered out! Sample categories:');
+                'âŒ CategoryController: [BFF v2] WARNING: All categories filtered out! Sample categories:');
             for (int i = 0;
                 i < (categoryList.length > 3 ? 3 : categoryList.length);
                 i++) {
@@ -901,9 +975,9 @@ class CategoryController extends GetxController implements GetxService {
         // Log filtering results
         if (filteredByModule > 0 || filteredByStore > 0) {
           print(
-              '⚠️ CategoryController: Filtered out $filteredByModule categories by module_id (expected: $currentModuleId)');
+              'âš ï¸ CategoryController: Filtered out $filteredByModule categories by module_id (expected: $currentModuleId)');
           print(
-              '⚠️ CategoryController: Filtered out $filteredByStore store-specific categories (store_id != null)');
+              'âš ï¸ CategoryController: Filtered out $filteredByStore store-specific categories (store_id != null)');
         }
       } else {
         // No current module - only exclude store-specific categories for backward compatibility
@@ -920,7 +994,7 @@ class CategoryController extends GetxController implements GetxService {
 
         if (filteredByStore > 0) {
           print(
-              '⚠️ CategoryController: Filtered out $filteredByStore store-specific categories (store_id != null)');
+              'âš ï¸ CategoryController: Filtered out $filteredByStore store-specific categories (store_id != null)');
         }
       }
 
@@ -938,7 +1012,7 @@ class CategoryController extends GetxController implements GetxService {
 
         // Debug: Log category details before filtering
         print(
-            '🔍 CategoryController: Module 7 - Checking categories for filtering ($beforeCount total):');
+            'ðŸ” CategoryController: Module 7 - Checking categories for filtering ($beforeCount total):');
         for (int i = 0; i < (beforeCount > 10 ? 10 : beforeCount); i++) {
           final cat = moduleFilteredList[i];
           print(
@@ -955,10 +1029,10 @@ class CategoryController extends GetxController implements GetxService {
         final int afterCount = parentFilteredList.length;
         if (beforeCount != afterCount) {
           print(
-              '⚠️ CategoryController: Module 7 - Filtered out ${beforeCount - afterCount} categories (parent_id != 0), showing $afterCount top-level categories');
+              'âš ï¸ CategoryController: Module 7 - Filtered out ${beforeCount - afterCount} categories (parent_id != 0), showing $afterCount top-level categories');
         } else {
           print(
-              '✅ CategoryController: Module 7 - All $afterCount categories are top-level');
+              'âœ… CategoryController: Module 7 - All $afterCount categories are top-level');
         }
       }
 
@@ -986,7 +1060,7 @@ class CategoryController extends GetxController implements GetxService {
         categoryResults = parentFilteredList;
         if (kDebugMode) {
           print(
-              '✅ CategoryController: ${isFood ? 'Food' : 'Pharmacy'} module - skipping productsCount filtering until stores load');
+              'âœ… CategoryController: ${isFood ? 'Food' : 'Pharmacy'} module - skipping productsCount filtering until stores load');
         }
       } else if (isFood || isModule7) {
         // Food module: Show all cuisine categories (module_id matches, store_id == null)
@@ -996,10 +1070,10 @@ class CategoryController extends GetxController implements GetxService {
         categoryResults = parentFilteredList;
         if (isFood) {
           print(
-              '✅ CategoryController: Food module - showing all ${parentFilteredList.length} cuisine categories (no count filtering - used for restaurants)');
+              'âœ… CategoryController: Food module - showing all ${parentFilteredList.length} cuisine categories (no count filtering - used for restaurants)');
         } else if (isModule7) {
           print(
-              '✅ CategoryController: Module 7 - showing all ${parentFilteredList.length} top-level categories (no count filtering - used for store containers)');
+              'âœ… CategoryController: Module 7 - showing all ${parentFilteredList.length} top-level categories (no count filtering - used for store containers)');
         }
       } else {
         // Other modules (E-commerce, etc.): Filter by productsCount or childesCount
@@ -1010,14 +1084,14 @@ class CategoryController extends GetxController implements GetxService {
                 (test.childesCount != null && test.childesCount! > 0))
             .toList();
         print(
-            '✅ CategoryController: Filtered ${categoryList.length} categories to ${moduleFilteredList.length} (module/store filtering) to ${categoryResults.length} (with count filtering)');
+            'âœ… CategoryController: Filtered ${categoryList.length} categories to ${moduleFilteredList.length} (module/store filtering) to ${categoryResults.length} (with count filtering)');
       }
 
       // Debug: Log sample of filtered categories for verification (first 3 categories)
       if (categoryResults.isNotEmpty) {
         print(
-            '✅ CategoryController: Final filtered categories count: ${categoryResults.length}');
-        print('🔍 CategoryController: Sample filtered categories (first 3):');
+            'âœ… CategoryController: Final filtered categories count: ${categoryResults.length}');
+        print('ðŸ” CategoryController: Sample filtered categories (first 3):');
         final sampleCount =
             categoryResults.length > 3 ? 3 : categoryResults.length;
         for (int i = 0; i < sampleCount; i++) {
@@ -1027,21 +1101,21 @@ class CategoryController extends GetxController implements GetxService {
         }
       } else {
         print(
-            '❌ CategoryController: categoryResults is EMPTY after all filtering!');
+            'âŒ CategoryController: categoryResults is EMPTY after all filtering!');
         print('   Input count: ${categoryList.length}');
         print('   After module/store filter: ${moduleFilteredList.length}');
         print('   After parent filter: ${parentFilteredList.length}');
         print('   Final count: ${categoryResults.length}');
       }
 
-      // 🔧 TASK 1: CATEGORY DATA ISOLATION - Populate ONLY _homeCategoryList (NEVER _storeCategoryList)
+      // ðŸ”§ TASK 1: CATEGORY DATA ISOLATION - Populate ONLY _homeCategoryList (NEVER _storeCategoryList)
       // This ensures Home Screen data is NEVER overwritten by Store categories
       _homeCategoryList = [];
 
-      // ✅ إعادة تعيين visibleCount عند تحميل بيانات جديدة
+      // âœ… Ø¥Ø¹Ø§Ø¯Ø© ØªØ¹ÙŠÙŠÙ† visibleCount Ø¹Ù†Ø¯ ØªØ­Ù…ÙŠÙ„ Ø¨ÙŠØ§Ù†Ø§Øª Ø¬Ø¯ÙŠØ¯Ø©
       visibleCount = 6;
 
-      // ✅ Lazy loading: عرض visibleCount أقسام فقط في البداية
+      // âœ… Lazy loading: Ø¹Ø±Ø¶ visibleCount Ø£Ù‚Ø³Ø§Ù… ÙÙ‚Ø· ÙÙŠ Ø§Ù„Ø¨Ø¯Ø§ÙŠØ©
       // Categories section is the FIRST section, so we need it to load fast
       if (categoryResults.length > visibleCount) {
         // Extract initial batch for immediate display (using visibleCount instead of fixed 15)
@@ -1080,10 +1154,10 @@ class CategoryController extends GetxController implements GetxService {
 
         if (kDebugMode) {
           print(
-              '⚡ CategoryController: Showing initial batch of ${_initialHomeCategoryBatch!.length} HOME categories immediately (visibleCount: $visibleCount)');
+              'âš¡ CategoryController: Showing initial batch of ${_initialHomeCategoryBatch!.length} HOME categories immediately (visibleCount: $visibleCount)');
         }
 
-        // ✅ Load ALL remaining categories in background (non-blocking)
+        // âœ… Load ALL remaining categories in background (non-blocking)
         // But UI will only show visibleCount initially, then loadMoreCategories() will add more
         _homeCategoryLoadToken += 1;
         final int loadToken = _homeCategoryLoadToken;
@@ -1134,7 +1208,7 @@ class CategoryController extends GetxController implements GetxService {
 
           if (kDebugMode) {
             print(
-                '✅ CategoryController: Loaded remaining ${remainingCategories.length} HOME categories in background');
+                'âœ… CategoryController: Loaded remaining ${remainingCategories.length} HOME categories in background');
           }
         });
       } else {
@@ -1166,9 +1240,9 @@ class CategoryController extends GetxController implements GetxService {
       }
     }
 
-    // ⚡ ZERO-FLICKER: Deep equality check - only update if data actually changed
+    // âš¡ ZERO-FLICKER: Deep equality check - only update if data actually changed
     // Compare the final filtered result with existing data AFTER it's been set
-    // 🔧 TASK 1: Use correct list for comparison based on context
+    // ðŸ”§ TASK 1: Use correct list for comparison based on context
     final bool isStoreContext = isStore;
     final newCategoryList =
         isStoreContext ? _storeCategoryList : _homeCategoryList;
@@ -1183,7 +1257,7 @@ class CategoryController extends GetxController implements GetxService {
         _isLoading = false;
         if (kDebugMode) {
           print(
-              '✅ CategoryController: Data unchanged (deep equality check), skipping UI update to prevent flicker');
+              'âœ… CategoryController: Data unchanged (deep equality check), skipping UI update to prevent flicker');
         }
         return;
       }
@@ -1203,7 +1277,7 @@ class CategoryController extends GetxController implements GetxService {
   }
 
   /// Set category list directly from cache (handles both List<CategoryModel> and raw JSON)
-  void setCategoryListFromCache(dynamic data) {
+  void setCategoryListFromCache(dynamic data, {int? expectedModuleId}) {
     if (data == null) return;
 
     try {
@@ -1219,11 +1293,11 @@ class CategoryController extends GetxController implements GetxService {
             .toList();
       } else {
         print(
-            '⚠️ CategoryController: Unexpected data type: ${data.runtimeType}');
+            'âš ï¸ CategoryController: Unexpected data type: ${data.runtimeType}');
         return;
       }
 
-      // ⚡ ZERO-FLICKER: Deep equality check - only update if data actually changed
+      // âš¡ ZERO-FLICKER: Deep equality check - only update if data actually changed
       if (_categoryList != null) {
         final oldJson = _categoryList!.map((c) => c.toJson()).toList();
         final newJson = categoryList.map((c) => c.toJson()).toList();
@@ -1231,32 +1305,32 @@ class CategoryController extends GetxController implements GetxService {
           _isLoading = false;
           if (kDebugMode) {
             print(
-                '✅ CategoryController: Data unchanged (deep equality check), skipping UI update to prevent flicker');
+                'âœ… CategoryController: Data unchanged (deep equality check), skipping UI update to prevent flicker');
           }
           return;
         }
       }
 
-      // ✅ إعادة تعيين visibleCount عند تحميل بيانات جديدة
+      // âœ… Ø¥Ø¹Ø§Ø¯Ø© ØªØ¹ÙŠÙŠÙ† visibleCount Ø¹Ù†Ø¯ ØªØ­Ù…ÙŠÙ„ Ø¨ÙŠØ§Ù†Ø§Øª Ø¬Ø¯ÙŠØ¯Ø©
       visibleCount = 6;
 
-      _prepareCategoryList(categoryList);
+      _prepareCategoryList(categoryList, expectedModuleId: expectedModuleId);
       print(
-          '✅ CategoryController: Loaded ${_categoryList?.length ?? 0} categories from cache');
+          'âœ… CategoryController: Loaded ${_categoryList?.length ?? 0} categories from cache');
     } catch (e) {
-      print('❌ CategoryController: Error setting categories from cache: $e');
+      print('âŒ CategoryController: Error setting categories from cache: $e');
     }
   }
 
   void getSubCategoryList(String? categoryID,
-      {bool forceRefreshItems = false}) async {
-    // ⚡ MANDATORY API CALL: Log entry to verify function is always called
+      {bool forceRefreshItems = false, bool fetchItems = true}) async {
+    // âš¡ MANDATORY API CALL: Log entry to verify function is always called
     if (kDebugMode) {
       debugPrint(
-          '📞 CategoryController.getSubCategoryList ENTRY: categoryID=$categoryID');
+          'ðŸ“ž CategoryController.getSubCategoryList ENTRY: categoryID=$categoryID');
     }
 
-    // ⚡ RACE CONDITION FIX: Generate unique request ID for this call
+    // âš¡ RACE CONDITION FIX: Generate unique request ID for this call
     final requestId = DateTime.now().microsecondsSinceEpoch.toString();
     _currentSubCategoryRequestId = requestId;
 
@@ -1264,7 +1338,7 @@ class CategoryController extends GetxController implements GetxService {
     final int? parsedCategoryId =
         categoryID != null ? int.tryParse(categoryID) : null;
 
-    // 🔹 إذا تغيّر القسم فعلاً → نظّف الحالة
+    // ðŸ”¹ Ø¥Ø°Ø§ ØªØºÙŠÙ‘Ø± Ø§Ù„Ù‚Ø³Ù… ÙØ¹Ù„Ø§Ù‹ â†’ Ù†Ø¸Ù‘Ù Ø§Ù„Ø­Ø§Ù„Ø©
     if (_currentParentCategoryId != parsedCategoryId) {
       _currentParentCategoryId = parsedCategoryId;
       _resetStateForSectionSwitch();
@@ -1278,14 +1352,20 @@ class CategoryController extends GetxController implements GetxService {
     final bool hasChildesCount = (category?.childesCount ?? 0) > 0;
     final bool hasCatSiteId =
         category?.catSiteId != null && category!.catSiteId!.isNotEmpty;
+    final bool shouldFetchItems = fetchItems && !_isStore;
+    if (kDebugMode && !shouldFetchItems) {
+      debugPrint(
+          'âœ… CategoryController.getSubCategoryList: Item fetch skipped (store mode / cuisine category)');
+    }
+
     if (category != null && !hasChildesCount && !hasCatSiteId) {
-      // 🛑 تجاهل أي رد قديم
+      // ðŸ›‘ ØªØ¬Ø§Ù‡Ù„ Ø£ÙŠ Ø±Ø¯ Ù‚Ø¯ÙŠÙ…
       if (_currentSubCategoryRequestId != requestId) return;
 
       _subCategoryList = [];
       _subCategoryList!
           .add(CategoryModel(id: int.parse(categoryID!), name: 'all'.tr));
-      if (!_isStore) {
+      if (shouldFetchItems) {
         getCategoryItemList(
           categoryID,
           1,
@@ -1295,23 +1375,23 @@ class CategoryController extends GetxController implements GetxService {
           forceRefresh: forceRefreshItems,
         );
       }
-      // ⚡ PERFORMANCE: Update only subcategories section, not entire page
+      // âš¡ PERFORMANCE: Update only subcategories section, not entire page
       update(['sub_categories']);
       return;
     }
-    // ⚡ MANDATORY API CALL: Always make API request, regardless of cache or previous state
+    // âš¡ MANDATORY API CALL: Always make API request, regardless of cache or previous state
     if (kDebugMode) {
       debugPrint(
-          '📡 CategoryController.getSubCategoryList: Making API call for categoryID=$categoryID');
+          'ðŸ“¡ CategoryController.getSubCategoryList: Making API call for categoryID=$categoryID');
     }
     final List<CategoryModel>? subCategoryList =
         await categoryServiceInterface.getSubCategoryList(categoryID);
 
-    // 🛑 تجاهل أي رد قديم
+    // ðŸ›‘ ØªØ¬Ø§Ù‡Ù„ Ø£ÙŠ Ø±Ø¯ Ù‚Ø¯ÙŠÙ…
     if (_currentSubCategoryRequestId != requestId) {
       if (kDebugMode) {
         debugPrint(
-            '⚠️ CategoryController.getSubCategoryList: Ignoring stale response (requestId mismatch)');
+            'âš ï¸ CategoryController.getSubCategoryList: Ignoring stale response (requestId mismatch)');
       }
       return;
     }
@@ -1327,10 +1407,10 @@ class CategoryController extends GetxController implements GetxService {
       }).toList();
       _subCategoryList!.addAll(subSubCategory);
     }
-    // ✅ CUISINE CATEGORY FIX: Only fetch items if NOT showing stores
+    // âœ… CUISINE CATEGORY FIX: Only fetch items if NOT showing stores
     // For cuisine categories (position=0, cat_site_id <= 3 digits), we show stores, not items
     // Items will be loaded when user switches to items tab manually
-    if (!_isStore) {
+    if (shouldFetchItems) {
       getCategoryItemList(
         categoryID,
         1,
@@ -1340,7 +1420,7 @@ class CategoryController extends GetxController implements GetxService {
         forceRefresh: forceRefreshItems,
       );
     }
-    // ⚡ PERFORMANCE: Update only subcategories section, not entire page
+    // âš¡ PERFORMANCE: Update only subcategories section, not entire page
     update(['sub_categories']);
   }
 
@@ -1432,19 +1512,19 @@ class CategoryController extends GetxController implements GetxService {
 
   void getCategoryItemList(
       String? categoryID, int offset, String type, bool notify,
-      {bool? includeChildren, bool forceRefresh = false}) async {
-    // ✅ CUISINE CATEGORY FIX: Early return if showing stores
-    // For cuisine categories (position=0, cat_site_id <= 3 digits), we show stores, not items
-    // This prevents cache hits and API calls for items when we should be showing stores
-    if (_isStore) {
+      {bool? includeChildren,
+      bool forceRefresh = false,
+      bool allowWhenStore = false}) async {
+    // âœ… Only block items while the stores tab is active.
+    if (_isStore && !allowWhenStore) {
       if (kDebugMode) {
         print(
-            '🚫 CategoryController: Skipping getCategoryItemList - showing stores (categoryId: $categoryID)');
+            'ðŸš« CategoryController: Skipping getCategoryItemList - store tab active (categoryId: $categoryID)');
       }
       return;
     }
 
-    // ✅ Enforce fresh pagination when switching categories
+    // âœ… Enforce fresh pagination when switching categories
     final bool categoryChanged = _currentCategoryItemId != categoryID;
     final int effectiveOffset = (categoryChanged && offset != 1) ? 1 : offset;
 
@@ -1472,7 +1552,7 @@ class CategoryController extends GetxController implements GetxService {
       if (_inFlightCategoryItemOffsets[requestKey] == effectiveOffset) {
         if (kDebugMode) {
           print(
-              '⚠️ CategoryController: Skipping duplicate in-flight item request (key=$requestKey, offset=$effectiveOffset)');
+              'âš ï¸ CategoryController: Skipping duplicate in-flight item request (key=$requestKey, offset=$effectiveOffset)');
         }
         return;
       }
@@ -1482,29 +1562,29 @@ class CategoryController extends GetxController implements GetxService {
               effectiveOffset) {
         if (kDebugMode) {
           print(
-              '⚠️ CategoryController: Skipping already completed item request (key=$requestKey, offset=$effectiveOffset)');
+              'âš ï¸ CategoryController: Skipping already completed item request (key=$requestKey, offset=$effectiveOffset)');
         }
         return;
       }
 
       _inFlightCategoryItemOffsets[requestKey] = effectiveOffset;
 
-      // ⚡ FIX: Set isLoading for ALL requests (not just first page)
+      // âš¡ FIX: Set isLoading for ALL requests (not just first page)
       // This prevents duplicate pagination requests when scrolling fast
       _isLoading = true;
 
-      // ⚡ GENERATION ID: Track category changes to discard stale responses
+      // âš¡ GENERATION ID: Track category changes to discard stale responses
       if (categoryChanged || effectiveOffset == 1) {
         _categoryItemGeneration++;
         _currentCategoryItemId = categoryID;
         if (kDebugMode) {
           print(
-              '🔄 CategoryController: New generation $_categoryItemGeneration for category $categoryID');
+              'ðŸ”„ CategoryController: New generation $_categoryItemGeneration for category $categoryID');
         }
       }
       final int currentGeneration = _categoryItemGeneration;
 
-      // 🛑 Cancel previous in-flight request when switching filters
+      // ðŸ›‘ Cancel previous in-flight request when switching filters
       if (categoryChanged || _categoryItemsCancelToken == null) {
         _cancelCategoryItemsRequest();
         _categoryItemsCancelToken = CancelToken();
@@ -1520,7 +1600,7 @@ class CategoryController extends GetxController implements GetxService {
         if (notify) {
           update();
         }
-        // ✅ Mandatory reset before any async call
+        // âœ… Mandatory reset before any async call
         if (_categoryItemList != null) {
           _categoryItemList!.clear();
         }
@@ -1535,7 +1615,7 @@ class CategoryController extends GetxController implements GetxService {
             includeChildren: resolvedIncludeChildren,
             cancelToken: requestCancelToken);
       } catch (e) {
-        // 🎯 ERROR HANDLER PILOT: Use unified error handling (logging only, no UI changes)
+        // ðŸŽ¯ ERROR HANDLER PILOT: Use unified error handling (logging only, no UI changes)
         ErrorHandler().handleError(
           e,
           context: 'CategoryController.getCategoryItemList',
@@ -1548,11 +1628,11 @@ class CategoryController extends GetxController implements GetxService {
         return;
       }
 
-      // ⚡ GENERATION CHECK: Discard stale response if category changed during API call
+      // âš¡ GENERATION CHECK: Discard stale response if category changed during API call
       if (currentGeneration != _categoryItemGeneration) {
         if (kDebugMode) {
           print(
-              '🚫 CategoryController: Discarding stale response (gen $currentGeneration != $_categoryItemGeneration)');
+              'ðŸš« CategoryController: Discarding stale response (gen $currentGeneration != $_categoryItemGeneration)');
         }
         _isLoading = false;
         return; // Category changed, ignore this response
@@ -1589,10 +1669,10 @@ class CategoryController extends GetxController implements GetxService {
           final existingKeys = _categoryItemList!.map(_itemDedupKey).toSet();
           final pageKeysSet = <String>{};
 
-          // 🔍 DEBUG: Log incoming items from API
+          // ðŸ” DEBUG: Log incoming items from API
           if (kDebugMode) {
             print(
-                '📦 [Page $effectiveOffset] API returned ${filteredItems.length} items:');
+                'ðŸ“¦ [Page $effectiveOffset] API returned ${filteredItems.length} items:');
             for (int i = 0; i < filteredItems.length; i++) {
               final item = filteredItems[i];
               print('   ${i + 1}. [ID: ${item.id}] ${item.name}');
@@ -1610,28 +1690,28 @@ class CategoryController extends GetxController implements GetxService {
             return true;
           }).toList();
 
-          // 🔍 DEBUG: Log duplicates and new items
+          // ðŸ” DEBUG: Log duplicates and new items
           if (kDebugMode) {
             if (skippedItems.isNotEmpty) {
               print(
-                  '⚠️ [Page $effectiveOffset] DUPLICATES SKIPPED (${skippedItems.length}):');
+                  'âš ï¸ [Page $effectiveOffset] DUPLICATES SKIPPED (${skippedItems.length}):');
               for (final item in skippedItems) {
-                print('   ❌ [ID: ${item.id}] ${item.name}');
+                print('   âŒ [ID: ${item.id}] ${item.name}');
               }
             }
             print(
-                '✅ [Page $effectiveOffset] NEW items added (${newItems.length}):');
+                'âœ… [Page $effectiveOffset] NEW items added (${newItems.length}):');
             for (final item in newItems) {
-              print('   ✓ [ID: ${item.id}] ${item.name}');
+              print('   âœ“ [ID: ${item.id}] ${item.name}');
             }
           }
 
           _categoryItemList!.addAll(newItems);
 
-          // 🔍 DEBUG: Log total items in list
+          // ðŸ” DEBUG: Log total items in list
           if (kDebugMode) {
             print(
-                '📊 [Page $effectiveOffset] Total items in list: ${_categoryItemList!.length}');
+                'ðŸ“Š [Page $effectiveOffset] Total items in list: ${_categoryItemList!.length}');
           }
 
           if (effectiveOffset > 1 && newItems.isEmpty) {
@@ -1639,7 +1719,7 @@ class CategoryController extends GetxController implements GetxService {
             _pageSize = _categoryItemList!.length;
             if (kDebugMode) {
               print(
-                  '🛑 [Page $effectiveOffset] Pagination stopped - all items were duplicates');
+                  'ðŸ›‘ [Page $effectiveOffset] Pagination stopped - all items were duplicates');
             }
           }
         }
@@ -1654,7 +1734,7 @@ class CategoryController extends GetxController implements GetxService {
       _lastCompletedCategoryItemOffsets[requestKey] = effectiveOffset;
       update();
     } catch (e) {
-      // 🎯 ERROR HANDLER PILOT: Use unified error handling (logging only, no UI changes)
+      // ðŸŽ¯ ERROR HANDLER PILOT: Use unified error handling (logging only, no UI changes)
       ErrorHandler().handleError(
         e,
         context: 'CategoryController.getCategoryItemList',
@@ -1683,6 +1763,16 @@ class CategoryController extends GetxController implements GetxService {
 
   void getCategoryStoreList(
       String? categoryID, int offset, String type, bool notify) async {
+    if (kDebugMode) {
+      final module = Get.isRegistered<SplashController>()
+          ? Get.find<SplashController>().module
+          : null;
+      debugPrint('[Diag] CategoryController.getCategoryStoreList ENTRY');
+      debugPrint(
+          '   categoryId=$categoryID, offset=$offset, type=$type, isStore=$_isStore, notify=$notify');
+      debugPrint(
+          '   moduleId=${module?.id}, moduleType=${module?.moduleType}, currentStoreCount=${_categoryStoreList?.length ?? 0}, currentTotal=$_restPageSize');
+    }
     _offset = offset;
 
     final String requestKey = '${categoryID ?? 'null'}|$type';
@@ -1692,7 +1782,7 @@ class CategoryController extends GetxController implements GetxService {
     if (_inFlightCategoryStoreOffsets[requestKey] == offset) {
       if (kDebugMode) {
         print(
-            '⚠️ CategoryController: Skipping duplicate in-flight store request (key=$requestKey, offset=$offset)');
+            'âš ï¸ CategoryController: Skipping duplicate in-flight store request (key=$requestKey, offset=$offset)');
       }
       return;
     }
@@ -1700,13 +1790,13 @@ class CategoryController extends GetxController implements GetxService {
         (_lastCompletedCategoryStoreOffsets[requestKey] ?? 0) >= offset) {
       if (kDebugMode) {
         print(
-            '⚠️ CategoryController: Skipping already completed store request (key=$requestKey, offset=$offset)');
+            'âš ï¸ CategoryController: Skipping already completed store request (key=$requestKey, offset=$offset)');
       }
       return;
     }
     _inFlightCategoryStoreOffsets[requestKey] = offset;
 
-    // ⚡ FIX: Set isLoading for ALL requests (not just first page)
+    // âš¡ FIX: Set isLoading for ALL requests (not just first page)
     // This prevents duplicate pagination requests when scrolling fast
     _isLoading = true;
 
@@ -1725,6 +1815,11 @@ class CategoryController extends GetxController implements GetxService {
     try {
       final StoreModel? categoryStore = await categoryServiceInterface
           .getCategoryStoreList(categoryID, offset, type);
+      if (kDebugMode) {
+        debugPrint('[Diag] CategoryController.getCategoryStoreList RESPONSE');
+        debugPrint(
+            '   parsedTotal=${categoryStore?.totalSize ?? 0}, parsedStores=${categoryStore?.stores?.length ?? 0}');
+      }
       if (categoryStore != null) {
         if (offset == 1) {
           _categoryStoreList = [];
@@ -1732,7 +1827,7 @@ class CategoryController extends GetxController implements GetxService {
 
         _categoryStoreList ??= [];
         if (categoryStore.stores != null && categoryStore.stores!.isNotEmpty) {
-          // ⚡ FIX: Deduplicate stores to prevent duplicates on pagination
+          // âš¡ FIX: Deduplicate stores to prevent duplicates on pagination
           final existingStoreIds = _categoryStoreList!.map((s) => s.id).toSet();
           final newStores = categoryStore.stores!
               .where((store) => !existingStoreIds.contains(store.id))
@@ -1741,12 +1836,20 @@ class CategoryController extends GetxController implements GetxService {
         }
         _restPageSize = categoryStore.totalSize ?? 0;
         _isLoading = false;
+        if (kDebugMode) {
+          debugPrint(
+              '[Diag] CategoryController.getCategoryStoreList APPLIED: listCount=${_categoryStoreList?.length ?? 0}, totalSize=$_restPageSize');
+        }
       } else {
         if (offset == 1) {
           _categoryStoreList = [];
         }
         _restPageSize = 0;
         _isLoading = false;
+        if (kDebugMode) {
+          debugPrint(
+              '[Diag] CategoryController.getCategoryStoreList EMPTY: categoryStore is null, listCount=${_categoryStoreList?.length ?? 0}');
+        }
       }
       _lastCompletedCategoryStoreOffsets[requestKey] = offset;
       update();
@@ -1788,8 +1891,26 @@ class CategoryController extends GetxController implements GetxService {
     update();
 
     if (!fromHome) {
-      // تمرير البيانات الصحيحة
+      // ØªÙ…Ø±ÙŠØ± Ø§Ù„Ø¨ÙŠØ§Ù†Ø§Øª Ø§Ù„ØµØ­ÙŠØ­Ø©
       searchData(search_filterModel: searchFiltermodel);
+    }
+  }
+
+  void resetFilterState({bool notify = true}) {
+    _currentProductArrangement = 'popular';
+    _currentMinPrice = '';
+    _currentMaxPrice = '';
+    _currentHasDiscount = false;
+    _currentSearchName = '';
+    _isSearching = false;
+    _searchItemList = [];
+    _searchStoreList = [];
+    _searchOffset = 1;
+    _hasMoreSearchResults = true;
+    _activeSearchFilterModel = null;
+
+    if (notify) {
+      update();
     }
   }
 
@@ -1799,43 +1920,134 @@ class CategoryController extends GetxController implements GetxService {
       return;
     }
 
+    _activeSearchFilterModel = search_filterModel;
+    _searchOffset = 1;
+    _hasMoreSearchResults = true;
     _isStore ? _searchStoreList = null : _searchItemList = null;
     _isSearching = true;
+    _isLoading = true;
     update();
 
-    try {
-      final Response response = await searchServiceInterface.getNewSearchFilter(
-          search_filterModel, false);
+    await _fetchSearchPage(append: false);
+    _isLoading = false;
+    update();
+  }
 
-      if (response.statusCode == 200) {
-        if (_isStore) {
-          _searchStoreList = [];
-          final stores =
-              StoreModel.fromJson(response.body as Map<String, dynamic>).stores;
-          if (stores != null) {
-            _searchStoreList!.addAll(stores);
-          }
-        } else {
-          _searchItemList = [];
-          final items =
-              ItemModel.fromJson(response.body as Map<String, dynamic>).items;
-          if (items != null) {
-            _searchItemList!.addAll(items);
-          }
-        }
-      }
-    } catch (e) {
-      // 🎯 ERROR HANDLER PILOT: Use unified error handling (logging only, no UI changes)
-      ErrorHandler().handleError(
-        e,
-        context: 'CategoryController.searchData',
-        showSnackbar: false, // No UI changes in pilot phase
-        logError: true,
-      );
-      // Preserve existing behavior - just log and continue
+  Future<void> loadMoreSearchResults() async {
+    if (!_isSearching || _isStore || _isLoading || !_hasMoreSearchResults) {
+      return;
+    }
+    if (_activeSearchFilterModel == null) {
+      return;
+    }
+    _isLoading = true;
+    update();
+    _searchOffset += 1;
+    await _fetchSearchPage(append: true);
+    _isLoading = false;
+    update();
+  }
+
+  Future<void> _fetchSearchPage({required bool append}) async {
+    final Search_FilterModel? baseFilter = _activeSearchFilterModel;
+    if (baseFilter == null) {
+      return;
     }
 
-    update();
+    final Search_FilterModel pagedFilter = Search_FilterModel(
+      research_Name: baseFilter.research_Name,
+      product_arrangement: baseFilter.product_arrangement,
+      id_category: baseFilter.id_category,
+      id_stores: baseFilter.id_stores,
+      discount: baseFilter.discount,
+      min: baseFilter.min,
+      max: baseFilter.max,
+      offset: _searchOffset.toString(),
+      limit: _searchPageSize.toString(),
+    );
+
+    try {
+      final Response response =
+          await searchServiceInterface.getNewSearchFilter(pagedFilter, false);
+      if (response.statusCode == 200) {
+        if (_isStore) {
+          final stores =
+              StoreModel.fromJson(response.body as Map<String, dynamic>).stores ??
+                  <Store>[];
+          _searchStoreList ??= <Store>[];
+          if (!append) {
+            _searchStoreList!.clear();
+          }
+          _searchStoreList!.addAll(stores);
+          _hasMoreSearchResults = stores.length >= _searchPageSize;
+        } else {
+          final items =
+              ItemModel.fromJson(response.body as Map<String, dynamic>).items ??
+                  <Item>[];
+          _searchItemList ??= <Item>[];
+          if (!append) {
+            _searchItemList!.clear();
+          }
+          final existingIds = _searchItemList!.map((e) => e.id).toSet();
+          for (final item in items) {
+            if (!existingIds.contains(item.id)) {
+              _searchItemList!.add(item);
+            }
+          }
+          _hasMoreSearchResults = items.length >= _searchPageSize;
+        }
+      } else {
+        if (!append) {
+          await _fallbackToGeneralSearch(pagedFilter);
+        }
+        _hasMoreSearchResults = false;
+      }
+    } catch (e) {
+      ErrorHandler().handleError(
+        e,
+        context: 'CategoryController._fetchSearchPage',
+        showSnackbar: false,
+        logError: true,
+      );
+      if (!append) {
+        await _fallbackToGeneralSearch(pagedFilter);
+      }
+      _hasMoreSearchResults = false;
+    }
+  }
+
+  Future<void> _fallbackToGeneralSearch(
+      Search_FilterModel searchFilterModel) async {
+    if (_isStore) {
+      _searchStoreList = [];
+      return;
+    }
+
+    final String query = (searchFilterModel.research_Name ?? '').trim();
+    if (query.isEmpty) {
+      _searchItemList = [];
+      return;
+    }
+
+    try {
+      final Response response =
+          await searchServiceInterface.getSearchData(query, false);
+      if (response.statusCode == 200) {
+        _searchItemList = [];
+        final items =
+            ItemModel.fromJson(response.body as Map<String, dynamic>).items;
+        if (items != null) {
+          _searchItemList!.addAll(items);
+        }
+        _hasMoreSearchResults = false;
+      } else {
+        _searchItemList = [];
+        _hasMoreSearchResults = false;
+      }
+    } catch (_) {
+      _searchItemList = [];
+      _hasMoreSearchResults = false;
+    }
   }
 
   // ==========================================================
@@ -1843,6 +2055,9 @@ class CategoryController extends GetxController implements GetxService {
   void toggleSearch(context) {
     _isSearching = !_isSearching;
     _searchItemList = [];
+    _searchOffset = 1;
+    _hasMoreSearchResults = true;
+    _activeSearchFilterModel = null;
     if (_categoryItemList != null) {
       _searchItemList!.addAll(_categoryItemList!);
     }
@@ -1880,9 +2095,21 @@ class CategoryController extends GetxController implements GetxService {
 
   /// Set category data directly from cache (for instant loading)
   /// Uses _prepareCategoryList() to ensure consistent filtering (module_id, store_id, counts)
-  void setCategoryDataFromCache(List<CategoryModel>? categoryList) {
+  void setCategoryDataFromCache(List<CategoryModel>? categoryList,
+      {int? expectedModuleId}) {
     // Use _prepareCategoryList() instead of directly setting to ensure consistent filtering
     // This ensures cached categories are also filtered by module_id, store_id, and counts
-    _prepareCategoryList(categoryList);
+    _prepareCategoryList(
+      categoryList,
+      expectedModuleId: expectedModuleId ?? _getCurrentModuleId(),
+    );
+  }
+
+  int? _getCurrentModuleId() {
+    if (!Get.isRegistered<SplashController>()) {
+      return null;
+    }
+    return Get.find<SplashController>().module?.id;
   }
 }
+

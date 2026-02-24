@@ -22,7 +22,6 @@ class StoreItemSearchScreen extends StatefulWidget {
 
 class _StoreItemSearchScreenState extends State<StoreItemSearchScreen> {
   final ScrollController _scrollController = ScrollController();
-  final TextEditingController _searchController = TextEditingController();
 
   String type = '';
 

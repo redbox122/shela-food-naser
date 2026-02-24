@@ -77,9 +77,17 @@ class DateConverter {
   static String dateTimeStringToDateTime(String dateTime) {
     DateTime d;
     try {
-      d = DateFormat('yyyy-MM-dd HH:mm:ss').parse(dateTime);
+      d = DateTime.parse(dateTime).toLocal();
     } catch (_) {
-      d = isoStringToLocalDate(dateTime);
+      try {
+        d = DateFormat('yyyy-MM-dd HH:mm:ss').parseUtc(dateTime).toLocal();
+      } catch (_) {
+        try {
+          d = DateFormat('yyyy-MM-dd HH:mm:ss').parse(dateTime).toLocal();
+        } catch (_) {
+          d = DateTime.now();
+        }
+      }
     }
     final String formatted =
         DateFormat('dd MMM yyyy,  ${_timeFormatter()}', _getLocale().toString())
@@ -103,16 +111,16 @@ class DateConverter {
 
   static String dateTimeStringToDateOnly(String dateTime) {
     final String formatted = DateFormat('dd MMM yyyy', _getLocale().toString())
-        .format(DateFormat('yyyy-MM-dd HH:mm:ss').parse(dateTime));
+        .format(_parseFlexibleDateTime(dateTime));
     return _convertToArabicIndic(formatted);
   }
 
   static DateTime dateTimeStringToDate(String dateTime) {
-    return DateFormat('yyyy-MM-dd HH:mm:ss').parse(dateTime);
+    return _parseFlexibleDateTime(dateTime);
   }
 
   static DateTime isoStringToLocalDate(String dateTime) {
-    return DateFormat('yyyy-MM-ddTHH:mm:ss.SSS').parse(dateTime);
+    return _parseFlexibleDateTime(dateTime);
   }
 
   static String isoStringToLocalString(String dateTime) {
@@ -328,8 +336,31 @@ class DateConverter {
 
   static String dateTimeStringToFormattedTime(String dateTime) {
     final String formatted = DateFormat(_timeFormatter(), _getLocale().toString())
-        .format(DateFormat('yyyy-MM-dd HH:mm:ss').parse(dateTime));
+        .format(_parseFlexibleDateTime(dateTime));
     return _convertToArabicIndic(formatted);
+  }
+
+  static DateTime _parseFlexibleDateTime(String dateTime) {
+    try {
+      return DateTime.parse(dateTime).toLocal();
+    } catch (_) {}
+
+    const List<String> patterns = <String>[
+      'yyyy-MM-dd HH:mm:ss',
+      'yyyy-MM-ddTHH:mm:ss',
+      'yyyy-MM-ddTHH:mm:ss.SSS',
+      'yyyy-MM-ddTHH:mm:ss.SSSSSS',
+      'yyyy-MM-dd HH:mm:ss.SSS',
+      'yyyy-MM-dd HH:mm:ss.SSSSSS',
+    ];
+
+    for (final String pattern in patterns) {
+      try {
+        return DateFormat(pattern).parse(dateTime, true).toLocal();
+      } catch (_) {}
+    }
+
+    return DateTime.now();
   }
 
   static DateTime formattingTripDateTime(

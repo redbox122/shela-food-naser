@@ -1,3 +1,6 @@
+import 'package:flutter/foundation.dart';
+import 'package:sixam_mart/common/utils/app_logger.dart';
+
 class AnalyticsConfig {
   // Configuration flags
   static const bool useMockData = false; // Backend is ready - use real APIs
@@ -29,7 +32,9 @@ class AnalyticsConfig {
   // Debug settings
   static void log(String message) {
     if (enableDebugLogging) {
-      print('[Analytics] $message');
+      if (kDebugMode) {
+        appLogger.debug('[Analytics] $message');
+      }
     }
   }
 

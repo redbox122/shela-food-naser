@@ -298,12 +298,38 @@ class _CustomImageState extends State<CustomImage> {
 
   
   String _resolveErrorMessage(Object error) {
+    final String text = error.toString().toLowerCase();
+
     if (error is TimeoutException ||
-        error.toString().contains('SocketException') ||
-        error.toString().contains('HandshakeException') ||
-        error.toString().contains('TimeoutException')) {
+        text.contains('timeoutexception') ||
+        text.contains('socketexception') ||
+        text.contains('failed host lookup') ||
+        text.contains('connection refused') ||
+        text.contains('network is unreachable') ||
+        text.contains('connection reset by peer')) {
       return 'لا يوجد اتصال جيد بالإنترنت';
     }
+
+    if (text.contains('handshakeexception') ||
+        text.contains('certificate') ||
+        text.contains('ssl') ||
+        text.contains('tls')) {
+      return 'مشكلة أمان بالشهادة (SSL)';
+    }
+
+    if (text.contains('404')) {
+      return 'الصورة غير موجودة على السيرفر';
+    }
+    if (text.contains('401') || text.contains('403')) {
+      return 'لا يوجد صلاحية للوصول إلى الصورة';
+    }
+    if (text.contains('500') ||
+        text.contains('502') ||
+        text.contains('503') ||
+        text.contains('504')) {
+      return 'السيرفر غير متاح حالياً';
+    }
+
     if (widget.imageStatus == 'invalid' || widget.imageStatus == 'placeholder') {
       return 'الصورة غير متوفرة';
     }
@@ -417,6 +443,10 @@ class _CustomImageState extends State<CustomImage> {
                     Image.asset(Images.placeholder, fit: widget.fit ?? BoxFit.cover),
                 errorWidget: (context, url, error) {
                   final message = _resolveErrorMessage(error);
+                  if (kDebugMode) {
+                    debugPrint(
+                        '[IMG_ERR] type=${error.runtimeType} url=$url index=$_imageIndex/${candidates.length - 1} error=$error');
+                  }
                   _errorMessage = message;
                   _advanceToNextUrl(candidates);
                   if (_imageIndex < candidates.length - 1) {
@@ -460,6 +490,10 @@ class _CustomImageState extends State<CustomImage> {
                     widget.placeholderWidget ?? _buildBlurHashPlaceholder(),
                 errorWidget: (context, url, error) {
                   final message = _resolveErrorMessage(error);
+                  if (kDebugMode) {
+                    debugPrint(
+                        '[IMG_ERR] type=${error.runtimeType} url=$url index=$_imageIndex/${candidates.length - 1} error=$error');
+                  }
                   _errorMessage = message;
                   _advanceToNextUrl(candidates);
                   if (_imageIndex < candidates.length - 1) {
@@ -473,3 +507,4 @@ class _CustomImageState extends State<CustomImage> {
     );
   }
 }
+

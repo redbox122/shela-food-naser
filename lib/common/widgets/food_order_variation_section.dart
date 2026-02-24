@@ -22,7 +22,6 @@ class FoodOrderVariationSection extends StatelessWidget {
     final isArabic = Get.locale?.languageCode == 'ar';
     final textDirection = isArabic ? TextDirection.rtl : TextDirection.ltr;
     final crossAxisAlignment = isArabic ? CrossAxisAlignment.end : CrossAxisAlignment.start;
-    final textAlign = isArabic ? TextAlign.right : TextAlign.left;
     
     // Determine if required based on subtitle
     final bool isRequired = subtitle != null && subtitle!.contains('مطلوب');

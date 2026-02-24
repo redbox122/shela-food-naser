@@ -167,6 +167,11 @@ class _PharmacyHomeScreenState extends State<PharmacyHomeScreen> {
           appLogger.debug('PharmacyHomeScreen: allRestaurantsSection enabled = $allRestaurantsEnabled');
 
           if (allRestaurantsEnabled) {
+            if (AppConstants.useBffV2Endpoint) {
+              appLogger.info(
+                  '🛡️ PharmacyHomeScreen: Unified-only policy - skipping legacy allStoreModel fetch');
+              return;
+            }
             appLogger.info('📡 PharmacyHomeScreen: Initializing legacy pagination engine (allStoreModel)');
             appLogger.debug('PharmacyHomeScreen: reload=true ensures clean state and correct totalSize (300+)');
             appLogger.debug('PharmacyHomeScreen: Calling storeController.getStoreList(1, true)');

@@ -71,7 +71,9 @@ class SearchRepository implements SearchRepositoryInterface {
 
   Future<Response<dynamic>> _getSearchData(String? query, bool isStore) async {
     final int? moduleId = _resolveModuleId();
-    var uri = '${AppConstants.searchUri}${isStore ? 'stores' : 'items'}/search?name=$query&offset=1&limit=50';
+    final String safeQuery = Uri.encodeQueryComponent((query ?? '').trim());
+    var uri =
+        '${AppConstants.searchUri}${isStore ? 'stores' : 'items'}/search?name=$safeQuery&offset=1&limit=50';
     if (moduleId != null) {
       uri = '$uri&module_id=$moduleId';
     }
@@ -79,6 +81,11 @@ class SearchRepository implements SearchRepositoryInterface {
   }
 
   Future<Response<dynamic>> _getFilteredSearchData(Search_FilterModel searchFilterModel, bool isStore) async {
+    // Hyper all-categories search is more stable on legacy endpoint and supports offset pagination.
+    if ((searchFilterModel.id_category ?? '').trim().isEmpty) {
+      return _getLegacyFilteredSearchData(searchFilterModel, isStore);
+    }
+
     final data = {
       'name': searchFilterModel.research_Name,
       'product_arrangement': searchFilterModel.product_arrangement,
@@ -87,6 +94,8 @@ class SearchRepository implements SearchRepositoryInterface {
       'min_price': searchFilterModel.min,
       'max_price': searchFilterModel.max,
       'discount': searchFilterModel.discount,
+      'offset': searchFilterModel.offset ?? '1',
+      'limit': searchFilterModel.limit ?? '10',
     };
     final int? moduleId = _resolveModuleId();
     if (moduleId != null) {
@@ -109,20 +118,28 @@ class SearchRepository implements SearchRepositoryInterface {
     Search_FilterModel searchFilterModel,
     bool isStore,
   ) async {
+    final String offset = (searchFilterModel.offset ?? '1').trim().isEmpty
+        ? '1'
+        : (searchFilterModel.offset ?? '1').trim();
+    final String limit = (searchFilterModel.limit ?? '10').trim().isEmpty
+        ? '10'
+        : (searchFilterModel.limit ?? '10').trim();
     final List<String> params = [
-      'name=${searchFilterModel.research_Name ?? ''}',
-      'offset=1',
-      'limit=50',
+      'name=${Uri.encodeQueryComponent((searchFilterModel.research_Name ?? '').trim())}',
+      'offset=$offset',
+      'limit=$limit',
     ];
     final int? moduleId = _resolveModuleId();
     if (moduleId != null) {
       params.add('module_id=$moduleId');
     }
     if ((searchFilterModel.id_category ?? '').isNotEmpty) {
-      params.add('category_id=${searchFilterModel.id_category}');
+      params.add(
+          'category_id=${Uri.encodeQueryComponent((searchFilterModel.id_category ?? '').trim())}');
     }
     if ((searchFilterModel.id_stores ?? '').isNotEmpty) {
-      params.add('store_id=${searchFilterModel.id_stores}');
+      params.add(
+          'store_id=${Uri.encodeQueryComponent((searchFilterModel.id_stores ?? '').trim())}');
     }
     final String uri =
         '${AppConstants.searchUri}${isStore ? 'stores' : 'items'}/search?${params.join('&')}';
@@ -132,7 +149,9 @@ class SearchRepository implements SearchRepositoryInterface {
   @override
   Future<SearchSuggestionModel?> getSearchSuggestions(String searchText) async {
     SearchSuggestionModel? model;
-    final response = await apiClient.getData('${AppConstants.searchSuggestionsUri}?name=$searchText');
+    final String safeSearchText = Uri.encodeQueryComponent(searchText.trim());
+    final response = await apiClient
+        .getData('${AppConstants.searchSuggestionsUri}?name=$safeSearchText');
 
     if (response.statusCode == 200 && response.body != null) {
       model = SearchSuggestionModel.fromJson(response.body as Map<String, dynamic>);

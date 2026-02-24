@@ -3,7 +3,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
-import 'package:sixam_mart/common/widgets/loading/loading.dart';
 import 'package:sixam_mart/features/offers/controllers/offers_controller.dart';
 import 'package:sixam_mart/features/offers/domain/models/offers_model.dart';
 import 'package:sixam_mart/helper/responsive_helper.dart';
@@ -117,7 +116,7 @@ class Offers extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        width: ResponsiveHelper.isWeb() ? 300 : 250, // عرض البطاقة الأفقي
+        width: ResponsiveHelper.isDesktop(context) ? 300 : 250, // عرض البطاقة الأفقي
         margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4), // مسافة بين البطاقات
         clipBehavior: Clip.hardEdge,
         decoration: BoxDecoration(

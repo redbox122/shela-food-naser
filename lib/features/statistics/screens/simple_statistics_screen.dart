@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
 
 import '../../../common/widgets/appBar.dart';
@@ -6,6 +7,7 @@ import '../../../util/app_colors.dart';
 import '../../../util/dimensions.dart';
 import '../controllers/analytics_controller.dart';
 import '../analytics_module.dart';
+import 'package:sixam_mart/common/utils/app_logger.dart';
 
 class SimpleStatisticsScreen extends StatelessWidget {
   const SimpleStatisticsScreen({super.key});
@@ -129,10 +131,12 @@ class SimpleStatisticsScreen extends StatelessWidget {
           _buildSummaryCard(
             () {
               final String title = 'spending_trend'.tr;
-              print('🔍 Spending trend translation: $title');
+              if (kDebugMode) {
+                appLogger.debug('🔍 Spending trend translation: $title');
+              }
               return title;
             }(),
-            _getTrendText(summary.spendingTrend.trendDirection ?? ''),
+            _getTrendText(summary.spendingTrend.trendDirection),
             summary.spendingTrend.trendDirection == 'up' ||
                     summary.spendingTrend.trendDirection == 'increasing'
                 ? Icons.trending_up
@@ -345,22 +349,30 @@ class SimpleStatisticsScreen extends StatelessWidget {
   }
 
   String _getTrendText(String trendDirection) {
-    print('🔍 Trend Direction: $trendDirection');
+    if (kDebugMode) {
+      appLogger.debug('🔍 Trend Direction: $trendDirection');
+    }
     String result;
     switch (trendDirection.toLowerCase()) {
       case 'increasing':
       case 'up':
         result = 'increasing'.tr;
-        print('🔍 Increasing translation: $result');
+        if (kDebugMode) {
+          appLogger.debug('🔍 Increasing translation: $result');
+        }
         return result;
       case 'decreasing':
       case 'down':
         result = 'decreasing'.tr;
-        print('🔍 Decreasing translation: $result');
+        if (kDebugMode) {
+          appLogger.debug('🔍 Decreasing translation: $result');
+        }
         return result;
       default:
         result = 'stable'.tr;
-        print('🔍 Stable translation: $result');
+        if (kDebugMode) {
+          appLogger.debug('🔍 Stable translation: $result');
+        }
         return result;
     }
   }

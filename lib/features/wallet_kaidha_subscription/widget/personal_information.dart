@@ -897,8 +897,8 @@ class _PersonalInformationState extends State<PersonalInformation> {
                   mycontroller?.clear();
                   return;
                 }
-                if (errorKey != null && errorKey!.isNotEmpty) {
-                  KaidhaSub_Controller.clearFieldError(errorKey!);
+                if (errorKey != null && errorKey.isNotEmpty) {
+                  KaidhaSub_Controller.clearFieldError(errorKey);
                 }
                 KaidhaSub_Controller.debouncedSaveState();
               },
@@ -939,10 +939,10 @@ class _PersonalInformationState extends State<PersonalInformation> {
             ),
           ),
         ),
-        if (errorText != null && errorText!.isNotEmpty) ...[
+        if (errorText != null && errorText.isNotEmpty) ...[
           const SizedBox(height: 6),
           Text(
-            errorText!,
+            errorText,
             style: robotoRegular.copyWith(
               color: Colors.red,
               fontSize: Dimensions.fontSizeSmall,

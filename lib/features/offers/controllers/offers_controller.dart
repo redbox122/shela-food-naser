@@ -51,6 +51,8 @@ class Offers_Controller extends GetxController implements GetxService {
 
   bool _isItemsLoading = false;
   bool get isItemsLoading => _isItemsLoading;
+  int _itemsRequestToken = 0;
+  String? _activeItemsRequestKey;
 
   OffersModel? offersMode;
   int _offset = 1;
@@ -111,8 +113,7 @@ class Offers_Controller extends GetxController implements GetxService {
   static const Duration _searchDebounceDelay = Duration(milliseconds: 300);
 
   // Deep equality checker for offers data
-  static const DeepCollectionEquality _deepEquality =
-      DeepCollectionEquality();
+  static const DeepCollectionEquality _deepEquality = DeepCollectionEquality();
 
   /// Check if two OffersModel instances have the same data content
   bool _areOffersEqual(OffersModel? oldOffers, OffersModel? newOffers) {
@@ -199,7 +200,7 @@ class Offers_Controller extends GetxController implements GetxService {
       if (moduleIdForOffers == null) {
         print('⚠️ Offers: No module selected, skipping offers load');
         _isLoading = false;
-        
+
         // 🔒 PROTECTION: Don't clear existing offers if no module selected
         // Preserve cache data if it exists
         if (hasExistingOffers) {
@@ -209,7 +210,7 @@ class Offers_Controller extends GetxController implements GetxService {
           }
           return offersMode; // Return existing data without modifying state
         }
-        
+
         // Only set empty if we had no existing data
         offersMode = OffersModel(
             success: false, data: [], message: 'No module selected');
@@ -217,7 +218,8 @@ class Offers_Controller extends GetxController implements GetxService {
         return offersMode;
       }
 
-      final AddressModel? addressModel = AddressHelper.getUserAddressFromSharedPref();
+      final AddressModel? addressModel =
+          AddressHelper.getUserAddressFromSharedPref();
       final sharedPreferences = Get.find<SharedPreferences>();
 
       apiClient.updateHeader(
@@ -246,11 +248,11 @@ class Offers_Controller extends GetxController implements GetxService {
       );
       // 🔒 PROTECTION: Validate API response before updating state
       // If API returns invalid/empty data but we have existing offers, preserve them
-      final hasValidResponse = loadedOffers.success == true && 
-                               loadedOffers.data.isNotEmpty;
+      final hasValidResponse =
+          loadedOffers.success == true && loadedOffers.data.isNotEmpty;
       // Reuse hasExistingOffers from earlier in the function
-      final hasValidExistingOffers = oldOffers != null && 
-                                     oldOffers.data.isNotEmpty;
+      final hasValidExistingOffers =
+          oldOffers != null && oldOffers.data.isNotEmpty;
 
       // 🔥 CRITICAL: Don't override cache with invalid/empty API response
       if (!hasValidResponse && hasValidExistingOffers) {
@@ -294,10 +296,11 @@ class Offers_Controller extends GetxController implements GetxService {
     } catch (e) {
       print('❌ Error loading offers: $e');
       _isLoading = false;
-      
+
       // 🔒 PROTECTION: Don't clear existing offers on error
       // If we have existing offers in cache, preserve them instead of clearing
-      final hasExistingOffers = offersMode != null && offersMode!.data.isNotEmpty;
+      final hasExistingOffers =
+          offersMode != null && offersMode!.data.isNotEmpty;
       if (hasExistingOffers) {
         // Keep existing offersMode - don't update or trigger rebuild
         if (kDebugMode) {
@@ -306,7 +309,7 @@ class Offers_Controller extends GetxController implements GetxService {
         }
         return offersMode; // Return existing data without modifying state
       }
-      
+
       // Only set empty offers if we had no existing data
       offersMode = OffersModel(
           success: false, data: [], message: 'Failed to load offers');
@@ -445,24 +448,53 @@ class Offers_Controller extends GetxController implements GetxService {
     }
   }
 
+  /// Clear offers when switching modules and unified payload is empty.
+  void clearOffersFromUnified({bool notify = true}) {
+    offersMode = OffersModel(success: true, data: [], message: '');
+    _isLoading = false;
+    if (notify) {
+      update(['offers']);
+      update();
+    }
+  }
+
   Future<void> getOffersItemList({
     required String? id,
     required int offset,
     int limit = 20,
+    bool forceRefresh = false,
     bool notify = true,
   }) async {
+    final int moduleId = Get.find<SplashController>().module?.id ?? -1;
+    final String requestKey = '$id|$offset|$limit|$moduleId';
+
     // 🔧 TASK 1: Prevent double-fetch - check if already loading
     if (_isItemsLoading) {
-      if (kDebugMode) {
-        print(
-            '⚠️ Offers_Controller: getOffersItemList already in progress, skipping duplicate call (id: $id, offset: $offset)');
+      if (_activeItemsRequestKey != requestKey) {
+        if (kDebugMode) {
+          print(
+              '⚠️ Offers_Controller: replacing in-flight request ($_activeItemsRequestKey) with new request ($requestKey)');
+        }
+      } else {
+        if (forceRefresh && kDebugMode) {
+          print(
+              '⚠️ Offers_Controller: duplicate request is forceRefresh=true but still in progress, keeping current in-flight call (id: $id, offset: $offset)');
+        }
+        if (kDebugMode) {
+          print(
+              '⚠️ Offers_Controller: getOffersItemList already in progress, skipping duplicate call (id: $id, offset: $offset)');
+        }
+        return;
       }
-      return;
     }
 
     // Check cache first for offset 1
     if (offset == 1 && id != null) {
       if (_isCacheValid(id)) {
+        if (kDebugMode) {
+          print(
+              '✅ Offers_Controller: Serving offer items from memory cache (id: $id, cachedItemsCount: ${_offersItemsCache[id]?.length ?? 0})');
+        }
         _offersItemList = List.from(_offersItemsCache[id] ?? []);
         _isLoading = false;
         update();
@@ -477,44 +509,86 @@ class Offers_Controller extends GetxController implements GetxService {
       }
     }
 
+    final int requestToken = ++_itemsRequestToken;
+    _activeItemsRequestKey = requestKey;
     _isItemsLoading = true;
     update();
 
-    final ItemModel? brandItemModel = await offersServiceInterface.getOffersItem(
-        id: id, offset: offset, limit: limit);
-      if (brandItemModel != null) {
-      if (offset == 1) {
-        _offersItemList = [];
-        // Extract categories from the response for filtering
-        setCategoryListFromResponse(brandItemModel);
-        // Cache the results for offset 1
-        if (id != null) {
-          _offersItemsCache[id] = List.from(brandItemModel.items!);
-          _cacheTimestamps[id] = DateTime.now();
-        }
+    try {
+      final bool shouldForceRefresh =
+          forceRefresh || (offset == 1 && id != null && !_isCacheValid(id));
+      if (kDebugMode) {
+        print(
+            '[OFFERS_CTRL] fetch.enter id=$id offset=$offset forceRefresh=$shouldForceRefresh');
+      }
+      final ItemModel? brandItemModel =
+          await offersServiceInterface.getOffersItem(
+        id: id,
+        offset: offset,
+        limit: limit,
+        forceRefresh: shouldForceRefresh,
+      );
+
+      // If another newer request started, ignore this result
+      if (requestToken != _itemsRequestToken) {
+        return;
       }
 
-      // Only add items if they're not already present (avoid duplicates)
-      if (brandItemModel.items != null && brandItemModel.items!.isNotEmpty) {
-        // Check if items are already loaded to prevent duplicates
-        _offersItemList ??= [];
-
-        // For pagination, only add new items that aren't already in the list
-        for (final newItem in brandItemModel.items!) {
-          final bool itemExists = _offersItemList!
-              .any((existingItem) => existingItem.id == newItem.id);
-          if (!itemExists) {
-            _offersItemList!.add(newItem);
+      if (brandItemModel != null) {
+        if (offset == 1) {
+          _offersItemList = [];
+          // Extract categories from the response for filtering
+          setCategoryListFromResponse(brandItemModel);
+          // Cache the results for offset 1
+          if (id != null) {
+            _offersItemsCache[id] =
+                List.from(brandItemModel.items ?? const <Item>[]);
+            _cacheTimestamps[id] = DateTime.now();
+            if (kDebugMode) {
+              print(
+                  '[OFFERS_CTRL] cache.update id=$id cachedItemsCount=${_offersItemsCache[id]?.length ?? 0}');
+            }
           }
         }
-      }
 
-      _pageSize = brandItemModel.totalSize;
-      _isItemsLoading = false;
-    } else {
-      _isItemsLoading = false;
+        // Only add items if they're not already present (avoid duplicates)
+        if (brandItemModel.items != null && brandItemModel.items!.isNotEmpty) {
+          // Check if items are already loaded to prevent duplicates
+          _offersItemList ??= [];
+
+          // For pagination, only add new items that aren't already in the list
+          for (final newItem in brandItemModel.items!) {
+            final bool itemExists = _offersItemList!
+                .any((existingItem) => existingItem.id == newItem.id);
+            if (!itemExists) {
+              _offersItemList!.add(newItem);
+            }
+          }
+        }
+
+        _pageSize = brandItemModel.totalSize;
+        if (kDebugMode) {
+          print(
+              '[OFFERS_CTRL] fetch.done id=$id offset=$offset itemsCount=${brandItemModel.items?.length ?? 0} totalSize=${brandItemModel.totalSize}');
+        }
+      } else if (kDebugMode) {
+        print(
+            '[OFFERS_CTRL] fetch.done id=$id offset=$offset itemsCount=0 (null model)');
+      }
+    } catch (e, st) {
+      if (kDebugMode) {
+        print(
+            '❌ Offers_Controller.getOffersItemList failed (id: $id, offset: $offset): $e');
+        print(st);
+      }
+    } finally {
+      // Only the latest request can unlock/update loading state
+      if (requestToken == _itemsRequestToken) {
+        _isItemsLoading = false;
+        _activeItemsRequestKey = null;
+        update();
+      }
     }
-    update();
   }
 
   // Check if cache is still valid
@@ -633,7 +707,9 @@ class Offers_Controller extends GetxController implements GetxService {
     if (_currentOfferId != null) {
       getOffersItemListWithFilters(
         id: _currentOfferId,
-        categoryId: _categoryIndex > 0 && _categoryList != null && _categoryList!.isNotEmpty
+        categoryId: _categoryIndex > 0 &&
+                _categoryList != null &&
+                _categoryList!.isNotEmpty
             ? _categoryList![_categoryIndex].id.toString()
             : null,
         sortBy: 'price',
@@ -675,7 +751,7 @@ class Offers_Controller extends GetxController implements GetxService {
     _searchDebounceTimer = Timer(_searchDebounceDelay, () async {
       // ✅ CRITICAL: Reset state before new search (NO CACHE)
       resetSearchState();
-      
+
       _isLiveSearching = true;
       _isSearching = true;
       _searchText = query.trim();
@@ -691,7 +767,7 @@ class Offers_Controller extends GetxController implements GetxService {
             page: 1,
             limit: 50,
           );
-          
+
           if (itemModel != null && itemModel.items != null) {
             _liveSearchResults = List<Item>.from(itemModel.items ?? []);
           } else {
@@ -806,8 +882,7 @@ class Offers_Controller extends GetxController implements GetxService {
     if (itemSearching) {
       _offersSearchItemModel = null;
       if (_searchText.isNotEmpty && _currentOfferId != null) {
-        getOffersSearchItemList(_searchText,
-            offerId: _currentOfferId);
+        getOffersSearchItemList(_searchText, offerId: _currentOfferId);
       }
     } else {
       // ❌ REMOVED: Frontend filtering - now always use API
@@ -850,6 +925,22 @@ class Offers_Controller extends GetxController implements GetxService {
       getOffersItemList(id: _currentOfferId, offset: 1);
       print('✅ Filters reset - reloading from API');
     } else {
+      update();
+    }
+  }
+
+  void resetFilterState({bool notify = true}) {
+    _categoryIndex = 0;
+    _isPriceAscending = true;
+    _selectedCategoryIds.clear();
+    _isFilterModalOpen = false;
+    _liveSearchResults = null;
+    _isLiveSearching = false;
+    _isSearching = false;
+    _searchText = '';
+    _offersSearchItemModel = null;
+
+    if (notify) {
       update();
     }
   }
@@ -925,13 +1016,10 @@ class Offers_Controller extends GetxController implements GetxService {
       if (offset == 1) {
         resetSearchState();
       }
-      
+
       _isSearching = true;
       _searchText = searchText;
       _currentOfferId = offerId;
-      _isItemsLoading = true;
-      update();
-
       _isItemsLoading = true;
       update();
 
@@ -957,13 +1045,23 @@ class Offers_Controller extends GetxController implements GetxService {
       if (offersSearchItemModel != null) {
         if (offset == 1) {
           _offersSearchItemModel = offersSearchItemModel;
-          // Apply price sorting to search results
-        // ❌ REMOVED: Local price sorting - should be handled by API
+          final bool apiEmpty = (_offersSearchItemModel?.items == null ||
+              _offersSearchItemModel!.items!.isEmpty);
+          if (apiEmpty) {
+            final List<Item> localItems = _buildLocalSearchFallback(searchText);
+            _offersSearchItemModel = ItemModel(items: localItems);
+            if (kDebugMode) {
+              print(
+                  '?? Offers search fallback: API=0, local=${localItems.length}, query="$searchText"');
+            }
+          } else if (kDebugMode) {
+            print(
+                '? Offers search API results: ${_offersSearchItemModel?.items?.length ?? 0}, query="$searchText"');
+          }
         } else {
           if (offersSearchItemModel.items != null &&
               offersSearchItemModel.items!.isNotEmpty) {
             _offersSearchItemModel!.items!.addAll(offersSearchItemModel.items!);
-            // ❌ REMOVED: Local price sorting - should be handled by API via sortOrder
           }
           _offersSearchItemModel!.totalSize = offersSearchItemModel.totalSize;
           _offersSearchItemModel!.offset = offersSearchItemModel.offset;
@@ -981,6 +1079,36 @@ class Offers_Controller extends GetxController implements GetxService {
     }
   }
 
+
+  List<Item> _buildLocalSearchFallback(String query) {
+    final List<Item> source = _offersItemList ?? <Item>[];
+    if (source.isEmpty) {
+      return <Item>[];
+    }
+
+    final String normalizedQuery = _normalizeSearchText(query);
+    if (normalizedQuery.isEmpty) {
+      return <Item>[];
+    }
+
+    return source.where((item) {
+      final String name = _normalizeSearchText(item.name ?? '');
+      return name.contains(normalizedQuery);
+    }).toList();
+  }
+
+  String _normalizeSearchText(String input) {
+    return input
+        .toLowerCase()
+        .trim()
+        .replaceAll(RegExp(r'[\u064B-\u065F\u0670]'), '')
+        .replaceAll('?', '?')
+        .replaceAll('?', '?')
+        .replaceAll('?', '?')
+        .replaceAll('?', '?')
+        .replaceAll('?', '?')
+        .replaceAll(RegExp(r'\s+'), ' ');
+  }
   Future<void> getOffersItemListWithFilters({
     int offset = 1,
     int limit = 20,
@@ -1013,7 +1141,7 @@ class Offers_Controller extends GetxController implements GetxService {
       sortOrder: sortOrder,
     );
 
-      if (brandItemModel != null) {
+    if (brandItemModel != null) {
       if (offset == 1) {
         _offersItemList = [];
         // Extract categories from the response for filtering
@@ -1068,3 +1196,4 @@ class Offers_Controller extends GetxController implements GetxService {
     super.onClose();
   }
 }
+

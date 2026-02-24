@@ -12,6 +12,8 @@ import 'package:sixam_mart/common/security/secure_token_storage.dart';
 import 'package:sixam_mart/common/models/module_model.dart';
 import 'dart:convert';
 import 'package:dio/dio.dart' as dio;
+import 'package:sixam_mart/common/utils/app_logger.dart';
+import 'package:flutter/foundation.dart';
 
 class CheckoutRepository implements CheckoutRepositoryInterface {
   final ApiClient apiClient;
@@ -156,12 +158,14 @@ class CheckoutRepository implements CheckoutRepositoryInterface {
     // ✅ Normal Order - استخدام JSON
     // 🔥 FIX: تحديد prescription بناءً على orderType وليس orderAttachment
     // لأن prescription قد يكون بدون صور، والصور optional
-    print('═══════════════════════════════════════════════════════════');
-    print('🔍 CHECKING ORDER TYPE:');
-    print(' - orderType: ${orderBody.orderType}');
-    print(' - orderAttachment is null: ${orderAttachment == null}');
-    print(' - orderAttachment is empty: ${orderAttachment?.isEmpty ?? true}');
-    print(' - orderAttachment length: ${orderAttachment?.length ?? 0}');
+    if (kDebugMode && AppConstants.enableVerboseLogs) {
+      appLogger.debug('═══════════════════════════════════════════════════════════');
+      appLogger.debug('🔍 CHECKING ORDER TYPE:');
+      appLogger.debug(' - orderType: ${orderBody.orderType}');
+      appLogger.debug(' - orderAttachment is null: ${orderAttachment == null}');
+      appLogger.debug(' - orderAttachment is empty: ${orderAttachment?.isEmpty ?? true}');
+      appLogger.debug(' - orderAttachment length: ${orderAttachment?.length ?? 0}');
+    }
     
     debugPrint('\x1B[36m═══════════════════════════════════════════════════════════\x1B[0m');
     debugPrint('\x1B[36m🔍 CHECKING ORDER TYPE:\x1B[0m');
@@ -173,10 +177,12 @@ class CheckoutRepository implements CheckoutRepositoryInterface {
     // ✅ FIX: تحديد prescription بناءً على orderType (الصور optional)
     final bool isPrescription = orderBody.orderType?.toLowerCase() == 'prescription' ||
                                 (orderAttachment != null && orderAttachment.isNotEmpty);
-    print(' - isPrescription (from orderType): ${orderBody.orderType?.toLowerCase() == 'prescription'}');
-    print(' - isPrescription (from attachment): ${orderAttachment != null && orderAttachment.isNotEmpty}');
-    print(' - isPrescription (FINAL): $isPrescription');
-    print('═══════════════════════════════════════════════════════════');
+    if (kDebugMode && AppConstants.enableVerboseLogs) {
+      appLogger.debug(' - isPrescription (from orderType): ${orderBody.orderType?.toLowerCase() == 'prescription'}');
+      appLogger.debug(' - isPrescription (from attachment): ${orderAttachment != null && orderAttachment.isNotEmpty}');
+      appLogger.debug(' - isPrescription (FINAL): $isPrescription');
+      appLogger.debug('═══════════════════════════════════════════════════════════');
+    }
     
     debugPrint('\x1B[36m - isPrescription (from orderType): ${orderBody.orderType?.toLowerCase() == 'prescription'}\x1B[0m');
     debugPrint('\x1B[36m - isPrescription (from attachment): ${orderAttachment != null && orderAttachment.isNotEmpty}\x1B[0m');
@@ -185,8 +191,10 @@ class CheckoutRepository implements CheckoutRepositoryInterface {
 
     if (isPrescription) {
       // ================= Prescription Order (Multipart/FormData) =================
-      print('🔥🔥🔥 SENDING PRESCRIPTION AS MULTIPART 🔥🔥🔥');
-      print('📋 Prescription Order Detected - Using FormData/Multipart');
+      if (kDebugMode) {
+        appLogger.info('🔥🔥🔥 SENDING PRESCRIPTION AS MULTIPART 🔥🔥🔥');
+        appLogger.info('📋 Prescription Order Detected - Using FormData/Multipart');
+      }
       debugPrint('\x1B[32m🔥🔥🔥 SENDING PRESCRIPTION AS MULTIPART 🔥🔥🔥\x1B[0m');
       debugPrint('\x1B[32m📋 Prescription Order Detected - Using FormData/Multipart\x1B[0m');
       
@@ -332,13 +340,15 @@ class CheckoutRepository implements CheckoutRepositoryInterface {
         handleError: false,
       );
       
-      // 🔥 استخدام print + debugPrint لضمان ظهور اللوجات في الترمينال
-      print('═══════════════════════════════════════════════════════════');
-      print('🔥🔥🔥 PRESCRIPTION ORDER RESPONSE 🔥🔥🔥');
-      print('═══════════════════════════════════════════════════════════');
-      print('Status Code: ${response.statusCode}');
-      print('Status Text: ${response.statusText}');
-      print('Response Body Type: ${response.body.runtimeType}');
+      // 🔥 استخدام appLogger + debugPrint لضمان ظهور اللوجات في الترمينال
+      if (kDebugMode && AppConstants.enableVerboseLogs) {
+        appLogger.debug('═══════════════════════════════════════════════════════════');
+        appLogger.info('🔥🔥🔥 PRESCRIPTION ORDER RESPONSE 🔥🔥🔥');
+        appLogger.debug('═══════════════════════════════════════════════════════════');
+        appLogger.debug('Status Code: ${response.statusCode}');
+        appLogger.debug('Status Text: ${response.statusText}');
+        appLogger.debug('Response Body Type: ${response.body.runtimeType}');
+      }
       
       debugPrint('\x1B[32m🔥 postFormData() returned: statusCode=${response.statusCode}\x1B[0m');
       debugPrint('\x1B[36m═══════════════════════════════════════════════════════════\x1B[0m');
@@ -349,38 +359,52 @@ class CheckoutRepository implements CheckoutRepositoryInterface {
       
       if (response.body is Map) {
         final responseBody = response.body as Map;
-        print('Response Body Keys: ${responseBody.keys.toList()}');
-        print('Full Response Body: $responseBody');
+        if (kDebugMode && AppConstants.enableVerboseLogs) {
+          appLogger.debug('Response Body Keys: ${responseBody.keys.toList()}');
+          appLogger.debug('Full Response Body: $responseBody');
+        }
         
         debugPrint('\x1B[36m - Response Body Keys: ${responseBody.keys.toList()}\x1B[0m');
         debugPrint('\x1B[36m - Full Response Body: $responseBody\x1B[0m');
         
         // التحقق من وجود order ID
         if (responseBody.containsKey('id')) {
-          print('✅ Order ID found: ${responseBody['id']}');
+          if (kDebugMode) {
+            appLogger.info('✅ Order ID found: ${responseBody['id']}');
+          }
           debugPrint('\x1B[32m✅ Order ID found: ${responseBody['id']}\x1B[0m');
         } else if (responseBody.containsKey('order_id')) {
-          print('✅ Order ID (order_id) found: ${responseBody['order_id']}');
+          if (kDebugMode) {
+            appLogger.info('✅ Order ID (order_id) found: ${responseBody['order_id']}');
+          }
           debugPrint('\x1B[32m✅ Order ID (order_id) found: ${responseBody['order_id']}\x1B[0m');
         } else {
-          print('❌ No order ID found in response!');
-          print('Available keys: ${responseBody.keys.toList()}');
+          if (kDebugMode) {
+            appLogger.warning('❌ No order ID found in response!');
+            appLogger.warning('Available keys: ${responseBody.keys.toList()}');
+          }
           debugPrint('\x1B[31m❌ No order ID found in response!\x1B[0m');
         }
       } else {
-        print('Response Body: ${response.body}');
+        if (kDebugMode && AppConstants.enableVerboseLogs) {
+          appLogger.debug('Response Body: ${response.body}');
+        }
         debugPrint('\x1B[36m - Response Body: ${response.body}\x1B[0m');
       }
-      print('═══════════════════════════════════════════════════════════');
+      if (kDebugMode && AppConstants.enableVerboseLogs) {
+        appLogger.debug('═══════════════════════════════════════════════════════════');
+      }
       debugPrint('\x1B[36m═══════════════════════════════════════════════════════════\x1B[0m');
       
       // 🔥 طباعة Response Body عند 422 أو أي خطأ
       if (response.statusCode != null && response.statusCode! >= 400) {
-        print('═══════════════════════════════════════════════════════════');
-        print('❌❌❌ ERROR RESPONSE (Status: ${response.statusCode}) ❌❌❌');
-        print('═══════════════════════════════════════════════════════════');
-        print('Response Body: ${response.body}');
-        print('Status Text: ${response.statusText}');
+        if (kDebugMode) {
+          appLogger.error('═══════════════════════════════════════════════════════════', null);
+          appLogger.error('❌❌❌ ERROR RESPONSE (Status: ${response.statusCode}) ❌❌❌', null);
+          appLogger.error('═══════════════════════════════════════════════════════════', null);
+          appLogger.error('Response Body: ${response.body}', null);
+          appLogger.error('Status Text: ${response.statusText}', null);
+        }
         
         debugPrint('\x1B[31m═══════════════════════════════════════════════════════════\x1B[0m');
         debugPrint('\x1B[31m❌ ERROR RESPONSE (Status: ${response.statusCode}):\x1B[0m');
@@ -391,25 +415,35 @@ class CheckoutRepository implements CheckoutRepositoryInterface {
         if (response.body is Map) {
           final errorBody = response.body as Map;
           if (errorBody.containsKey('errors')) {
-            print('🔴 Validation Errors:');
+            if (kDebugMode) {
+              appLogger.error('🔴 Validation Errors:', null);
+            }
             debugPrint('\x1B[31m🔴 Validation Errors:\x1B[0m');
             final errors = errorBody['errors'];
             if (errors is Map) {
               errors.forEach((key, value) {
-                print('   - $key: $value');
+                if (kDebugMode) {
+                  appLogger.error('   - $key: $value', null);
+                }
                 debugPrint('\x1B[31m   - $key: $value\x1B[0m');
               });
             } else {
-              print('   $errors');
+              if (kDebugMode) {
+                appLogger.error('   $errors', null);
+              }
               debugPrint('\x1B[31m   $errors\x1B[0m');
             }
           }
           if (errorBody.containsKey('message')) {
-            print('📨 Error Message: ${errorBody['message']}');
+            if (kDebugMode) {
+              appLogger.error('📨 Error Message: ${errorBody['message']}', null);
+            }
             debugPrint('\x1B[31m📨 Error Message: ${errorBody['message']}\x1B[0m');
           }
         }
-        print('═══════════════════════════════════════════════════════════');
+        if (kDebugMode) {
+          appLogger.error('═══════════════════════════════════════════════════════════', null);
+        }
         debugPrint('\x1B[31m═══════════════════════════════════════════════════════════\x1B[0m');
       }
       
@@ -425,15 +459,26 @@ class CheckoutRepository implements CheckoutRepositoryInterface {
       // Log the complete request for debugging
       debugPrint('\x1B[33m🔍 Complete API Request:\x1B[0m');
       debugPrint('\x1B[33m - URL: ${AppConstants.placeOrderUri}\x1B[0m');
+      debugPrint('\x1B[33m - Base URL: ${apiClient.appBaseUrl}\x1B[0m');
+      debugPrint('\x1B[33m - Full URL: ${apiClient.appBaseUrl}${AppConstants.placeOrderUri}\x1B[0m');
       debugPrint('\x1B[33m - Headers: $headers\x1B[0m');
       debugPrint('\x1B[33m - Body: $jsonBody\x1B[0m');
 
-      return await apiClient.postData(
+      final Response response = await apiClient.postData(
         AppConstants.placeOrderUri,
         jsonBody,
         headers: headers,
         handleError: false,
       );
+      debugPrint('[OrderCreate] status=${response.statusCode} baseUrl=${apiClient.appBaseUrl}');
+      if (response.body is Map<String, dynamic>) {
+        final Map<String, dynamic> body = response.body as Map<String, dynamic>;
+        debugPrint('[OrderCreate] response keys=${body.keys.toList()}');
+        debugPrint('[OrderCreate] id=${body['id']} order_id=${body['order_id']} message=${body['message']}');
+      } else {
+        debugPrint('[OrderCreate] response raw=${response.body}');
+      }
+      return response;
     }
   }
 

@@ -24,11 +24,13 @@ import 'package:sixam_mart/util/styles.dart';
 class FoodRestaurantMenuItemCard extends StatelessWidget {
   final Item item;
   final VoidCallback onTap;
+  final bool isTemporarilyHighlighted;
 
   const FoodRestaurantMenuItemCard({
     super.key,
     required this.item,
     required this.onTap,
+    this.isTemporarilyHighlighted = false,
   });
 
   @override
@@ -90,7 +92,7 @@ class FoodRestaurantMenuItemCard extends StatelessWidget {
                           children: [
                             // Image Container with White Padding/Edge
                             Container(
-                              height: 150,
+                              height: 140,
                               width: double.infinity,
                               padding: const EdgeInsets.all(12),
                               decoration: const BoxDecoration(
@@ -103,7 +105,7 @@ class FoodRestaurantMenuItemCard extends StatelessWidget {
                                 borderRadius: BorderRadius.circular(8),
                                 child: CustomImage(
                                   image: item.displayImage ?? '',
-                                  height: 126,
+                                  height: 116,
                                   width: double.infinity,
                                   fit: BoxFit.contain,
                                   cacheWidth: 420,
@@ -229,6 +231,20 @@ class FoodRestaurantMenuItemCard extends StatelessWidget {
                     ),
                   ),
                 ),
+                if (isTemporarilyHighlighted)
+                  Positioned(
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    child: Container(
+                      height: 5,
+                      decoration: const BoxDecoration(
+                        color: Colors.red,
+                        borderRadius:
+                            BorderRadius.vertical(top: Radius.circular(16)),
+                      ),
+                    ),
+                  ),
                 if (isOutOfStock)
                   _buildOutOfStockOverlay(
                     borderRadius: BorderRadius.circular(16),
@@ -262,7 +278,7 @@ class FoodRestaurantMenuItemCard extends StatelessWidget {
                 Opacity(
                   opacity: isOutOfStock ? 0.75 : 1,
                   child: Container(
-                    height: 122,
+                    constraints: const BoxConstraints(minHeight: 136),
                     margin: const EdgeInsets.only(
                         bottom: Dimensions.paddingSizeSmall),
                     decoration: BoxDecoration(
@@ -352,7 +368,7 @@ class FoodRestaurantMenuItemCard extends StatelessWidget {
                               bottom: Dimensions.paddingSizeExtraSmall,
                             ),
                             child: Column(
-                              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                              mainAxisAlignment: MainAxisAlignment.start,
                               crossAxisAlignment: CrossAxisAlignment.start,
                               textDirection:
                                   isLtr ? TextDirection.ltr : TextDirection.rtl,
@@ -376,11 +392,14 @@ class FoodRestaurantMenuItemCard extends StatelessWidget {
                                     fontSize: Dimensions.fontSizeSmall,
                                     color: Theme.of(context).disabledColor,
                                   ),
+                                  maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
                                   textDirection: isLtr
                                       ? TextDirection.ltr
                                       : TextDirection.rtl,
                                 ),
+                                const SizedBox(
+                                    height: Dimensions.paddingSizeExtraSmall),
                                 // Price and Cart Button Row
                                 Row(
                                   textDirection: isLtr
@@ -414,6 +433,20 @@ class FoodRestaurantMenuItemCard extends StatelessWidget {
                     ),
                   ),
                 ),
+                if (isTemporarilyHighlighted)
+                  Positioned(
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    child: Container(
+                      height: 5,
+                      decoration: BoxDecoration(
+                        color: Colors.red,
+                        borderRadius: BorderRadius.circular(
+                            Dimensions.radiusDefault),
+                      ),
+                    ),
+                  ),
                 if (isOutOfStock)
                   _buildOutOfStockOverlay(
                     borderRadius:

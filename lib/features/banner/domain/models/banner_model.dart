@@ -4,6 +4,7 @@ import 'package:sixam_mart/features/item/domain/models/item_model.dart';
 import 'package:sixam_mart/features/store/domain/models/store_model.dart';
 import 'package:sixam_mart/util/app_constants.dart';
 import 'package:sixam_mart/common/utils/json_parser.dart';
+import 'package:sixam_mart/common/utils/app_logger.dart';
 
 class BannerModel {
   List<BasicCampaignModel>? campaigns;
@@ -72,7 +73,7 @@ class Banner {
       imageFullUrl = rawImage;
     }
     if (kDebugMode && AppConstants.enableVerboseLogs) {
-      print('DEBUG BANNER URL: $imageFullUrl');
+      appLogger.debug('DEBUG BANNER URL: $imageFullUrl');
     }
     link = json['link']?.toString();
     store = json['store'] != null ? Store.fromJson(json['store'] as Map<String, dynamic>) : null;

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:get/get.dart';
@@ -24,6 +26,7 @@ import 'package:sixam_mart/common/utils/app_logger.dart';
 import 'package:sixam_mart/api/api_client.dart';
 import 'package:sixam_mart/helper/address_helper.dart';
 import 'package:sixam_mart/features/address/domain/models/address_model.dart';
+import 'package:sixam_mart/util/app_constants.dart';
 
 //فث
 /// Home Unified Controller
@@ -44,6 +47,11 @@ class HomeUnifiedController extends GetxController implements GetxService {
   final HomeUnifiedService homeUnifiedService;
 
   HomeUnifiedController({required this.homeUnifiedService});
+
+  int? get lastRequestStatusCode => homeUnifiedService.lastRequestStatusCode;
+  String? get lastRequestErrorCode => homeUnifiedService.lastRequestErrorCode;
+  bool get wasLastFailureHeaderBlocked =>
+      homeUnifiedService.wasLastFailureHeaderBlocked;
 
   // ⚡ MULTI-TENANT: Map-based cache to hold data for multiple modules simultaneously
   // This enables instant module switching (0ms) when switching between previously viewed modules
@@ -78,6 +86,7 @@ class HomeUnifiedController extends GetxController implements GetxService {
 
   // 🛠️ TASK 1: Request lock to prevent duplicate API calls
   bool _isFetching = false;
+  final Map<int, Future<HomeUnifiedModel?>> _activeApiRequests = {};
 
   // ⚡ GENERATION ID: Prevents stale API responses from being applied
   // When switching modules quickly, older requests may complete after newer ones
@@ -94,6 +103,9 @@ class HomeUnifiedController extends GetxController implements GetxService {
   final Map<int, DateTime> _lastFetchTimePerModule = {};
   static const Duration _minFetchInterval =
       Duration(seconds: 5); // Minimum 5 seconds between calls for same module
+  final Map<int, DateTime> _lastStaleCacheInvalidationPerModule = {};
+  static const Duration _staleCacheInvalidationInterval =
+      Duration(minutes: 5);
 
   bool _hasError = false;
   bool get hasError => _hasError;
@@ -106,6 +118,16 @@ class HomeUnifiedController extends GetxController implements GetxService {
 
   // 🔧 FIX: Track if data was just pre-fetched to skip immediate background refresh
   DateTime? _lastPreFetchTime;
+
+  // Smart hidden polling for food modules (restaurants/cafes)
+  Timer? _foodSmartRefreshTimer;
+  int? _foodPollingModuleId;
+  String? _lastFoodPollingFingerprint;
+  int _stableFoodPollingTicks = 0;
+  int _foodPollingAttempts = 0;
+  static const Duration _foodSmartPollingInterval = Duration(seconds: 3);
+  static const int _maxStableFoodPollingTicks = 2;
+  static const int _maxFoodPollingAttempts = 20;
 
   // Cache service
   final HiveHomeCacheService _cacheService = HiveHomeCacheService();
@@ -138,16 +160,17 @@ class HomeUnifiedController extends GetxController implements GetxService {
             update();
           });
           if (kDebugMode) {
-            print('[Cache] HIT: home_unified_$moduleId (memory - 0ms)');
+            appLogger.debug('[Cache] HIT: home_unified_$moduleId (memory - 0ms)');
           }
-          appLogger.debug('[Cache] HIT: home_unified_$moduleId (memory)');
           return true;
         }
       }
 
       // ⚡ STEP B: Load from disk cache (Hive)
       final cachedData = await _loadFromCache(moduleId);
-      if (cachedData != null && cachedData.isValid) {
+      if (cachedData != null &&
+          cachedData.isValid &&
+          _isCachePayloadValid(cachedData, moduleId)) {
         // Store in memory cache for future instant switches
         _moduleDataCache[moduleId] = cachedData;
         // 🔧 FIX: Wrap distribution AND update in Future.microtask to fix setState during build
@@ -156,24 +179,78 @@ class HomeUnifiedController extends GetxController implements GetxService {
           update();
         });
         if (kDebugMode) {
-          print('[Cache] HIT: home_unified_$moduleId (disk)');
+          appLogger.debug('[Cache] HIT: home_unified_$moduleId (disk)');
         }
-        appLogger.debug('[Cache] HIT: home_unified_$moduleId (disk)');
         return true;
       }
 
       if (kDebugMode) {
-        print('[Cache] MISS: home_unified_$moduleId (not found or expired)');
+        appLogger.debug('[Cache] MISS: home_unified_$moduleId (not found or expired)');
       }
-      appLogger.debug('[Cache] MISS: home_unified_$moduleId');
       return false;
     } catch (e) {
       if (kDebugMode) {
-        print('[Cache] MISS: home_unified_$moduleId (error: $e)');
+        appLogger.error('[Cache] MISS: home_unified_$moduleId (error: $e)', e);
       }
-      appLogger.error('Cache load failed', e);
       return false;
     }
+  }
+
+  /// Cache-First: Pre-populate memory cache for instant module-switch rendering.
+  ///
+  /// Call this BEFORE navigating to a new module's home screen (e.g. in selectModule).
+  /// Because [prepareForModuleSwitch] never clears [_moduleDataCache], the data
+  /// pre-loaded here survives the reset and is hit immediately by the first
+  /// [loadHomeData] call (memory-cache path, 0ms).
+  ///
+  /// Returns true if usable cache data was found (memory or Hive disk).
+  Future<bool> applyFromCache(int moduleId) async {
+    // Memory hit — already warm, nothing to do.
+    final existing = _moduleDataCache[moduleId];
+    if (existing != null &&
+        existing.isValid &&
+        _isCachePayloadValid(existing, moduleId)) {
+      if (kDebugMode) {
+        appLogger.debug(
+            '⚡ applyFromCache: memory HIT for module $moduleId (0ms)');
+      }
+      return true;
+    }
+
+    // Hive disk read — fast (~2–10ms).
+    try {
+      final diskData = await _loadFromCache(moduleId);
+      if (diskData != null &&
+          diskData.isValid &&
+          _isCachePayloadValid(diskData, moduleId)) {
+        _moduleDataCache[moduleId] = diskData;
+        if (kDebugMode) {
+          appLogger.debug(
+              '⚡ applyFromCache: Hive HIT for module $moduleId — pre-loaded into memory');
+        }
+        return true;
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        appLogger.warning(
+            '⚠️ applyFromCache: error reading module $moduleId from Hive: $e');
+      }
+    }
+
+    if (kDebugMode) {
+      appLogger.debug(
+          '⚡ applyFromCache: MISS for module $moduleId — no usable cache');
+    }
+    return false;
+  }
+
+  bool _isStaleGeneration(int requestGeneration, String scope) {
+    final isStale = requestGeneration != _homeGeneration;
+    if (isStale && kDebugMode) {
+      appLogger.debug(
+          '🚫 HomeUnifiedController: Discarding stale $scope response (gen $requestGeneration != $_homeGeneration)');
+    }
+    return isStale;
   }
 
   /// Load home data using unified endpoint
@@ -194,12 +271,32 @@ class HomeUnifiedController extends GetxController implements GetxService {
     if (Get.isRegistered<SplashController>()) {
       await Get.find<SplashController>().ensureModuleReady();
     }
-    if (_isLoading || _isFetching) {
+    final int? activeModuleId = ModuleHelper.getModule()?.id;
+    if (!forceRefresh &&
+        activeModuleId != null &&
+        _activeApiRequests.containsKey(activeModuleId)) {
       if (kDebugMode) {
-        print(
+        appLogger.debug(
+            'HomeUnifiedController: Reusing in-flight request for module $activeModuleId');
+      }
+      final reusedResponse = await _activeApiRequests[activeModuleId]!;
+      return reusedResponse != null && reusedResponse.isValid;
+    }
+    if (_isLoading || _isFetching) {
+      if (!forceRefresh &&
+          activeModuleId != null &&
+          _activeApiRequests.containsKey(activeModuleId)) {
+        if (kDebugMode) {
+          appLogger.debug('Reusing active API request for module $activeModuleId');
+        }
+        final reusedResponse = await _activeApiRequests[activeModuleId]!;
+        return reusedResponse != null && reusedResponse.isValid;
+      }
+      if (kDebugMode) {
+        appLogger.debug(
             '🚫 HomeUnifiedController: Already loading/fetching, skipping duplicate call');
       }
-      return false;
+      return hasCachedData;
     }
     final int? moduleForDebounce = ModuleHelper.getModule()?.id;
     final DateTime now = DateTime.now();
@@ -209,7 +306,7 @@ class HomeUnifiedController extends GetxController implements GetxService {
         _lastLoadRequestTime != null &&
         now.difference(_lastLoadRequestTime!) < _loadRequestDebounce) {
       if (kDebugMode) {
-        print(
+        appLogger.debug(
             'HomeUnifiedController: Debounced duplicate request for module $moduleForDebounce');
       }
       return hasCachedData;
@@ -221,7 +318,7 @@ class HomeUnifiedController extends GetxController implements GetxService {
     // This ensures stale responses from previous module switches are discarded
     final int currentGeneration = ++_homeGeneration;
     if (kDebugMode) {
-      print(
+      appLogger.debug(
           '🔄 HomeUnifiedController: Starting load with generation $currentGeneration');
     }
 
@@ -231,7 +328,7 @@ class HomeUnifiedController extends GetxController implements GetxService {
     final currentModuleId = ModuleHelper.getModule()?.id;
     if (currentModuleId == null) {
       if (kDebugMode) {
-        print('[Cache-First] ERROR: No module selected - cannot load data');
+        appLogger.error('[Cache-First] ERROR: No module selected - cannot load data', null);
       }
       return false;
     }
@@ -239,20 +336,22 @@ class HomeUnifiedController extends GetxController implements GetxService {
     // ⚡ CRITICAL: Assert moduleId matches current module (if provided)
     if (moduleId != null && moduleId != currentModuleId) {
       if (kDebugMode) {
-        print('[Cache-First] ERROR: Module ID mismatch!');
-        print('   - Cache is for module: $currentModuleId');
-        print('   - API called with moduleId: $moduleId');
-        print(
-            '   - This breaks Cache-First philosophy - ignoring moduleId parameter');
+        appLogger.error('[Cache-First] ERROR: Module ID mismatch!', null);
+        appLogger.error('   - Cache is for module: $currentModuleId', null);
+        appLogger.error('   - API called with moduleId: $moduleId', null);
+        appLogger.error(
+            '   - This breaks Cache-First philosophy - ignoring moduleId parameter', null);
       }
-      appLogger.error('Module ID mismatch in loadHomeData', null);
       // Use current module ID instead of provided one
     }
 
     final effectiveModuleId = currentModuleId; // Always use current module
 
     if (forceRefresh) {
-      await _cacheService.invalidateHomeUnifiedCache(effectiveModuleId);
+      await _cacheService.invalidateHomeUnifiedCache(
+        effectiveModuleId,
+        clearEtag: true,
+      );
       _moduleDataCache.remove(effectiveModuleId);
     }
 
@@ -261,22 +360,37 @@ class HomeUnifiedController extends GetxController implements GetxService {
     _ensureApiHeadersUpdated(effectiveModuleId);
 
     // ⚡ OPTIMIZATION: Check if we recently fetched this module (prevent rapid duplicate calls)
+    // Bug#4 FIX: Only apply the interval guard when valid data already exists in memory.
+    // If memory cache is empty (e.g. 304 + empty Hive), allow immediate retry
+    // regardless of how recently _lastFetchTimePerModule was set.
     if (!forceRefresh) {
       final lastFetchTime = _lastFetchTimePerModule[effectiveModuleId];
       if (lastFetchTime != null) {
         final timeSinceLastFetch = DateTime.now().difference(lastFetchTime);
         if (timeSinceLastFetch < _minFetchInterval) {
-          if (kDebugMode) {
-            print(
-                '⚡ HomeUnifiedController: Skipping duplicate call (last fetch ${timeSinceLastFetch.inSeconds}s ago for module $effectiveModuleId, min interval: ${_minFetchInterval.inSeconds}s)');
+          // Only block if we actually have usable data for this module.
+          final cached = _moduleDataCache[effectiveModuleId];
+          final hasValidData = cached != null &&
+              cached.isValid &&
+              _isCachePayloadValid(cached, effectiveModuleId);
+          if (hasValidData) {
+            if (kDebugMode) {
+              appLogger.debug(
+                  '⚡ HomeUnifiedController: Skipping duplicate call — has valid data '
+                  '(last fetch ${timeSinceLastFetch.inSeconds}s ago, module $effectiveModuleId)');
+            }
+            return false;
+          } else if (kDebugMode) {
+            appLogger.debug(
+                '⚡ HomeUnifiedController: Bypassing interval — no valid data for '
+                'module $effectiveModuleId, allowing retry.');
           }
-          return false;
         }
       }
     }
 
     if (kDebugMode && moduleId != null) {
-      print(
+      appLogger.debug(
           '✅ HomeUnifiedController: Loading home data with moduleId: $moduleId (pre-fetch mode)');
     }
 
@@ -290,9 +404,16 @@ class HomeUnifiedController extends GetxController implements GetxService {
         _isLoading = false;
         update();
         if (kDebugMode) {
-          print(
+          appLogger.debug(
               '⚡ HomeUnifiedController: Instant switch from memory cache (0ms) - module $effectiveModuleId');
         }
+        // SWR: render from memory instantly, then silently refresh from API so
+        // new categories/banners are always up-to-date (especially after module switch).
+        // _refreshFromApiInBackground handles all guards internally:
+        //   • skips if fetched < 10s ago (no redundant calls on quick back-nav)
+        //   • skips if generation changed (no stale responses)
+        //   • skips if already fetching
+        _refreshFromApiInBackground(effectiveModuleId);
         return true; // Instant switch - 0ms
       }
     }
@@ -305,7 +426,7 @@ class HomeUnifiedController extends GetxController implements GetxService {
       // ⚡ Cache-First: Silent refresh - preserve Success state
       _isLoading = false;
       if (kDebugMode) {
-        print(
+        appLogger.debug(
             '[Cache-First] Silent refresh - preserving Success state (cached data exists)');
       }
     } else {
@@ -328,7 +449,7 @@ class HomeUnifiedController extends GetxController implements GetxService {
         if (splashController.configModel == null &&
             !splashController.isLoadingConfig) {
           if (kDebugMode) {
-            print(
+            appLogger.debug(
                 '🔧 HomeUnifiedController: Config not loaded, triggering getConfigData...');
           }
           // Trigger config load in background (non-blocking)
@@ -340,11 +461,11 @@ class HomeUnifiedController extends GetxController implements GetxService {
           )
               .catchError((e) {
             if (kDebugMode) {
-              print('⚠️ HomeUnifiedController: Error loading config: $e');
+              appLogger.warning('⚠️ HomeUnifiedController: Error loading config: $e');
             }
           });
         } else if (splashController.isLoadingConfig && kDebugMode) {
-          print(
+          appLogger.debug(
               '🚫 HomeUnifiedController: Config already being loaded - skipping duplicate trigger');
         }
       }
@@ -357,9 +478,11 @@ class HomeUnifiedController extends GetxController implements GetxService {
       // Step 1: Load from disk cache (if not already in memory)
       if (!forceRefresh) {
         final cachedData = await _loadFromCache(effectiveModuleId);
-        if (cachedData != null && cachedData.isValid) {
+        if (cachedData != null &&
+            cachedData.isValid &&
+            _isCachePayloadValid(cachedData, effectiveModuleId)) {
           if (kDebugMode) {
-            print(
+            appLogger.info(
                 '✅ HomeUnifiedController: Loaded from disk cache, storing in memory and distributing data...');
           }
           // Store in memory cache for future instant switches
@@ -380,7 +503,7 @@ class HomeUnifiedController extends GetxController implements GetxService {
 
           if (shouldSkipBackgroundRefresh) {
             if (kDebugMode) {
-              print(
+              appLogger.debug(
                   '🚫 HomeUnifiedController: Skipping background refresh - data was just pre-fetched or fetch in progress');
             }
           } else {
@@ -397,7 +520,7 @@ class HomeUnifiedController extends GetxController implements GetxService {
       // 🛠️ TASK 1: Check request lock to prevent duplicate calls
       if (_isFetching) {
         if (kDebugMode) {
-          print(
+          appLogger.debug(
               '🚫 HomeUnifiedController: Already fetching, skipping duplicate call');
         }
         _isLoading = false;
@@ -414,7 +537,7 @@ class HomeUnifiedController extends GetxController implements GetxService {
       }
       HomeUnifiedModel? apiData;
       try {
-        apiData = await homeUnifiedService.getHomeUnifiedData(
+        apiData = await _fetchHomeUnifiedDataDeduped(
           moduleId: effectiveModuleId,
           include: include, // 🔧 FIX: Pass include parameter for lazy loading
         );
@@ -426,11 +549,7 @@ class HomeUnifiedController extends GetxController implements GetxService {
 
       if (apiData != null && apiData.isValid) {
         // ⚡ GENERATION CHECK: Discard stale response if module switched during API call
-        if (currentGeneration != _homeGeneration) {
-          if (kDebugMode) {
-            print(
-                '🚫 HomeUnifiedController: Discarding stale response (gen $currentGeneration != $_homeGeneration)');
-          }
+        if (_isStaleGeneration(currentGeneration, 'main API')) {
           _isLoading = false;
           return false; // Module switched, ignore this response
         }
@@ -438,6 +557,11 @@ class HomeUnifiedController extends GetxController implements GetxService {
         // 🔧 FIX 3: Check if new API data is identical to cached data BEFORE updating
         // This prevents flicker when skeleton disappears and data reloads
         final cachedDataBeforeUpdate = _moduleDataCache[effectiveModuleId];
+        apiData = _preserveBannersFromCacheIfApiEmpty(
+          cachedDataBeforeUpdate: cachedDataBeforeUpdate,
+          apiData: apiData,
+          moduleId: effectiveModuleId,
+        );
         final isDataIdentical = cachedDataBeforeUpdate != null &&
             !_hasDataChanged(cachedDataBeforeUpdate, apiData);
 
@@ -448,9 +572,9 @@ class HomeUnifiedController extends GetxController implements GetxService {
 
         if (isDataIdentical && !shouldForceUpdate) {
           if (kDebugMode) {
-            print(
+            appLogger.debug(
                 '✅ HomeUnifiedController: API data identical to cached data, skipping update() to prevent flicker');
-            print('   - Version hash: ${apiData.meta?.versionHash}');
+            appLogger.debug('   - Version hash: ${apiData.meta?.versionHash}');
           }
           // Still save to cache to update timestamps, but don't update UI
           await _saveToCache(effectiveModuleId, apiData);
@@ -460,7 +584,7 @@ class HomeUnifiedController extends GetxController implements GetxService {
         }
 
         if (shouldForceUpdate && kDebugMode) {
-          print(
+          appLogger.debug(
               '🔄 HomeUnifiedController: Banner upgrade detected - forcing UI update');
         }
 
@@ -478,11 +602,11 @@ class HomeUnifiedController extends GetxController implements GetxService {
         }
 
         if (kDebugMode && moduleId != null) {
-          print(
+          appLogger.info(
               '✅ HomeUnifiedController: Pre-fetch complete - data stored in memory cache (moduleId: $moduleId)');
-          print(
+          appLogger.debug(
               '   - Banners: ${apiData.banners?.length ?? 0}, Offers: ${apiData.offers?.length ?? 0}');
-          print(
+          appLogger.debug(
               '   - Stored in _moduleDataCache[$moduleId] for instant switching');
         }
 
@@ -493,11 +617,7 @@ class HomeUnifiedController extends GetxController implements GetxService {
         final genAtDistribute = currentGeneration;
         Future.microtask(() {
           // ⚡ GENERATION CHECK: Skip distribution if module switched
-          if (genAtDistribute != _homeGeneration) {
-            if (kDebugMode) {
-              print(
-                  '🚫 HomeUnifiedController: Skipping distribution (gen $genAtDistribute != $_homeGeneration)');
-            }
+          if (_isStaleGeneration(genAtDistribute, 'distribution')) {
             return;
           }
           _distributeDataToControllers(dataToDistribute, loadStores: true);
@@ -507,7 +627,7 @@ class HomeUnifiedController extends GetxController implements GetxService {
         await _saveToCache(effectiveModuleId, apiData);
 
         if (kDebugMode) {
-          print('✅ HomeUnifiedController: API data loaded and distributed');
+          appLogger.info('✅ HomeUnifiedController: API data loaded and distributed');
         }
 
         _isLoading = false;
@@ -517,7 +637,7 @@ class HomeUnifiedController extends GetxController implements GetxService {
             newVersionHash != null &&
             oldVersionHash == newVersionHash) {
           if (kDebugMode) {
-            print(
+            appLogger.debug(
                 '✅ HomeUnifiedController: Skip update() - version hash unchanged ($oldVersionHash)');
           }
           return true;
@@ -531,17 +651,13 @@ class HomeUnifiedController extends GetxController implements GetxService {
             await _loadFromCache(effectiveModuleId);
         if (fallbackData != null && fallbackData.isValid) {
           if (kDebugMode) {
-            print(
+            appLogger.warning(
                 '⚠️ HomeUnifiedController: Empty/invalid API response - preserving cached data for module $effectiveModuleId');
           }
           _moduleDataCache[effectiveModuleId] = fallbackData;
           _lastFetchTime = DateTime.now();
           Future.microtask(() {
-            if (currentGeneration != _homeGeneration) {
-              if (kDebugMode) {
-                print(
-                    '🚫 HomeUnifiedController: Skipping fallback distribution (gen $currentGeneration != $_homeGeneration)');
-              }
+            if (_isStaleGeneration(currentGeneration, 'fallback distribution')) {
               return;
             }
             _distributeDataToControllers(fallbackData, loadStores: true);
@@ -559,7 +675,7 @@ class HomeUnifiedController extends GetxController implements GetxService {
       }
     } catch (e) {
       if (kDebugMode) {
-        print('❌ HomeUnifiedController: Error loading home data: $e');
+        appLogger.error('❌ HomeUnifiedController: Error loading home data: $e', e);
       }
       _hasError = true;
       _errorMessage = e.toString();
@@ -611,16 +727,16 @@ class HomeUnifiedController extends GetxController implements GetxService {
     if (isFirstDistribution) {
       _hasEverDistributed = true;
       if (kDebugMode) {
-        print(
+        appLogger.debug(
             '🚀 HomeUnifiedController: First distribution - forcing update (guest/new user fix)');
       }
     }
 
     // 🔧 FIX 3: If module changed, log and prepare for hard reset
     if (isModuleChange && kDebugMode) {
-      print(
+      appLogger.info(
           '🔄 HomeUnifiedController: MODULE CHANGE detected ($_lastDistributedModuleId → $currentModuleId)');
-      print('   → Hard reset: will NOT preserve old module data');
+      appLogger.debug('   → Hard reset: will NOT preserve old module data');
     }
 
     // 🔧 FIX: Prevent duplicate distribution ONLY if moduleId is the same and hash matches
@@ -631,7 +747,7 @@ class HomeUnifiedController extends GetxController implements GetxService {
         _lastDistributedModuleId == currentModuleId &&
         _lastDistributedHash == dataHash) {
       if (kDebugMode) {
-        print(
+        appLogger.debug(
             '✅ HomeUnifiedController: Skipping duplicate distribution (same module: $currentModuleId, same hash: $dataHash)');
       }
       return false; // No update needed
@@ -642,7 +758,7 @@ class HomeUnifiedController extends GetxController implements GetxService {
     _lastDistributedModuleId = currentModuleId;
 
     if (kDebugMode) {
-      print(
+      appLogger.debug(
           '🔄 HomeUnifiedController: Distributing data to controllers... (module: $currentModuleId)');
     }
 
@@ -653,19 +769,19 @@ class HomeUnifiedController extends GetxController implements GetxService {
       final bannerController = Get.find<BannerController>();
 
       // 🔍 DEBUG: Log banner data from API response
-      if (kDebugMode) {
-        print('🔍 HomeUnifiedController: Banner distribution check');
-        print('   - data.banners: ${data.banners?.length ?? 0} items');
-        print('   - data.campaigns: ${data.campaigns?.length ?? 0} items');
+      if (kDebugMode && AppConstants.enableVerboseLogs) {
+        appLogger.debug('🔍 HomeUnifiedController: Banner distribution check');
+        appLogger.debug('   - data.banners: ${data.banners?.length ?? 0} items');
+        appLogger.debug('   - data.campaigns: ${data.campaigns?.length ?? 0} items');
         if (data.banners != null && data.banners!.isNotEmpty) {
-          print('   - First banner: ${data.banners!.first.imageFullUrl}');
+          appLogger.debug('   - First banner: ${data.banners!.first.imageFullUrl}');
         }
         if (data.campaigns != null && data.campaigns!.isNotEmpty) {
-          print('   - First campaign: ${data.campaigns!.first.imageFullUrl}');
+          appLogger.debug('   - First campaign: ${data.campaigns!.first.imageFullUrl}');
         }
-        print(
+        appLogger.debug(
             '   - Existing banners: ${bannerController.bannerImageList?.length ?? 0}');
-        print(
+        appLogger.debug(
             '   - Existing featured: ${bannerController.featuredBannerList?.length ?? 0}');
       }
 
@@ -678,9 +794,9 @@ class HomeUnifiedController extends GetxController implements GetxService {
           (data.banners != null && data.banners!.isNotEmpty) ||
               (data.campaigns != null && data.campaigns!.isNotEmpty);
 
-      if (kDebugMode) {
-        print('   - hasExistingBanners: $hasExistingBanners');
-        print('   - hasNewBanners: $hasNewBanners');
+      if (kDebugMode && AppConstants.enableVerboseLogs) {
+        appLogger.debug('   - hasExistingBanners: $hasExistingBanners');
+        appLogger.debug('   - hasNewBanners: $hasNewBanners');
       }
 
       // Only update if we have new banners AND (no existing banners OR new banners are not empty)
@@ -700,7 +816,7 @@ class HomeUnifiedController extends GetxController implements GetxService {
             final cachedBannerModel = cachedData.toBannerModel();
             if (_areBannersIdentical(cachedBannerModel, bannerModel)) {
               if (kDebugMode) {
-                print(
+                appLogger.debug(
                     '   ✓ BannerController: Data identical, skipping update() to prevent flicker');
               }
               // Data is identical - don't update controller but still save to cache (handled by caller)
@@ -712,16 +828,16 @@ class HomeUnifiedController extends GetxController implements GetxService {
         if (shouldUpdateBanners) {
           // 🔧 PROTECTIVE DISTRIBUTION: Wrap in try-catch to prevent crash from blocking other controllers
           try {
-            bannerController.setBannerDataFromBootstrap(bannerModel);
+            bannerController.setFromUnified(bannerModel: bannerModel);
             shouldUpdateUI = true;
             if (kDebugMode) {
-              print(
+              appLogger.debug(
                   '   ✓ BannerController: ${data.banners?.length ?? 0} banners, ${data.campaigns?.length ?? 0} campaigns');
             }
           } catch (e, stackTrace) {
             appLogger.error('Banner Distribution Failed', e, stackTrace);
             if (kDebugMode) {
-              print('   ❌ BannerController: Distribution failed - $e');
+              appLogger.error('   ❌ BannerController: Distribution failed - $e', e);
             }
           }
         }
@@ -729,22 +845,30 @@ class HomeUnifiedController extends GetxController implements GetxService {
         // 🔧 FIX 3: Only preserve existing banners if SAME module
         // If module changed, do NOT preserve - clear old data
         if (kDebugMode) {
-          print(
+          appLogger.debug(
               '   🛡️ BannerController: Discarding empty update - preserving existing banners (same module)');
         }
       } else if (isModuleChange) {
-        // Global banners: do NOT clear on module change
+        // Module changed + no banners in payload: clear stale banners from previous module.
         if (kDebugMode) {
-          print(
-              '   🛡️ BannerController: Module changed - preserving global banners');
+          appLogger.info(
+              '   🗑️ BannerController: Module changed with empty banners - clearing stale banner state');
+        }
+        try {
+          bannerController.clearUnifiedBanners(notify: true);
+          shouldUpdateUI = true;
+        } catch (e) {
+          if (kDebugMode) {
+            appLogger.warning('   ⚠️ BannerController: Error while clearing stale banners - $e');
+          }
         }
       } else {
         // 🔍 DEBUG: Log when no banners are found
         if (kDebugMode) {
-          print(
+          appLogger.warning(
               '   ⚠️ BannerController: No banners in API response and no existing banners');
-          print('      - banners: ${data.banners?.length ?? 0}');
-          print('      - campaigns: ${data.campaigns?.length ?? 0}');
+          appLogger.debug('      - banners: ${data.banners?.length ?? 0}');
+          appLogger.debug('      - campaigns: ${data.campaigns?.length ?? 0}');
         }
 
         // 🔧 FALLBACK: If unified endpoint returns no banners, try loading from legacy banner endpoint
@@ -755,7 +879,7 @@ class HomeUnifiedController extends GetxController implements GetxService {
           if (bannerController.bannerImageList == null &&
               bannerController.featuredBannerList == null) {
             if (kDebugMode) {
-              print(
+              appLogger.debug(
                   '   🔄 BannerController: Triggering fallback to legacy banner endpoint...');
             }
             // Load banners from legacy endpoint in background
@@ -763,7 +887,7 @@ class HomeUnifiedController extends GetxController implements GetxService {
                 .getBannerList(false, dataSource: DataSourceEnum.client)
                 .catchError((Object e) {
               if (kDebugMode) {
-                print(
+                appLogger.warning(
                     '   ⚠️ BannerController: Fallback banner load failed: $e');
               }
               return null;
@@ -790,28 +914,31 @@ class HomeUnifiedController extends GetxController implements GetxService {
       if (hasNewCategories) {
         // 🔧 PROTECTIVE DISTRIBUTION: Wrap in try-catch to prevent crash from blocking other controllers
         try {
-          categoryController.setCategoryListFromCache(data.categories!);
+          categoryController.setCategoryListFromCache(
+            data.categories!,
+            expectedModuleId: currentModuleId,
+          );
           if (kDebugMode) {
-            print(
+            appLogger.debug(
                 '   ✓ CategoryController: ${data.categories!.length} categories');
           }
         } catch (e, stackTrace) {
           appLogger.error('Category Distribution Failed', e, stackTrace);
           if (kDebugMode) {
-            print('   ❌ CategoryController: Distribution failed - $e');
+            appLogger.error('   ❌ CategoryController: Distribution failed - $e', e);
           }
         }
       } else if (hasExistingCategories && !isModuleChange) {
         // 🔧 FIX 3: Only preserve existing categories if SAME module
         // If module changed, do NOT preserve - clear old data
         if (kDebugMode) {
-          print(
+          appLogger.debug(
               '   🛡️ CategoryController: Discarding empty update - preserving existing ${categoryController.categoryList!.length} categories (same module)');
         }
       } else if (isModuleChange) {
         // 🔧 FIX 3: Module changed - HARD RESET categories
         if (kDebugMode) {
-          print(
+          appLogger.info(
               '   🗑️ CategoryController: Module changed - clearing old categories (hard reset)');
         }
         try {
@@ -819,7 +946,7 @@ class HomeUnifiedController extends GetxController implements GetxService {
           shouldUpdateUI = true;
         } catch (e) {
           if (kDebugMode) {
-            print('   ⚠️ CategoryController: Error during hard reset - $e');
+            appLogger.warning('   ⚠️ CategoryController: Error during hard reset - $e');
           }
         }
       }
@@ -856,25 +983,25 @@ class HomeUnifiedController extends GetxController implements GetxService {
           // ✅ SAFE: This only sets popularStoreList, NOT storeModel
           storeController.setPopularStoreDataFromBootstrap(storeModel);
           if (kDebugMode) {
-            print(
+            appLogger.debug(
                 '   ✓ StoreController: ${data.popularStores!.length} popular stores (popularStoreList only)');
           }
         } catch (e, stackTrace) {
           appLogger.error('Store Distribution Failed', e, stackTrace);
           if (kDebugMode) {
-            print('   ❌ StoreController: Distribution failed - $e');
+            appLogger.error('   ❌ StoreController: Distribution failed - $e', e);
           }
         }
       } else if (hasExistingPopularStores && !isModuleChange) {
         // 🔧 FIX 3: Only preserve existing stores if SAME module
         if (kDebugMode) {
-          print(
+          appLogger.debug(
               '   🛡️ StoreController: Discarding empty update - preserving existing ${storeController.popularStoreList!.length} popular stores (same module)');
         }
       } else if (isModuleChange) {
         // 🔧 FIX 3: Module changed - HARD RESET stores
         if (kDebugMode) {
-          print(
+          appLogger.info(
               '   🗑️ StoreController: Module changed - clearing old stores (hard reset)');
         }
         try {
@@ -882,27 +1009,27 @@ class HomeUnifiedController extends GetxController implements GetxService {
           shouldUpdateUI = true;
         } catch (e) {
           if (kDebugMode) {
-            print('   ⚠️ StoreController: Error during hard reset - $e');
+            appLogger.warning('   ⚠️ StoreController: Error during hard reset - $e');
           }
         }
       }
 
       // 🚫 DEFENSIVE CHECK: Verify we never set storeModel or allStoreModel directly
       // If this assertion fails, it means V2 is contaminating legacy state
-      if (kDebugMode) {
+      if (kDebugMode && AppConstants.enableVerboseLogs) {
         // Verify setPopularStoreDataFromBootstrap doesn't touch storeModel or allStoreModel
         // This is a runtime check to catch any accidental contamination
         final currentStoreModel = storeController.storeModel;
         final currentAllStoreModel = storeController.allStoreModel;
         if (currentStoreModel != null &&
             currentStoreModel.totalSize == data.popularStores?.length) {
-          print(
+          appLogger.warning(
               '   ⚠️ WARNING: StoreModel totalSize matches popularStores count - possible V2 contamination!');
         }
         // ⚡ HARD-ISOLATION: Verify allStoreModel is never touched by V2
         if (currentAllStoreModel != null &&
             currentAllStoreModel.totalSize == data.popularStores?.length) {
-          print(
+          appLogger.warning(
               '   ⚠️ CRITICAL: allStoreModel totalSize matches popularStores count - V2 contamination detected!');
         }
       }
@@ -936,24 +1063,24 @@ class HomeUnifiedController extends GetxController implements GetxService {
           });
 
           if (kDebugMode) {
-            print('   ✓ BrandsController: ${data.brands!.length} brands');
+            appLogger.debug('   ✓ BrandsController: ${data.brands!.length} brands');
           }
         } catch (e, stackTrace) {
           appLogger.error('Brands Distribution Failed', e, stackTrace);
           if (kDebugMode) {
-            print('   ❌ BrandsController: Distribution failed - $e');
+            appLogger.error('   ❌ BrandsController: Distribution failed - $e', e);
           }
         }
       } else if (hasExistingBrands && !isModuleChange) {
         // 🔧 FIX 3: Only preserve existing brands if SAME module
         if (kDebugMode) {
-          print(
+          appLogger.debug(
               '   🛡️ BrandsController: Discarding empty update - preserving existing ${brandsController.brandList!.length} brands (same module)');
         }
       } else if (isModuleChange) {
         // 🔧 FIX 3: Module changed - HARD RESET brands
         if (kDebugMode) {
-          print(
+          appLogger.info(
               '   🗑️ BrandsController: Module changed - clearing old brands (hard reset)');
         }
         try {
@@ -961,7 +1088,7 @@ class HomeUnifiedController extends GetxController implements GetxService {
           shouldUpdateUI = true;
         } catch (e) {
           if (kDebugMode) {
-            print('   ⚠️ BrandsController: Error during hard reset - $e');
+            appLogger.warning('   ⚠️ BrandsController: Error during hard reset - $e');
           }
         }
       }
@@ -997,7 +1124,7 @@ class HomeUnifiedController extends GetxController implements GetxService {
             if (_areOffersIdentical(
                 cachedData.offers!.first, data.offers!.first)) {
               if (kDebugMode) {
-                print(
+                appLogger.debug(
                     '   ✓ Offers_Controller: Data identical, skipping update() to prevent flicker');
               }
               // Data is identical - don't update controller but still save to cache (handled by caller)
@@ -1010,7 +1137,7 @@ class HomeUnifiedController extends GetxController implements GetxService {
         if (isEmpty && newOffersNotEmpty) {
           shouldUpdateOffers = true;
           if (kDebugMode) {
-            print(
+            appLogger.debug(
                 '   ✓ Offers_Controller: Screen is empty, forcing update with ${data.offers!.length} offers');
           }
         }
@@ -1020,35 +1147,49 @@ class HomeUnifiedController extends GetxController implements GetxService {
           // This prevents empty cached responses from wiping the UI
           final offersCount = data.offers!.first.data.length;
           if (offersCount == 0) {
-            if (kDebugMode) {
-              print(
-                  '   🛡️ Offers_Controller: Offers count is 0, preserving existing data (Titan Mandate)');
+            if (isModuleChange) {
+              if (kDebugMode) {
+                appLogger.info(
+                    '   🗑️ Offers_Controller: Module changed with empty offers - clearing stale offers');
+              }
+              offersController.clearOffersFromUnified(notify: true);
+              shouldUpdateUI = true;
+            } else {
+              if (kDebugMode) {
+                appLogger.debug(
+                    '   🛡️ Offers_Controller: Offers count is 0, preserving existing data (same module)');
+              }
+              // Don't update - preserve existing offers data on same module
             }
-            // Don't update - preserve existing offers data
           } else {
             // 🔧 PROTECTIVE DISTRIBUTION: Wrap in try-catch to prevent crash from blocking other controllers
             try {
               offersController.setOffersFromBootstrap(data.offers!);
               shouldUpdateUI = true;
               if (kDebugMode) {
-                print(
+                appLogger.debug(
                     '   ✓ Offers_Controller: Injected ${data.offers!.length} offers ($offersCount items)');
               }
             } catch (e, stackTrace) {
               appLogger.error('Offers Distribution Failed', e, stackTrace);
               if (kDebugMode) {
-                print('   ❌ Offers_Controller: Distribution failed - $e');
+                appLogger.error('   ❌ Offers_Controller: Distribution failed - $e', e);
               }
             }
           }
         }
       } else if (hasExistingOffers) {
-        // 🔧 FIX: Preserve existing offers if bootstrap returns empty
-        if (kDebugMode) {
-          print(
-              '   ✓ Offers_Controller: Bootstrap has no offers, preserving existing ${offersController.offersMode!.data.length} offers');
+        if (isModuleChange) {
+          if (kDebugMode) {
+            appLogger.info(
+                '   🗑️ Offers_Controller: Module changed and bootstrap has no offers - clearing stale offers');
+          }
+          offersController.clearOffersFromUnified(notify: true);
+          shouldUpdateUI = true;
+        } else if (kDebugMode) {
+          appLogger.debug(
+              '   ✓ Offers_Controller: Bootstrap has no offers, preserving existing ${offersController.offersMode!.data.length} offers (same module)');
         }
-        // Don't update - keep existing data
       }
     }
 
@@ -1060,11 +1201,11 @@ class HomeUnifiedController extends GetxController implements GetxService {
           final userInfoModel = UserInfoModel.fromJson(data.customer!);
           profileController.setUserInfoFromUnified(userInfoModel);
           if (kDebugMode) {
-            print('   ✓ ProfileController: Customer data loaded');
+            appLogger.debug('   ✓ ProfileController: Customer data loaded');
           }
         } catch (e) {
           if (kDebugMode) {
-            print('   ⚠️ ProfileController: Error parsing customer data: $e');
+            appLogger.warning('   ⚠️ ProfileController: Error parsing customer data: $e');
           }
         }
       }
@@ -1080,11 +1221,11 @@ class HomeUnifiedController extends GetxController implements GetxService {
           homeController
               .setBusinessSettingsFromBootstrap(data.businessSettings!);
           if (kDebugMode) {
-            print(
+            appLogger.debug(
                 '   ✓ HomeController: Business settings synced from V2 response');
           }
         } else if (kDebugMode) {
-          print(
+          appLogger.debug(
               '   ⚠️ HomeController: Skipping V2 settings - app-init already set');
         }
       } else {
@@ -1095,24 +1236,119 @@ class HomeUnifiedController extends GetxController implements GetxService {
           if (cachedSettings != null) {
             homeController.setBusinessSettingsFromAppInit(cachedSettings);
             if (kDebugMode) {
-              print(
+              appLogger.debug(
                   '   ✅ HomeController: Business settings restored from SplashController cache');
             }
           }
         }
         if (kDebugMode) {
-          print(
+          appLogger.debug(
               '   ⚠️ HomeController: Business settings missing in V2 payload, preserving existing settings');
         }
       }
     }
 
     if (kDebugMode) {
-      print('✅ HomeUnifiedController: Data distribution complete');
+      appLogger.info('✅ HomeUnifiedController: Data distribution complete');
     }
 
     update();
     return shouldUpdateUI;
+  }
+
+  Future<HomeUnifiedModel?> _fetchHomeUnifiedDataDeduped({
+    required int moduleId,
+    String? include,
+  }) {
+    final existingRequest = _activeApiRequests[moduleId];
+    if (existingRequest != null) {
+      if (kDebugMode) {
+        appLogger.debug(
+            '🔄 HomeUnifiedController: Reusing in-flight API request for module $moduleId');
+      }
+      return existingRequest;
+    }
+
+    final request = homeUnifiedService.getHomeUnifiedData(
+      moduleId: moduleId,
+      include: include,
+    );
+    _activeApiRequests[moduleId] = request;
+    request.whenComplete(() {
+      final current = _activeApiRequests[moduleId];
+      if (identical(current, request)) {
+        _activeApiRequests.remove(moduleId);
+      }
+    });
+
+    return request;
+  }
+
+  /// Warm a specific module payload during splash/startup without touching UI state.
+  /// This fills memory + Hive cache so switching modules later is instant.
+  Future<bool> preloadModuleDataForSplash(
+    int moduleId, {
+    bool forceRefresh = false,
+  }) async {
+    if (moduleId <= 0) {
+      return false;
+    }
+
+    try {
+      if (!forceRefresh) {
+        final inMemory = _moduleDataCache[moduleId];
+        if (inMemory != null && inMemory.isValid) {
+          if (kDebugMode) {
+            appLogger.debug(
+                '⚡ HomeUnifiedController: Splash preload skip (memory hit) for module $moduleId');
+          }
+          return true;
+        }
+
+        final onDisk = await _loadFromCache(moduleId);
+        if (onDisk != null &&
+            onDisk.isValid &&
+            _isCachePayloadValid(onDisk, moduleId)) {
+          _moduleDataCache[moduleId] = onDisk;
+          if (kDebugMode) {
+            appLogger.debug(
+                '⚡ HomeUnifiedController: Splash preload hydrated from disk for module $moduleId');
+          }
+          return true;
+        }
+      }
+
+      final int preloadGeneration = _homeGeneration;
+      final apiData = await _fetchHomeUnifiedDataDeduped(moduleId: moduleId);
+      final activeModuleId = ModuleHelper.getModule()?.id;
+      if (activeModuleId == moduleId &&
+          _isStaleGeneration(preloadGeneration, 'splash-preload')) {
+        return false;
+      }
+      if (apiData != null && apiData.isValid) {
+        _moduleDataCache[moduleId] = apiData;
+        await _saveToCache(moduleId, apiData);
+        _lastFetchTimePerModule[moduleId] = DateTime.now();
+
+        if (kDebugMode) {
+          appLogger.debug(
+              '✅ HomeUnifiedController: Splash preload completed for module $moduleId');
+        }
+        return true;
+      }
+
+      if (kDebugMode) {
+        appLogger.warning(
+            '⚠️ HomeUnifiedController: Splash preload returned empty for module $moduleId');
+      }
+      return false;
+    } catch (e) {
+      if (kDebugMode) {
+        appLogger.warning(
+            '⚠️ HomeUnifiedController: Splash preload failed for module $moduleId: $e');
+      }
+      return false;
+    }
   }
 
   /// Refresh data from API in background
@@ -1126,11 +1362,7 @@ class HomeUnifiedController extends GetxController implements GetxService {
 
     Future.delayed(const Duration(milliseconds: 100), () async {
       // ⚡ GENERATION CHECK: Skip if module switched during delay
-      if (refreshGeneration != _homeGeneration) {
-        if (kDebugMode) {
-          print(
-              '🚫 HomeUnifiedController: Background refresh aborted - module switched (gen $refreshGeneration != $_homeGeneration)');
-        }
+      if (_isStaleGeneration(refreshGeneration, 'background-delay')) {
         return;
       }
 
@@ -1144,7 +1376,7 @@ class HomeUnifiedController extends GetxController implements GetxService {
         if (timeSinceLastFetch.inSeconds < 10) {
           shouldSkip = true;
           if (kDebugMode) {
-            print(
+            appLogger.debug(
                 '🚫 HomeUnifiedController: Skipping background refresh - data was just fetched ${timeSinceLastFetch.inSeconds}s ago');
           }
         }
@@ -1156,7 +1388,7 @@ class HomeUnifiedController extends GetxController implements GetxService {
         if (timeSincePreFetch.inSeconds < 10) {
           shouldSkip = true;
           if (kDebugMode) {
-            print(
+            appLogger.debug(
                 '🚫 HomeUnifiedController: Skipping background refresh - data was just pre-fetched ${timeSincePreFetch.inSeconds}s ago (module 3)');
           }
         }
@@ -1177,7 +1409,7 @@ class HomeUnifiedController extends GetxController implements GetxService {
           _moduleDataCache[moduleId]!.isValid;
       if (!hasCachedData) {
         if (kDebugMode) {
-          print(
+          appLogger.debug(
               '[Cache-First] Background refresh skipped - no cached data (first load)');
         }
         return; // First load - not background refresh
@@ -1186,7 +1418,7 @@ class HomeUnifiedController extends GetxController implements GetxService {
       // 🛠️ TASK 1: Check request lock to prevent duplicate calls
       if (_isFetching) {
         if (kDebugMode) {
-          print('[Cache-First] Background refresh skipped - already fetching');
+          appLogger.debug('[Cache-First] Background refresh skipped - already fetching');
         }
         return;
       }
@@ -1194,28 +1426,22 @@ class HomeUnifiedController extends GetxController implements GetxService {
       _isFetching = true;
 
       // ⚡ OPTIMIZATION: Update last fetch time per module (even if API call fails)
-      final effectiveModuleIdForFetch =
-          moduleId ?? ModuleHelper.getModule()?.id;
+      final effectiveModuleIdForFetch = ModuleHelper.getModule()?.id;
       if (effectiveModuleIdForFetch != null) {
         _lastFetchTimePerModule[effectiveModuleIdForFetch] = DateTime.now();
       }
       try {
         if (kDebugMode) {
-          print(
+          appLogger.debug(
               '[API] background refresh started (truly background - no UI blocking)');
         }
-        appLogger.debug('[API] background refresh started');
 
-        final apiData = await homeUnifiedService.getHomeUnifiedData(
+        final apiData = await _fetchHomeUnifiedDataDeduped(
           moduleId: moduleId,
         );
 
         // ⚡ GENERATION CHECK: Discard stale response if module switched during API call
-        if (refreshGeneration != _homeGeneration) {
-          if (kDebugMode) {
-            print(
-                '🚫 HomeUnifiedController: Discarding stale background response (gen $refreshGeneration != $_homeGeneration)');
-          }
+        if (_isStaleGeneration(refreshGeneration, 'background API')) {
           return; // Module switched, ignore this response
         }
 
@@ -1229,9 +1455,8 @@ class HomeUnifiedController extends GetxController implements GetxService {
               apiData.meta?.versionHash != null &&
               cachedData.meta!.versionHash == apiData.meta!.versionHash) {
             if (kDebugMode) {
-              print('[API] data identical → skip update (version_hash match)');
+              appLogger.debug('[API] data identical → skip update (version_hash match)');
             }
-            appLogger.debug('[API] data identical → skip update');
             return; // Data is identical - no update needed
           }
 
@@ -1249,13 +1474,15 @@ class HomeUnifiedController extends GetxController implements GetxService {
               _lastFetchTime = DateTime.now();
 
               if (kDebugMode) {
-                print('[API] data changed → updating UI');
+                appLogger.debug('[API] data changed → updating UI');
               }
-              appLogger.debug('[API] data changed → updating');
 
               // ⚡ Cache-First: Distribute new data WITHOUT resetting scroll position
               // Preserve UI state during silent refresh
               Future.microtask(() async {
+                if (_isStaleGeneration(refreshGeneration, 'background distribution')) {
+                  return;
+                }
                 final shouldUpdateUI = _distributeDataToControllers(apiData,
                     skipUpdateIfIdentical: true, loadStores: true);
 
@@ -1267,27 +1494,27 @@ class HomeUnifiedController extends GetxController implements GetxService {
                   update();
 
                   if (kDebugMode) {
-                    print(
+                    appLogger.info(
                         '✅ HomeUnifiedController: Silent refresh complete - UI updated without scroll reset');
-                    print(
+                    appLogger.debug(
                         '   - Edge cache expired, new data from origin server');
                   }
                 } else {
                   if (kDebugMode) {
-                    print(
+                    appLogger.debug(
                         '✅ HomeUnifiedController: Data identical, skipped update() to prevent flicker');
                   }
                 }
               });
             } else {
               if (kDebugMode) {
-                print(
+                appLogger.debug(
                     '✅ HomeUnifiedController: Background refresh - new data is not better, preserving existing');
               }
             }
           } else {
             if (kDebugMode) {
-              print(
+              appLogger.debug(
                   '✅ HomeUnifiedController: Background refresh complete - no changes (version_hash match)');
             }
           }
@@ -1296,17 +1523,17 @@ class HomeUnifiedController extends GetxController implements GetxService {
           // If API returns null/invalid, check if it's due to edge cache expiration
           // In this case, preserve existing cache data and retry later
           if (kDebugMode) {
-            print(
+            appLogger.warning(
                 '⚠️ HomeUnifiedController: Background refresh - API returned invalid data, preserving cache');
-            print('   - This may be due to edge cache (s-maxage) expiration');
-            print('   - Will retry on next background refresh cycle');
+            appLogger.debug('   - This may be due to edge cache (s-maxage) expiration');
+            appLogger.debug('   - Will retry on next background refresh cycle');
           }
           // Don't update - preserve existing cache data
           // Background refresh will retry automatically on next cycle
         }
       } catch (e) {
         if (kDebugMode) {
-          print('⚠️ HomeUnifiedController: Background refresh failed: $e');
+          appLogger.warning('⚠️ HomeUnifiedController: Background refresh failed: $e');
         }
         // Don't update error state - cache data is still valid
       } finally {
@@ -1336,6 +1563,48 @@ class HomeUnifiedController extends GetxController implements GetxService {
 
     // Update if new data has more items, or if old data is empty
     return newItemCount > oldItemCount || oldItemCount == 0;
+  }
+
+  HomeUnifiedModel _preserveBannersFromCacheIfApiEmpty({
+    required HomeUnifiedModel? cachedDataBeforeUpdate,
+    required HomeUnifiedModel apiData,
+    required int moduleId,
+  }) {
+    if (cachedDataBeforeUpdate == null) {
+      return apiData;
+    }
+    final bool apiHasNoBanners =
+        (apiData.banners == null || apiData.banners!.isEmpty) &&
+            (apiData.campaigns == null || apiData.campaigns!.isEmpty);
+    final bool cacheHasBanners =
+        (cachedDataBeforeUpdate.banners != null &&
+                cachedDataBeforeUpdate.banners!.isNotEmpty) ||
+            (cachedDataBeforeUpdate.campaigns != null &&
+                cachedDataBeforeUpdate.campaigns!.isNotEmpty);
+
+    if (!apiHasNoBanners || !cacheHasBanners) {
+      return apiData;
+    }
+
+    if (kDebugMode) {
+      appLogger.warning(
+          '⚠️ HomeUnifiedController: API banners empty for module $moduleId - preserving cached banners');
+      appLogger.debug(
+          '   - cached banners: ${cachedDataBeforeUpdate.banners?.length ?? 0}, campaigns: ${cachedDataBeforeUpdate.campaigns?.length ?? 0}');
+    }
+
+    return HomeUnifiedModel(
+      banners: cachedDataBeforeUpdate.banners,
+      campaigns: cachedDataBeforeUpdate.campaigns,
+      categories: apiData.categories,
+      popularStores: apiData.popularStores,
+      brands: apiData.brands,
+      offers: apiData.offers,
+      customer: apiData.customer,
+      businessSettings: apiData.businessSettings,
+      promotionalBanner: apiData.promotionalBanner,
+      meta: apiData.meta,
+    );
   }
 
   /// Deep equality check for banners - compares IDs and lengths
@@ -1411,7 +1680,7 @@ class HomeUnifiedController extends GetxController implements GetxService {
         newData.meta?.versionHash != null) {
       final hasChanged = oldData.meta!.versionHash != newData.meta!.versionHash;
       if (kDebugMode && hasChanged) {
-        print(
+        appLogger.debug(
             '🔄 HomeUnifiedController: Data changed (version_hash: ${oldData.meta!.versionHash} -> ${newData.meta!.versionHash})');
       }
       return hasChanged;
@@ -1445,21 +1714,26 @@ class HomeUnifiedController extends GetxController implements GetxService {
     try {
       // ⚡ BFF API v2: Try unified cache first (single box, faster)
       final unifiedData = await _cacheService.loadHomeUnifiedData(moduleId);
-      if (unifiedData != null && unifiedData.isValid) {
+      if (unifiedData != null &&
+          unifiedData.isValid &&
+          _isCachePayloadValid(unifiedData, moduleId)) {
         // 🔧 FIX: Validate offers have banner URLs - invalidate cache if empty
         final hasEmptyBanners = _hasOffersWithEmptyBanners(unifiedData);
         if (hasEmptyBanners) {
           if (kDebugMode) {
-            print(
+            appLogger.warning(
                 '⚠️ HomeUnifiedController: Cached offers have empty banners - invalidating cache');
           }
           // Invalidate cache to force refresh
-          await _cacheService.invalidateHomeUnifiedCache(moduleId);
+          await _invalidateStaleCacheIfNeeded(
+            moduleId,
+            reason: 'offers with empty banners in unified cache',
+          );
           return null; // Force refresh from API
         }
 
         if (kDebugMode) {
-          print('✅ HomeUnifiedController: Loaded from unified cache');
+          appLogger.info('✅ HomeUnifiedController: Loaded from unified cache');
         }
         return unifiedData;
       }
@@ -1490,22 +1764,34 @@ class HomeUnifiedController extends GetxController implements GetxService {
         offers: offers != null ? [offers] : null,
       );
 
+      // Reject weak/empty payloads that can cause blank module home on first render.
+      if (!_isCachePayloadValid(fallbackData, moduleId)) {
+        await _invalidateStaleCacheIfNeeded(
+          moduleId,
+          reason: 'weak fallback cache payload',
+        );
+        return null;
+      }
+
       // 🔧 FIX: Validate offers have banner URLs - invalidate cache if empty
       final hasEmptyBanners = _hasOffersWithEmptyBanners(fallbackData);
       if (hasEmptyBanners) {
         if (kDebugMode) {
-          print(
+          appLogger.warning(
               '⚠️ HomeUnifiedController: Cached offers have empty banners - invalidating cache');
         }
         // Invalidate cache to force refresh
-        await _cacheService.invalidateHomeUnifiedCache(moduleId);
+        await _invalidateStaleCacheIfNeeded(
+          moduleId,
+          reason: 'offers with empty banners in fallback cache',
+        );
         return null; // Force refresh from API
       }
 
       return fallbackData;
     } catch (e) {
       if (kDebugMode) {
-        print('⚠️ HomeUnifiedController: Error loading from cache: $e');
+        appLogger.warning('⚠️ HomeUnifiedController: Error loading from cache: $e');
       }
       return null;
     }
@@ -1524,7 +1810,7 @@ class HomeUnifiedController extends GetxController implements GetxService {
           // If any offer has an empty banner, consider cache stale
           if (offer.banner == null || offer.banner!.isEmpty) {
             if (kDebugMode) {
-              print(
+              appLogger.warning(
                   '⚠️ HomeUnifiedController: Found offer with empty banner - id: ${offer.id}, name: ${offer.name}');
             }
             return true;
@@ -1534,6 +1820,49 @@ class HomeUnifiedController extends GetxController implements GetxService {
     }
 
     return false; // All offers have banners
+  }
+
+  Future<void> _invalidateStaleCacheIfNeeded(
+    int moduleId, {
+    required String reason,
+  }) async {
+    final now = DateTime.now();
+    final lastInvalidation = _lastStaleCacheInvalidationPerModule[moduleId];
+    if (lastInvalidation != null &&
+        now.difference(lastInvalidation) < _staleCacheInvalidationInterval) {
+      if (kDebugMode) {
+        appLogger.debug(
+            '[Cache] SKIP INVALIDATE: home_unified_$moduleId - throttled ($reason)');
+      }
+      return;
+    }
+
+    _lastStaleCacheInvalidationPerModule[moduleId] = now;
+    await _cacheService.invalidateHomeUnifiedCache(moduleId);
+    if (kDebugMode) {
+      appLogger.debug('[Cache] INVALIDATED: home_unified_$moduleId - $reason');
+    }
+  }
+
+  /// Validate cached home payload before rendering it.
+  /// A payload is valid if it has any usable section content.
+  bool _isCachePayloadValid(HomeUnifiedModel data, int moduleId) {
+    final bool hasBanners = (data.banners?.isNotEmpty ?? false) ||
+        (data.campaigns?.isNotEmpty ?? false);
+    final bool hasCategories = data.categories?.isNotEmpty ?? false;
+    final bool hasStores = data.popularStores?.isNotEmpty ?? false;
+    final bool hasBrands = data.brands?.isNotEmpty ?? false;
+    final bool hasOffers = (data.offers?.any((e) => e.data.isNotEmpty) ?? false);
+
+    if (hasBanners || hasCategories || hasStores || hasBrands || hasOffers) {
+      return true;
+    }
+
+    if (kDebugMode) {
+      appLogger.debug(
+          '[Cache] INVALID: home_unified_$moduleId - no usable sections, forcing API');
+    }
+    return false;
   }
 
   /// Check if API data has banner URLs but cached data has empty banners (banner upgrade)
@@ -1565,7 +1894,7 @@ class HomeUnifiedController extends GetxController implements GetxService {
 
                   if (cachedBannerEmpty && apiBannerNotEmpty) {
                     if (kDebugMode) {
-                      print(
+                      appLogger.debug(
                           '🔄 HomeUnifiedController: Banner upgrade detected for offer ${cachedOffer.id} - empty → ${apiOffer.banner}');
                     }
                     return true; // Banner was upgraded
@@ -1590,7 +1919,9 @@ class HomeUnifiedController extends GetxController implements GetxService {
 
       // Also save to individual caches for backward compatibility
       // This ensures old cache structure still works during migration
-      if (data.banners != null || data.campaigns != null) {
+      final hasBannerPayload = (data.banners?.isNotEmpty ?? false) ||
+          (data.campaigns?.isNotEmpty ?? false);
+      if (hasBannerPayload) {
         final bannerModel = BannerModel(
           banners: data.banners,
           campaigns: data.campaigns,
@@ -1623,11 +1954,11 @@ class HomeUnifiedController extends GetxController implements GetxService {
       }
 
       if (kDebugMode) {
-        print('💾 HomeUnifiedController: Data saved to unified cache');
+        appLogger.debug('💾 HomeUnifiedController: Data saved to unified cache');
       }
     } catch (e) {
       if (kDebugMode) {
-        print('⚠️ HomeUnifiedController: Error saving to cache: $e');
+        appLogger.warning('⚠️ HomeUnifiedController: Error saving to cache: $e');
       }
     }
   }
@@ -1649,7 +1980,9 @@ class HomeUnifiedController extends GetxController implements GetxService {
   Future<void> clearHomeUnifiedCacheForAllModules() async {
     await CacheInvalidationService().invalidateAllHomeUnifiedCache();
     _moduleDataCache.clear();
+    _activeApiRequests.clear();
     _lastFetchTimePerModule.clear();
+    _lastStaleCacheInvalidationPerModule.clear();
     _lastFetchTime = null;
     _lastPreFetchTime = null;
     _lastLoadRequestTime = null;
@@ -1664,18 +1997,21 @@ class HomeUnifiedController extends GetxController implements GetxService {
     final effectiveModuleId = moduleId ?? ModuleHelper.getModule()?.id;
     if (effectiveModuleId == null) {
       if (kDebugMode) {
-        print('❌ HomeUnifiedController: Cannot clear cache - no module ID');
+        appLogger.error('❌ HomeUnifiedController: Cannot clear cache - no module ID', null);
       }
       return;
     }
 
     if (kDebugMode) {
-      print(
+      appLogger.info(
           '🗑️ HomeUnifiedController: Clearing cache and forcing fresh request for module $effectiveModuleId');
     }
 
     // 1. Invalidate Hive cache
-    await _cacheService.invalidateHomeUnifiedCache(effectiveModuleId);
+    await _cacheService.invalidateHomeUnifiedCache(
+      effectiveModuleId,
+      clearEtag: true,
+    );
 
     // 2. Clear memory cache
     _moduleDataCache.remove(effectiveModuleId);
@@ -1692,7 +2028,7 @@ class HomeUnifiedController extends GetxController implements GetxService {
     _lastLoadRequestModuleId = null;
 
     if (kDebugMode) {
-      print(
+      appLogger.info(
           '✅ HomeUnifiedController: Cache cleared - next request will bypass 304 and fetch fresh data');
     }
 
@@ -1710,6 +2046,7 @@ class HomeUnifiedController extends GetxController implements GetxService {
   Future<void> onModuleReady(int moduleId) async {
     forceResetLoadingState();
     await loadHomeData(moduleId: moduleId, forceRefresh: false);
+    _restartSmartFoodPollingIfNeeded(moduleId);
   }
 
   /// ⚡ MODULE SWITCH: Prepare controller for module switch
@@ -1719,6 +2056,8 @@ class HomeUnifiedController extends GetxController implements GetxService {
   /// 3. Clear stale data from controllers
   /// This prevents race conditions when switching modules quickly
   void prepareForModuleSwitch() {
+    _stopSmartFoodPolling();
+
     // ⚡ STEP 1: Increment generation to invalidate all pending requests
     final int oldGen = _homeGeneration;
     _homeGeneration++;
@@ -1732,13 +2071,51 @@ class HomeUnifiedController extends GetxController implements GetxService {
     _isFetching = false;
     _lastLoadRequestTime = null;
     _lastLoadRequestModuleId = null;
+    _activeApiRequests.clear();
+    _lastFetchTimePerModule.clear();
 
     if (kDebugMode) {
-      print('🔄 HomeUnifiedController: Prepared for module switch');
-      print('   - Generation: $oldGen → $_homeGeneration');
-      print('   - Distribution tracking reset');
-      print('   - Loading state reset');
+      appLogger.info('🔄 HomeUnifiedController: Prepared for module switch');
+      appLogger.debug('   - Generation: $oldGen → $_homeGeneration');
+      appLogger.debug('   - Distribution tracking reset');
+      appLogger.debug('   - Loading state reset');
     }
+  }
+
+  /// Cache-Miss preparation: pre-set loading state and wipe stale child-controller
+  /// data so the very first frame of the new module's screen shows a clean shimmer
+  /// instead of rendering stale data from the previous module.
+  ///
+  /// Call AFTER [prepareForModuleSwitch] when [applyFromCache] returned false.
+  void prepareForCacheMissSwitch() {
+    _isLoading = true; // First frame must see loading=true → shimmer
+    _clearStaleChildControllers();
+    if (kDebugMode) {
+      appLogger.debug(
+          '⚡ HomeUnifiedController: Cache miss — child controllers cleared, '
+          'shimmer will show from first frame');
+    }
+  }
+
+  /// Wipe data from the child controllers that distribute home-screen sections.
+  /// Only clears, never triggers an update() — the caller owns the rebuild cycle.
+  void _clearStaleChildControllers() {
+    if (Get.isRegistered<BannerController>()) {
+      try {
+        Get.find<BannerController>().clearBanner();
+      } catch (_) {}
+    }
+    if (Get.isRegistered<CategoryController>()) {
+      try {
+        Get.find<CategoryController>().clearCategoryList(skipUpdate: true);
+      } catch (_) {}
+    }
+    if (Get.isRegistered<BrandsController>()) {
+      try {
+        Get.find<BrandsController>().clearBrandList();
+      } catch (_) {}
+    }
+    // StoreController is already cleared by clearStoreData() in selectModule().
   }
 
   /// Allow immediate fetch for a module by clearing its last fetch timestamp.
@@ -1749,10 +2126,12 @@ class HomeUnifiedController extends GetxController implements GetxService {
 
   /// Force unlock loading state (used before navigation/module switch)
   void forceResetLoadingState() {
+    _stopSmartFoodPolling();
     _isLoading = false;
     _isFetching = false;
     _lastLoadRequestTime = null;
     _lastLoadRequestModuleId = null;
+    _activeApiRequests.clear();
   }
 
   /// ⚡ MODULE SWITCH: Clear current module data from controllers
@@ -1762,7 +2141,7 @@ class HomeUnifiedController extends GetxController implements GetxService {
     if (currentModuleId == null) return;
 
     if (kDebugMode) {
-      print(
+      appLogger.info(
           '🗑️ HomeUnifiedController: Clearing data for module $currentModuleId');
     }
 
@@ -1790,6 +2169,128 @@ class HomeUnifiedController extends GetxController implements GetxService {
     update();
   }
 
+  bool _isFoodModuleForSmartPolling(int moduleId) {
+    final module = ModuleHelper.getModule();
+    return module?.id == moduleId && module?.moduleType == AppConstants.food;
+  }
+
+  bool _isFoodDataIncomplete(HomeUnifiedModel? data, int moduleId) {
+    if (data == null || !data.isValid) {
+      return true;
+    }
+
+    final bool hasCategories = data.categories?.isNotEmpty ?? false;
+    final bool hasBanners = (data.banners?.isNotEmpty ?? false) ||
+        (data.campaigns?.isNotEmpty ?? false);
+    final bool hasOffers =
+        data.offers?.any((offer) => offer.data.isNotEmpty) ?? false;
+
+    // For food modules, categories are the critical minimum payload.
+    // Banners/offers can be intentionally empty for some modules.
+    if (!hasCategories && !hasBanners && !hasOffers) {
+      return true;
+    }
+
+    return !_isCachePayloadValid(data, moduleId);
+  }
+
+  String _buildFoodDataFingerprint(HomeUnifiedModel? data) {
+    if (data == null) {
+      return 'null';
+    }
+    final String? versionHash = data.meta?.versionHash;
+    if (versionHash != null && versionHash.isNotEmpty) {
+      return 'v:$versionHash';
+    }
+    final int categories = data.categories?.length ?? 0;
+    final int banners = (data.banners?.length ?? 0) + (data.campaigns?.length ?? 0);
+    final int offers = data.offers?.fold<int>(0, (count, offer) => count + offer.data.length) ?? 0;
+    return 'f:$categories:$banners:$offers';
+  }
+
+  void _restartSmartFoodPollingIfNeeded(int moduleId) {
+    if (!_isFoodModuleForSmartPolling(moduleId)) {
+      _stopSmartFoodPolling();
+      return;
+    }
+
+    if (_foodSmartRefreshTimer != null &&
+        _foodSmartRefreshTimer!.isActive &&
+        _foodPollingModuleId == moduleId) {
+      return;
+    }
+
+    _stopSmartFoodPolling();
+    _foodPollingModuleId = moduleId;
+    _lastFoodPollingFingerprint = _buildFoodDataFingerprint(_moduleDataCache[moduleId]);
+    _stableFoodPollingTicks = 0;
+    _foodPollingAttempts = 0;
+
+    if (kDebugMode) {
+      appLogger.debug(
+          '🔄 HomeUnifiedController: Starting smart hidden refresh (every ${_foodSmartPollingInterval.inSeconds}s) for food module $moduleId');
+    }
+
+    _foodSmartRefreshTimer =
+        Timer.periodic(_foodSmartPollingInterval, (_) => _runSmartFoodPollingTick(moduleId));
+  }
+
+  void _runSmartFoodPollingTick(int moduleId) {
+    if (!_isFoodModuleForSmartPolling(moduleId) || ModuleHelper.getModule()?.id != moduleId) {
+      _stopSmartFoodPolling();
+      return;
+    }
+
+    _foodPollingAttempts++;
+    if (_foodPollingAttempts > _maxFoodPollingAttempts) {
+      if (kDebugMode) {
+        appLogger.debug(
+            '⏹️ HomeUnifiedController: Stopping smart refresh for module $moduleId (max attempts reached)');
+      }
+      _stopSmartFoodPolling();
+      return;
+    }
+
+    if (_isFetching) {
+      return;
+    }
+
+    final HomeUnifiedModel? currentData = _moduleDataCache[moduleId];
+    final bool isIncomplete = _isFoodDataIncomplete(currentData, moduleId);
+    final String currentFingerprint = _buildFoodDataFingerprint(currentData);
+
+    if (!isIncomplete) {
+      if (_lastFoodPollingFingerprint == currentFingerprint) {
+        _stableFoodPollingTicks++;
+      } else {
+        _stableFoodPollingTicks = 0;
+        _lastFoodPollingFingerprint = currentFingerprint;
+      }
+
+      if (_stableFoodPollingTicks >= _maxStableFoodPollingTicks) {
+        if (kDebugMode) {
+          appLogger.debug(
+              '✅ HomeUnifiedController: Smart refresh stopped for module $moduleId (data stable)');
+        }
+        _stopSmartFoodPolling();
+        return;
+      }
+    } else {
+      _stableFoodPollingTicks = 0;
+    }
+
+    _refreshFromApiInBackground(moduleId);
+  }
+
+  void _stopSmartFoodPolling() {
+    _foodSmartRefreshTimer?.cancel();
+    _foodSmartRefreshTimer = null;
+    _foodPollingModuleId = null;
+    _lastFoodPollingFingerprint = null;
+    _stableFoodPollingTicks = 0;
+    _foodPollingAttempts = 0;
+  }
+
   /// 🔧 FIX 4: Ensure ApiClient headers are updated with current module/zone
   /// This is called before any API request to ensure headers have correct data
   /// Fixes the issue where headers have stale moduleId or zoneId
@@ -1813,16 +2314,23 @@ class HomeUnifiedController extends GetxController implements GetxService {
       );
 
       if (kDebugMode) {
-        print(
+        appLogger.debug(
             '✅ HomeUnifiedController: ApiClient headers updated before API call');
-        print('   - moduleId: $moduleId');
-        print('   - zoneIds: ${address?.zoneIds}');
+        appLogger.debug('   - moduleId: $moduleId');
+        appLogger.debug('   - zoneIds: ${address?.zoneIds}');
       }
     } catch (e) {
       if (kDebugMode) {
-        print(
+        appLogger.warning(
             '⚠️ HomeUnifiedController: Error updating ApiClient headers - $e');
       }
     }
   }
+
+  @override
+  void onClose() {
+    _stopSmartFoodPolling();
+    super.onClose();
+  }
 }
+

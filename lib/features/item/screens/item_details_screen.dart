@@ -5,7 +5,6 @@ import 'package:get/get.dart';
 import 'package:shimmer_animation/shimmer_animation.dart';
 import 'package:sixam_mart/features/cart/controllers/cart_controller.dart';
 import 'package:sixam_mart/features/item/controllers/item_controller.dart';
-import 'package:sixam_mart/features/splash/controllers/splash_controller.dart';
 import 'package:sixam_mart/features/language/controllers/language_controller.dart';
 import 'package:sixam_mart/features/checkout/domain/models/place_order_body_model.dart';
 import 'package:sixam_mart/features/cart/domain/models/cart_model.dart';
@@ -15,10 +14,8 @@ import 'package:sixam_mart/helper/responsive_helper.dart';
 import 'package:sixam_mart/helper/route_helper.dart';
 import 'package:sixam_mart/util/dimensions.dart';
 import 'package:sixam_mart/util/app_constants.dart';
-import 'package:sixam_mart/util/images.dart';
 import 'package:sixam_mart/util/styles.dart';
 import 'package:sixam_mart/common/widgets/cart_snackbar.dart';
-import 'package:sixam_mart/common/widgets/confirmation_dialog.dart';
 import 'package:sixam_mart/common/widgets/custom_app_bar.dart';
 import 'package:sixam_mart/common/widgets/custom_button.dart';
 import 'package:sixam_mart/common/widgets/custom_snackbar.dart';
@@ -367,47 +364,14 @@ class _ItemDetailsScreenState extends State<ItemDetailsScreen> {
                                                               HapticFeedback
                                                                   .lightImpact();
                                                               if (itemController
-                                                                      .cartIndex !=
-                                                                  -1) {
-                                                                if (cartController
-                                                                        .cartList[
-                                                                            itemController.cartIndex]
-                                                                        .quantity! >
-                                                                    1) {
-                                                                  // 🔥 FIX: Use cart_id instead of index
-                                                                  final cartItem = cartController
-                                                                          .cartList[
-                                                                      itemController
-                                                                          .cartIndex];
-                                                                  if (cartItem
-                                                                          .id ==
-                                                                      null) {
-                                                                    showCustomSnackBar(
-                                                                        'something_went_wrong'
-                                                                            .tr);
-                                                                    return;
-                                                                  }
-                                                                  cartController
-                                                                      .setQuantityById(
+                                                                      .quantity! >
+                                                                  1) {
+                                                                itemController.setQuantity(
                                                                     false,
-                                                                    cartItem
-                                                                        .id!,
                                                                     stock,
-                                                                    cartItem
-                                                                        .quantity,
-                                                                  );
-                                                                }
-                                                              } else {
-                                                                if (itemController
-                                                                        .quantity! >
-                                                                    1) {
-                                                                  itemController.setQuantity(
-                                                                      false,
-                                                                      stock,
-                                                                      itemController
-                                                                          .item!
-                                                                          .quantityLimit);
-                                                                }
+                                                                    itemController
+                                                                        .item!
+                                                                        .quantityLimit);
                                                               }
                                                             },
                                                   child: const Padding(
@@ -424,24 +388,8 @@ class _ItemDetailsScreenState extends State<ItemDetailsScreen> {
                                                 //
 
                                                 Text(
-                                                  (itemController.cartIndex !=
-                                                              -1 &&
-                                                          cartController
-                                                              .cartList
-                                                              .isNotEmpty &&
-                                                          itemController
-                                                                  .cartIndex <
-                                                              cartController
-                                                                  .cartList
-                                                                  .length)
-                                                      ? cartController
-                                                          .cartList[
-                                                              itemController
-                                                                  .cartIndex]
-                                                          .quantity
-                                                          .toString()
-                                                      : itemController.quantity
-                                                          .toString(),
+                                                  itemController.quantity
+                                                      .toString(),
                                                   style: robotoMedium.copyWith(
                                                       fontSize: Dimensions
                                                           .fontSizeExtraLarge),
@@ -456,54 +404,12 @@ class _ItemDetailsScreenState extends State<ItemDetailsScreen> {
                                                           : () {
                                                               HapticFeedback
                                                                   .lightImpact();
-                                                              if (itemController
-                                                                      .cartIndex !=
-                                                                  -1) {
-                                                                // 🔥 FIX: Use cart_id instead of index
-                                                                if (itemController
-                                                                            .cartIndex <
-                                                                        0 ||
-                                                                    itemController
-                                                                            .cartIndex >=
-                                                                        cartController
-                                                                            .cartList
-                                                                            .length) {
-                                                                  itemController
-                                                                      .cartIndexSet();
-                                                                  showCustomSnackBar(
-                                                                      'something_went_wrong'
-                                                                          .tr);
-                                                                  return;
-                                                                }
-                                                                final cartItem =
-                                                                    cartController
-                                                                            .cartList[
-                                                                        itemController
-                                                                            .cartIndex];
-                                                                if (cartItem
-                                                                        .id ==
-                                                                    null) {
-                                                                  showCustomSnackBar(
-                                                                      'something_went_wrong'
-                                                                          .tr);
-                                                                  return;
-                                                                }
-                                                                cartController
-                                                                    .setQuantityById(
+                                                              itemController.setQuantity(
                                                                   true,
-                                                                  cartItem.id!,
                                                                   stock,
-                                                                  cartItem
-                                                                      .quantityLimit,
-                                                                );
-                                                              } else {
-                                                                itemController.setQuantity(
-                                                                    true,
-                                                                    stock,
-                                                                    itemController
-                                                                        .item!
-                                                                        .quantityLimit);
-                                                              }
+                                                                  itemController
+                                                                      .item!
+                                                                      .quantityLimit);
                                                             },
                                                   child: const Padding(
                                                     padding: EdgeInsets.symmetric(
@@ -535,22 +441,7 @@ class _ItemDetailsScreenState extends State<ItemDetailsScreen> {
                                               width: Dimensions
                                                   .paddingSizeExtraSmall),
                                           PriceConverter.convertPrice2(
-                                            (itemController.cartIndex != -1 &&
-                                                    Get.find<CartController>()
-                                                        .cartList
-                                                        .isNotEmpty &&
-                                                    itemController.cartIndex <
-                                                        Get.find<
-                                                                CartController>()
-                                                            .cartList
-                                                            .length)
-                                                ? _getItemDetailsDiscountPrice(
-                                                    cart: Get.find<
-                                                                CartController>()
-                                                            .cartList[
-                                                        itemController
-                                                            .cartIndex])
-                                                : priceWithAddons,
+                                            priceWithAddons,
                                             textStyle: robotoBold.copyWith(
                                               color: Theme.of(context)
                                                   .primaryColor,
@@ -973,9 +864,7 @@ class _ItemDetailsScreenState extends State<ItemDetailsScreen> {
                                                   .item?.availableDateStarts !=
                                               null)
                                           ? 'order_now'.tr
-                                          : itemController.cartIndex != -1
-                                              ? 'update_in_cart'.tr
-                                              : 'add_to_cart'.tr,
+                                          : 'add_to_cart'.tr,
                                       onPressed: () async {
                                         HapticFeedback.lightImpact();
                                         if (!itemController
@@ -994,63 +883,26 @@ class _ItemDetailsScreenState extends State<ItemDetailsScreen> {
                                                 cartList: [cartModel],
                                               ));
                                         } else {
-                                          if (itemController.cartIndex == -1) {
-                                            await cartController
-                                                .addToCartWithFallback(
-                                              cartModel: cartModel!,
-                                              onlineCart: cart!,
-                                            )
-                                                .then((success) {
-                                              if (success && mounted) {
-                                                itemController.setExistInCart(
-                                                    widget.item, null);
-                                                if (!context.mounted) {
-                                                  return;
-                                                }
-                                                showCartSnackBar(context);
-                                                Get.toNamed<dynamic>(
-                                                    RouteHelper.getCartRoute());
-
-                                                _key.currentState!.shake();
-                                              }
-                                            });
-                                          } else {
-                                            // 🔥 FIX: Use cart_id instead of index
-                                            if (itemController.cartIndex < 0 ||
-                                                itemController.cartIndex >=
-                                                    cartController
-                                                        .cartList.length) {
-                                              itemController.cartIndexSet();
-                                              showCustomSnackBar(
-                                                  'something_went_wrong'.tr);
-                                              return;
-                                            }
-                                            final cartItem =
-                                                cartController.cartList[
-                                                    itemController.cartIndex];
-                                            if (cartItem.id == null) {
-                                              showCustomSnackBar(
-                                                  'something_went_wrong'.tr);
-                                              return;
-                                            }
-                                            await cartController
-                                                .setQuantityById(
-                                                    true,
-                                                    cartItem.id!,
-                                                    stock,
-                                                    cartItem.quantityLimit);
-                                            // Note: setQuantityById doesn't return Future, so no .then() needed
-                                            if (mounted) {
+                                          // Use smart fallback flow for both new/existing items.
+                                          // This avoids stale cartIndex/cartId failures and supports repeated adds.
+                                          await cartController
+                                              .addToCartWithFallback(
+                                            cartModel: cartModel!,
+                                            onlineCart: cart!,
+                                          )
+                                              .then((success) {
+                                            if (success && mounted) {
+                                              itemController.setExistInCart(
+                                                  widget.item, null);
                                               if (!context.mounted) {
                                                 return;
                                               }
+                                              showCartSnackBar(context);
                                               Get.toNamed<dynamic>(
                                                   RouteHelper.getCartRoute());
-                                              showCartSnackBar(context);
-
                                               _key.currentState!.shake();
                                             }
-                                          }
+                                          });
                                         }
                                       },
                                     );
@@ -1089,11 +941,6 @@ class _ItemDetailsScreenState extends State<ItemDetailsScreen> {
         },
       );
     });
-  }
-
-  double _getItemDetailsDiscountPrice({required CartModel cart}) {
-    // ✅ Cart.price is already discounted by backend - just multiply by quantity
-    return cart.price! * cart.quantity!;
   }
 
   Widget _buildNutritionItem(BuildContext context, String label, String value) {

@@ -21,7 +21,9 @@ import 'package:dio/dio.dart';
 import 'package:crypto/crypto.dart';
 import 'certificate_pinning_service.dart';
 import 'package:sixam_mart/core/cache/hive_home_cache_service.dart';
+import 'package:sixam_mart/core/cache/etag_scope_key_builder.dart';
 import 'package:sixam_mart/helper/string_extension.dart';
+import 'package:sixam_mart/common/utils/app_logger.dart';
 
 /// Secure HTTP Client Service using Dio
 /// Provides enhanced security for API communication
@@ -29,24 +31,24 @@ class SecureHttpClient {
   late final Dio _dio;
   final String _baseUrl;
   final Map<String, dynamic> _defaultHeaders;
-  
+
   // Security configuration
   static const int _maxRetries = 3;
   static const Duration _requestTimeout = Duration(seconds: 30);
   static const Duration _rateLimitWindow = Duration(minutes: 1);
   static const int _maxRequestsPerWindow = 100;
-  
+
   // Rate limiting
   final Map<String, List<DateTime>> _requestTimestamps = {};
-  
+
   /// Initialize secure HTTP client
   /// [baseUrl] - Base URL for API calls
   /// [defaultHeaders] - Default headers to include in all requests
   SecureHttpClient({
     required String baseUrl,
     Map<String, dynamic>? defaultHeaders,
-  }) : _baseUrl = baseUrl,
-       _defaultHeaders = defaultHeaders ?? {} {
+  })  : _baseUrl = baseUrl,
+        _defaultHeaders = defaultHeaders ?? {} {
     _initializeDio();
   }
 
@@ -60,16 +62,17 @@ class SecureHttpClient {
       headers: _defaultHeaders,
       // ⚡ ETAG SUPPORT: Allow 304 status code as valid response
       validateStatus: (status) {
-        return status != null && (status >= 200 && status < 300 || status == 304);
+        return status != null &&
+            (status >= 200 && status < 300 || status == 304);
       },
     ));
 
     // Configure security features
     CertificatePinningService.configureDioWithSecurity(_dio, _baseUrl);
-    
+
     // Add security interceptors
     _addSecurityInterceptors();
-    
+
     if (kDebugMode) {
       print('🔒 Secure HTTP Client initialized for $_baseUrl');
     }
@@ -88,7 +91,7 @@ class SecureHttpClient {
             final bool isItemsLatest =
                 options.path.contains('/api/v1/items/latest');
             if (kDebugMode && isItemsLatest) {
-              print(
+              appLogger.debug(
                   '🔒 SECURE onRequest | requestId=$requestId | path=${options.path} | connectTimeout=${_dio.options.connectTimeout?.inSeconds}s | receiveTimeout=${_dio.options.receiveTimeout?.inSeconds}s');
             }
 
@@ -105,7 +108,7 @@ class SecureHttpClient {
 
             // Add security headers
             _addSecurityHeaders(options);
-            
+
             // Validate request data
             if (!_validateRequestData(options)) {
               return handler.reject(
@@ -119,10 +122,10 @@ class SecureHttpClient {
 
             // Add request integrity check
             _addRequestIntegrity(options);
-            
+
             // ⚡ TASK 4: ETag Interceptor - Add If-None-Match header if missing
             await _addEtagHeader(options);
-            
+
             handler.next(options);
           } catch (e) {
             handler.reject(
@@ -136,8 +139,7 @@ class SecureHttpClient {
         onResponse: (response, handler) async {
           try {
             final String requestId =
-                (response.requestOptions.headers['X-Request-ID']
-                        ?.toString() ??
+                (response.requestOptions.headers['X-Request-ID']?.toString() ??
                     _generateRequestId());
             final bool isItemsLatest =
                 response.requestOptions.path.contains('/api/v1/items/latest');
@@ -151,7 +153,7 @@ class SecureHttpClient {
               final backendRequestId =
                   response.headers.value('X-Items-Latest-Request-Id') ??
                       response.headers.value('x-items-latest-request-id');
-              print(
+              appLogger.debug(
                   '🔒 SECURE onResponse | requestId=$requestId | path=${response.requestOptions.path} | status=${response.statusCode} | backendTime=${backendTime ?? 'n/a'} | cache=${cacheHeader ?? 'n/a'} | backendRequestId=${backendRequestId ?? 'n/a'}');
             }
 
@@ -171,11 +173,13 @@ class SecureHttpClient {
             // We must use local Hive cache immediately for zero-lag transition
             if (response.statusCode == 304) {
               if (kDebugMode) {
-                print('⚡ SecureHttpClient: 304 Not Modified received - Cloudflare served in <20ms');
+                print(
+                    '⚡ SecureHttpClient: 304 Not Modified received - Cloudflare served in <20ms');
                 print('   - Path: ${response.requestOptions.path}');
-                print('   - Using local Hive cache immediately for zero-lag transition');
+                print(
+                    '   - Using local Hive cache immediately for zero-lag transition');
               }
-              
+
               // 304 response is valid - pass it through to ApiClient
               // ApiClient will handle loading from Hive cache
               handler.next(response);
@@ -214,7 +218,7 @@ class SecureHttpClient {
             final bool isItemsLatest =
                 error.requestOptions.path.contains('/api/v1/items/latest');
             if (kDebugMode && isItemsLatest) {
-              print(
+              appLogger.error(
                   '🔒 SECURE onError | requestId=$requestId | path=${error.requestOptions.path} | type=${error.type} | status=${error.response?.statusCode} | message=${error.message}');
             }
 
@@ -222,7 +226,7 @@ class SecureHttpClient {
             if (error.type == DioExceptionType.connectionTimeout) {
               // Retry logic for timeout errors
               if (_shouldRetry(error.requestOptions)) {
-                return handler.resolve(await _retryRequest(error.requestOptions));
+                return handler.resolve(await _retryRequest(error));
               }
             }
 
@@ -248,14 +252,15 @@ class SecureHttpClient {
   bool _checkRateLimit(String path) {
     final now = DateTime.now();
     final windowStart = now.subtract(_rateLimitWindow);
-    
+
     if (!_requestTimestamps.containsKey(path)) {
       _requestTimestamps[path] = [];
     }
-    
+
     // Remove old timestamps
-    _requestTimestamps[path]!.removeWhere((timestamp) => timestamp.isBefore(windowStart));
-    
+    _requestTimestamps[path]!
+        .removeWhere((timestamp) => timestamp.isBefore(windowStart));
+
     // Check if limit exceeded
     if (_requestTimestamps[path]!.length >= _maxRequestsPerWindow) {
       if (kDebugMode) {
@@ -263,7 +268,7 @@ class SecureHttpClient {
       }
       return false;
     }
-    
+
     // Add current timestamp
     _requestTimestamps[path]!.add(now);
     return true;
@@ -273,17 +278,28 @@ class SecureHttpClient {
   /// [options] - Request options
   void _addSecurityHeaders(RequestOptions options) {
     final headers = options.headers;
-    
-    // Security headers
-    headers['X-Requested-With'] = 'XMLHttpRequest';
+
+    // ⚠️ WEB FIX: بعض الـ headers تسبب مشاكل CORS على الويب
+    // نضيف فقط الـ headers الآمنة التي لا تسبب مشاكل CORS
+    if (!kIsWeb) {
+      // على الموبايل، نضيف كل الـ headers
+      headers['X-Requested-With'] = 'XMLHttpRequest';
+      headers['X-Frame-Options'] = 'DENY';
+      headers['X-XSS-Protection'] = '1; mode=block';
+      headers['Strict-Transport-Security'] =
+          'max-age=31536000; includeSubDomains';
+    }
+
+    // الـ headers الآمنة على جميع المنصات (لا تسبب مشاكل CORS)
     headers['X-Content-Type-Options'] = 'nosniff';
-    headers['X-Frame-Options'] = 'DENY';
-    headers['X-XSS-Protection'] = '1; mode=block';
-    headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains';
-    
-    // Custom security headers
+
+    // Custom security headers (آمنة على جميع المنصات)
     headers['X-App-Version'] = '3.1.8';
-    headers['X-Platform'] = Platform.isAndroid ? 'android' : 'ios';
+    if (kIsWeb) {
+      headers['X-Platform'] = 'web';
+    } else {
+      headers['X-Platform'] = Platform.isAndroid ? 'android' : 'ios';
+    }
     headers['X-Request-ID'] = _generateRequestId();
   }
 
@@ -327,10 +343,10 @@ class SecureHttpClient {
     try {
       final data = options.data?.toString() ?? '';
       final timestamp = DateTime.now().millisecondsSinceEpoch.toString();
-      
+
       // Create integrity hash
       final integrity = _calculateIntegrity(data + timestamp);
-      
+
       // Add integrity headers
       options.headers['X-Request-Timestamp'] = timestamp;
       options.headers['X-Request-Integrity'] = integrity;
@@ -349,7 +365,7 @@ class SecureHttpClient {
       final headers = response.headers;
       final timestamp = headers.value('X-Response-Timestamp');
       final integrity = headers.value('X-Response-Integrity');
-      
+
       if (timestamp == null || integrity == null) {
         // Skip validation if headers not present
         return true;
@@ -357,7 +373,7 @@ class SecureHttpClient {
 
       final data = response.data?.toString() ?? '';
       final expectedIntegrity = _calculateIntegrity(data + timestamp);
-      
+
       return integrity == expectedIntegrity;
     } catch (e) {
       if (kDebugMode) {
@@ -432,36 +448,40 @@ class SecureHttpClient {
   /// Check if request should be retried
   /// [options] - Request options
   /// Returns true if retry should be attempted
-bool _shouldRetry(RequestOptions options) {
-  final int retryCount = options.extra['retryCount'] is int
-      ? options.extra['retryCount'] as int
-      : 0;
+  bool _shouldRetry(RequestOptions options) {
+    final int retryCount = options.extra['retryCount'] is int
+        ? options.extra['retryCount'] as int
+        : 0;
 
-  return retryCount < _maxRetries;
-}
-
-
-  /// Retry failed request
-  /// [options] - Original request options
-  /// Returns response from retry attempt
-Future<Response> _retryRequest(RequestOptions options) async {
-  final int previousRetry =
-      options.extra['retryCount'] is int
-          ? options.extra['retryCount'] as int
-          : 0;
-
-  final int retryCount = previousRetry + 1;
-  options.extra['retryCount'] = retryCount;
-
-  if (kDebugMode) {
-    print('🔄 Retrying request (attempt $retryCount): ${options.path}');
+    return retryCount < _maxRetries;
   }
 
-  // Wait before retry
-  await Future<void>.delayed(Duration(seconds: retryCount));
+  /// Retry failed request
+  /// [e] - Original Dio exception
+  /// Returns response from retry attempt
+  Future<Response> _retryRequest(DioException e) async {
+    final RequestOptions options = e.requestOptions;
+    final int previousRetry = options.extra['retryCount'] is int
+        ? options.extra['retryCount'] as int
+        : 0;
 
-  return _dio.fetch(options);
-}
+    final int retryCount = previousRetry + 1;
+    options.extra['retryCount'] = retryCount;
+
+    if (kDebugMode) {
+      print('?? Retrying request (attempt $retryCount): ${options.path}');
+      debugPrint('   ? Error type: ${e.type}');
+      debugPrint(
+          '   ?? Timeout after: ${e.requestOptions.connectTimeout?.inMilliseconds}ms');
+      debugPrint('   ?? Status code: ${e.response?.statusCode}');
+      debugPrint('   ?? Message: ${e.message}');
+    }
+
+    // Wait before retry
+    await Future<void>.delayed(Duration(seconds: retryCount));
+
+    return _dio.fetch(options);
+  }
 
   /// Get Dio instance
   Dio get dio => _dio;
@@ -478,7 +498,8 @@ Future<Response> _retryRequest(RequestOptions options) async {
       'requestTimeout': _requestTimeout.inSeconds,
       'rateLimitWindow': _rateLimitWindow.inMinutes,
       'maxRequestsPerWindow': _maxRequestsPerWindow,
-      'activeRequests': _requestTimestamps.values.fold(0, (sum, timestamps) => sum + timestamps.length),
+      'activeRequests': _requestTimestamps.values
+          .fold(0, (sum, timestamps) => sum + timestamps.length),
     };
   }
 
@@ -511,7 +532,7 @@ Future<Response> _retryRequest(RequestOptions options) async {
       if (kDebugMode) {
         print('✅ All security tests passed');
       }
-      
+
       return true;
     } catch (e) {
       if (kDebugMode) {
@@ -526,22 +547,22 @@ Future<Response> _retryRequest(RequestOptions options) async {
   bool _testRateLimiting() {
     try {
       const testPath = '/test_rate_limit';
-      
+
       // Clear test data
       _requestTimestamps.remove(testPath);
-      
+
       // Test normal requests
       for (int i = 0; i < _maxRequestsPerWindow; i++) {
         if (!_checkRateLimit(testPath)) {
           return false;
         }
       }
-      
+
       // Test rate limit exceeded
       if (_checkRateLimit(testPath)) {
         return false;
       }
-      
+
       return true;
     } catch (e) {
       return false;
@@ -553,7 +574,8 @@ Future<Response> _retryRequest(RequestOptions options) async {
   Future<bool> _testCertificateValidation() async {
     try {
       final uri = Uri.parse(_baseUrl);
-      return await CertificatePinningService.validateServerCertificate(uri.host, uri.port);
+      return await CertificatePinningService.validateServerCertificate(
+          uri.host, uri.port);
     } catch (e) {
       return false;
     }
@@ -563,8 +585,15 @@ Future<Response> _retryRequest(RequestOptions options) async {
   /// Checks Hive app_config box for stored ETag and adds If-None-Match header
   Future<void> _addEtagHeader(RequestOptions options) async {
     try {
+      // ETag conditional requests are only valid for safe read operations.
+      // Never attach If-None-Match to mutations (POST/PUT/PATCH/DELETE).
+      final method = options.method.toUpperCase();
+      if (method != 'GET') {
+        return;
+      }
+
       // Respect per-request ETag disable flag
-      if (options.headers['X-Disable-ETag'] == 'true') {
+      if (_isEtagDisabled(options.headers) || _isHtmlCmsPath(options.path)) {
         return;
       }
       // Check if If-None-Match header already exists (don't override)
@@ -574,15 +603,18 @@ Future<Response> _retryRequest(RequestOptions options) async {
 
       // Build URI for ETag lookup
       final uri = options.uri.toString();
-      
+      final scopedUri =
+          EtagScopeKeyBuilder.buildScopedUri(uri, headers: options.headers);
+
       // Get ETag from Hive app_config box
       final cacheService = HiveHomeCacheService();
-      final storedEtag = await cacheService.getEtag(uri);
-      
+      final storedEtag = await cacheService.getEtag(scopedUri);
+
       if (storedEtag != null) {
         options.headers['If-None-Match'] = storedEtag;
         if (kDebugMode) {
-          print('📤 SecureHttpClient: Added If-None-Match header: ${storedEtag.safeSubstring(20)}');
+          print(
+              '📤 SecureHttpClient: Added If-None-Match header: ${storedEtag.safeSubstring(20)}');
         }
       }
     } catch (e) {
@@ -597,8 +629,15 @@ Future<Response> _retryRequest(RequestOptions options) async {
   /// Extracts ETag from response headers and stores in Hive app_config box
   Future<void> _handleEtagResponse(Response response) async {
     try {
+      // Persist ETags only for GET responses.
+      final method = response.requestOptions.method.toUpperCase();
+      if (method != 'GET') {
+        return;
+      }
+
       // Respect per-request ETag disable flag
-      if (response.requestOptions.headers['X-Disable-ETag'] == 'true') {
+      if (_isEtagDisabled(response.requestOptions.headers) ||
+          _isHtmlCmsPath(response.requestOptions.path)) {
         return;
       }
       // Only store ETag for 200 OK responses
@@ -607,18 +646,22 @@ Future<Response> _retryRequest(RequestOptions options) async {
       }
 
       // Extract ETag from response headers
-      final etag = response.headers.value('etag') ?? response.headers.value('ETag');
-      
+      final etag =
+          response.headers.value('etag') ?? response.headers.value('ETag');
+
       if (etag != null) {
         // Build URI for ETag storage
         final uri = response.requestOptions.uri.toString();
-        
+        final scopedUri = EtagScopeKeyBuilder.buildScopedUri(uri,
+            headers: response.requestOptions.headers);
+
         // Store ETag in Hive app_config box
         final cacheService = HiveHomeCacheService();
-        await cacheService.saveEtag(uri, etag);
-        
+        await cacheService.saveEtag(scopedUri, etag);
+
         if (kDebugMode) {
-          print('💾 SecureHttpClient: Stored ETag for $uri: ${etag.safeSubstring(20)}');
+          print(
+              '💾 SecureHttpClient: Stored ETag for $scopedUri: ${etag.safeSubstring(20)}');
         }
       }
     } catch (e) {
@@ -627,5 +670,20 @@ Future<Response> _retryRequest(RequestOptions options) async {
         print('⚠️ SecureHttpClient: Error handling ETag response: $e');
       }
     }
+  }
+
+  bool _isEtagDisabled(Map<String, dynamic> headers) {
+    final value = headers['X-Disable-ETag'] ?? headers['x-disable-etag'];
+    if (value is bool) return value;
+    return value?.toString().toLowerCase() == 'true';
+  }
+
+  bool _isHtmlCmsPath(String path) {
+    return path.contains('/api/v1/about-us') ||
+        path.contains('/api/v1/terms-and-conditions') ||
+        path.contains('/api/v1/privacy-policy') ||
+        path.contains('/api/v1/shipping-policy') ||
+        path.contains('/api/v1/refund-policy') ||
+        path.contains('/api/v1/cancellation-policy');
   }
 }

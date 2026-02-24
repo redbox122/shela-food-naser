@@ -96,7 +96,8 @@ class _CheckoutLoadingDialogState extends State<CheckoutLoadingDialog> {
               SizedBox(
                 width: 120,
                 child: LinearProgressIndicator(
-                  backgroundColor: Theme.of(context).primaryColor.withValues(alpha: 0.2),
+                  backgroundColor:
+                      Theme.of(context).primaryColor.withValues(alpha: 0.2),
                   valueColor: AlwaysStoppedAnimation<Color>(
                     Theme.of(context).primaryColor,
                   ),
@@ -124,18 +125,46 @@ class _CheckoutLoadingDialogState extends State<CheckoutLoadingDialog> {
 }
 
 /// Shows the checkout loading dialog and returns when dismissed
+bool _isCheckoutLoadingDialogVisible = false;
+
 Future<void> showCheckoutLoadingDialog(BuildContext context) {
-  return showDialog(
-    context: context,
+  if (_isCheckoutLoadingDialogVisible) {
+    return Future.value();
+  }
+  _isCheckoutLoadingDialogVisible = true;
+  return Get.dialog<void>(
+    const CheckoutLoadingDialog(),
     barrierDismissible: false,
     barrierColor: Colors.black54,
-    builder: (context) => const CheckoutLoadingDialog(),
-  );
+  ).whenComplete(() {
+    _isCheckoutLoadingDialogVisible = false;
+  });
+}
+
+/// Dismisses checkout loading dialog safely after navigation frame.
+/// Use this when route transitions are in progress to avoid Navigator lock assertions.
+void dismissCheckoutLoadingDialogSafely([BuildContext? context]) {
+  WidgetsBinding.instance.addPostFrameCallback((_) {
+    dismissCheckoutLoadingDialog(context);
+  });
 }
 
 /// Dismisses the checkout loading dialog if it's showing
-void dismissCheckoutLoadingDialog(BuildContext context) {
-  if (Navigator.of(context, rootNavigator: true).canPop()) {
-    Navigator.of(context, rootNavigator: true).pop();
+void dismissCheckoutLoadingDialog([BuildContext? context]) {
+  try {
+    if (!_isCheckoutLoadingDialogVisible) {
+      return;
+    }
+
+    // Important: never pop navigator routes here unless the dialog overlay
+    // is actually open; otherwise we may pop checkout/cart pages by mistake.
+    if (Get.isDialogOpen ?? false) {
+      Get.back<void>();
+    }
+
+    _isCheckoutLoadingDialogVisible = false;
+  } catch (_) {
+    // Navigator may be locked during route transitions. Retry safely next frame.
+    dismissCheckoutLoadingDialogSafely(context);
   }
 }

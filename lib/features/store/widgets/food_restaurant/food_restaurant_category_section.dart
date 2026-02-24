@@ -15,6 +15,7 @@ class FoodRestaurantCategorySection extends StatelessWidget {
   final List<Item> items;
   final GlobalKey sectionKey;
   final bool isLoading;
+  final int? highlightedItemId;
 
   const FoodRestaurantCategorySection({
     super.key,
@@ -22,6 +23,7 @@ class FoodRestaurantCategorySection extends StatelessWidget {
     required this.items,
     required this.sectionKey,
     this.isLoading = false,
+    this.highlightedItemId,
   });
 
   @override
@@ -90,7 +92,7 @@ class FoodRestaurantCategorySection extends StatelessWidget {
                             gridDelegate:
                                 const SliverGridDelegateWithFixedCrossAxisCount(
                               crossAxisCount: 2,
-                              childAspectRatio: 0.75,
+                              childAspectRatio: 0.68,
                               crossAxisSpacing: 12,
                               mainAxisSpacing: 12,
                             ),
@@ -99,6 +101,9 @@ class FoodRestaurantCategorySection extends StatelessWidget {
                               final item = items[index];
                               return FoodRestaurantMenuItemCard(
                                 item: item,
+                                isTemporarilyHighlighted:
+                                    highlightedItemId != null &&
+                                        item.id == highlightedItemId,
                                 onTap: () {
                                   Get.find<ItemController>().navigateToItemPage(
                                     item,
@@ -112,12 +117,14 @@ class FoodRestaurantCategorySection extends StatelessWidget {
                         : ListView.builder(
                             shrinkWrap: true,
                             physics: const NeverScrollableScrollPhysics(),
-                            itemExtent: 130,
                             itemCount: items.length,
                             itemBuilder: (context, index) {
                               final item = items[index];
                               return FoodRestaurantMenuItemCard(
                                 item: item,
+                                isTemporarilyHighlighted:
+                                    highlightedItemId != null &&
+                                        item.id == highlightedItemId,
                                 onTap: () {
                                   Get.find<ItemController>().navigateToItemPage(
                                     item,

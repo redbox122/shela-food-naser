@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
 import 'package:sixam_mart/common/widgets/hover/on_hover.dart';
 import 'package:sixam_mart/features/auth/controllers/auth_controller.dart';
@@ -16,6 +17,7 @@ import 'package:sixam_mart/util/images.dart';
 import 'package:sixam_mart/util/styles.dart';
 import 'package:sixam_mart/common/widgets/confirmation_dialog.dart';
 import 'package:sixam_mart/common/cache/comprehensive_home_cache_manager.dart';
+import 'package:sixam_mart/common/utils/app_logger.dart';
 
 class MenuDrawer extends StatefulWidget {
   const MenuDrawer({super.key});
@@ -362,11 +364,15 @@ class MenuDrawerState extends State<MenuDrawer>
   /// Ensure data is loaded before navigation after logout
   Future<void> _ensureDataLoadedBeforeNavigation() async {
     try {
-      print('🔄 MenuDrawer: Ensuring data is loaded before navigation...');
+      if (kDebugMode) {
+        appLogger.debug('🔄 MenuDrawer: Ensuring data is loaded before navigation...');
+      }
 
       // Check if cache is valid and restore data
       if (await ComprehensiveHomeCacheManager.isCacheValid()) {
-        print('📦 MenuDrawer: Cache is valid, restoring data...');
+        if (kDebugMode) {
+          appLogger.debug('📦 MenuDrawer: Cache is valid, restoring data...');
+        }
 
         // Load cached data
         final cachedData =
@@ -376,14 +382,20 @@ class MenuDrawerState extends State<MenuDrawer>
           // Restore data to controllers
           await ComprehensiveHomeCacheManager.restoreDataToControllers(
               cachedData);
-          print('✅ MenuDrawer: Data restored successfully');
+          if (kDebugMode) {
+            appLogger.info('✅ MenuDrawer: Data restored successfully');
+          }
         }
       } else {
-        print(
-            '⚠️ MenuDrawer: Cache not valid, will load from API after navigation');
+        if (kDebugMode) {
+          appLogger.warning(
+              '⚠️ MenuDrawer: Cache not valid, will load from API after navigation');
+        }
       }
     } catch (e) {
-      print('❌ MenuDrawer: Error ensuring data loaded - $e');
+      if (kDebugMode) {
+        appLogger.error('❌ MenuDrawer: Error ensuring data loaded - $e', e);
+      }
     }
   }
 }

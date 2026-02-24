@@ -6,6 +6,7 @@ import 'package:sixam_mart/api/api_client.dart';
 import 'package:sixam_mart/features/store/domain/models/store_model.dart';
 import 'package:sixam_mart/util/app_constants.dart';
 import 'package:sixam_mart/helper/string_extension.dart';
+import 'package:sixam_mart/common/utils/app_logger.dart';
 
 /// Silent Sync Service
 /// 
@@ -122,9 +123,9 @@ class SilentSyncService {
     final hasChanged = storedHash != currentHash;
     
     if (hasChanged && kDebugMode) {
-      print('⚠️ SilentSyncService: Store $storeId pricing changed!');
-      print('   Old hash: ${storedHash.safeSubstring(10)}');
-      print('   New hash: ${currentHash.safeSubstring(10)}');
+      appLogger.warning('⚠️ SilentSyncService: Store $storeId pricing changed!');
+      appLogger.debug('   Old hash: ${storedHash.safeSubstring(10)}');
+      appLogger.debug('   New hash: ${currentHash.safeSubstring(10)}');
     }
     
     return hasChanged;

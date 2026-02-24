@@ -221,8 +221,10 @@ import 'package:sixam_mart/features/wallet_kaidha_subscription/domain/services/k
 import 'package:sixam_mart/features/wallet_kaidha_subscription/domain/services/kaidhaSub_service_interface.dart';
 import 'package:sixam_mart/util/app_constants.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:get/get.dart';
+import 'package:sixam_mart/common/utils/app_logger.dart';
 import '../features/add_delegate/domain/services/delegate_service.dart';
 import '../features/my_coupon/controllers/my_coupon_controller.dart';
 import '../features/my_coupon/domain/repositories/coupon_repository.dart';
@@ -761,46 +763,37 @@ Future<Map<String, Map<String, String>>> init() async {
   // ======================================================================================================================
 
   /// Retrieving localized data
-  /// ⚡ PERFORMANCE: Load only current language to reduce startup time
+  /// NOTE: Load all configured languages so runtime language switch works.
   final Map<String, Map<String, String>> languages = {};
 
-  // ✅ تحميل اللغة الحالية فقط - الباقي لاحقًا
-  // Get current locale from SharedPreferences (default to Arabic)
-  final sharedPrefs = Get.find<SharedPreferences>();
-  final savedLanguageCode =
-      sharedPrefs.getString(AppConstants.languageCode) ?? 'ar';
-  final savedCountryCode =
-      sharedPrefs.getString(AppConstants.countryCode) ?? 'SA';
+  for (final languageModel in AppConstants.languages) {
+    try {
+      final String jsonStringValues = await rootBundle
+          .loadString('assets/language/${languageModel.languageCode}.json');
+      final mappedJson = jsonDecode(jsonStringValues) as Map<String, dynamic>;
 
-  // Find matching language model
-  final currentLanguageModel = AppConstants.languages.firstWhere(
-    (lang) =>
-        lang.languageCode == savedLanguageCode &&
-        lang.countryCode == savedCountryCode,
-    orElse: () =>
-        AppConstants.languages[0], // Fallback to first language (Arabic)
-  );
+      final Map<String, String> json = {};
+      mappedJson.forEach((key, value) {
+        json[key] = value.toString();
+      });
 
-  try {
-    print(
-        '🔍 Loading current language only: ${currentLanguageModel.languageCode}_${currentLanguageModel.countryCode}');
-    final String jsonStringValues = await rootBundle.loadString(
-        'assets/language/${currentLanguageModel.languageCode}.json');
+      final String key =
+          '${languageModel.languageCode}_${languageModel.countryCode}';
+      languages[key] = json;
 
-    // Parse JSON (fast operation, doesn't need isolate)
-    final mappedJson = jsonDecode(jsonStringValues) as Map<String, dynamic>;
+      if (kDebugMode) {
+        appLogger.debug('🔍 Loaded ${json.length} translations for $key');
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        appLogger.error(
+            '🔍 Error loading language ${languageModel.languageCode}_${languageModel.countryCode}: $e',
+            e);
+      }
+    }
+  }
 
-    final Map<String, String> json = {};
-    mappedJson.forEach((key, value) {
-      json[key] = value.toString();
-    });
-    final String key =
-        '${currentLanguageModel.languageCode}_${currentLanguageModel.countryCode}';
-    languages[key] = json;
-    print('🔍 Loaded ${json.length} translations for $key');
-  } catch (e) {
-    print('🔍 Error loading language ${currentLanguageModel.languageCode}: $e');
-    // Fallback: Load first language if current fails
+  if (languages.isEmpty) {
     try {
       final fallbackLang = AppConstants.languages[0];
       final String jsonStringValues = await rootBundle
@@ -813,12 +806,20 @@ Future<Map<String, Map<String, String>>> init() async {
       final String key =
           '${fallbackLang.languageCode}_${fallbackLang.countryCode}';
       languages[key] = json;
-      print('🔍 Loaded fallback language: $key');
+      if (kDebugMode) {
+        appLogger.debug('🔍 Loaded fallback language: $key');
+      }
     } catch (fallbackError) {
-      print('🔍 Error loading fallback language: $fallbackError');
+      if (kDebugMode) {
+        appLogger.error(
+            '🔍 Error loading fallback language: $fallbackError',
+            fallbackError);
+      }
     }
   }
 
-  print('🔍 Total languages loaded: ${languages.keys}');
+  if (kDebugMode) {
+    appLogger.debug('🔍 Total languages loaded: ${languages.keys}');
+  }
   return languages;
 }

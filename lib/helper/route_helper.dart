@@ -127,12 +127,14 @@ class RouteHelper {
   static const String signIn = '/sign-in';
   static const String signUp = '/sign-up';
   static const String verification = '/verification';
+  static const String loginOtp = 'login-otp';
   static const String accessLocation = '/access-location';
   static const String pickMap = '/pick-map';
   static const String my_Location = '/my_Location';
 
   static const String interest = '/interest';
   static const String main = '/main';
+  static const String moduleHome = '/module/:moduleId';
   static const String forgotPassword = '/forgot-password';
   static const String resetPassword = '/reset-password';
   static const String search = '/search';
@@ -257,19 +259,60 @@ class RouteHelper {
 
   static String getVerificationRoute(String? number, String? email,
       String? token, String page, String? pass, String loginType,
-      {String? session, UpdateUserModel? updateUserModel}) {
-    String? authSession;
-    String? userModel;
-    if (session != null) {
-      authSession = base64Url.encode(utf8.encode(session));
+      {String? session, UpdateUserModel? updateUserModel, String? nextPage}) {
+    final List<String> params = ['page=$page'];
+
+    // Add number only if not null and not empty
+    if (number != null && number.isNotEmpty) {
+      params.add('number=$number');
     }
+
+    // Add email only if not null and not empty
+    if (email != null && email.isNotEmpty) {
+      params.add('email=$email');
+    }
+
+    // Add token only if not null and not empty
+    if (token != null && token.isNotEmpty) {
+      params.add('token=$token');
+    }
+
+    // Add pass only if not null and not empty
+    if (pass != null && pass.isNotEmpty) {
+      params.add('pass=$pass');
+    }
+
+    // Add login_type only if not empty
+    if (loginType.isNotEmpty) {
+      params.add('login_type=$loginType');
+    }
+
+    // Add session only if not null
+    if (session != null && session.isNotEmpty) {
+      final String authSession = base64Url.encode(utf8.encode(session));
+      params.add('session=$authSession');
+    }
+
+    // Add user_model only if not null
     if (updateUserModel != null) {
       final List<int> encoded =
           utf8.encode(jsonEncode(updateUserModel.toJson()));
-      userModel = base64Encode(encoded);
+      final String userModel = base64Encode(encoded);
+      params.add('user_model=$userModel');
     }
-    return '$verification?page=$page&number=$number&email=$email&token=$token&pass=$pass&login_type=$loginType&session=$authSession&user_model=$userModel';
+
+    // Add next page only if provided
+    if (nextPage != null && nextPage.isNotEmpty) {
+      params.add('next=${Uri.encodeQueryComponent(nextPage)}');
+    }
+
+    return '$verification?${params.join('&')}';
   }
+
+  static String getLoginOtpRoute(String number, String loginType,
+          {String? nextPage}) =>
+      getVerificationRoute(number, null, null, loginOtp, null, loginType,
+          nextPage: nextPage);
 
   static String getAccessLocationRoute(String page) =>
       '$accessLocation?page=$page';
@@ -282,6 +325,7 @@ class RouteHelper {
 
   static String getInterestRoute() => interest;
   static String getMainRoute(String page) => '$main?page=$page';
+  static String getModuleHomeRoute(int moduleId) => '/module/$moduleId';
   /*static String getForgotPassRoute(bool fromSocialLogin, SocialLogInBody? socialLogInBody) {
     String? data;
     if(fromSocialLogin) {
@@ -299,12 +343,25 @@ class RouteHelper {
   static String getSearchRoute({String? queryText}) =>
       '$search?query=${queryText ?? ''}';
 
-  static String getStoreRoute({required int? id, required String page}) {
+  static String getStoreRoute({
+    required int? id,
+    required String page,
+    int? categoryId,
+    int? itemId,
+  }) {
     if (kDebugMode) {
-      debugPrint('🧭 RouteHelper.getStoreRoute called: id=$id, page=$page');
-      debugPrint(StackTrace.current.toString());
+      debugPrint(
+          'RouteHelper.getStoreRoute called: id=$id, page=$page, categoryId=$categoryId, itemId=$itemId');
     }
-    return '$store?id=$id&page=$page';
+
+    final StringBuffer route = StringBuffer('$store?id=$id&page=$page');
+    if (categoryId != null && categoryId > 0) {
+      route.write('&category_id=$categoryId');
+    }
+    if (itemId != null && itemId > 0) {
+      route.write('&item_id=$itemId');
+    }
+    return route.toString();
   }
 
   static String getOrderDetailsRoute(int? orderID,
@@ -408,15 +465,16 @@ class RouteHelper {
     required List<dynamic> cartList,
     required int storeId,
   }) {
+    final List<dynamic> checkoutCartSnapshot = List<dynamic>.from(cartList);
     debugPrint('🛒 RouteHelper.navigateToCheckout:');
-    debugPrint('   - cartList length: ${cartList.length}');
+    debugPrint('   - cartList length: ${checkoutCartSnapshot.length}');
     debugPrint('   - storeId: $storeId');
 
     // ✅ Pass cartList via arguments (type-safe, no URL encoding)
     Get.toNamed(
       '$checkout?page=cart&store-id=$storeId',
       arguments: {
-        'cartList': cartList,
+        'cartList': checkoutCartSnapshot,
         'storeId': storeId,
         'fromCart': true,
       },
@@ -697,7 +755,8 @@ class RouteHelper {
         name: verification,
         page: () {
           String? pass;
-          if (Get.parameters['pass'] != 'null') {
+          if (Get.parameters['pass'] != null &&
+              Get.parameters['pass'] != 'null') {
             final List<int> decode =
                 base64Decode(Get.parameters['pass']!.replaceAll(' ', '+'));
             pass = utf8.decode(decode);
@@ -730,10 +789,15 @@ class RouteHelper {
                     Get.parameters['email'] != 'null'
                 ? Get.parameters['email']
                 : null,
-            loginType: Get.parameters['login_type']!,
+            loginType: Get.parameters['login_type'] ?? 'manual',
             firebaseSession: session,
             fromForgetPassword: Get.parameters['page'] == forgotPassword,
+            fromLogin2fa: Get.parameters['page'] == loginOtp,
             userModel: userModel,
+            nextPage:
+                Get.parameters['next'] != '' && Get.parameters['next'] != 'null'
+                    ? Get.parameters['next']
+                    : null,
           );
         }),
 
@@ -801,6 +865,22 @@ class RouteHelper {
                               : 0,
         ),
       ),
+    ),
+    GetPage(
+      name: moduleHome,
+      transition: Transition.fadeIn,
+      transitionDuration: const Duration(milliseconds: 300),
+      page: () {
+        final int moduleId = int.tryParse(Get.parameters['moduleId'] ?? '') ??
+            (Get.find<SplashController>().module?.id ?? 3);
+        return getRoute(
+          DashboardScreen(
+            pageIndex: 0,
+            skipSplash: true,
+            moduleId: moduleId,
+          ),
+        );
+      },
     ),
 
     /*GetPage(name: forgotPassword, page: () {
@@ -1477,3 +1557,4 @@ class RouteHelper {
                 : navigateTo;
   }
 }
+

@@ -56,6 +56,7 @@ class FoodRestaurantInfoSection extends StatelessWidget {
             vertical: Dimensions.paddingSizeDefault,
           ),
           child: Column(
+            mainAxisSize: MainAxisSize.min,
             children: [
               Text(
                 store.name ?? '',
@@ -153,31 +154,6 @@ class FoodRestaurantInfoSection extends StatelessWidget {
                               store.deliveryTime!.isNotEmpty)
                           ? store.deliveryTime!
                           : '30-15',
-                      isLtr: isLtr,
-                    ),
-                    _buildDivider(),
-                    _buildInfoChip(
-                      label: 'minimum_order'.tr,
-                      value:
-                          '', // Empty string since convertPrice2 returns a Widget
-                      valueWidget: store.minimumOrder != null
-                          ? PriceConverter.convertPrice2(
-                              store.minimumOrder,
-                              textStyle: robotoBold.copyWith(
-                                fontSize:
-                                    15, // ✅ Reduced from 17 for better fit
-                                color: AppColors.textColor,
-                                height: 1.2,
-                                letterSpacing: -0.5,
-                              ),
-                            )
-                          : Text('N/A',
-                              style: robotoBold.copyWith(
-                                fontSize: 15, // ✅ Reduced from 17
-                                color: AppColors.textColor,
-                                height: 1.2,
-                                letterSpacing: -0.5,
-                              )),
                       isLtr: isLtr,
                     ),
                     _buildDivider(),

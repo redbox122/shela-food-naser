@@ -3,7 +3,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:sixam_mart/common/widgets/appBar.dart';
-import 'package:sixam_mart/helper/auth_helper.dart';
 import 'package:sixam_mart/common/widgets/not_logged_in_screen.dart';
 import 'package:sixam_mart/util/images.dart';
 
@@ -12,8 +11,6 @@ class Kiadha_WalletScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final bool isLoggedIn = AuthHelper.isLoggedIn();
-
     return Scaffold(
       backgroundColor: Theme.of(context).cardColor,
       appBar: custom_AppBar(

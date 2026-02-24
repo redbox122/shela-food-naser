@@ -60,6 +60,15 @@ class UserInfoModel {
   });
 
   UserInfoModel.fromJson(Map<String, dynamic> json) {
+    final Map<String, dynamic>? nestedUserMap =
+        json['userinfo'] is Map<String, dynamic>
+            ? json['userinfo'] as Map<String, dynamic>
+            : (json['user_info'] is Map<String, dynamic>
+                ? json['user_info'] as Map<String, dynamic>
+                : (json['user'] is Map<String, dynamic>
+                    ? json['user'] as Map<String, dynamic>
+                    : null));
+
     id = json.parseInt('id');
     fName = json.parseString('f_name');
     lName = json.parseString('l_name');
@@ -72,10 +81,25 @@ class UserInfoModel {
     memberSinceDays = json.parseInt('member_since_days');
     walletBalance = json.parseDouble('wallet_balance');
     loyaltyPoint = json.parseInt('loyalty_point');
-    refCode = json['ref_code']?.toString();
+    final String? directRefCode = _cleanString(
+      json['ref_code'] ??
+          json['refer_code'] ??
+          json['referral_code'] ??
+          json['referralCode'],
+    );
+    final String? nestedRefCode = nestedUserMap != null
+        ? _cleanString(
+            nestedUserMap['ref_code'] ??
+                nestedUserMap['refer_code'] ??
+                nestedUserMap['referral_code'] ??
+                nestedUserMap['referralCode'],
+          )
+        : null;
+    refCode = directRefCode ?? nestedRefCode;
     socialId = json['social_id']?.toString();
-    userInfo = json['userinfo'] != null ? User.fromJson(json['userinfo'] as Map<String, dynamic>) : null;
-    isValidForDiscount = json.parseBool('is_valid_for_discount') ?? false;
+    userInfo =
+        nestedUserMap != null ? User.fromJson(nestedUserMap) : null;
+    isValidForDiscount = json.parseBool('is_valid_for_discount');
     discountAmount = json.parseDouble('discount_amount');
     discountAmountType = json.parseString('discount_amount_type');
     validity = json.parseString('validity');
@@ -90,9 +114,9 @@ class UserInfoModel {
     isPhoneVerified = json.parseInt('is_phone_verified') == 1;
     isEmailVerified = json.parseInt('is_email_verified') == 1;
     // Wallet flags (NEW - from /api/v1/customer/info)
-    hasQidhaWallet = json.parseBool('has_qidha_wallet') ?? false;
-    qidhaWalletSigned = json.parseBool('qidha_wallet_signed') ?? false;
-    qidhaWalletActive = json.parseBool('qidha_wallet_active') ?? false;
+    hasQidhaWallet = json.parseBool('has_qidha_wallet');
+    qidhaWalletSigned = json.parseBool('qidha_wallet_signed');
+    qidhaWalletActive = json.parseBool('qidha_wallet_active');
     // ⚡ FIX: Safe parsing - handle both String and numeric values
     qidhaWalletBalance = json.parseDouble('qidha_wallet_balance');
   }
@@ -129,4 +153,13 @@ class UserInfoModel {
     data['qidha_wallet_balance'] = qidhaWalletBalance;
     return data;
   }
+}
+
+String? _cleanString(dynamic value) {
+  if (value == null) return null;
+  final String text = value.toString().trim();
+  if (text.isEmpty || text.toLowerCase() == 'null') {
+    return null;
+  }
+  return text;
 }

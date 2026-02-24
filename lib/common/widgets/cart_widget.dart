@@ -18,7 +18,8 @@ class CartWidget extends StatelessWidget {
       GetBuilder<CartController>(
         id: 'cart_count',
         builder: (cartController) {
-        return cartController.cartList.isNotEmpty
+        final int cartQuantity = cartController.totalCartQuantity;
+        return cartQuantity > 0
             ? Positioned(
                 top: -5,
                 right: -5,
@@ -33,7 +34,7 @@ class CartWidget extends StatelessWidget {
                         width: size < 20 ? 0.7 : 1, color: fromStore ? Theme.of(context).primaryColor : Theme.of(context).cardColor),
                   ),
                   child: Text(
-                    cartController.cartList.length.toString(),
+                    cartQuantity.toString(),
                     style: robotoRegular.copyWith(
                       fontSize: size < 20 ? size / 3 : size / 3.8,
                       color: fromStore ? Theme.of(context).primaryColor : Theme.of(context).cardColor,

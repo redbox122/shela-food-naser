@@ -148,4 +148,30 @@ class MyFatoorahRepository {
     // Return other status codes as-is (4xx, 5xx, etc.)
     return response;
   }
+
+  /// Process payment via backend (MyFatoorah) and return payment_url
+  /// This keeps all secrets on the server side.
+  Future<Response> processPayment({
+    required int orderId,
+    required double amount,
+    String currency = 'SAR',
+    required int paymentMethodId,
+    required String customerName,
+    required String customerPhone,
+    required String customerEmail,
+  }) async {
+    const String uri = '/api/v1/payment/myfatoorah/process';
+
+    final Map<String, dynamic> body = <String, dynamic>{
+      'order_id': orderId,
+      'amount': amount,
+      'currency': currency,
+      'payment_method_id': paymentMethodId,
+      'customer_name': customerName,
+      'customer_phone': customerPhone,
+      'customer_email': customerEmail,
+    };
+
+    return await apiClient.postData(uri, body);
+  }
 }

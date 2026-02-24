@@ -8,7 +8,6 @@ import 'package:sixam_mart/common/widgets/custom_text_field.dart';
 import 'package:sixam_mart/common/widgets/text_button_w.dart';
 import 'package:sixam_mart/features/checkout/controllers/checkout_controller.dart';
 import 'package:sixam_mart/features/profile/controllers/profile_controller.dart';
-import 'package:sixam_mart/features/auth/controllers/auth_controller.dart';
 import 'package:sixam_mart/features/wallet_kaidha_subscription/controllers/kaidhaSub_controller.dart';
 import 'package:sixam_mart/features/wallet_kaidha_subscription/widget/available_balance.dart';
 import 'package:sixam_mart/util/dimensions.dart';
@@ -550,8 +549,13 @@ class _WalletKaidhaScreenState extends State<WalletKaidhaScreen> {
                                                 mainAxisAlignment:
                                                     MainAxisAlignment.center,
                                                 children: [
-                                                  Image.asset(Images.sar,
-                                                      width: 20, height: 20),
+                                                  Image.asset(
+                                                    Images.sar,
+                                                    width: 20,
+                                                    height: 20,
+                                                    cacheWidth: 56,
+                                                    cacheHeight: 56,
+                                                  ),
                                                 ],
                                               ),
                                               onChanged: (String value) {

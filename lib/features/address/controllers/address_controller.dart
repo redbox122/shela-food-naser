@@ -92,8 +92,14 @@ class AddressController extends GetxController implements GetxService {
       _addressList = <AddressModel>[];
       _allAddressList = <AddressModel>[];
       if (addressList != null) {
-        _addressList!.addAll(addressList);
-        _allAddressList.addAll(addressList);
+        final List<AddressModel> sorted = List<AddressModel>.from(addressList)
+          ..sort((a, b) => (b.id ?? 0).compareTo(a.id ?? 0));
+        _addressList!.addAll(sorted);
+        _allAddressList.addAll(sorted);
+        if (kDebugMode) {
+          print(
+              '📍 AddressController.getAddressList: loaded=${sorted.length}, ids=${sorted.map((e) => e.id).toList()}');
+        }
       }
     } catch (e) {
       if (kDebugMode) {
@@ -125,7 +131,12 @@ class AddressController extends GetxController implements GetxService {
         responseModel = ResponseModel(false, (Get.find<SplashController>().configModel!.moduleConfig!.module!.showRestaurantText! ? 'your_selected_location_is_from_different_zone'.tr : 'your_selected_location_is_from_different_zone_store'.tr));
       }else {
         await getAddressList();
-        Get.find<CheckoutController>().setAddressIndex(1);
+        // Always select the first item after reload (newest address appears first).
+        Get.find<CheckoutController>().setAddressIndex(0);
+        if (kDebugMode) {
+          print(
+              '✅ AddressController.addAddress: selectedIndex=0, selectedAddressId=${_addressList?.isNotEmpty == true ? _addressList!.first.id : null}');
+        }
         responseModel = ResponseModel(true, responseModel.message);
       }
     }

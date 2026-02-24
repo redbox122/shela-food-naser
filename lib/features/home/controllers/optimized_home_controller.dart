@@ -31,7 +31,6 @@ import 'package:sixam_mart/features/address/controllers/address_controller.dart'
 import 'package:sixam_mart/features/parcel/controllers/parcel_controller.dart';
 import 'package:sixam_mart/features/wallet_kaidha_subscription/controllers/kaidhaSub_controller.dart';
 import 'package:sixam_mart/helper/auth_helper.dart';
-import 'package:sixam_mart/util/app_constants.dart';
 import 'package:sixam_mart/common/enums/data_source_enum.dart';
 import 'package:sixam_mart/common/cache/smart_preloader.dart';
 
@@ -757,7 +756,12 @@ class OptimizedHomeDataLoader {
             dataSource: reload ? DataSourceEnum.client : DataSourceEnum.local),
         cacheDuration: const Duration(minutes: 15),
       ).then((data) {
-        if (data != null) Get.find<CategoryController>().setCategoryListFromCache(data);
+        if (data != null) {
+          Get.find<CategoryController>().setCategoryListFromCache(
+            data,
+            expectedModuleId: moduleId,
+          );
+        }
       });
       
       if (kDebugMode) {
@@ -1083,8 +1087,9 @@ class OptimizedHomeDataLoader {
       int dataCount = 0;
       int totalCount = 0;
       
-      testResults.forEach((key, value) {
+      testResults.forEach((key, dynamicValue) {
         if (key != 'module_id' && key != 'module_name' && key != 'error') {
+          final value = dynamicValue as Map<String, dynamic>;
           totalCount++;
           final success = value['success'] == true;
           final hasData = value['data'] == true;

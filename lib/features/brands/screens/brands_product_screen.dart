@@ -28,7 +28,8 @@ class BrandsItemScreen extends StatefulWidget {
 class _BrandsItemScreenState extends State<BrandsItemScreen> {
   final ScrollController scrollController = ScrollController();
   final TextEditingController _searchController = TextEditingController();
-  int? _lastOffset; // 🔧 FIX: Track last offset to reset scroll only when needed
+  int?
+      _lastOffset; // 🔧 FIX: Track last offset to reset scroll only when needed
   bool _hasReachedEnd = false;
   String _selectedSort = 'popular';
   String _selectedPriceLabel = 'all';
@@ -51,6 +52,11 @@ class _BrandsItemScreenState extends State<BrandsItemScreen> {
   @override
   void initState() {
     super.initState();
+    if (kDebugMode) {
+      final controller = Get.find<BrandsController>();
+      print(
+          '[BRANDS_UI] init controller hash=${controller.hashCode} items=${controller.brandItems?.length ?? 0} hasMore=${controller.hasMoreData} end=${controller.isEndReached}');
+    }
 
     // Load categories first if not already loaded
     if (Get.find<CategoryController>().categoryList == null) {
@@ -67,56 +73,52 @@ class _BrandsItemScreenState extends State<BrandsItemScreen> {
     // ✅ تحسين Listener للـ Scroll - Prefetch ذكي عند 70% من القائمة
     scrollController.addListener(() {
       final brandsController = Get.find<BrandsController>();
-      if (brandsController.hasReachedEnd || !brandsController.hasMoreData) {
+      if (kDebugMode) {
+        print(
+          '[BRANDS_UI] scroll pixels=${scrollController.position.pixels.toStringAsFixed(1)} '
+          'max=${scrollController.position.maxScrollExtent.toStringAsFixed(1)} '
+          'offset=${brandsController.offset} hasMore=${brandsController.hasMoreData} '
+          'isLoading=${brandsController.isLoading} isLoadingMore=${brandsController.isLoadingMore} '
+          'isEndReached=${brandsController.isEndReached}',
+        );
+      }
+      if (brandsController.hasReachedEnd || brandsController.isEndReached) {
         _hasReachedEnd = true;
         return;
       }
       if (_hasReachedEnd) {
         return;
       }
-      
+
       // 🔧 FIX: Prefetch عند 70% من القائمة (بدلاً من 300px فقط)
       // هذا يجعل التحميل أسرع وأكثر سلاسة للمستخدم
       final maxScroll = scrollController.position.maxScrollExtent;
       final currentScroll = scrollController.position.pixels;
-      final scrollPercentage = maxScroll > 0 ? (currentScroll / maxScroll) : 0.0;
-      
+      final scrollPercentage =
+          maxScroll > 0 ? (currentScroll / maxScroll) : 0.0;
+
       // Trigger عند 70% من القائمة (أو 300px قبل النهاية إذا القائمة صغيرة)
-      final shouldPrefetch = scrollPercentage >= 0.6 || 
-                             (currentScroll >= maxScroll - 300 && maxScroll > 300);
-      
+      final shouldPrefetch = scrollPercentage >= 0.6 ||
+          (currentScroll >= maxScroll - 300 && maxScroll > 300);
+
       if (shouldPrefetch) {
-        // 🛑 CRITICAL FIX: Stop prefetch if no more data or loading
-        if (!brandsController.hasMoreData || 
-            brandsController.isLoading ||
+        // Let controller decide pagination eligibility.
+        // UI should only avoid firing while actively loading/searching.
+        if (brandsController.isLoading ||
             brandsController.isLoadingMore ||
             brandsController.isSearching) {
-          if (!brandsController.hasMoreData) {
-            _hasReachedEnd = true;
-          }
           return;
         }
-        
-        // 🛑 CRITICAL FIX: Stop prefetch if last request returned <= 1 unique item
-        // This prevents infinite pagination loops
-        final lastRequestUniqueItems = brandsController.lastRequestUniqueItemsCount ?? 0;
-        final currentOffset = brandsController.offset;
-        if (lastRequestUniqueItems <= 1 && currentOffset > 1) {
-          _hasReachedEnd = true;
-          if (kDebugMode) {
-            print('🛑 Stopping pagination: Last request returned $lastRequestUniqueItems unique item(s) (offset=$currentOffset)');
-          }
-          return;
-        }
-        
+
         // 🔧 FIX: Calculate next offset based on limit (12 items per page)
         // API uses offset as page index (1-based), so we increment by 1 for each page
-        final nextOffset = currentOffset + 1; // Page-based pagination
-        
+        final nextOffset = brandsController.offset + 1; // Page-based pagination
+
         if (kDebugMode) {
-          print('🔄 Prefetch loading more items: offset=$nextOffset (scroll: ${(scrollPercentage * 100).toStringAsFixed(1)}%)');
+          print(
+              '[BRANDS_UI] near bottom -> requesting loadMore offset=$nextOffset (scroll: ${(scrollPercentage * 100).toStringAsFixed(1)}%)');
         }
-        
+
         brandsController.getBrandItemList(
           widget.brandId,
           nextOffset,
@@ -146,6 +148,7 @@ class _BrandsItemScreenState extends State<BrandsItemScreen> {
     _searchController.dispose();
     // Reset controller states when leaving the screen
     final brandsController = Get.find<BrandsController>();
+    brandsController.resetFilterState(notify: false);
     brandsController.resetLoadingStates(notify: false);
     // 🔥 Cancel all non-critical API calls when user navigates away
     brandsController.cancelBackgroundRequests();
@@ -198,7 +201,8 @@ class _BrandsItemScreenState extends State<BrandsItemScreen> {
     );
   }
 
-  Widget _buildBrandSortOptions(BuildContext context) {
+  Widget _buildBrandSortOptions(BuildContext context,
+      {StateSetter? modalSetState}) {
     final List<String> values = ['popular', 'ascending', 'descending'];
     return Wrap(
       spacing: Dimensions.paddingSizeSmall,
@@ -215,7 +219,8 @@ class _BrandsItemScreenState extends State<BrandsItemScreen> {
           selected: isSelected,
           onSelected: (selected) {
             if (selected) {
-              setState(() {
+              final updater = modalSetState ?? setState;
+              updater(() {
                 _selectedSort = value;
                 _isPriceSortActive = false;
               });
@@ -232,19 +237,22 @@ class _BrandsItemScreenState extends State<BrandsItemScreen> {
     );
   }
 
-  Widget _buildBrandPriceRangeChips(BuildContext context) {
+  Widget _buildBrandPriceRangeChips(BuildContext context,
+      {StateSetter? modalSetState}) {
     return Wrap(
       spacing: Dimensions.paddingSizeSmall,
       runSpacing: Dimensions.paddingSizeSmall,
       children: _priceRanges.map((range) {
         final bool isSelected = _selectedPriceLabel == range['label'];
-        final String label = range['label'] == 'all' ? 'all'.tr : range['label']!;
+        final String label =
+            range['label'] == 'all' ? 'all'.tr : range['label']!;
         return ChoiceChip(
           label: Text(label),
           selected: isSelected,
           onSelected: (selected) {
             if (selected) {
-              setState(() {
+              final updater = modalSetState ?? setState;
+              updater(() {
                 _selectedPriceLabel = range['label']!;
                 _minPrice = range['min']!;
                 _maxPrice = range['max']!;
@@ -255,6 +263,49 @@ class _BrandsItemScreenState extends State<BrandsItemScreen> {
           labelStyle: TextStyle(
             color: isSelected
                 ? Theme.of(context).primaryColor
+                : Theme.of(context).textTheme.bodyLarge?.color,
+          ),
+        );
+      }).toList(),
+    );
+  }
+
+  Widget _buildBrandCategoryChips(
+      BuildContext context, BrandsController controller,
+      {StateSetter? modalSetState}) {
+    final categoryList = controller.categoryList;
+    if (categoryList == null || categoryList.isEmpty) {
+      return Text(
+        'no_categories_available'.tr,
+        style: robotoRegular.copyWith(
+          fontSize: Dimensions.fontSizeDefault,
+          color: Theme.of(context).disabledColor,
+        ),
+      );
+    }
+
+    const Color selectedChipColor = Color(0xFFC8E6C9);
+    return Wrap(
+      spacing: Dimensions.paddingSizeSmall,
+      runSpacing: Dimensions.paddingSizeSmall,
+      children: categoryList.map((category) {
+        final int categoryId = category.id ?? 0;
+        final bool isSelected =
+            controller.selectedCategoryIds.contains(categoryId);
+        return ChoiceChip(
+          label: Text(category.name ?? ''),
+          selected: isSelected,
+          showCheckmark: true,
+          checkmarkColor: const Color(0xFF1B5E20),
+          onSelected: (_) {
+            controller.toggleCategorySelection(categoryId);
+            final updater = modalSetState ?? setState;
+            updater(() {});
+          },
+          selectedColor: selectedChipColor,
+          labelStyle: TextStyle(
+            color: isSelected
+                ? const Color(0xFF1B5E20)
                 : Theme.of(context).textTheme.bodyLarge?.color,
           ),
         );
@@ -279,280 +330,128 @@ class _BrandsItemScreenState extends State<BrandsItemScreen> {
             GetBuilder<BrandsController>(
               id: 'filter_controls', // 🎯 PERFORMANCE: Rebuild only filter controls
               builder: (brandsController) {
+                const Color selectedChipColor = Color(0xFFC8E6C9);
+                final bool hasActiveFilters =
+                    _selectedSort != 'popular' ||
+                    (_minPrice.isNotEmpty && _minPrice != '0') ||
+                    (_maxPrice.isNotEmpty && _maxPrice != '0') ||
+                    brandsController.selectedCategoryIds.isNotEmpty ||
+                    _searchController.text.trim().isNotEmpty;
                 return Container(
                   width: Dimensions.webMaxWidth,
                   padding: const EdgeInsets.all(Dimensions.paddingSizeSmall),
-                  child: Column(
+                    child: Column(
                     children: [
-                          // Search Bar
-                          Container(
-                            height: 45,
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(
-                                  Dimensions.radiusDefault),
-                              color: Theme.of(context).cardColor,
-                              border: Border.all(
-                                  color: Theme.of(context)
-                                      .primaryColor
-                                      .withValues(alpha: 0.40)),
+                      // Filter Controls
+                      Row(
+                        children: [
+                          // Grid/List Toggle
+                          InkWell(
+                            onTap: () {
+                              brandsController.setVerticalItems(
+                                  !brandsController.isVertical);
+                            },
+                            child: Container(
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(
+                                    Dimensions.radiusDefault),
+                                color: Theme.of(context)
+                                    .primaryColor
+                                    .withValues(alpha: 0.1),
+                              ),
+                              padding: const EdgeInsets.all(
+                                  Dimensions.paddingSizeExtraSmall),
+                              child: Icon(
+                                  brandsController.isVertical
+                                      ? Icons.list
+                                      : Icons.grid_view,
+                                  size: 24,
+                                  color: Theme.of(context).primaryColor),
                             ),
-                            child: Row(
-                              children: [
-                                Expanded(
-                                  child: TextField(
-                                    controller: _searchController,
-                                    textInputAction: TextInputAction.search,
-                                    decoration: InputDecoration(
-                                      contentPadding:
-                                          const EdgeInsets.symmetric(
-                                              ),
-                                      hintText: 'search_for_items'.tr,
-                                      hintStyle: robotoRegular.copyWith(
-                                          fontSize: Dimensions.fontSizeSmall,
-                                          color:
-                                              Theme.of(context).disabledColor),
-                                      border: OutlineInputBorder(
-                                          borderRadius: BorderRadius.circular(
-                                              Dimensions.radiusSmall),
-                                          borderSide: BorderSide.none),
-                                      filled: true,
-                                      fillColor: Theme.of(context).cardColor,
-                                      isDense: true,
-                                      prefixIcon: Icon(Icons.search,
-                                          color: Theme.of(context)
-                                              .primaryColor
-                                              .withValues(alpha: 0.50)),
+                          ),
+
+                          const SizedBox(width: Dimensions.paddingSizeSmall),
+
+                          // Price Sort Toggle
+                          InkWell(
+                            onTap: () {
+                              setState(() {
+                                _isPriceSortActive = true;
+                              });
+                              brandsController.setPriceLocal(
+                                  !brandsController.isPriceAscending);
+                            },
+                            child: Container(
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(
+                                    Dimensions.radiusDefault),
+                                color: brandsController.isPriceAscending
+                                    ? Theme.of(context)
+                                        .primaryColor
+                                        .withValues(alpha: 0.1)
+                                    : selectedChipColor,
+                              ),
+                              padding: const EdgeInsets.all(
+                                  Dimensions.paddingSizeExtraSmall),
+                              child: Icon(
+                                  brandsController.isPriceAscending
+                                      ? Icons.trending_down
+                                      : Icons.trending_up,
+                                  size: 28,
+                                  color: Theme.of(context).primaryColor),
+                            ),
+                          ),
+
+                          const SizedBox(width: Dimensions.paddingSizeSmall),
+
+                          // Filter Categories Button
+                          InkWell(
+                            onTap: () {
+                              _showFilterBottomSheet(context, brandsController);
+                            },
+                            child: Container(
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(
+                                    Dimensions.radiusDefault),
+                                color: hasActiveFilters
+                                    ? selectedChipColor
+                                    : Theme.of(context)
+                                        .primaryColor
+                                        .withValues(alpha: 0.1),
+                              ),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: Dimensions.paddingSizeSmall,
+                                  vertical: Dimensions.paddingSizeExtraSmall),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    Icons.filter_list,
+                                    size: 20,
+                                    color: hasActiveFilters
+                                        ? const Color(0xFF1B5E20)
+                                        : Theme.of(context).primaryColor,
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    'filter'.tr,
+                                    style: robotoMedium.copyWith(
+                                      fontSize: Dimensions.fontSizeSmall,
+                                      color: hasActiveFilters
+                                          ? const Color(0xFF1B5E20)
+                                          : Theme.of(context).primaryColor,
                                     ),
-                                    onChanged: (String value) {
-                                      // Live search as user types
-                                      brandsController.performLiveSearch(value);
-                                    },
-                                    onSubmitted: (String? value) {
-                                      // Only use live search, no API calls
-                                      if (value != null && value.isNotEmpty) {
-                                        brandsController
-                                            .performLiveSearch(value);
-                                      }
-                                    },
                                   ),
-                                ),
-                                const SizedBox(
-                                    width: Dimensions.paddingSizeSmall),
-                                InkWell(
-                                  onTap: () {
-                                    if (!brandsController.isSearching) {
-                                      // Trigger live search if there's text
-                                      if (_searchController.text
-                                          .trim()
-                                          .isNotEmpty) {
-                                        brandsController.performLiveSearch(
-                                            _searchController.text.trim());
-                                      }
-                                    } else {
-                                      // Clear search
-                                      _searchController.text = '';
-                                      brandsController.clearLiveSearch();
-                                      // 🔧 FIX: Reset scroll position when clearing search
-                                      _resetScrollPosition();
-                                      _resetPaginationGuard();
-                                    }
-                                  },
-                                  child: Container(
-                                    decoration: BoxDecoration(
-                                        color: Theme.of(context).primaryColor,
-                                        borderRadius: BorderRadius.circular(
-                                            Dimensions.radiusSmall)),
-                                    padding: const EdgeInsets.symmetric(
-                                        vertical: 3,
-                                        horizontal:
-                                            Dimensions.paddingSizeSmall),
-                                    child: brandsController.isSearching
-                                        ? const Icon(Icons.clear,
-                                            color: Colors.white)
-                                        : Text('search'.tr,
-                                            style: robotoMedium.copyWith(
-                                                color: Colors.white)),
-                                  ),
-                                ),
-                              ],
+                                ],
+                              ),
                             ),
                           ),
 
-                          const SizedBox(height: Dimensions.paddingSizeSmall),
+                          const Expanded(child: SizedBox()),
+                        ],
+                      ),
 
-                          // Filter Controls
-                          Row(
-                            children: [
-                              // Grid/List Toggle
-                              InkWell(
-                                onTap: () {
-                                  brandsController.setVerticalItems(
-                                      !brandsController.isVertical);
-                                },
-                                child: Container(
-                                  decoration: BoxDecoration(
-                                    borderRadius: BorderRadius.circular(
-                                        Dimensions.radiusDefault),
-                                    color: Theme.of(context)
-                                        .primaryColor
-                                        .withValues(alpha: 0.1),
-                                  ),
-                                  padding: const EdgeInsets.all(
-                                      Dimensions.paddingSizeExtraSmall),
-                                  child: Icon(
-                                      brandsController.isVertical
-                                          ? Icons.list
-                                          : Icons.filter_list_sharp,
-                                      size: 28,
-                                      color: Theme.of(context).primaryColor),
-                                ),
-                              ),
-
-                              const SizedBox(
-                                  width: Dimensions.paddingSizeSmall),
-
-                              // Price Sort Toggle
-                              InkWell(
-                                onTap: () {
-                                  setState(() {
-                                    _isPriceSortActive = true;
-                                  });
-                                  brandsController.setPriceLocal(
-                                      !brandsController.isPriceAscending);
-                                },
-                                child: Container(
-                                  decoration: BoxDecoration(
-                                    borderRadius: BorderRadius.circular(
-                                        Dimensions.radiusDefault),
-                                    color: Theme.of(context)
-                                        .primaryColor
-                                        .withValues(alpha: 0.1),
-                                  ),
-                                  padding: const EdgeInsets.all(
-                                      Dimensions.paddingSizeExtraSmall),
-                                  child: Icon(
-                                      brandsController.isPriceAscending
-                                          ? Icons.trending_down
-                                          : Icons.trending_up,
-                                      size: 28,
-                                      color: Theme.of(context).primaryColor),
-                                ),
-                              ),
-
-                              const SizedBox(
-                                  width: Dimensions.paddingSizeSmall),
-
-                              // Filter Categories Button
-                              InkWell(
-                                onTap: () {
-                                  brandsController.toggleFilterModal();
-                                },
-                                child: Container(
-                                  decoration: BoxDecoration(
-                                    borderRadius: BorderRadius.circular(
-                                        Dimensions.radiusDefault),
-                                    color: Theme.of(context)
-                                        .primaryColor
-                                        .withValues(alpha: 0.1),
-                                  ),
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: Dimensions.paddingSizeSmall,
-                                      vertical:
-                                          Dimensions.paddingSizeExtraSmall),
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Icon(
-                                        Icons.filter_list,
-                                        size: 16,
-                                        color: Theme.of(context).primaryColor,
-                                      ),
-                                      const SizedBox(width: 4),
-                                      Text(
-                                        'filter_categories'.tr,
-                                        style: robotoMedium.copyWith(
-                                          fontSize: Dimensions.fontSizeSmall,
-                                          color: Theme.of(context).primaryColor,
-                                        ),
-                                      ),
-                                      if (brandsController
-                                          .selectedCategoryIds.isNotEmpty)
-                                        Container(
-                                          margin:
-                                              const EdgeInsets.only(left: 4),
-                                          padding: const EdgeInsets.symmetric(
-                                              horizontal: 6, vertical: 2),
-                                          decoration: BoxDecoration(
-                                            color:
-                                                Theme.of(context).primaryColor,
-                                            borderRadius:
-                                                BorderRadius.circular(10),
-                                          ),
-                                          child: Text(
-                                            '${brandsController.selectedCategoryIds.length}',
-                                            style: robotoMedium.copyWith(
-                                              fontSize: 10,
-                                              color: Colors.white,
-                                            ),
-                                          ),
-                                        ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-
-                              const SizedBox(
-                                  width: Dimensions.paddingSizeSmall),
-
-                              // Reset Filters Button
-                              InkWell(
-                                onTap: () {
-                                  brandsController.resetFilters();
-                                  setState(() {
-                                    _isPriceSortActive = false;
-                                  });
-                                  // 🔧 FIX: Reset scroll position when resetting filters
-                                  _resetScrollPosition();
-                                  _resetPaginationGuard();
-                                },
-                                child: Container(
-                                  decoration: BoxDecoration(
-                                    borderRadius: BorderRadius.circular(
-                                        Dimensions.radiusDefault),
-                                    color: Theme.of(context)
-                                        .primaryColor
-                                        .withValues(alpha: 0.1),
-                                  ),
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: Dimensions.paddingSizeSmall,
-                                      vertical:
-                                          Dimensions.paddingSizeExtraSmall),
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Icon(
-                                        Icons.refresh,
-                                        size: 16,
-                                        color: Theme.of(context).primaryColor,
-                                      ),
-                                      const SizedBox(width: 4),
-                                      Text(
-                                        'reset'.tr,
-                                        style: robotoMedium.copyWith(
-                                          fontSize: Dimensions.fontSizeSmall,
-                                          color: Theme.of(context).primaryColor,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-
-                              const Expanded(child: SizedBox()),
-                            ],
-                          ),
-
-                          const SizedBox(height: Dimensions.paddingSizeSmall),
+                      const SizedBox(height: Dimensions.paddingSizeSmall),
                     ],
                   ),
                 );
@@ -561,9 +460,7 @@ class _BrandsItemScreenState extends State<BrandsItemScreen> {
           ],
         );
 
-        return Stack(
-          children: [
-            CustomScrollView(
+        return CustomScrollView(
               controller: scrollController,
               slivers: [
                 // Header Section
@@ -589,9 +486,9 @@ class _BrandsItemScreenState extends State<BrandsItemScreen> {
                     // This prevents "empty space at top" issue after reload/refresh
                     // Only reset if offset changed from >1 to 1 (not on every rebuild)
                     final currentOffset = brandsController.offset;
-                    if (currentOffset == 1 && 
-                        _lastOffset != null && 
-                        _lastOffset! > 1 && 
+                    if (currentOffset == 1 &&
+                        _lastOffset != null &&
+                        _lastOffset! > 1 &&
                         brandsController.brandItems != null) {
                       WidgetsBinding.instance.addPostFrameCallback((_) {
                         _resetScrollPosition();
@@ -599,13 +496,19 @@ class _BrandsItemScreenState extends State<BrandsItemScreen> {
                       _resetPaginationGuard();
                     }
                     _lastOffset = currentOffset;
-                    
+
                     // Handle search results
                     if (brandsController.isSearching) {
                       if (brandsController.isLiveSearching) {
                         final liveResults = brandsController.liveSearchResults;
-                        if (liveResults != null && liveResults.isNotEmpty) {
-                          final filteredLiveResults = _applyLocalBrandFilters(liveResults);
+                        if (brandsController.isLoading || liveResults == null) {
+                          return SliverFillRemaining(
+                            child: _buildSearchingIndicator(context),
+                          );
+                        }
+                        if (liveResults.isNotEmpty) {
+                          final filteredLiveResults =
+                              _applyLocalBrandFilters(liveResults);
                           return SliverPadding(
                             padding: const EdgeInsets.symmetric(
                               horizontal: Dimensions.paddingSizeSmall,
@@ -617,38 +520,71 @@ class _BrandsItemScreenState extends State<BrandsItemScreen> {
                               brandsController.isVertical,
                             ),
                           );
-                        } else {
-                          return SliverFillRemaining(
-                            child: Center(
-                              child: Padding(
-                                padding: EdgeInsets.only(
+                        }
+                        return SliverFillRemaining(
+                          child: Center(
+                            child: Padding(
+                              padding: EdgeInsets.only(
                                   top: isDesktop
                                       ? context.height * 0.3
                                       : context.height * 0.4),
-                                child: Text('no_results_found'.tr),
-                              ),
+                              child: Text('no_results_found'.tr),
                             ),
-                          );
-                        }
-                      } else {
-                        return SliverToBoxAdapter(
-                          child: _buildLoadingShimmer(),
+                          ),
                         );
                       }
+
+                      if (brandsController.isLoading) {
+                        return SliverFillRemaining(
+                          child: _buildSearchingIndicator(context),
+                        );
+                      }
+
+                      final searchItems =
+                          brandsController.brandSearchItemModel?.items ?? [];
+                      if (searchItems.isNotEmpty) {
+                        final filteredSearchItems =
+                            _applyLocalBrandFilters(searchItems);
+                        return SliverPadding(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: Dimensions.paddingSizeSmall,
+                            vertical: Dimensions.paddingSizeSmall,
+                          ),
+                          sliver: _buildSliverItemsView(
+                            context,
+                            filteredSearchItems,
+                            brandsController.isVertical,
+                          ),
+                        );
+                      }
+
+                      return SliverFillRemaining(
+                        child: Center(
+                          child: Padding(
+                            padding: EdgeInsets.only(
+                                top: isDesktop
+                                    ? context.height * 0.3
+                                    : context.height * 0.4),
+                            child: Text('no_results_found'.tr),
+                          ),
+                        ),
+                      );
                     }
-                    
+
                     // Handle brand items
                     final brandItems = brandsController.brandItems;
 
                     // ✅ FIX: Show beautiful loading animation when items are being fetched
-                    if (brandsController.isLoading && (brandItems == null || brandItems.isEmpty)) {
+                    if (brandsController.isLoading &&
+                        (brandItems == null || brandItems.isEmpty)) {
                       return SliverFillRemaining(
                         child: _buildInitialLoadingView(context),
                       );
                     }
 
                     if (brandItems != null && brandItems.isNotEmpty) {
-                      final filteredBrandItems = _applyLocalBrandFilters(brandItems);
+                      final filteredBrandItems =
+                          _applyLocalBrandFilters(brandItems);
                       return SliverPadding(
                         padding: const EdgeInsets.symmetric(
                           horizontal: Dimensions.paddingSizeSmall,
@@ -666,9 +602,9 @@ class _BrandsItemScreenState extends State<BrandsItemScreen> {
                         child: Center(
                           child: Padding(
                             padding: EdgeInsets.only(
-                              top: isDesktop
-                                  ? context.height * 0.3
-                                  : context.height * 0.4),
+                                top: isDesktop
+                                    ? context.height * 0.3
+                                    : context.height * 0.4),
                             child: Text('no_brand_item_found'.tr),
                           ),
                         ),
@@ -677,185 +613,156 @@ class _BrandsItemScreenState extends State<BrandsItemScreen> {
                   },
                 ),
               ],
-            ),
-            // Filter Modal - separate GetBuilder for modal only
-            GetBuilder<BrandsController>(
-              id: 'filter_modal', // 🎯 PERFORMANCE: Rebuild only modal
-              builder: (brandsController) {
-                if (brandsController.isFilterModalOpen) {
-                  return _buildFilterModal(context, brandsController);
-                }
-                return const SizedBox.shrink();
-              },
-            ),
-          ],
         );
-        }),
+      }),
     );
   }
 
-  Widget _buildFilterModal(BuildContext context, BrandsController controller) {
-    return Container(
-      color: Colors.black54,
-      child: Center(
-        child: Container(
-          margin: const EdgeInsets.all(Dimensions.paddingSizeDefault),
-          decoration: BoxDecoration(
-            color: Theme.of(context).cardColor,
-            borderRadius: BorderRadius.circular(Dimensions.radiusDefault),
+  Widget _buildSearchingIndicator(BuildContext context) {
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          CircularProgressIndicator(
+            valueColor:
+                AlwaysStoppedAnimation<Color>(Theme.of(context).primaryColor),
           ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // Header
-              Container(
-                padding: const EdgeInsets.all(Dimensions.paddingSizeDefault),
-                decoration: BoxDecoration(
-                  color: Theme.of(context).primaryColor.withValues(alpha: 0.1),
-                  borderRadius: const BorderRadius.only(
-                    topLeft: Radius.circular(Dimensions.radiusDefault),
-                    topRight: Radius.circular(Dimensions.radiusDefault),
-                  ),
-                ),
-                child: Row(
+          const SizedBox(height: Dimensions.paddingSizeSmall),
+          Text(
+            'searching_for_products'.tr,
+            style: robotoMedium.copyWith(
+              fontSize: Dimensions.fontSizeDefault,
+              color: Theme.of(context).textTheme.bodyMedium?.color,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showFilterBottomSheet(
+      BuildContext context, BrandsController controller) {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => StatefulBuilder(
+        builder: (context, modalSetState) => DraggableScrollableSheet(
+          initialChildSize: 0.9,
+          minChildSize: 0.5,
+          maxChildSize: 0.95,
+          expand: false,
+          builder: (context, scrollController) => Container(
+            padding: const EdgeInsets.all(Dimensions.paddingSizeDefault),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
                   children: [
-                    Icon(
-                      Icons.filter_list,
-                      color: Theme.of(context).primaryColor,
-                    ),
-                    const SizedBox(width: Dimensions.paddingSizeSmall),
                     Text(
-                      'filter_categories'.tr,
+                      'filter'.tr,
                       style: robotoBold.copyWith(
                         fontSize: Dimensions.fontSizeLarge,
-                        color: Theme.of(context).primaryColor,
                       ),
                     ),
                     const Spacer(),
-                    InkWell(
-                      onTap: () => controller.closeFilterModal(),
-                      child: Icon(
-                        Icons.close,
-                        color: Theme.of(context).primaryColor,
-                      ),
+                    IconButton(
+                      onPressed: () => Navigator.pop(context),
+                      icon: const Icon(Icons.close),
                     ),
                   ],
                 ),
-              ),
-
-              Flexible(
-                child: SingleChildScrollView(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _buildSectionTitle(context, 'sort_by'.tr),
-                      _buildBrandSortOptions(context),
-                      const SizedBox(height: Dimensions.paddingSizeDefault),
-                      _buildSectionTitle(context, 'price_range'.tr),
-                      _buildBrandPriceRangeChips(context),
-                      const SizedBox(height: Dimensions.paddingSizeDefault),
-                      _buildSectionTitle(context, 'filter_categories'.tr),
-                      GetBuilder<BrandsController>(
-                        builder: (controller) {
-                          final categoryList = controller.categoryList;
-                          if (categoryList != null && categoryList.isNotEmpty) {
-                            return ListView.builder(
-                              shrinkWrap: true,
-                              physics: const NeverScrollableScrollPhysics(),
-                              itemCount: categoryList.length,
-                              itemBuilder: (context, index) {
-                                final category = categoryList[index];
-                                final isSelected = controller.selectedCategoryIds.contains(category.id);
-
-                                return ListTile(
-                                  leading: Checkbox(
-                                    value: isSelected,
-                                    onChanged: (value) {
-                                      controller.toggleCategorySelection(category.id ?? 0);
-                                    },
-                                    activeColor: Theme.of(context).primaryColor,
-                                  ),
-                                  title: Text(
-                                    category.name ?? '',
-                                    style: robotoMedium.copyWith(
-                                      fontSize: Dimensions.fontSizeDefault,
-                                    ),
-                                  ),
-                                  onTap: () {
-                                    controller.toggleCategorySelection(category.id ?? 0);
-                                  },
-                                );
-                              },
-                            );
-                          }
-                          return Padding(
-                            padding: const EdgeInsets.all(Dimensions.paddingSizeDefault),
-                            child: Text(
-                              'no_categories_available'.tr,
-                              style: robotoRegular.copyWith(
-                                fontSize: Dimensions.fontSizeDefault,
-                                color: Theme.of(context).disabledColor,
-                              ),
+                const Divider(),
+                Expanded(
+                  child: SingleChildScrollView(
+                    controller: scrollController,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _buildSectionTitle(context, 'sort_by'.tr),
+                        _buildBrandSortOptions(context,
+                            modalSetState: modalSetState),
+                        const SizedBox(height: Dimensions.paddingSizeDefault),
+                        _buildSectionTitle(context, 'product_name'.tr),
+                        TextField(
+                          controller: _searchController,
+                          decoration: InputDecoration(
+                            hintText: 'search_for_items'.tr,
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(
+                                  Dimensions.radiusDefault),
                             ),
-                          );
-                        },
-                      ),
-                    ],
+                          ),
+                        ),
+                        const SizedBox(height: Dimensions.paddingSizeDefault),
+                        _buildSectionTitle(context, 'price_range'.tr),
+                        _buildBrandPriceRangeChips(context,
+                            modalSetState: modalSetState),
+                        const SizedBox(height: Dimensions.paddingSizeDefault),
+                        _buildSectionTitle(context, 'filter_categories'.tr),
+                        _buildBrandCategoryChips(context, controller,
+                            modalSetState: modalSetState),
+                        const SizedBox(height: Dimensions.paddingSizeLarge),
+                      ],
+                    ),
                   ),
                 ),
-              ),
-
-              // Action Buttons
-              Container(
-                padding: const EdgeInsets.all(Dimensions.paddingSizeDefault),
-                child: Row(
+                Row(
                   children: [
                     Expanded(
                       child: OutlinedButton(
                         onPressed: () {
-                          controller.selectedCategoryIds.clear();
-                          setState(() {
+                          controller.resetFilters();
+                          modalSetState(() {
                             _selectedSort = 'popular';
                             _selectedPriceLabel = 'all';
                             _minPrice = '';
                             _maxPrice = '';
+                            _isPriceSortActive = false;
+                            _searchController.clear();
                           });
-                          controller.applyCategoryFilter();
                         },
                         style: OutlinedButton.styleFrom(
-                          side:
-                              BorderSide(color: Theme.of(context).primaryColor),
+                          padding: const EdgeInsets.symmetric(
+                              vertical: Dimensions.paddingSizeDefault),
                         ),
-                        child: Text(
-                          'clear_all'.tr,
-                          style: robotoMedium.copyWith(
-                            color: Theme.of(context).primaryColor,
-                          ),
-                        ),
+                        child: Text('reset'.tr),
                       ),
                     ),
                     const SizedBox(width: Dimensions.paddingSizeSmall),
                     Expanded(
                       child: ElevatedButton(
                         onPressed: () {
-                          controller.applyCategoryFilter();
-                          setState(() {});
+                          final String query = _searchController.text.trim();
+                          if (query.isNotEmpty) {
+                            controller.getBrandSearchItemList(
+                              query,
+                              widget.brandId,
+                              offset: 1,
+                            );
+                          } else {
+                            controller.clearLiveSearch();
+                            controller.applyCategoryFilter();
+                          }
+                          Navigator.pop(context);
                         },
                         style: ElevatedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(
+                              vertical: Dimensions.paddingSizeDefault),
                           backgroundColor: Theme.of(context).primaryColor,
                         ),
                         child: Text(
-                          'apply_filter'.tr,
-                          style: robotoMedium.copyWith(
-                            color: Colors.white,
-                          ),
+                          'apply'.tr,
+                          style: const TextStyle(color: Colors.white),
                         ),
                       ),
                     ),
                   ],
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
@@ -868,7 +775,7 @@ class _BrandsItemScreenState extends State<BrandsItemScreen> {
   Widget _buildBrandItemsView(List<Item> items, {bool? verticalItem}) {
     // Use controller's verticalItem if not provided
     final isVertical = verticalItem ?? Get.find<BrandsController>().isVertical;
-    
+
     return ItemsView(
       isStore: false,
       stores: null,
@@ -882,9 +789,10 @@ class _BrandsItemScreenState extends State<BrandsItemScreen> {
   }
 
   /// 🔧 FIX: Build Sliver for items view (for search results)
-  Widget _buildSliverItemsView(BuildContext context, List<Item> items, bool isVertical) {
+  Widget _buildSliverItemsView(
+      BuildContext context, List<Item> items, bool isVertical) {
     final bool isDesktop = ResponsiveHelper.isDesktop(context);
-    
+
     if (isVertical) {
       return SliverGrid(
         delegate: SliverChildBuilderDelegate(
@@ -913,7 +821,7 @@ class _BrandsItemScreenState extends State<BrandsItemScreen> {
         ),
       );
     }
-    
+
     return SliverList(
       delegate: SliverChildBuilderDelegate(
         (context, index) {
@@ -943,18 +851,22 @@ class _BrandsItemScreenState extends State<BrandsItemScreen> {
     final isVertical = verticalItem ?? controller.isVertical;
     final isLoadingMore = controller.isLoadingMore;
     final hasMore = controller.hasMoreData;
-    final lastRequestUniqueItems = controller.lastRequestUniqueItemsCount ?? 999; // Default to high number
+    final lastRequestUniqueItems =
+        controller.lastRequestUniqueItemsCount ?? 999; // Default to high number
+    final showEndReachedMessage = !isLoadingMore &&
+        controller.isEndReached &&
+        controller.offset > 1 &&
+        items.isNotEmpty;
     final bool isDesktop = ResponsiveHelper.isDesktop(context);
-    
+
     // 🛑 CRITICAL FIX: Only show loader if we got more than 1 unique item in last request
     // This prevents showing loader when pagination has effectively stopped
-    final showLoader = isLoadingMore && 
-                      hasMore && 
-                      lastRequestUniqueItems > 1;
-    
+    final showLoader = isLoadingMore && hasMore && lastRequestUniqueItems > 1;
+
     // 🔧 FIX: Calculate item count including pagination loader
-    final itemCount = items.length + (showLoader ? 1 : 0);
-    
+    final itemCount =
+        items.length + (showLoader ? 1 : 0) + (showEndReachedMessage ? 1 : 0);
+
     if (isVertical) {
       return SliverGrid(
         delegate: SliverChildBuilderDelegate(
@@ -971,9 +883,12 @@ class _BrandsItemScreenState extends State<BrandsItemScreen> {
                 verticalItem: true,
               );
             }
-            
-            // Show pagination loader as last item
-            return _buildPaginationLoader(context, controller);
+
+            if (showLoader) {
+              return _buildPaginationLoader(context, controller);
+            }
+
+            return _buildEndReachedIndicator(context);
           },
           childCount: itemCount,
         ),
@@ -989,7 +904,7 @@ class _BrandsItemScreenState extends State<BrandsItemScreen> {
         ),
       );
     }
-    
+
     // Horizontal list view
     return SliverList(
       delegate: SliverChildBuilderDelegate(
@@ -1006,11 +921,29 @@ class _BrandsItemScreenState extends State<BrandsItemScreen> {
               verticalItem: false,
             );
           }
-          
-          // Show pagination loader as last item
-          return _buildPaginationLoader(context, controller);
+
+          if (showLoader) {
+            return _buildPaginationLoader(context, controller);
+          }
+
+          return _buildEndReachedIndicator(context);
         },
         childCount: itemCount,
+      ),
+    );
+  }
+
+  Widget _buildEndReachedIndicator(BuildContext context) {
+    return SizedBox(
+      height: 60,
+      child: Center(
+        child: Text(
+          'لا يوجد المزيد من النتائج',
+          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: Colors.grey[600],
+                fontSize: 13,
+              ),
+        ),
       ),
     );
   }
@@ -1018,7 +951,8 @@ class _BrandsItemScreenState extends State<BrandsItemScreen> {
   /// 🔥 UX: Elegant pagination loader with skeleton cards
   /// Shows animated skeleton that mimics actual product cards
   /// 🔧 FIX: Must have fixed height for Sliver compatibility (prevents RenderBox layout error)
-  Widget _buildPaginationLoader(BuildContext context, BrandsController controller) {
+  Widget _buildPaginationLoader(
+      BuildContext context, BrandsController controller) {
     // 🔧 FIX: Container with fixed height - required for Sliver layout
     // Slivers require children with known sizes (cannot be unbounded)
     return SizedBox(
@@ -1041,9 +975,9 @@ class _BrandsItemScreenState extends State<BrandsItemScreen> {
             Text(
               'جاري تحميل المزيد...',
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: Colors.grey[600],
-                fontSize: 13,
-              ),
+                    color: Colors.grey[600],
+                    fontSize: 13,
+                  ),
             ),
           ],
         ),
@@ -1057,7 +991,7 @@ class _BrandsItemScreenState extends State<BrandsItemScreen> {
   @pragma('vm:entry-point')
   List<Widget> _buildPaginationSkeletonCards(BuildContext context) {
     final isVertical = Get.find<BrandsController>().isVertical;
-    
+
     return List.generate(2, (index) {
       return Padding(
         padding: const EdgeInsets.only(bottom: Dimensions.paddingSizeSmall),
@@ -1123,7 +1057,8 @@ class _BrandsItemScreenState extends State<BrandsItemScreen> {
                         margin: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
                           color: Colors.grey[300],
-                          borderRadius: BorderRadius.circular(Dimensions.radiusDefault),
+                          borderRadius:
+                              BorderRadius.circular(Dimensions.radiusDefault),
                         ),
                       ),
                       // Content skeleton
@@ -1153,7 +1088,8 @@ class _BrandsItemScreenState extends State<BrandsItemScreen> {
                                 margin: const EdgeInsets.only(bottom: 8),
                               ),
                               Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
                                 children: [
                                   Container(
                                     height: 16,
@@ -1279,8 +1215,8 @@ class _BrandsItemScreenState extends State<BrandsItemScreen> {
               height: 10,
               decoration: BoxDecoration(
                 color: Theme.of(context).primaryColor.withValues(
-                  alpha: 0.3 + (0.7 * ((value + index * 0.3) % 1.0)),
-                ),
+                      alpha: 0.3 + (0.7 * ((value + index * 0.3) % 1.0)),
+                    ),
                 shape: BoxShape.circle,
               ),
             );
@@ -1292,101 +1228,6 @@ class _BrandsItemScreenState extends State<BrandsItemScreen> {
 
   /// 🎯 UX: Skeleton loading that mimics actual item cards
   /// Shows 6 skeleton cards immediately - user sees content structure, not blank screen
-  Widget _buildLoadingShimmer() {
-    return ListView.builder(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      itemCount: 6,
-      padding: const EdgeInsets.symmetric(
-        horizontal: Dimensions.paddingSizeSmall,
-        vertical: Dimensions.paddingSizeSmall,
-      ),
-      itemBuilder: (context, index) {
-        return Shimmer(
-          duration: const Duration(seconds: 2),
-          color: Colors.grey[300]!,
-          child: Padding(
-            padding: const EdgeInsets.only(bottom: Dimensions.paddingSizeSmall),
-            child: Container(
-              height: 100,
-              decoration: BoxDecoration(
-                color: Colors.grey[200],
-                borderRadius: BorderRadius.circular(Dimensions.radiusDefault),
-              ),
-              child: Row(
-                children: [
-                  // Image skeleton
-                  Container(
-                    width: 80,
-                    height: 80,
-                    margin: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: Colors.grey[300],
-                      borderRadius: BorderRadius.circular(Dimensions.radiusDefault),
-                    ),
-                  ),
-                  // Content skeleton
-                  Expanded(
-                    child: Padding(
-                      padding: const EdgeInsets.all(8.0),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          // Title skeleton
-                          Container(
-                            height: 16,
-                            width: double.infinity,
-                            decoration: BoxDecoration(
-                              color: Colors.grey[300],
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                            margin: const EdgeInsets.only(bottom: 8),
-                          ),
-                          // Subtitle skeleton
-                          Container(
-                            height: 14,
-                            width: 120,
-                            decoration: BoxDecoration(
-                              color: Colors.grey[300],
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                            margin: const EdgeInsets.only(bottom: 8),
-                          ),
-                          // Price and button skeleton
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Container(
-                                height: 16,
-                                width: 60,
-                                decoration: BoxDecoration(
-                                  color: Colors.grey[300],
-                                  borderRadius: BorderRadius.circular(4),
-                                ),
-                              ),
-                              Container(
-                                height: 28,
-                                width: 28,
-                                decoration: BoxDecoration(
-                                  color: Colors.grey[300],
-                                  shape: BoxShape.circle,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        );
-      },
-    );
-  }
 }
 
 // class BrandItemScreenShimmer extends StatelessWidget {
@@ -1522,4 +1363,3 @@ class _BrandsItemScreenState extends State<BrandsItemScreen> {
 //           );
 //   }
 // }
-

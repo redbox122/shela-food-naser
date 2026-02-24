@@ -199,18 +199,6 @@ class CheckoutScreenState extends State<CheckoutScreen> {
 
       final checkoutController = Get.find<CheckoutController>();
 
-      // Initialize MyFatoorah SDK first with error handling
-      try {
-        await checkoutController.initiate(context);
-        if (!mounted) {
-          return;
-        }
-        debugPrint('✅ MyFatoorah SDK initialized successfully');
-      } catch (e) {
-        debugPrint('❌ Error initializing MyFatoorah SDK: $e');
-        return; // Exit early if SDK initialization fails
-      }
-
       // Only preload payment methods if we have a valid total amount
       // This prevents the 0.0 amount validation error
       if (checkoutController.viewTotalPrice != null &&
@@ -539,7 +527,7 @@ class CheckoutScreenState extends State<CheckoutScreen> {
             )
           : (guestCheckoutPermission || AuthHelper.isLoggedIn())
               ? GetBuilder<CheckoutController>(
-                  id: 'checkout', // ✅ استخدام ID لتحديث جزئي
+                  id: 'checkout', // Use targeted ID for partial rebuild.
                   builder: (checkoutController) {
                     // 🔒 CRITICAL GUARD: Prevent calculations if cart is empty or null
                     // ✅ FIX: Show error UI instead of throwing exception
@@ -710,9 +698,14 @@ class CheckoutScreenState extends State<CheckoutScreen> {
 
                       // ✅ Update controller's delivery charge for reactive UI
                       if (deliveryCharge != null) {
-                        final double displayDeliveryCharge = originalCharge > 0
-                            ? originalCharge
-                            : (deliveryCharge < 0 ? 0.0 : deliveryCharge);
+                        final double displayDeliveryCharge =
+                            checkoutController.orderType == 'take_away'
+                                ? 0.0
+                                : (originalCharge > 0
+                                    ? originalCharge
+                                    : (deliveryCharge < 0
+                                        ? 0.0
+                                        : deliveryCharge));
                         SchedulerBinding.instance.addPostFrameCallback((_) {
                           checkoutController.setCalculatedDeliveryCharge(
                               displayDeliveryCharge);
@@ -778,11 +771,16 @@ class CheckoutScreenState extends State<CheckoutScreen> {
 
                       // Ensure delivery charge is not negative for total calculation
                       // Prefer originalCharge (actual calculated fee) when available
-                      final double validDeliveryCharge = originalCharge > 0
-                          ? originalCharge
-                          : (deliveryCharge == null
+                      final double validDeliveryCharge =
+                          checkoutController.orderType == 'take_away'
                               ? 0.0
-                              : (deliveryCharge < 0 ? 0.0 : deliveryCharge));
+                              : (originalCharge > 0
+                                  ? originalCharge
+                                  : (deliveryCharge == null
+                                      ? 0.0
+                                      : (deliveryCharge < 0
+                                          ? 0.0
+                                          : deliveryCharge)));
 
                       // If checkout is opened from cart page, use simplified total formula
                       // total = subtotal + delivery + service fee
@@ -836,7 +834,7 @@ class CheckoutScreenState extends State<CheckoutScreen> {
                               : 0);
                       if (_lastSetTotalAmount != newTotal) {
                         _lastSetTotalAmount = newTotal;
-                        SchedulerBinding.instance.addPostFrameCallback((_) {
+                        Future.microtask(() {
                           if (mounted) {
                             checkoutController.setTotalAmount(newTotal);
                           }
@@ -868,7 +866,7 @@ class CheckoutScreenState extends State<CheckoutScreen> {
                               allIsLogged == false)
                           ? Column(
                               mainAxisSize: MainAxisSize
-                                  .min, // ✅ Fix: تقليل حجم Column لتجنب overflow
+                                  .min, // Keep compact column size to avoid overflow.
                               children: [
                                 //
 
@@ -1028,7 +1026,7 @@ class CheckoutScreenState extends State<CheckoutScreen> {
                                           )
                                         : Column(
                                             mainAxisSize: MainAxisSize
-                                                .min, // ✅ Fix: تقليل حجم Column لتجنب overflow
+                                                .min, // Keep compact column size to avoid overflow.
                                             crossAxisAlignment:
                                                 CrossAxisAlignment.start,
                                             children: [
@@ -1162,7 +1160,7 @@ class CheckoutScreenState extends State<CheckoutScreen> {
                                         ),
                                         child: Column(
                                           mainAxisSize: MainAxisSize
-                                              .min, // ✅ Fix: تقليل حجم Column لتجنب overflow
+                                              .min, // Keep compact column size to avoid overflow.
                                           children: [
                                             Padding(
                                               padding: const EdgeInsets
@@ -1188,17 +1186,26 @@ class CheckoutScreenState extends State<CheckoutScreen> {
                                                                   context)
                                                               .primaryColor),
                                                     ),
-                                                    PriceConverter
-                                                        .convertPrice2(
-                                                      checkoutController
-                                                          .viewTotalPrice,
-                                                      textStyle:
-                                                          robotoMedium.copyWith(
-                                                        color: Theme.of(context)
-                                                            .primaryColor,
-                                                        fontSize: Dimensions
-                                                            .fontSizeLarge,
-                                                      ),
+                                                    GetBuilder<
+                                                        CheckoutController>(
+                                                      id: 'total',
+                                                      builder: (controller) {
+                                                        return PriceConverter
+                                                            .convertPrice2(
+                                                          controller
+                                                                  .viewTotalPrice ??
+                                                              0.0,
+                                                          textStyle:
+                                                              robotoMedium
+                                                                  .copyWith(
+                                                            color: Theme.of(
+                                                                    context)
+                                                                .primaryColor,
+                                                            fontSize: Dimensions
+                                                                .fontSizeLarge,
+                                                          ),
+                                                        );
+                                                      },
                                                     ),
                                                   ]),
                                             ),
@@ -1264,43 +1271,24 @@ class CheckoutScreenState extends State<CheckoutScreen> {
                       }
                       HapticFeedback.lightImpact();
                       if (controller.isPaymentFlowInProgress) {
-                        showCustomSnackBar(
-                            'جاري تنفيذ الطلب، الرجاء الانتظار...');
-                        controller.finishPlaceOrder();
-                        return;
+                        // Recover from stale flow state after failed/aborted attempts.
+                        if (!controller.isLoading) {
+                          controller.resetPaymentState();
+                        } else {
+                          showCustomSnackBar(
+                              'جاري تنفيذ الطلب، الرجاء الانتظار...');
+                          controller.finishPlaceOrder();
+                          return;
+                        }
                       }
                       controller.setLoading(true, ids: ['payment']);
                       try {
                         final bool isGuestLogIn = AuthHelper.isGuestLoggedIn();
 
-                        final AddressModel? requiredAddress = isGuestLogIn
-                            ? checkoutController.guestAddress
-                            : (checkoutController.addressIndex != null &&
-                                    checkoutController.addressIndex! <
-                                        address.length
-                                ? address[checkoutController.addressIndex!]
-                                : AddressHelper.getUserAddressFromSharedPref());
-                        final String requiredStreet = isGuestLogIn
-                            ? (requiredAddress?.streetNumber ?? '')
-                            : (requiredAddress?.streetNumber ??
-                                checkoutController.streetNumberController.text);
-                        final String requiredHouse = isGuestLogIn
-                            ? (requiredAddress?.house ?? '')
-                            : (requiredAddress?.house ??
-                                checkoutController.houseController.text);
-                        final String requiredAddressDesc =
-                            requiredAddress?.address ?? '';
-                        if (requiredStreet.trim().isEmpty ||
-                            requiredHouse.trim().isEmpty ||
-                            requiredAddressDesc.trim().isEmpty) {
-                          showCustomSnackBar('please_fill_address_fields'.tr,
-                              isError: true);
-                          controller.setLoading(false, ids: ['payment']);
-                          return;
-                        }
+                        // Street/house/address description are optional now.
+                        // Keep only location/address presence validation in delivery flow.
 
-                        // 1. تعريف المتغيرات والأرصدة بوضوح
-// السطر 1045 داخل دالة _orderPlaceButton
+                        // 1) Define balances and selected payment method.
                         double qidhaBalance = double.tryParse(
                                 kaidhaSubController.walletKaidhaModel?.wallet
                                         ?.availableBalance
@@ -1314,35 +1302,35 @@ class CheckoutScreenState extends State<CheckoutScreen> {
                         int selectedPaymentIndex =
                             checkoutController.paymentMethodIndex;
 
-                        // 🚫 Require payment method selection
+                        // Require payment method selection.
                         if (selectedPaymentIndex == -1) {
-                          showCustomSnackBar('يرجى اختيار طريقة الدفع للمتابعة',
+                          showCustomSnackBar('يرجى اختيار طريقة الدفع',
                               isError: true);
                           controller.setLoading(false, ids: ['payment']);
                           return;
                         }
 
-                        // 2. ⛔ الحماية القصوى: التحقق من الرصيد قبل أي شيء ⛔
-                        // إذا اختار العميل "قيدها" (Index 0) والرصيد لا يكفي
+                        // 2) Strict balance checks before continuing.
+                        // If Qidha wallet is selected (index 0) and balance is insufficient.
                         if (selectedPaymentIndex == 0) {
                           if (qidhaBalance < total) {
                             showCustomSnackBar(
-                                'عفواً، رصيد "قيدها" (${PriceConverter.convertPrice(qidhaBalance)}) غير كافٍ لإتمام الطلب (${PriceConverter.convertPrice(total)})',
+                                'عفوًا، رصيد "قيدها" (${PriceConverter.convertPrice(qidhaBalance)}) غير كافٍ لإتمام الطلب (${PriceConverter.convertPrice(total)})',
                                 isError: true);
-                            return; // 🛑 توقف فوراً ولا تكمل
+                            return; // Stop immediately and do not continue.
                           }
                         }
-                        // إذا اختار العميل "المحفظة" (Index 1) والرصيد لا يكفي
+                        // If regular wallet is selected (index 1) and balance is insufficient.
                         else if (selectedPaymentIndex == 1) {
                           if (myWalletBalance < total) {
                             showCustomSnackBar(
-                                'عفواً، رصيد المحفظة (${PriceConverter.convertPrice(myWalletBalance)}) غير كافٍ لإتمام الطلب',
+                                'عفوًا، رصيد المحفظة (${PriceConverter.convertPrice(myWalletBalance)}) غير كافٍ لإتمام الطلب',
                                 isError: true);
-                            return; // 🛑 توقف فوراً ولا تكمل
+                            return; // Stop immediately and do not continue.
                           }
                         }
 
-                        // 3. منع التكرار ومعالجة حالات الدفع السابقة
+                        // 3) Prevent duplicate payment flows.
                         if (checkoutController.isPaymentFlowInProgress &&
                             checkoutController.paymentFlowState !=
                                 PaymentFlowState.preparingPayment) {
@@ -1361,11 +1349,11 @@ class CheckoutScreenState extends State<CheckoutScreen> {
                         }
 
                         if (checkoutController.distance == null) {
-                          showCustomSnackBar('أنتظر لحظات بيتم حساب التوصيل');
+                          showCustomSnackBar('انتظر لحظات، يتم حساب التوصيل');
                           return;
                         }
 
-                        // ... (باقي التحقق من الوقت والضيوف كما هو - لم نغيره) ...
+                        // Remaining validation (time slots / guest fields) stays unchanged.
                         bool isAvailable = true;
                         DateTime scheduleStartDate = DateTime.now();
                         DateTime scheduleEndDate = DateTime.now();
@@ -1456,7 +1444,7 @@ class CheckoutScreenState extends State<CheckoutScreen> {
                               'you_must_upload_prescription_for_this_order'.tr);
                         }
 
-                        // 4. التحقق من اختيار طريقة الدفع (إذا لم يختار شيئاً)
+                        // 4) If no payment method was chosen, open payment selector.
                         else if (selectedPaymentIndex == -1) {
                           if (ResponsiveHelper.isDesktop(context)) {
                             Get.dialog<void>(const Dialog(
@@ -1540,12 +1528,21 @@ class CheckoutScreenState extends State<CheckoutScreen> {
                           }
 
                           if (!isGuestLogIn &&
-                              finalAddress!.contactPersonNumber == 'null') {
+                              finalAddress != null &&
+                              finalAddress.contactPersonNumber == 'null') {
                             finalAddress.contactPersonNumber =
                                 Get.find<ProfileController>()
                                     .userInfoModel!
                                     .phone;
                           }
+
+                          final AddressModel payloadAddress = finalAddress ??
+                              currentAddress ??
+                              AddressModel(
+                                address: '',
+                                latitude: '',
+                                longitude: '',
+                              );
 
                           final bool usePrescriptionFlow =
                               isPrescriptionRequired ||
@@ -1567,8 +1564,7 @@ class CheckoutScreenState extends State<CheckoutScreen> {
                               }
 
                               final List<OrderVariation> variations = [];
-                              // ... (يُفترض أن كود الـ variations موجود هنا كما كان سابقاً) ...
-                              // (لم أغير منطق الـ variations لضمان الاختصار، هو نفس الكود الأصلي)
+                              // Variations logic remains the same as before.
 
                               carts.add(OnlineCart(
                                 cart.id,
@@ -1594,8 +1590,7 @@ class CheckoutScreenState extends State<CheckoutScreen> {
                               ));
                             }
 
-                            // 🔥🔥 5. إرسال طريقة الدفع الصحيحة للباك إند 🔥🔥
-                            // لقد قمنا بإلغاء منطق "الذكاء الزائد" واستبدلناه بمنطق صارم يعتمد على اختيار المستخدم
+                            // 5) Send the exact selected payment method to backend.
                             final String? finalPaymentMethod =
                                 selectedPaymentIndex == 0
                                     ? 'wallet_qidha'
@@ -1608,32 +1603,24 @@ class CheckoutScreenState extends State<CheckoutScreen> {
                             debugPrint(
                                 '🔍 Final Payment Method: $finalPaymentMethod (Index: $selectedPaymentIndex)');
 
-                            String determinedOrderType =
+                            final String determinedOrderType =
                                 checkoutController.orderType ?? 'delivery';
 
-                            final bool hasDeliveryData = finalAddress != null &&
-                                finalAddress.address != null &&
-                                finalAddress.address!.isNotEmpty;
-
-                            if (hasDeliveryData) {
-                              determinedOrderType = 'delivery';
-                            } else {
-                              determinedOrderType =
-                                  checkoutController.orderType ?? 'take_away';
-                            }
-
-                            if (finalAddress == null) {
+                            if (finalAddress == null &&
+                                determinedOrderType != 'take_away') {
                               showCustomSnackBar(
                                   'please_select_your_location'.tr);
                               return;
                             }
 
                             final bool hasValidLocation =
-                                finalAddress.latitude != null &&
+                                finalAddress != null &&
+                                    finalAddress.latitude != null &&
                                     finalAddress.longitude != null &&
                                     finalAddress.latitude!.trim().isNotEmpty &&
                                     finalAddress.longitude!.trim().isNotEmpty;
-                            if (!hasValidLocation) {
+                            if (determinedOrderType != 'take_away' &&
+                                !hasValidLocation) {
                               showCustomSnackBar(
                                   'please_select_your_location'.tr);
                               return;
@@ -1658,7 +1645,7 @@ class CheckoutScreenState extends State<CheckoutScreen> {
                               orderNote: checkoutController.noteController.text,
                               orderType: determinedOrderType,
 
-                              // ✅ استخدام القيمة المصححة
+                              // Use the resolved payment method value.
                               paymentMethod: finalPaymentMethod,
 
                               couponCode: (Get.find<CouponController>()
@@ -1672,31 +1659,31 @@ class CheckoutScreenState extends State<CheckoutScreen> {
                                   : null,
                               storeId: _cartList![0]!.item!.storeId,
                               branchId: _cartList![0]!.item!.storeId,
-                              address: finalAddress.address,
-                              latitude: finalAddress.latitude,
-                              longitude: finalAddress.longitude,
+                              address: payloadAddress.address ?? '',
+                              latitude: payloadAddress.latitude ?? '',
+                              longitude: payloadAddress.longitude ?? '',
                               senderZoneId: null,
-                              addressType: finalAddress.addressType,
-                              contactPersonName: finalAddress
+                              addressType: payloadAddress.addressType,
+                              contactPersonName: payloadAddress
                                       .contactPersonName ??
                                   '${Get.find<ProfileController>().userInfoModel!.fName} '
                                       '${Get.find<ProfileController>().userInfoModel!.lName}',
                               contactPersonNumber:
-                                  finalAddress.contactPersonNumber ??
+                                  payloadAddress.contactPersonNumber ??
                                       Get.find<ProfileController>()
                                           .userInfoModel!
                                           .phone,
                               streetNumber: isGuestLogIn
-                                  ? finalAddress.streetNumber ?? ''
+                                  ? payloadAddress.streetNumber ?? ''
                                   : checkoutController
                                       .streetNumberController.text
                                       .trim(),
                               house: isGuestLogIn
-                                  ? finalAddress.house ?? ''
+                                  ? payloadAddress.house ?? ''
                                   : checkoutController.houseController.text
                                       .trim(),
                               floor: isGuestLogIn
-                                  ? finalAddress.floor ?? ''
+                                  ? payloadAddress.floor ?? ''
                                   : checkoutController.floorController.text
                                       .trim(),
                               discountAmount: discount,
@@ -1733,7 +1720,7 @@ class CheckoutScreenState extends State<CheckoutScreen> {
                                   : 0,
                               isBuyNow: widget.fromCart ? 0 : 1,
                               guestEmail: isGuestLogIn
-                                  ? finalAddress.email
+                                  ? payloadAddress.email
                                   : (Get.find<ProfileController>()
                                           .userInfoModel
                                           ?.email ??
@@ -1778,10 +1765,15 @@ class CheckoutScreenState extends State<CheckoutScreen> {
                               maxCodOrderAmount,
                               widget.fromCart,
                               _isCashOnDeliveryActive!,
-                              finalAddress.contactPersonName ?? '',
+                              payloadAddress.contactPersonNumber ?? '',
                             );
-                            debugPrint(
-                                'Payment Process Result: $paymentResult');
+                            if (paymentResult.isEmpty) {
+                              debugPrint(
+                                  '❌ Payment Process Result: FAILED (empty orderId returned)');
+                            } else {
+                              debugPrint(
+                                  '✅ Payment Process Result: SUCCESS (orderId=$paymentResult)');
+                            }
                           } else {
                             // Prescription Logic remains the same
                             checkoutController.placePrescriptionOrder(
@@ -1789,9 +1781,9 @@ class CheckoutScreenState extends State<CheckoutScreen> {
                                 effectiveStoreId,
                                 checkoutController.store!.zoneId,
                                 checkoutController.distance,
-                                finalAddress!.address!,
-                                finalAddress.longitude!,
-                                finalAddress.latitude!,
+                                payloadAddress.address ?? '',
+                                payloadAddress.longitude ?? '',
+                                payloadAddress.latitude ?? '',
                                 checkoutController.noteController.text,
                                 checkoutController.pickedPrescriptions,
                                 (checkoutController.orderType == 'take_away' ||
@@ -1904,15 +1896,13 @@ class CheckoutScreenState extends State<CheckoutScreen> {
     return moduleData;
   }
 
-  /// ✅ الشرط الصحيح (المنطقي 100%)
+  /// Store-open validation rules:
+  /// 1. Store is administratively active (active == true).
+  /// 2. Store status is open (status == 1), if available.
+  /// 3. Store is currently open (isOpenNow == true) from backend.
   ///
-  /// يتحقق من أن المتجر مفتوح حقاً:
-  /// 1. المتجر مفعّل إداريًا (active == true)
-  /// 2. حالة المتجر (status == 1) - إذا كان موجود
-  /// 3. مفتوح الآن (isOpenNow == true) - من الباك فقط
-  ///
-  /// ⚠️ ملاحظة مهمة: scheduleOrder == true لا يعني مغلق
-  /// بل يعني يسمح بالطلب المجدول فقط
+  /// Note: scheduleOrder == true does not mean store is closed;
+  /// it means scheduled orders are allowed.
 
   bool _checkCODActive({required Store? store}) {
     // COD disabled - always return false
@@ -2290,19 +2280,19 @@ class CheckoutScreenState extends State<CheckoutScreen> {
           firstKmDistance != null &&
           firstKmDistance > 0) {
         // Backend logic: if distance <= firstKmDistance, use firstKmFee
-        // If distance > firstKmDistance, use simple multiplication (distance × perKm)
+        // If distance > firstKmDistance, use simple multiplication (distance x perKm).
         if (distance <= firstKmDistance) {
           deliveryCharge = firstKmFee;
           if (kDebugMode) {
             debugPrint(
-                '🚚 Delivery: distance ($distance km) <= first tier ($firstKmDistance km) = $firstKmFee SAR');
+                'Delivery: distance ($distance km) <= first tier ($firstKmDistance km) = $firstKmFee SAR');
           }
         } else {
           // CORRECT: Simple multiplication when distance > firstKmDistance (matches backend)
           deliveryCharge = distance * perKmCharge;
           if (kDebugMode) {
             debugPrint(
-                '🚚 Delivery: $distance km × $perKmCharge = $deliveryCharge SAR');
+                'Delivery: $distance km x $perKmCharge = $deliveryCharge SAR');
           }
         }
 
@@ -2312,28 +2302,28 @@ class CheckoutScreenState extends State<CheckoutScreen> {
             deliveryCharge > maximumCharge) {
           deliveryCharge = maximumCharge;
           if (kDebugMode) {
-            debugPrint('🚚 Capped to maximum: $maximumCharge SAR');
+            debugPrint('Delivery capped to maximum: $maximumCharge SAR');
           }
         }
       } else {
-        // Fallback to old calculation (distance × per km rate with min/max)
+        // Fallback to old calculation (distance x per-km rate with min/max).
         deliveryCharge = distance * perKmCharge;
         if (kDebugMode) {
           debugPrint(
-              '🚚 Standard Delivery: $distance km × $perKmCharge = $deliveryCharge SAR');
+              'Standard Delivery: $distance km x $perKmCharge = $deliveryCharge SAR');
         }
 
         if (deliveryCharge < minimumCharge) {
           deliveryCharge = minimumCharge;
           if (kDebugMode) {
-            debugPrint('🚚 Applied minimum: $minimumCharge SAR');
+            debugPrint('Delivery applied minimum: $minimumCharge SAR');
           }
         } else if (maximumCharge != null &&
             maximumCharge > 0 &&
             deliveryCharge > maximumCharge) {
           deliveryCharge = maximumCharge;
           if (kDebugMode) {
-            debugPrint('🚚 Applied maximum: $maximumCharge SAR');
+            debugPrint('Delivery applied maximum: $maximumCharge SAR');
           }
         }
       }
@@ -2477,3 +2467,4 @@ class CheckoutScreenState extends State<CheckoutScreen> {
     }
   }
 }
+

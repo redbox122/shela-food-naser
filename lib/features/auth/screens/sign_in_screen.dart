@@ -23,8 +23,6 @@ class SignInScreen extends StatefulWidget {
 }
 
 class SignInScreenState extends State<SignInScreen> {
-  final bool _canExit = GetPlatform.isWeb ? true : false;
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(

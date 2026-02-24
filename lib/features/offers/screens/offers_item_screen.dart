@@ -33,6 +33,22 @@ class _OffersItemScreen extends State<OffersItemScreen> {
   final ScrollController scrollController = ScrollController();
   final TextEditingController _searchController = TextEditingController();
   bool _isLoadingMore = false; // Prevent multiple simultaneous pagination calls
+  String _selectedSort = 'popular';
+  String _selectedPriceLabel = 'all';
+  String _minPrice = '';
+  String _maxPrice = '';
+  final List<Map<String, String>> _priceRanges = [
+    {'label': 'all', 'min': '0', 'max': '0'},
+    {'label': '0 - 10', 'min': '0', 'max': '10'},
+    {'label': '20 - 40', 'min': '20', 'max': '40'},
+    {'label': '40 - 70', 'min': '40', 'max': '70'},
+    {'label': '70 - 100', 'min': '70', 'max': '100'},
+    {'label': '150 - 200', 'min': '150', 'max': '200'},
+    {'label': '200 - 300', 'min': '200', 'max': '300'},
+    {'label': '300 - 500', 'min': '300', 'max': '500'},
+    {'label': '500 - 700', 'min': '500', 'max': '700'},
+    {'label': '700 - 1000', 'min': '700', 'max': '1000'},
+  ];
 
   @override
   void initState() {
@@ -48,6 +64,7 @@ class _OffersItemScreen extends State<OffersItemScreen> {
       Get.find<Offers_Controller>().getOffersItemList(
         id: widget.offerId.toString(),
         offset: 1,
+        forceRefresh: true,
       );
     });
 
@@ -112,6 +129,7 @@ class _OffersItemScreen extends State<OffersItemScreen> {
     scrollController.dispose();
     _isLoadingMore = false; // Reset loading flag
     // Reset controller states when leaving the screen
+    Get.find<Offers_Controller>().resetFilterState(notify: false);
     Get.find<Offers_Controller>().resetLoadingStates(notify: false);
   }
 
@@ -131,6 +149,13 @@ class _OffersItemScreen extends State<OffersItemScreen> {
           );
         }
         return GetBuilder<CategoryController>(builder: (categoryController) {
+          const Color selectedChipColor = Color(0xFFC8E6C9);
+          final bool hasActiveFilters =
+              _selectedSort != 'popular' ||
+              (_minPrice.isNotEmpty && _minPrice != '0') ||
+              (_maxPrice.isNotEmpty && _maxPrice != '0') ||
+              offersController.selectedCategoryIds.isNotEmpty ||
+              _searchController.text.trim().isNotEmpty;
           return Stack(
             children: [
               RefreshIndicator(
@@ -153,102 +178,6 @@ class _OffersItemScreen extends State<OffersItemScreen> {
                             const EdgeInsets.all(Dimensions.paddingSizeSmall),
                         child: Column(
                           children: [
-                            // Search Bar
-                            Container(
-                              height: 45,
-                              decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(
-                                    Dimensions.radiusDefault),
-                                color: Theme.of(context).cardColor,
-                                border: Border.all(
-                                    color: Theme.of(context)
-                                        .primaryColor
-                                        .withValues(alpha: 0.40)),
-                              ),
-                              child: Row(
-                                children: [
-                                  Expanded(
-                                    child: TextField(
-                                      controller: _searchController,
-                                      textInputAction: TextInputAction.search,
-                                      decoration: InputDecoration(
-                                        contentPadding:
-                                            const EdgeInsets.symmetric(
-                                                ),
-                                        hintText: 'search_for_items'.tr,
-                                        hintStyle: robotoRegular.copyWith(
-                                            fontSize: Dimensions.fontSizeSmall,
-                                            color: Theme.of(context)
-                                                .disabledColor),
-                                        border: OutlineInputBorder(
-                                            borderRadius: BorderRadius.circular(
-                                                Dimensions.radiusSmall),
-                                            borderSide: BorderSide.none),
-                                        filled: true,
-                                        fillColor: Theme.of(context).cardColor,
-                                        isDense: true,
-                                        prefixIcon: Icon(Icons.search,
-                                            color: Theme.of(context)
-                                                .primaryColor
-                                                .withValues(alpha: 0.50)),
-                                      ),
-                                      onChanged: (String value) {
-                                        // Live search as user types
-                                        offersController
-                                            .performLiveSearch(value);
-                                      },
-                                      onSubmitted: (String? value) {
-                                        if (value!.isNotEmpty) {
-                                          offersController
-                                              .getOffersSearchItemList(
-                                            _searchController.text.trim(),
-                                            offerId: widget.offerId.toString(),
-                                          );
-                                        }
-                                      },
-                                    ),
-                                  ),
-                                  const SizedBox(
-                                      width: Dimensions.paddingSizeSmall),
-                                  InkWell(
-                                    onTap: () {
-                                      if (!offersController.isSearching) {
-                                        // Trigger live search if there's text
-                                        if (_searchController.text
-                                            .trim()
-                                            .isNotEmpty) {
-                                          offersController.performLiveSearch(
-                                              _searchController.text.trim());
-                                        }
-                                      } else {
-                                        // Clear search
-                                        _searchController.text = '';
-                                        offersController.clearLiveSearch();
-                                      }
-                                    },
-                                    child: Container(
-                                      decoration: BoxDecoration(
-                                          color: Theme.of(context).primaryColor,
-                                          borderRadius: BorderRadius.circular(
-                                              Dimensions.radiusSmall)),
-                                      padding: const EdgeInsets.symmetric(
-                                          vertical: 3,
-                                          horizontal:
-                                              Dimensions.paddingSizeSmall),
-                                      child: offersController.isSearching
-                                          ? const Icon(Icons.clear,
-                                              color: Colors.white)
-                                          : Text('search'.tr,
-                                              style: robotoMedium.copyWith(
-                                                  color: Colors.white)),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-
-                            const SizedBox(height: Dimensions.paddingSizeSmall),
-
                             // Filter Controls
                             Row(
                               children: [
@@ -271,8 +200,8 @@ class _OffersItemScreen extends State<OffersItemScreen> {
                                     child: Icon(
                                         offersController.isVertical
                                             ? Icons.list
-                                            : Icons.filter_list_sharp,
-                                        size: 28,
+                                            : Icons.grid_view,
+                                        size: 24,
                                         color: Theme.of(context).primaryColor),
                                   ),
                                 ),
@@ -290,9 +219,11 @@ class _OffersItemScreen extends State<OffersItemScreen> {
                                     decoration: BoxDecoration(
                                       borderRadius: BorderRadius.circular(
                                           Dimensions.radiusDefault),
-                                      color: Theme.of(context)
-                                          .primaryColor
-                                          .withValues(alpha: 0.1),
+                                      color: offersController.isPriceAscending
+                                          ? Theme.of(context)
+                                              .primaryColor
+                                              .withValues(alpha: 0.1)
+                                          : selectedChipColor,
                                     ),
                                     padding: const EdgeInsets.all(
                                         Dimensions.paddingSizeExtraSmall),
@@ -311,15 +242,18 @@ class _OffersItemScreen extends State<OffersItemScreen> {
                                 // Filter Categories Button
                                 InkWell(
                                   onTap: () {
-                                    offersController.toggleFilterModal();
+                                    _showFilterBottomSheet(
+                                        context, offersController);
                                   },
                                   child: Container(
                                     decoration: BoxDecoration(
                                       borderRadius: BorderRadius.circular(
                                           Dimensions.radiusDefault),
-                                      color: Theme.of(context)
-                                          .primaryColor
-                                          .withValues(alpha: 0.1),
+                                      color: hasActiveFilters
+                                          ? selectedChipColor
+                                          : Theme.of(context)
+                                              .primaryColor
+                                              .withValues(alpha: 0.1),
                                     ),
                                     padding: const EdgeInsets.symmetric(
                                         horizontal: Dimensions.paddingSizeSmall,
@@ -330,79 +264,19 @@ class _OffersItemScreen extends State<OffersItemScreen> {
                                       children: [
                                         Icon(
                                           Icons.filter_list,
-                                          size: 16,
-                                          color: Theme.of(context).primaryColor,
+                                          size: 20,
+                                          color: hasActiveFilters
+                                              ? const Color(0xFF1B5E20)
+                                              : Theme.of(context).primaryColor,
                                         ),
                                         const SizedBox(width: 4),
                                         Text(
-                                          'filter_categories'.tr,
+                                          'filter'.tr,
                                           style: robotoMedium.copyWith(
                                             fontSize: Dimensions.fontSizeSmall,
-                                            color:
-                                                Theme.of(context).primaryColor,
-                                          ),
-                                        ),
-                                        if (offersController
-                                            .selectedCategoryIds.isNotEmpty)
-                                          Container(
-                                            margin:
-                                                const EdgeInsets.only(left: 4),
-                                            padding: const EdgeInsets.symmetric(
-                                                horizontal: 6, vertical: 2),
-                                            decoration: BoxDecoration(
-                                              color: Theme.of(context)
-                                                  .primaryColor,
-                                              borderRadius:
-                                                  BorderRadius.circular(10),
-                                            ),
-                                            child: Text(
-                                              '${offersController.selectedCategoryIds.length}',
-                                              style: robotoMedium.copyWith(
-                                                fontSize: 10,
-                                                color: Colors.white,
-                                              ),
-                                            ),
-                                          ),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-
-                                const SizedBox(
-                                    width: Dimensions.paddingSizeSmall),
-
-                                // Reset Filters Button
-                                InkWell(
-                                  onTap: () {
-                                    offersController.resetFilters();
-                                  },
-                                  child: Container(
-                                    decoration: BoxDecoration(
-                                      borderRadius: BorderRadius.circular(
-                                          Dimensions.radiusDefault),
-                                      color: Theme.of(context)
-                                          .primaryColor
-                                          .withValues(alpha: 0.1),
-                                    ),
-                                    padding: const EdgeInsets.symmetric(
-                                        horizontal: Dimensions.paddingSizeSmall,
-                                        vertical:
-                                            Dimensions.paddingSizeExtraSmall),
-                                    child: Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        Icon(
-                                          Icons.refresh,
-                                          size: 16,
-                                          color: Theme.of(context).primaryColor,
-                                        ),
-                                        const SizedBox(width: 4),
-                                        Text(
-                                          'reset'.tr,
-                                          style: robotoMedium.copyWith(
-                                            fontSize: Dimensions.fontSizeSmall,
-                                            color:
-                                                Theme.of(context).primaryColor,
+                                            color: hasActiveFilters
+                                                ? const Color(0xFF1B5E20)
+                                                : Theme.of(context).primaryColor,
                                           ),
                                         ),
                                       ],
@@ -421,120 +295,11 @@ class _OffersItemScreen extends State<OffersItemScreen> {
 
                       SizedBox(
                         width: Dimensions.webMaxWidth,
-                        child: offersController.isSearching
-                            ? (offersController.isLiveSearching
-                                ? (offersController.liveSearchResults != null
-                                    ? offersController
-                                            .liveSearchResults!.isNotEmpty
-                                        ? _buildOffersItemsView(offersController.liveSearchResults!,
-                                            isSearching: true)
-                                        : Center(
-                                            child: Padding(
-                                                padding: EdgeInsets.only(
-                                                    top: isDesktop
-                                                        ? context.height * 0.3
-                                                        : context.height * 0.4),
-                                                child: Text(
-                                                    'no_results_found'.tr)))
-                                    : _buildLoadingShimmer())
-                                : (offersController.offersSearchItemModel !=
-                                        null
-                                    ? offersController.offersSearchItemModel!
-                                            .items!.isNotEmpty
-                                        ? _buildOffersItemsView(
-                                            offersController
-                                                .offersSearchItemModel!.items!,
-                                            isSearching: true)
-                                        : Center(
-                                            child: Padding(
-                                                padding: EdgeInsets.only(
-                                                    top: isDesktop
-                                                        ? context.height * 0.3
-                                                        : context.height * 0.4),
-                                                child: Text('no_results_found'.tr)))
-                                    : offersController.isItemsLoading
-                                        ? _buildLoadingShimmer()
-                                        : const Center(child: LoadingWidget())))
-                            : (offersController.offersItemList != null
-                                ? offersController.offersItemList!.isNotEmpty
-                                    ? _buildOffersItemsView(offersController.offersItemList!)
-                                    : Center(
-                                        child: Padding(
-                                          padding: EdgeInsets.only(
-                                              top: isDesktop
-                                                  ? context.height * 0.3
-                                                  : context.height * 0.4),
-                                          child: Column(
-                                            mainAxisAlignment:
-                                                MainAxisAlignment.center,
-                                            children: [
-                                              Icon(
-                                                Icons.inventory_2_outlined,
-                                                size: 64,
-                                                color: Theme.of(context)
-                                                    .disabledColor,
-                                              ),
-                                              const SizedBox(height: 16),
-                                              Text(
-                                                'no_items_found'.tr,
-                                                style: robotoMedium.copyWith(
-                                                  fontSize:
-                                                      Dimensions.fontSizeLarge,
-                                                  color: Theme.of(context)
-                                                      .disabledColor,
-                                                ),
-                                              ),
-                                              const SizedBox(height: 8),
-                                              Text(
-                                                'try_different_search'.tr,
-                                                style: robotoRegular.copyWith(
-                                                  fontSize: Dimensions
-                                                      .fontSizeDefault,
-                                                  color: Theme.of(context)
-                                                      .disabledColor,
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                                      )
-                                : offersController.isItemsLoading
-                                    ? _buildLoadingShimmer()
-                                    : Center(
-                                        child: Column(
-                                          mainAxisAlignment:
-                                              MainAxisAlignment.center,
-                                          children: [
-                                            Icon(
-                                              Icons.error_outline,
-                                              size: 64,
-                                              color: Theme.of(context)
-                                                  .disabledColor,
-                                            ),
-                                            const SizedBox(height: 16),
-                                            Text(
-                                              'failed_to_load_items'.tr,
-                                              style: robotoMedium.copyWith(
-                                                fontSize:
-                                                    Dimensions.fontSizeLarge,
-                                                color: Theme.of(context)
-                                                    .disabledColor,
-                                              ),
-                                            ),
-                                            const SizedBox(height: 8),
-                                            ElevatedButton(
-                                              onPressed: () {
-                                                Get.find<Offers_Controller>()
-                                                    .getOffersItemList(
-                                                  id: widget.offerId.toString(),
-                                                  offset: 1,
-                                                );
-                                              },
-                                              child: Text('retry'.tr),
-                                            ),
-                                          ],
-                                        ),
-                                      )),
+                        child: _buildOffersContent(
+                          context,
+                          offersController,
+                          isDesktop,
+                        ),
                       ),
 
                       offersController.isItemsLoading
@@ -551,9 +316,6 @@ class _OffersItemScreen extends State<OffersItemScreen> {
                   ),
                 ),
               ),
-              // Filter Modal
-              if (offersController.isFilterModalOpen)
-                _buildFilterModal(context, offersController),
             ],
           );
         });
@@ -561,158 +323,440 @@ class _OffersItemScreen extends State<OffersItemScreen> {
     );
   }
 
-  Widget _buildFilterModal(BuildContext context, Offers_Controller controller) {
-    return Container(
-      color: Colors.black54,
-      child: Center(
-        child: Container(
-          margin: const EdgeInsets.all(Dimensions.paddingSizeDefault),
-          decoration: BoxDecoration(
-            color: Theme.of(context).cardColor,
-            borderRadius: BorderRadius.circular(Dimensions.radiusDefault),
+  Widget _buildOffersContent(
+    BuildContext context,
+    Offers_Controller offersController,
+    bool isDesktop,
+  ) {
+    if (offersController.isSearching) {
+      if (offersController.isLiveSearching) {
+        final liveResults = offersController.liveSearchResults;
+        if (offersController.isItemsLoading || liveResults == null) {
+          return _buildSearchingIndicator(context);
+        }
+        if (liveResults.isNotEmpty) {
+          return _buildOffersItemsView(liveResults, isSearching: true);
+        }
+        return Center(
+          child: Padding(
+            padding: EdgeInsets.only(
+              top: isDesktop ? context.height * 0.3 : context.height * 0.4,
+            ),
+            child: Text('no_results_found'.tr),
+          ),
+        );
+      }
+
+      if (offersController.isItemsLoading &&
+          offersController.offersSearchItemModel == null) {
+        return _buildSearchingIndicator(context);
+      }
+
+      final List<Item> searchItems =
+          offersController.offersSearchItemModel?.items ?? <Item>[];
+      if (searchItems.isNotEmpty) {
+        return _buildOffersItemsView(searchItems, isSearching: true);
+      }
+
+      return Center(
+        child: Padding(
+          padding: EdgeInsets.only(
+            top: isDesktop ? context.height * 0.3 : context.height * 0.4,
+          ),
+          child: Text('no_results_found'.tr),
+        ),
+      );
+    }
+
+    final offerItems = offersController.offersItemList;
+    if (offerItems != null) {
+      if (offerItems.isNotEmpty) {
+        return _buildOffersItemsView(offerItems);
+      }
+      return Center(
+        child: Padding(
+          padding: EdgeInsets.only(
+            top: isDesktop ? context.height * 0.3 : context.height * 0.4,
           ),
           child: Column(
-            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              // Header
-              Container(
-                padding: const EdgeInsets.all(Dimensions.paddingSizeDefault),
-                decoration: BoxDecoration(
-                  color: Theme.of(context).primaryColor.withValues(alpha: 0.1),
-                  borderRadius: const BorderRadius.only(
-                    topLeft: Radius.circular(Dimensions.radiusDefault),
-                    topRight: Radius.circular(Dimensions.radiusDefault),
-                  ),
+              Icon(
+                Icons.inventory_2_outlined,
+                size: 64,
+                color: Theme.of(context).disabledColor,
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'no_items_found'.tr,
+                style: robotoMedium.copyWith(
+                  fontSize: Dimensions.fontSizeLarge,
+                  color: Theme.of(context).disabledColor,
                 ),
-                child: Row(
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'try_different_search'.tr,
+                style: robotoRegular.copyWith(
+                  fontSize: Dimensions.fontSizeDefault,
+                  color: Theme.of(context).disabledColor,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    if (offersController.isItemsLoading) {
+      return _buildLoadingShimmer();
+    }
+
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.error_outline,
+            size: 64,
+            color: Theme.of(context).disabledColor,
+          ),
+          const SizedBox(height: 16),
+          Text(
+            'failed_to_load_items'.tr,
+            style: robotoMedium.copyWith(
+              fontSize: Dimensions.fontSizeLarge,
+              color: Theme.of(context).disabledColor,
+            ),
+          ),
+          const SizedBox(height: 8),
+          ElevatedButton(
+            onPressed: () {
+              Get.find<Offers_Controller>().getOffersItemList(
+                id: widget.offerId.toString(),
+                offset: 1,
+              );
+            },
+            child: Text('retry'.tr),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSearchingIndicator(BuildContext context) {
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          CircularProgressIndicator(
+            valueColor:
+                AlwaysStoppedAnimation<Color>(Theme.of(context).primaryColor),
+          ),
+          const SizedBox(height: Dimensions.paddingSizeSmall),
+          Text(
+            'searching_for_products'.tr,
+            style: robotoMedium.copyWith(
+              fontSize: Dimensions.fontSizeDefault,
+              color: Theme.of(context).textTheme.bodyMedium?.color,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showFilterBottomSheet(
+      BuildContext context, Offers_Controller controller) {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => StatefulBuilder(
+        builder: (context, modalSetState) => DraggableScrollableSheet(
+          initialChildSize: 0.9,
+          minChildSize: 0.5,
+          maxChildSize: 0.95,
+          expand: false,
+          builder: (context, scrollController) => Container(
+            padding: const EdgeInsets.all(Dimensions.paddingSizeDefault),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
                   children: [
-                    Icon(
-                      Icons.filter_list,
-                      color: Theme.of(context).primaryColor,
-                    ),
-                    const SizedBox(width: Dimensions.paddingSizeSmall),
                     Text(
-                      'filter_categories'.tr,
+                      'filter'.tr,
                       style: robotoBold.copyWith(
                         fontSize: Dimensions.fontSizeLarge,
-                        color: Theme.of(context).primaryColor,
                       ),
                     ),
                     const Spacer(),
-                    InkWell(
-                      onTap: () => controller.closeFilterModal(),
-                      child: Icon(
-                        Icons.close,
-                        color: Theme.of(context).primaryColor,
-                      ),
+                    IconButton(
+                      onPressed: () => Navigator.pop(context),
+                      icon: const Icon(Icons.close),
                     ),
                   ],
                 ),
-              ),
-
-              // Categories List
-              if (controller.categoryList != null &&
-                  controller.categoryList!.isNotEmpty)
-                Container(
-                  constraints: const BoxConstraints(maxHeight: 400),
-                  child: ListView.builder(
-                    shrinkWrap: true,
-                    itemCount: controller.categoryList!.length,
-                    itemBuilder: (context, index) {
-                      final category = controller.categoryList![index];
-                      final isSelected =
-                          controller.selectedCategoryIds.contains(category.id);
-
-                      return ListTile(
-                        leading: Checkbox(
-                          value: isSelected,
-                          onChanged: (value) {
-                            controller
-                                .toggleCategorySelection(category.id ?? 0);
-                          },
-                          activeColor: Theme.of(context).primaryColor,
-                        ),
-                        title: Text(
-                          category.name ?? '',
-                          style: robotoMedium.copyWith(
-                            fontSize: Dimensions.fontSizeDefault,
+                const Divider(),
+                Expanded(
+                  child: SingleChildScrollView(
+                    controller: scrollController,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _buildSectionTitle('sort_by'.tr),
+                        _buildSortChips(modalSetState: modalSetState),
+                        const SizedBox(height: Dimensions.paddingSizeDefault),
+                        _buildSectionTitle('product_name'.tr),
+                        TextField(
+                          controller: _searchController,
+                          decoration: InputDecoration(
+                            hintText: 'search_for_items'.tr,
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(
+                                  Dimensions.radiusDefault),
+                            ),
                           ),
                         ),
-                        onTap: () {
-                          controller.toggleCategorySelection(category.id ?? 0);
-                        },
-                      );
-                    },
-                  ),
-                )
-              else
-                Padding(
-                  padding: const EdgeInsets.all(Dimensions.paddingSizeDefault),
-                  child: Text(
-                    'no_categories_available'.tr,
-                    style: robotoRegular.copyWith(
-                      fontSize: Dimensions.fontSizeDefault,
-                      color: Theme.of(context).disabledColor,
+                        const SizedBox(height: Dimensions.paddingSizeDefault),
+                        _buildSectionTitle('price_range'.tr),
+                        _buildPriceRangeChips(modalSetState: modalSetState),
+                        const SizedBox(height: Dimensions.paddingSizeDefault),
+                        _buildSectionTitle('filter_categories'.tr),
+                        _buildCategoryChips(controller,
+                            modalSetState: modalSetState),
+                        const SizedBox(height: Dimensions.paddingSizeLarge),
+                      ],
                     ),
                   ),
                 ),
-
-              // Action Buttons
-              Container(
-                padding: const EdgeInsets.all(Dimensions.paddingSizeDefault),
-                child: Row(
+                Row(
                   children: [
                     Expanded(
                       child: OutlinedButton(
                         onPressed: () {
-                          controller.selectedCategoryIds.clear();
-                          controller.applyCategoryFilter();
+                          controller.resetFilters();
+                          modalSetState(() {
+                            _selectedSort = 'popular';
+                            _selectedPriceLabel = 'all';
+                            _minPrice = '';
+                            _maxPrice = '';
+                            _searchController.clear();
+                          });
                         },
                         style: OutlinedButton.styleFrom(
-                          side:
-                              BorderSide(color: Theme.of(context).primaryColor),
+                          padding: const EdgeInsets.symmetric(
+                              vertical: Dimensions.paddingSizeDefault),
                         ),
-                        child: Text(
-                          'clear_all'.tr,
-                          style: robotoMedium.copyWith(
-                            color: Theme.of(context).primaryColor,
-                          ),
-                        ),
+                        child: Text('reset'.tr),
                       ),
                     ),
                     const SizedBox(width: Dimensions.paddingSizeSmall),
                     Expanded(
                       child: ElevatedButton(
                         onPressed: () {
-                          controller.applyCategoryFilter();
+                          if (_selectedSort == 'ascending') {
+                            controller.setPrice(true);
+                          } else if (_selectedSort == 'descending') {
+                            controller.setPrice(false);
+                          }
+                          final String query = _searchController.text.trim();
+                          if (query.isNotEmpty) {
+                            controller.getOffersSearchItemList(
+                              query,
+                              offerId: widget.offerId.toString(),
+                              offset: 1,
+                            );
+                          } else {
+                            controller.clearLiveSearch();
+                            controller.applyCategoryFilter();
+                          }
+                          Navigator.pop(context);
                         },
                         style: ElevatedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(
+                              vertical: Dimensions.paddingSizeDefault),
                           backgroundColor: Theme.of(context).primaryColor,
                         ),
                         child: Text(
-                          'apply_filter'.tr,
-                          style: robotoMedium.copyWith(
-                            color: Colors.white,
-                          ),
+                          'apply'.tr,
+                          style: const TextStyle(color: Colors.white),
                         ),
                       ),
                     ),
                   ],
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
     );
   }
 
+  Widget _buildSectionTitle(String title) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: Dimensions.paddingSizeSmall),
+      child: Text(
+        title,
+        style: robotoBold.copyWith(
+          fontSize: Dimensions.fontSizeDefault,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSortChips({StateSetter? modalSetState}) {
+    const Color selectedChipColor = Color(0xFFC8E6C9);
+    const values = <String>['popular', 'ascending', 'descending'];
+    return Wrap(
+      spacing: Dimensions.paddingSizeSmall,
+      runSpacing: Dimensions.paddingSizeSmall,
+      children: values.map((value) {
+        final bool isSelected = _selectedSort == value;
+        final String label = value == 'popular'
+            ? 'popular'.tr
+            : value == 'ascending'
+                ? 'ascending'.tr
+                : 'descending'.tr;
+        return ChoiceChip(
+          label: Text(label),
+          selected: isSelected,
+          showCheckmark: true,
+          checkmarkColor: const Color(0xFF1B5E20),
+          onSelected: (selected) {
+            if (!selected) return;
+            final updater = modalSetState ?? setState;
+            updater(() {
+              _selectedSort = value;
+            });
+          },
+          selectedColor: selectedChipColor,
+          labelStyle: TextStyle(
+            color: isSelected
+                ? const Color(0xFF1B5E20)
+                : Theme.of(context).textTheme.bodyLarge?.color,
+          ),
+        );
+      }).toList(),
+    );
+  }
+
+  Widget _buildPriceRangeChips({StateSetter? modalSetState}) {
+    const Color selectedChipColor = Color(0xFFC8E6C9);
+    return Wrap(
+      spacing: Dimensions.paddingSizeSmall,
+      runSpacing: Dimensions.paddingSizeSmall,
+      children: _priceRanges.map((range) {
+        final bool isSelected = _selectedPriceLabel == range['label'];
+        final String label =
+            range['label'] == 'all' ? 'all'.tr : range['label']!;
+        return ChoiceChip(
+          label: Text(label),
+          selected: isSelected,
+          showCheckmark: true,
+          checkmarkColor: const Color(0xFF1B5E20),
+          onSelected: (selected) {
+            if (!selected) return;
+            final updater = modalSetState ?? setState;
+            updater(() {
+              _selectedPriceLabel = range['label']!;
+              _minPrice = range['min']!;
+              _maxPrice = range['max']!;
+            });
+          },
+          selectedColor: selectedChipColor,
+          labelStyle: TextStyle(
+            color: isSelected
+                ? const Color(0xFF1B5E20)
+                : Theme.of(context).textTheme.bodyLarge?.color,
+          ),
+        );
+      }).toList(),
+    );
+  }
+
+  Widget _buildCategoryChips(Offers_Controller controller,
+      {StateSetter? modalSetState}) {
+    if (controller.categoryList == null || controller.categoryList!.isEmpty) {
+      return Text(
+        'no_categories_available'.tr,
+        style: robotoRegular.copyWith(
+          fontSize: Dimensions.fontSizeDefault,
+          color: Theme.of(context).disabledColor,
+        ),
+      );
+    }
+
+    const Color selectedChipColor = Color(0xFFC8E6C9);
+    return Wrap(
+      spacing: Dimensions.paddingSizeSmall,
+      runSpacing: Dimensions.paddingSizeSmall,
+      children: controller.categoryList!.map((category) {
+        final int categoryId = category.id ?? 0;
+        final bool isSelected =
+            controller.selectedCategoryIds.contains(categoryId);
+        return ChoiceChip(
+          label: Text(category.name ?? ''),
+          selected: isSelected,
+          showCheckmark: true,
+          checkmarkColor: const Color(0xFF1B5E20),
+          onSelected: (_) {
+            controller.toggleCategorySelection(categoryId);
+            final updater = modalSetState ?? setState;
+            updater(() {});
+          },
+          selectedColor: selectedChipColor,
+          labelStyle: TextStyle(
+            color: isSelected
+                ? const Color(0xFF1B5E20)
+                : Theme.of(context).textTheme.bodyLarge?.color,
+          ),
+        );
+      }).toList(),
+    );
+  }
+
   Widget _buildOffersItemsView(List<Item> items, {bool isSearching = false}) {
     return GetBuilder<Offers_Controller>(builder: (offersController) {
+      final List<Item> filteredItems = List<Item>.from(items);
+
+      final double? minPrice =
+          _minPrice.isNotEmpty ? double.tryParse(_minPrice) : null;
+      final double? maxPrice =
+          _maxPrice.isNotEmpty ? double.tryParse(_maxPrice) : null;
+      if (minPrice != null && minPrice > 0) {
+        filteredItems.removeWhere((item) => (item.price ?? 0) < minPrice);
+      }
+      if (maxPrice != null && maxPrice > 0) {
+        filteredItems.removeWhere((item) => (item.price ?? 0) > maxPrice);
+      }
+
+      if (_selectedSort == 'ascending' || _selectedSort == 'descending') {
+        filteredItems.sort((a, b) {
+          final String nameA = (a.name ?? '').toLowerCase();
+          final String nameB = (b.name ?? '').toLowerCase();
+          return _selectedSort == 'ascending'
+              ? nameA.compareTo(nameB)
+              : nameB.compareTo(nameA);
+        });
+      } else {
+        filteredItems.sort((a, b) {
+          final double priceA = (a.price ?? 0).toDouble();
+          final double priceB = (b.price ?? 0).toDouble();
+          return offersController.isPriceAscending
+              ? priceA.compareTo(priceB)
+              : priceB.compareTo(priceA);
+        });
+      }
+
       return ItemsView(
         isStore: false,
         stores: null,
-        items: items,
+        items: filteredItems,
         verticalItem: offersController.isVertical,
         padding: const EdgeInsets.symmetric(
           horizontal: Dimensions.paddingSizeSmall,

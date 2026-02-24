@@ -47,7 +47,7 @@ class PickupZoneWidget extends StatelessWidget {
               padding: const EdgeInsets.only(right: Dimensions.paddingSizeSmall),
               child: Stack(clipBehavior: Clip.none, children: [
                 FilterChip(
-                  label: Text(zoneName ?? ''),
+                  label: Text(zoneName),
                   onSelected: (bool value) {},
                 ),
 

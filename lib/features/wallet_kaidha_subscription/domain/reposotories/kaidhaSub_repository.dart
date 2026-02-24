@@ -4,7 +4,6 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:get/get_connect/http/src/response/response.dart';
 import 'package:http/http.dart' as http;
 import 'package:sixam_mart/api/api_client.dart';
 import 'package:sixam_mart/common/widgets/custom_snackbar.dart';
@@ -673,10 +672,7 @@ class KaidhaSubRepository implements KaidhaSubRepositoryInterface {
           body is Map<String, dynamic> && body['success'] == true;
       if ((response.statusCode == 200 || response.statusCode == 201) &&
           isSuccess) {
-        final Map<String, dynamic> payload =
-            (body is Map<String, dynamic> && body['data'] is Map<String, dynamic>)
-                ? (body['data'] as Map<String, dynamic>)
-                : (body as Map<String, dynamic>);
+        final Map<String, dynamic> payload = body['data'] as Map<String, dynamic>;
         model = NafathRandomModel.fromJson(payload);
         return model;
       } else {
@@ -764,10 +760,7 @@ class KaidhaSubRepository implements KaidhaSubRepositoryInterface {
           body is Map<String, dynamic> && body['success'] == true;
       if ((response.statusCode == 200 || response.statusCode == 201) &&
           isSuccess) {
-        final Map<String, dynamic> payload =
-            (body is Map<String, dynamic> && body['data'] is Map<String, dynamic>)
-                ? (body['data'] as Map<String, dynamic>)
-                : (body as Map<String, dynamic>);
+        final Map<String, dynamic> payload = body['data'] as Map<String, dynamic>;
         return NafathRandomModel.fromJson(payload);
       }
 

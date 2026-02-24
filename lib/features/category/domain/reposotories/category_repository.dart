@@ -38,7 +38,9 @@ import 'package:sixam_mart/api/api_client.dart';
 import 'package:sixam_mart/util/app_constants.dart';
 import 'package:sixam_mart/features/category/domain/reposotories/category_repository_interface.dart';
 import 'package:sixam_mart/helper/db_helper.dart';
+import 'package:sixam_mart/helper/address_helper.dart';
 import 'package:dio/dio.dart' show CancelToken;
+import 'package:sixam_mart/common/utils/app_logger.dart';
 
 class CategoryRepository implements CategoryRepositoryInterface {
   final ApiClient apiClient;
@@ -134,9 +136,13 @@ class CategoryRepository implements CategoryRepositoryInterface {
         
         // Debug: Verify moduleId is in headers (REQUIRED per backend documentation)
         if (finalHeaders.containsKey(AppConstants.moduleId)) {
-          print('✅ CategoryRepository: moduleId=${finalHeaders[AppConstants.moduleId]} in headers (required by backend)');
+          if (kDebugMode && AppConstants.enableVerboseLogs) {
+            appLogger.debug('✅ CategoryRepository: moduleId=${finalHeaders[AppConstants.moduleId]} in headers (required by backend)');
+          }
         } else {
-          print('⚠️ CategoryRepository: WARNING - moduleId missing from headers! (Required per Module 6 API documentation)');
+          if (kDebugMode) {
+            appLogger.warning('⚠️ CategoryRepository: WARNING - moduleId missing from headers! (Required per Module 6 API documentation)');
+          }
         }
 
         final Response response =
@@ -149,36 +155,40 @@ class CategoryRepository implements CategoryRepositoryInterface {
           // Get current module ID for filtering (convert to int for comparison)
           final currentModuleId = Get.find<SplashController>().module?.id;
           
-          // Debug: Log module ID and response (always log, not just in debug mode)
-          print('🔍 CategoryRepository: Loading categories for module ID: $currentModuleId');
+          // Debug: Log module ID and response
+          if (kDebugMode && AppConstants.enableVerboseLogs) {
+            appLogger.debug('🔍 CategoryRepository: Loading categories for module ID: $currentModuleId');
+          }
           final responseBodyList = response.body is List ? (response.body as List) : [];
-          print('📦 CategoryRepository: API returned ${responseBodyList.length} categories');
+          if (kDebugMode && AppConstants.enableVerboseLogs) {
+            appLogger.debug('📦 CategoryRepository: API returned ${responseBodyList.length} categories');
+          }
           
           // Debug: Log first 3 categories to check image fields and module_id
-          if (responseBodyList.isNotEmpty) {
-            print('🔍 CategoryRepository: Sample categories from API:');
+          if (responseBodyList.isNotEmpty && kDebugMode && AppConstants.enableVerboseLogs) {
+            appLogger.debug('🔍 CategoryRepository: Sample categories from API:');
             for (int i = 0; i < (responseBodyList.length > 3 ? 3 : responseBodyList.length); i++) {
               final category = responseBodyList[i] as Map<String, dynamic>;
-              print('   Category $i:');
-              print('     - id: ${category['id']}');
-              print('     - name: ${category['name']}');
-              print('     - image: ${category['image']}');
-              print('     - image_full_url: ${category['image_full_url']}');
-              print('     - module_id: ${category['module_id']}');
-              print('     - store_id: ${category['store_id']}');
+              appLogger.debug('   Category $i:');
+              appLogger.debug('     - id: ${category['id']}');
+              appLogger.debug('     - name: ${category['name']}');
+              appLogger.debug('     - image: ${category['image']}');
+              appLogger.debug('     - image_full_url: ${category['image_full_url']}');
+              appLogger.debug('     - module_id: ${category['module_id']}');
+              appLogger.debug('     - store_id: ${category['store_id']}');
             }
           }
           
           // Debug: Log first category to check image fields
-          if (responseBodyList.isNotEmpty) {
+          if (responseBodyList.isNotEmpty && kDebugMode && AppConstants.enableVerboseLogs) {
             final firstCategory = responseBodyList[0] as Map<String, dynamic>;
-            print('🔍 CategoryRepository: First category sample:');
-            print('   - id: ${firstCategory['id']}');
-            print('   - name: ${firstCategory['name']}');
-            print('   - image: ${firstCategory['image']}');
-            print('   - image_full_url: ${firstCategory['image_full_url']}');
-            print('   - module_id: ${firstCategory['module_id']}');
-            print('   - store_id: ${firstCategory['store_id']}');
+            appLogger.debug('🔍 CategoryRepository: First category sample:');
+            appLogger.debug('   - id: ${firstCategory['id']}');
+            appLogger.debug('   - name: ${firstCategory['name']}');
+            appLogger.debug('   - image: ${firstCategory['image']}');
+            appLogger.debug('   - image_full_url: ${firstCategory['image_full_url']}');
+            appLogger.debug('   - module_id: ${firstCategory['module_id']}');
+            appLogger.debug('   - store_id: ${firstCategory['store_id']}');
           }
 
           for (var category in responseBodyList) {
@@ -205,39 +215,51 @@ class CategoryRepository implements CategoryRepositoryInterface {
                 if (moduleIdInt == currentModuleIdInt && categoryModel.storeId == null) {
                   list.add(categoryModel);
                 } else {
-                  if (moduleIdInt != currentModuleIdInt) {
-                    print('⚠️ CategoryRepository: Filtered out category ${categoryModel.id} "${categoryModel.name}" (module_id: $moduleIdInt, expected: $currentModuleIdInt)');
-                  } else if (categoryModel.storeId != null) {
-                    print('⚠️ CategoryRepository: Filtered out store-specific category ${categoryModel.id} (store_id: ${categoryModel.storeId}) - this is a restaurant menu category, not a cuisine category');
+                  if (kDebugMode && AppConstants.enableVerboseLogs) {
+                    if (moduleIdInt != currentModuleIdInt) {
+                      appLogger.debug('⚠️ CategoryRepository: Filtered out category ${categoryModel.id} "${categoryModel.name}" (module_id: $moduleIdInt, expected: $currentModuleIdInt)');
+                    } else if (categoryModel.storeId != null) {
+                      appLogger.debug('⚠️ CategoryRepository: Filtered out store-specific category ${categoryModel.id} (store_id: ${categoryModel.storeId}) - this is a restaurant menu category, not a cuisine category');
+                    }
                   }
                 }
               } else {
                 // Category has no moduleId - exclude it when we have a current module
                 // This prevents categories from other modules (animals, flowers, etc.) from showing
-                print('⚠️ CategoryRepository: Filtered out category ${categoryModel.id} "${categoryModel.name}" (no module_id, current module: $currentModuleId)');
+                if (kDebugMode && AppConstants.enableVerboseLogs) {
+                  appLogger.debug('⚠️ CategoryRepository: Filtered out category ${categoryModel.id} "${categoryModel.name}" (no module_id, current module: $currentModuleId)');
+                }
               }
             } else {
               // No current module - backward compatibility mode
               // Only include module-level categories (not store-specific)
               if (categoryModel.storeId == null) {
                 list.add(categoryModel);
-                print('✅ CategoryRepository: Added category ${categoryModel.id} (backward compatibility mode, no current module)');
+                if (kDebugMode && AppConstants.enableVerboseLogs) {
+                  appLogger.debug('✅ CategoryRepository: Added category ${categoryModel.id} (backward compatibility mode, no current module)');
+                }
               } else {
-                print('⚠️ CategoryRepository: Filtered out store-specific category ${categoryModel.id} (store_id: ${categoryModel.storeId})');
+                if (kDebugMode && AppConstants.enableVerboseLogs) {
+                  appLogger.debug('⚠️ CategoryRepository: Filtered out store-specific category ${categoryModel.id} (store_id: ${categoryModel.storeId})');
+                }
               }
             }
           }
           
           categoryList = list;
           
-          print('✅ CategoryRepository: Loaded ${list.length} categories for module $currentModuleId');
+          if (kDebugMode) {
+            appLogger.info('✅ CategoryRepository: Loaded ${list.length} categories for module $currentModuleId');
+          }
           
           // ⚠️ FALLBACK: If all categories were filtered out, relax filtering for ecommerce modules
           // This handles cases where backend doesn't set module_id correctly
           if (list.isEmpty && responseBodyList.isNotEmpty) {
-            print('⚠️ CategoryRepository: ⚠️⚠️⚠️ ALL CATEGORIES WERE FILTERED OUT! ⚠️⚠️⚠️');
-            print('⚠️ CategoryRepository: API returned ${responseBodyList.length} categories but 0 passed filtering');
-            print('⚠️ CategoryRepository: Attempting fallback - showing categories without strict module filtering...');
+            if (kDebugMode) {
+              appLogger.warning('⚠️ CategoryRepository: ⚠️⚠️⚠️ ALL CATEGORIES WERE FILTERED OUT! ⚠️⚠️⚠️');
+              appLogger.warning('⚠️ CategoryRepository: API returned ${responseBodyList.length} categories but 0 passed filtering');
+              appLogger.warning('⚠️ CategoryRepository: Attempting fallback - showing categories without strict module filtering...');
+            }
             
             // Fallback: For ecommerce modules, show all module-level categories (store_id == null)
             // even if module_id doesn't match or is missing
@@ -254,28 +276,34 @@ class CategoryRepository implements CategoryRepositoryInterface {
                 if (categoryModel.storeId == null) {
                   list.add(categoryModel);
                   addedCount++;
-                  if (addedCount <= 5) { // Only log first 5 to avoid spam
-                    print('✅ CategoryRepository: Fallback - Added category ${categoryModel.id} "${categoryModel.name}" (module_id: ${categoryModel.moduleId}, ecommerce fallback)');
+                  if (addedCount <= 5 && kDebugMode && AppConstants.enableVerboseLogs) { // Only log first 5 to avoid spam
+                    appLogger.debug('✅ CategoryRepository: Fallback - Added category ${categoryModel.id} "${categoryModel.name}" (module_id: ${categoryModel.moduleId}, ecommerce fallback)');
                   }
                 } else {
                   skippedCount++;
                 }
               }
               categoryList = list;
-              print('✅ CategoryRepository: Fallback loaded ${list.length} categories for ecommerce module (skipped $skippedCount store-specific)');
+              if (kDebugMode) {
+                appLogger.info('✅ CategoryRepository: Fallback loaded ${list.length} categories for ecommerce module (skipped $skippedCount store-specific)');
+              }
             } else {
-              print('⚠️ CategoryRepository: Check module_id and store_id filtering logic.');
-              print('⚠️ CategoryRepository: Consider relaxing filtering rules or showing store-specific categories if module-level ones are empty.');
+              if (kDebugMode) {
+                appLogger.warning('⚠️ CategoryRepository: Check module_id and store_id filtering logic.');
+                appLogger.warning('⚠️ CategoryRepository: Consider relaxing filtering rules or showing store-specific categories if module-level ones are empty.');
+              }
             }
           } else if (list.isEmpty) {
-            print('⚠️ CategoryRepository: API returned empty category list');
+            if (kDebugMode) {
+              appLogger.warning('⚠️ CategoryRepository: API returned empty category list');
+            }
           } else {
             // Debug: Log sample of successfully loaded categories
-            if (list.isNotEmpty) {
-              print('✅ CategoryRepository: Successfully loaded ${list.length} categories');
+            if (list.isNotEmpty && kDebugMode && AppConstants.enableVerboseLogs) {
+              appLogger.info('✅ CategoryRepository: Successfully loaded ${list.length} categories');
               final sample = list.take(3).toList();
               for (final cat in sample) {
-                print('   - Category ${cat.id}: "${cat.name}" (module_id: ${cat.moduleId}, image: ${cat.image}, imageFullUrl: ${cat.imageFullUrl})');
+                appLogger.debug('   - Category ${cat.id}: "${cat.name}" (module_id: ${cat.moduleId}, image: ${cat.image}, imageFullUrl: ${cat.imageFullUrl})');
               }
             }
           }
@@ -331,9 +359,11 @@ class CategoryRepository implements CategoryRepositoryInterface {
           
           categoryList = list;
           
-          print('✅ CategoryRepository: Loaded ${list.length} categories from cache for module $currentModuleId');
-          if (list.isEmpty) {
-            print('⚠️ CategoryRepository: No categories in cache after filtering!');
+          if (kDebugMode) {
+            appLogger.info('✅ CategoryRepository: Loaded ${list.length} categories from cache for module $currentModuleId');
+            if (list.isEmpty) {
+              appLogger.warning('⚠️ CategoryRepository: No categories in cache after filtering!');
+            }
           }
         }
         break;
@@ -402,36 +432,10 @@ class CategoryRepository implements CategoryRepositoryInterface {
     const int pageSize = 10;
     final int effectiveOffset =
         offset <= 1 ? 0 : (offset - 1) * pageSize;
-    const bool enableCategoryItemsCache = false;
 
-    // Create cache key for this specific request (include include_children parameter)
-    final String includeChildrenParam = includeChildren != null
-        ? (includeChildren ? 'true' : 'false')
-        : 'smart';
+    // Get module ID for API request
     final splashController = Get.find<SplashController>();
     final moduleId = splashController.module?.id?.toString() ?? 'no_module';
-    final String cacheKey =
-        'category_items_${categoryID}_${effectiveOffset}_${type}_${includeChildrenParam}_$moduleId';
-
-    // Check cache first
-    if (enableCategoryItemsCache) {
-      final String? cacheResponseData =
-          await LocalClient.organize(DataSourceEnum.local, cacheKey, null, null);
-      if (cacheResponseData != null) {
-        try {
-          categoryItem = ItemModel.fromJson(jsonDecode(cacheResponseData) as Map<String, dynamic>);
-          debugPrint(
-              '\x1B[32m 🎯 Category Items Cache HIT: categoryId=$categoryID, offset=$offset, type=$type, includeChildren=$includeChildren \x1B[0m');
-          // Allow UI a brief chance to render before heavy list updates.
-          await Future.delayed(const Duration(milliseconds: 200));
-          return categoryItem;
-        } catch (e) {
-          debugPrint(
-              '\x1B[31m ❌ Category Items Cache corrupted, fetching from API: $e \x1B[0m');
-          // If cache is corrupted, continue to API call
-        }
-      }
-    }
 
     // Build API URL with include_children parameter
     String apiUrl =
@@ -456,14 +460,7 @@ class CategoryRepository implements CategoryRepositoryInterface {
 
     if (response.statusCode == 200) {
       categoryItem = ItemModel.fromJson(response.body as Map<String, dynamic>);
-
-      if (enableCategoryItemsCache) {
-        // Cache the response for 10 minutes
-        await LocalClient.organize(DataSourceEnum.client, cacheKey,
-            jsonEncode(response.body), apiClient.getHeader());
-        debugPrint(
-            '\x1B[32m 💾 Category Items cached: categoryId=$categoryID, offset=$offset, items=${categoryItem.items?.length ?? 0} \x1B[0m');
-      }
+      // Cache is disabled (enableCategoryItemsCache = false)
     }
 
     debugPrint('\x1B[32m   /${categoryItem?.items?.length ?? 0}   \x1B[0m');
@@ -494,12 +491,85 @@ class CategoryRepository implements CategoryRepositoryInterface {
   Future<StoreModel?> _getCategoryStoreList(
       String? categoryID, int offset, String type) async {
     StoreModel? categoryStore;
+    apiClient.ensureHeadersAreValid();
+    final currentHeaders = apiClient.getHeader();
+    final String? headerModuleId =
+        currentHeaders[AppConstants.moduleId] ?? currentHeaders['module-id'];
+    final String? headerZoneId =
+        currentHeaders[AppConstants.zoneId] ?? currentHeaders['zone-id'];
+    final bool missingModule = headerModuleId == null ||
+        headerModuleId.isEmpty ||
+        headerModuleId == 'null';
+    final bool missingZone =
+        headerZoneId == null || headerZoneId.isEmpty || headerZoneId == 'null';
+    if ((missingModule || missingZone) && Get.isRegistered<SplashController>()) {
+      final splashController = Get.find<SplashController>();
+      final address = AddressHelper.getUserAddressFromSharedPref();
+      apiClient.updateHeader(
+        apiClient.token,
+        address?.zoneIds,
+        address?.areaIds,
+        null,
+        splashController.module?.id,
+        address?.latitude,
+        address?.longitude,
+      );
+    }
     // Headers including moduleId, zoneId, latitude, longitude are set via apiClient.getHeader()
     // This matches backend documentation requirements
+    final String uri =
+        '${AppConstants.categoryStoreUri}$categoryID?limit=10&offset=$offset&type=$type';
     final Response response = await apiClient.getData(
-        '${AppConstants.categoryStoreUri}$categoryID?limit=10&offset=$offset&type=$type');
-    if (response.statusCode == 200) {
-      categoryStore = StoreModel.fromJson(response.body as Map<String, dynamic>);
+      uri,
+      headers: apiClient.getHeader(),
+    );
+
+    if (kDebugMode) {
+      final headers = apiClient.getHeader();
+      debugPrint('[Diag] CategoryRepository._getCategoryStoreList');
+      debugPrint(
+          '   request: categoryId=$categoryID, offset=$offset, type=$type');
+      debugPrint('   status: ${response.statusCode}');
+      debugPrint('   bodyType: ${response.body.runtimeType}');
+      debugPrint('   header.moduleId: ${headers[AppConstants.moduleId]}');
+      debugPrint('   header.module-id: ${headers['module-id']}');
+      debugPrint('   header.zoneId: ${headers[AppConstants.zoneId]}');
+      debugPrint('   header.zone-id: ${headers['zone-id']}');
+      debugPrint('   header.latitude: ${headers['latitude']}');
+      debugPrint('   header.longitude: ${headers['longitude']}');
+    }
+
+    if (response.statusCode == 200 || response.statusCode == 304) {
+      final body = response.body;
+      if (body is Map<String, dynamic>) {
+        categoryStore = StoreModel.fromJson(body);
+      }
+    }
+
+    // If 304 returned without usable body (cache miss scenario), force one fresh fetch.
+    if (categoryStore == null && response.statusCode == 304) {
+      if (kDebugMode) {
+        debugPrint(
+            '[Diag] CategoryRepository: 304 without usable store cache, retrying without ETag');
+      }
+      final Response freshResponse = await apiClient.getData(
+        uri,
+        useEtag: false,
+      );
+      if (freshResponse.statusCode == 200 &&
+          freshResponse.body is Map<String, dynamic>) {
+        categoryStore =
+            StoreModel.fromJson(freshResponse.body as Map<String, dynamic>);
+      }
+      if (kDebugMode) {
+        debugPrint(
+            '[Diag] CategoryRepository: fresh retry status=${freshResponse.statusCode}, parsedStores=${categoryStore?.stores?.length ?? 0}, totalSize=${categoryStore?.totalSize ?? 0}');
+      }
+    }
+
+    if (kDebugMode) {
+      debugPrint(
+          '[Diag] CategoryRepository: parsedStores=${categoryStore?.stores?.length ?? 0}, totalSize=${categoryStore?.totalSize ?? 0}');
     }
     return categoryStore;
   }
@@ -532,11 +602,11 @@ class CategoryRepository implements CategoryRepositoryInterface {
           await sharedPreferences.remove(key);
         }
         if (kDebugMode) {
-          print('🗑️ CategoryRepository: Cleared ${keysToRemove.length} web cache entries with prefix: $prefix');
+          appLogger.info('🗑️ CategoryRepository: Cleared ${keysToRemove.length} web cache entries with prefix: $prefix');
         }
       } catch (e) {
         if (kDebugMode) {
-          print('⚠️ CategoryRepository: Failed to clear web cache by prefix: $e');
+          appLogger.warning('⚠️ CategoryRepository: Failed to clear web cache by prefix: $e');
         }
       }
     } else {

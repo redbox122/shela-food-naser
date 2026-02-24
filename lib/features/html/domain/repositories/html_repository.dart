@@ -1,5 +1,6 @@
 import 'package:sixam_mart/features/language/controllers/language_controller.dart';
 import 'package:sixam_mart/api/api_client.dart';
+import 'package:sixam_mart/core/cache/hive_home_cache_service.dart';
 import 'package:sixam_mart/util/app_constants.dart';
 import 'package:get/get.dart';
 import 'package:sixam_mart/util/html_type.dart';
@@ -11,16 +12,35 @@ class HtmlRepository implements HtmlRepositoryInterface {
 
   @override
   Future<Response> getHtmlText(HtmlType htmlType) async {
+    final String languageCode =
+        Get.find<LocalizationController>().locale.languageCode;
+    final String uri = htmlType == HtmlType.termsAndCondition
+        ? AppConstants.termsAndConditionUri
+        : htmlType == HtmlType.privacyPolicy
+            ? AppConstants.privacyPolicyUri
+            : htmlType == HtmlType.aboutUs
+                ? AppConstants.aboutUsUri
+                : htmlType == HtmlType.shippingPolicy
+                    ? AppConstants.shippingPolicyUri
+                    : htmlType == HtmlType.cancellation
+                        ? AppConstants.cancellationUri
+                        : AppConstants.refundUri;
+
+    final Map<String, String> headers = {
+      'Content-Type': 'application/json; charset=UTF-8',
+      'Accept': 'application/json',
+      'Cache-Control': 'no-cache',
+      'Pragma': 'no-cache',
+      AppConstants.localizationKey: languageCode,
+    };
+
+    // Force-disable any stale ETag for HTML CMS endpoints.
+    await HiveHomeCacheService().clearETagForUri(uri);
+
     return await apiClient.getData(
-      htmlType == HtmlType.termsAndCondition ? AppConstants.termsAndConditionUri
-          : htmlType == HtmlType.privacyPolicy ? AppConstants.privacyPolicyUri : htmlType == HtmlType.aboutUs
-          ? AppConstants.aboutUsUri : htmlType == HtmlType.shippingPolicy ? AppConstants.shippingPolicyUri
-          : htmlType == HtmlType.cancellation ? AppConstants.cancellationUri : AppConstants.refundUri,
-      headers: {
-        'Content-Type': 'application/json; charset=UTF-8',
-        'Accept': 'application/json',
-        AppConstants.localizationKey: Get.find<LocalizationController>().locale.languageCode,
-      },
+      uri,
+      headers: headers,
+      useEtag: false,
     );
   }
 

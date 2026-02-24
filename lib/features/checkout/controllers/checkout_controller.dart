@@ -36,9 +36,9 @@ import 'package:sixam_mart/features/checkout/widgets/order_successfull_dialog.da
 import 'package:sixam_mart/features/checkout/widgets/partial_pay_dialog_widget.dart';
 import 'package:sixam_mart/features/checkout/widgets/in_app_payment_modal.dart';
 import 'package:sixam_mart/features/wallet_kaidha_subscription/controllers/kaidhaSub_controller.dart';
+import 'package:sixam_mart/features/payment/screens/myfatoorah_payment_webview_screen.dart';
 import 'package:sixam_mart/helper/auth_helper.dart';
 import 'package:sixam_mart/helper/responsive_helper.dart';
-import 'package:sixam_mart/helper/string_extension.dart';
 import 'package:sixam_mart/helper/route_helper.dart';
 import 'package:sixam_mart/util/app_constants.dart';
 import 'package:sixam_mart/common/widgets/custom_snackbar.dart';
@@ -161,7 +161,35 @@ class CheckoutController extends GetxController implements GetxService {
   // 🔥 PERFORMANCE: Guard لمنع فحص حالة المتجر المتكرر
   bool _storeStatusChecked = false;
   bool get storeStatusChecked => _storeStatusChecked;
-  int? _previousStoreId; // لتتبع تغيير المتجر
+
+  void resetPaymentState({bool notify = true}) {
+    _paymentFlowState = PaymentFlowState.idle;
+    _isPaymentInProgress = false;
+    _isOrderPaid = false;
+    _isLoading = false;
+    if (notify) {
+      update();
+    }
+  }
+
+  void clearCartOnPaymentConfirmed() {
+    try {
+      Get.find<CartController>().clearCartList();
+    } catch (_) {}
+    resetPaymentState();
+  }
+
+  void selectPaymentMethod(int index) {
+    if (index < 0 || index >= paymentMethods.length) {
+      return;
+    }
+    // Mark digital payment as selected
+    _paymentMethodIndex = 2;
+    isSelected = List<bool>.filled(paymentMethods.length, false);
+    isSelected[index] = true;
+    select_payment_Methods = paymentMethods[index];
+    update();
+  }
 
   AddressModel? _guestAddress;
   AddressModel? get guestAddress => _guestAddress;
@@ -248,7 +276,7 @@ class CheckoutController extends GetxController implements GetxService {
   void setCalculatedDeliveryCharge(double charge) {
     if (_calculatedDeliveryCharge != charge) {
       _calculatedDeliveryCharge = charge;
-      debugPrint('💰 [Checkout] Delivery charge updated: $charge');
+      debugPrint('[Checkout] Delivery charge updated: $charge');
       update(['checkout', 'total', 'delivery_charge']);
     }
   }
@@ -319,34 +347,8 @@ class CheckoutController extends GetxController implements GetxService {
   // ------ تهيئة عملية الدفع بالكامل ------
 
   Future<void> initiate(BuildContext context) async {
-    // Use secure configuration from AppConstants
-    final String token = AppConstants.useMyFatoorahTestMode
-        ? AppConstants.myFatoorahTestToken
-        : AppConstants.myFatoorahLiveToken;
-
-    debugPrint('🔧 MyFatoorah Configuration:');
-    debugPrint(
-        "   Environment: ${AppConstants.useMyFatoorahTestMode ? 'TEST' : 'LIVE'}");
-
-    // ⚠️ Validation: MyFatoorah Token
-    if (token.isEmpty) {
-      debugPrint('❌ MyFatoorah token is EMPTY!');
-      debugPrint('   ⚠️ This will cause silent payment failures');
-      debugPrint('   ⚠️ Please configure either TEST or LIVE token');
-    } else {
-      debugPrint('   Token: ${token.safeSubstring(20)}');
-    }
-
-    await MFSDK.init(
-      token,
-      MFCountry.SAUDIARABIA,
-      AppConstants.useMyFatoorahTestMode
-          ? MFEnvironment.TEST
-          : MFEnvironment.LIVE,
-    );
-    // Don't initiate payment here - only initialize the SDK
-    // Payment methods will be loaded when user clicks "Digital Payment"
-    debugPrint('✅ MyFatoorah SDK initialized successfully');
+    // Backend-driven MyFatoorah: SDK is disabled for checkout
+    debugPrint('✅ MyFatoorah (checkout) uses backend-driven flow only');
   }
 
   Future<void> initiatePayment(BuildContext context) async {
@@ -459,30 +461,36 @@ class CheckoutController extends GetxController implements GetxService {
       update();
     }
   }
-
-  Future<bool> Pay(BuildContext context, String amount) async {
+  Future<bool> Pay(BuildContext context, String amount,
+      {String? contactNumber}) async {
     debugPrint(
-        'Opening MyFatoorah portal for digital payment - Amount: $amount');
+        'Opening MyFatoorah payment (backend-driven) - Amount: $amount');
 
     // CRITICAL: Prevent double payment attempts
     if (_isPaymentInProgress) {
-      debugPrint('🚨 Payment already in progress - preventing double payment');
-      showCustomSnackBar('عملية دفع جارية بالفعل - يرجى الانتظار');
+      debugPrint('?? Payment already in progress - preventing double payment');
+      showCustomSnackBar('عملية دفع قيد التنفيذ، يرجى الانتظار');
       return false;
     }
 
     // CRITICAL: Check if order is already paid
     if (_currentOrderId != null && _isOrderPaid) {
       debugPrint(
-          '🚨 Order $_currentOrderId is already paid - preventing double payment');
-      showCustomSnackBar('تم دفع هذا الطلب مسبقاً');
+          '?? Order $_currentOrderId is already paid - preventing double payment');
+      showCustomSnackBar('هذا الطلب مدفوع مسبقًا');
+      return false;
+    }
+
+    final int? orderId = _currentOrderId;
+    if (orderId == null) {
+      showCustomSnackBar('لا يوجد طلب للدفع');
       return false;
     }
 
     // Validate amount before processing
     final double parsedAmount = double.tryParse(amount) ?? 0.0;
     if (parsedAmount <= 0) {
-      debugPrint('❌ Invalid payment amount: $amount - Must be greater than 0');
+      debugPrint('? Invalid payment amount: $amount - Must be greater than 0');
       showCustomSnackBar('مبلغ الدفع غير صحيح - يجب أن يكون أكبر من صفر');
       return false;
     }
@@ -490,286 +498,176 @@ class CheckoutController extends GetxController implements GetxService {
     // Set payment in progress flag
     _isPaymentInProgress = true;
 
-    // Check if MyFatoorah is properly initialized
-    final String token = AppConstants.useMyFatoorahTestMode
-        ? AppConstants.myFatoorahTestToken
-        : AppConstants.myFatoorahLiveToken;
-
-    if (token.isEmpty) {
-      debugPrint('❌ MyFatoorah token is empty! Cannot process payment.');
-      debugPrint(
-          '   ⚠️ Environment: ${AppConstants.useMyFatoorahTestMode ? 'TEST' : 'LIVE'}');
-      debugPrint(
-          '   ⚠️ This will cause silent payment failures and navigation loops');
-      // ⛔ Update flow state - فشل
-      _paymentFlowState = PaymentFlowState.failed;
-      _isPaymentInProgress = false;
-      update();
-      showCustomSnackBar('خطأ في إعدادات الدفع - يرجى المحاولة لاحقاً');
-      return false;
-    }
-
-    // Ensure MyFatoorah is properly initialized before proceeding
-    try {
-      await MFSDK.init(
-        token,
-        MFCountry.SAUDIARABIA,
-        AppConstants.useMyFatoorahTestMode
-            ? MFEnvironment.TEST
-            : MFEnvironment.LIVE,
-      );
-      debugPrint('✅ MyFatoorah SDK re-initialized successfully');
-    } catch (e) {
-      debugPrint('❌ Failed to re-initialize MyFatoorah SDK: $e');
-      showCustomSnackBar('خطأ في إعدادات الدفع');
-      return false;
-    }
-
-    // First, initiate payment with the actual amount to set currency correctly
-    await initiatePaymentWithAmount(context, amount);
-
-    // Check if payment methods were loaded successfully
+    // Ensure payment methods are loaded from backend
     if (paymentMethods.isEmpty) {
-      debugPrint('❌ No payment methods available after initiation');
+      await initiatePaymentWithAmount(context, amount);
+    }
+
+    if (paymentMethods.isEmpty) {
+      debugPrint('? No payment methods available after initiation');
       showCustomSnackBar('لا توجد وسائل دفع متاحة');
+      _isPaymentInProgress = false;
       return false;
     }
 
-    // Validate and use the selected payment method ID
     if (select_payment_Methods == null ||
         select_payment_Methods!.paymentMethodId == null) {
-      debugPrint('❌ No payment method selected!');
-      showCustomSnackBar('يرجى اختيار طريقة الدفع أولاً');
+      debugPrint('? No payment method selected!');
+      showCustomSnackBar('يرجى اختيار طريقة الدفع');
+      _isPaymentInProgress = false;
       return false;
     }
 
     final int paymentMethodId = select_payment_Methods!.paymentMethodId!;
     debugPrint(
-        '🎯 Using selected payment method ID: $paymentMethodId (${select_payment_Methods!.paymentMethodAr})');
-    debugPrint(
-        '🎯 Payment method code: ${select_payment_Methods!.paymentMethodCode}');
-
-    // Validate amount again before executing payment
-    final double finalAmount = double.tryParse(amount) ?? 0.0;
-    if (finalAmount <= 0) {
-      debugPrint(
-          '❌ Invalid payment amount for execution: $amount - Must be greater than 0');
-      showCustomSnackBar('مبلغ الدفع غير صحيح - يجب أن يكون أكبر من صفر');
-      return false;
-    }
-
-    final request = MFExecutePaymentRequest(
-      paymentMethodId: paymentMethodId,
-      invoiceValue: finalAmount,
-    );
+        '?? Using selected payment method ID: $paymentMethodId (${select_payment_Methods!.paymentMethodAr})');
 
     try {
-      debugPrint('💳 بدء عملية الدفع مع MyFatoorah - Amount: $finalAmount SAR');
-      debugPrint('💰 Currency should be SAR (set during initiatePayment)');
+      final apiClient = Get.find<ApiClient>();
+      final repository = MyFatoorahRepository(apiClient: apiClient);
+      final service = MyFatoorahService(repository: repository);
 
-      bool paymentSuccess = false;
-      String? invoiceId;
+      final profileController = Get.find<ProfileController>();
+      final String customerName =
+          profileController.userInfoModel?.fName?.trim().isNotEmpty == true
+              ? '${profileController.userInfoModel?.fName ?? ''} ${profileController.userInfoModel?.lName ?? ''}'
+                  .trim()
+              : ((profileController.userInfoModel?.lName ?? '').trim().isNotEmpty
+                  ? (profileController.userInfoModel?.lName ?? '').trim()
+                  : 'Customer');
+      final String customerPhone = (contactNumber != null &&
+              contactNumber.trim().isNotEmpty)
+          ? contactNumber.trim()
+          : (profileController.userInfoModel?.phone?.trim().isNotEmpty == true
+              ? profileController.userInfoModel!.phone!.trim()
+              : '');
+      final String customerEmail =
+          profileController.userInfoModel?.email?.trim().isNotEmpty == true
+              ? profileController.userInfoModel!.email!.trim()
+              : 'no-reply@shelafood.com';
 
-      await MFSDK.executePayment(request, MFLanguage.ARABIC,
-          (receivedInvoiceId) {
-        debugPrint(
-            'استلام استجابة من MyFatoorah - Invoice ID: $receivedInvoiceId');
-
-        if (receivedInvoiceId.isNotEmpty) {
-          debugPrint(
-              'تم إنشاء الفاتورة بنجاح. رقم الفاتورة: $receivedInvoiceId');
-          _lastInvoiceId = receivedInvoiceId;
-          invoiceId = receivedInvoiceId;
-          paymentSuccess = true;
-          // Don't show success message here - portal will open asynchronously
-        } else {
-          debugPrint('لم يتم استلام رقم الفاتورة بعد الدفع.');
-          showCustomSnackBar('لم يتم استلام رقم الفاتورة بعد الدفع.');
-          paymentSuccess = false;
-        }
-      });
-
-      // Wait a moment for the callback to complete
-      await Future.delayed(const Duration(milliseconds: 500));
-
-      if (paymentSuccess && invoiceId != null) {
-        debugPrint('MyFatoorah payment successful, updating order status...');
-
-        // Call backend to process the payment and update order status
-        final response = await checkoutServiceInterface.processPayment(
-          _currentOrderId!,
-          'digital_payment',
-          double.tryParse(amount) ?? 0.0,
-        );
-
-        if (response.statusCode == 200) {
-          debugPrint('Order payment processed successfully on backend');
-
-          // CRITICAL: Mark order as paid and reset payment state
-          _isOrderPaid = true;
-          _isPaymentInProgress = false;
-
-          return true;
-        } else {
-          debugPrint(
-              'Failed to process payment on backend: ${response.statusCode}');
-
-          // CRITICAL: Reset payment state on failure
-          _isPaymentInProgress = false;
-
-          showCustomSnackBar('تم الدفع بنجاح ولكن حدث خطأ في تحديث الطلب');
-          return false;
-        }
+      if (customerPhone.isEmpty) {
+        _isPaymentInProgress = false;
+        showCustomSnackBar('رقم الهاتف مطلوب لبدء الدفع');
+        return false;
       }
 
-      debugPrint('انتهت عملية الدفع مع MyFatoorah - Success: $paymentSuccess');
-      return paymentSuccess;
-    } catch (error) {
-      debugPrint('خطأ في عملية الدفع: $error');
-      debugPrint('❌ Error type: ${error.runtimeType}');
+      final Response response = await service.processPayment(
+        orderId: orderId,
+        amount: parsedAmount,
+        currency: 'SAR',
+        paymentMethodId: paymentMethodId,
+        customerName: customerName,
+        customerPhone: customerPhone,
+        customerEmail: customerEmail,
+      );
 
-      // CRITICAL: Reset payment state on error
+      if (response.statusCode != 200 && response.statusCode != 201) {
+        debugPrint(
+            '? MyFatoorah process failed: ${response.statusCode} ${response.statusText}');
+        _isPaymentInProgress = false;
+        showCustomSnackBar('فشل بدء الدفع - تحقق من بيانات الطلب');
+        return false;
+      }
+
+      final Map<String, dynamic> body =
+          response.body is Map<String, dynamic>
+              ? response.body as Map<String, dynamic>
+              : <String, dynamic>{};
+      final dynamic data = body['data'];
+      final String? paymentUrl = data is Map<String, dynamic>
+          ? data['payment_url']?.toString()
+          : null;
+
+      if (paymentUrl == null || paymentUrl.isEmpty) {
+        debugPrint('? MyFatoorah process returned no payment_url');
+        _isPaymentInProgress = false;
+        showCustomSnackBar('فشل بدء الدفع - لم يتم استلام رابط الدفع');
+        return false;
+      }
+
+      final String successUrl =
+          '${AppConstants.baseUrl}/api/v1/payment/myfatoorah/success';
+      final String errorUrl =
+          '${AppConstants.baseUrl}/api/v1/payment/myfatoorah/error';
+
+      final String? webResult = await Get.to(
+        () => MyFatoorahPaymentWebViewScreen(
+          initialUrl: paymentUrl,
+          successUrlContains: successUrl,
+          errorUrlContains: errorUrl,
+        ),
+      );
+
+      debugPrint('MyFatoorah WebView result: $webResult');
+
+      // Always confirm from backend (do not trust URL alone)
+      final bool confirmed = await _confirmMyFatoorahPayment(
+        orderId,
+        contactNumber: contactNumber,
+      );
+
+      _isOrderPaid = confirmed;
       _isPaymentInProgress = false;
 
-      // Try to get more details from MFError
-      if (error.toString().contains('MFError')) {
-        try {
-          // Cast to MFError to get more details
-          final mfError = error as dynamic;
-          debugPrint('❌ MFError details: ${mfError.toString()}');
-          if (mfError.message != null) {
-            debugPrint('❌ MFError message: ${mfError.message}');
-          }
-          if (mfError.code != null) {
-            debugPrint('❌ MFError code: ${mfError.code}');
-          }
-        } catch (castError) {
-          debugPrint('❌ Could not cast to MFError: $castError');
-        }
-        showCustomSnackBar('خطأ في إعدادات الدفع - يرجى المحاولة لاحقاً');
-      } else {
-        showCustomSnackBar('فشلت عملية الدفع: ${error.toString()}');
+      if (!confirmed && webResult == 'error') {
+        showCustomSnackBar('فشل الدفع - يرجى المحاولة مرة أخرى');
       }
+
+      if (!confirmed && webResult != 'error') {
+        showCustomSnackBar('تعذر التحقق من الدفع - يرجى المحاولة لاحقًا');
+      }
+
+      return confirmed;
+    } catch (error) {
+      debugPrint('? MyFatoorah payment error: $error');
+      _isPaymentInProgress = false;
       return false;
     }
   }
 
-  void selectPaymentMethod(int index) {
-    if (index >= 0 && index < paymentMethods.length) {
-      isSelected = List.generate(isSelected.length, (i) => i == index);
-      select_payment_Methods = paymentMethods[index];
+  Future<bool> _confirmMyFatoorahPayment(
+    int orderId, {
+    String? contactNumber,
+  }) async {
+    final OrderController orderController = Get.find<OrderController>();
+    const int maxTries = 30;
 
-      // Set payment method index to 2 (digital payment) when selecting from MyFatoorah methods
-      setPaymentMethod(2);
+    for (int i = 0; i < maxTries; i++) {
+      await orderController.trackOrder(
+        orderId.toString(),
+        null,
+        false,
+        contactNumber: contactNumber,
+        preserveTrackModel: true,
+      );
 
-      debugPrint(
-          '✅ Selected payment method: ${paymentMethods[index].paymentMethodAr} (ID: ${paymentMethods[index].paymentMethodId})');
-      debugPrint(
-          '✅ Payment method details - En: ${paymentMethods[index].paymentMethodEn}, Code: ${paymentMethods[index].paymentMethodCode}');
-      update();
-    } else {
-      debugPrint('Invalid payment method index: $index');
+      final String paymentStatus =
+          orderController.trackModel?.paymentStatus?.toLowerCase() ?? '';
+      final String orderStatus =
+          orderController.trackModel?.orderStatus?.toLowerCase() ?? '';
+
+      if (paymentStatus == 'paid' || paymentStatus == 'partially_paid') {
+        return true;
+      }
+
+      if (paymentStatus == 'failed' ||
+          paymentStatus == 'canceled' ||
+          paymentStatus == 'cancelled' ||
+          orderStatus == 'failed' ||
+          orderStatus == 'canceled' ||
+          orderStatus == 'cancelled') {
+        return false;
+      }
+
+      await Future.delayed(const Duration(seconds: 2));
     }
-  }
-//تعديل اضافي لاحل تصليح مشكلة  الدفع من محفظتي فقط
-// =========================================================
-  // ✅ أضف هذا الكود الجديد هنا داخل CheckoutController
-  // =========================================================
 
-  void selectMyWalletPayment() {
-    // 1. إجبار النظام على فهم أننا اخترنا الدفع بالمحفظة (الرقم 1)
-    _paymentMethodIndex = 1;
-
-    // 2. تفعيل متغير المحفظة
-    _isMy_Pay = true;
-
-    // 3. إلغاء أي طرق دفع أخرى لتجنب التداخل
-    _isKaidhaPay = false;
-    _isPartialPay = false;
-
-    // 4. مسح أي اختيار سابق للفيزا أو الماستر كارد (مهم جداً لحل مشكلة ظهور الفيزا)
-    select_payment_Methods = null;
-
-    // 5. تصفير حالة الدفع للتأكد من عدم وجود عملية معلقة
-    resetPaymentState();
-
-    print('✅ تم اختيار المحفظة بنجاح: Index=1');
-
-    // 6. تحديث الشاشة لتلوين الزر وإزالة الظلام
-    update();
+    return false;
   }
 
-  // Clear payment state when needed
-  void clearPaymentState() {
-    _lastInvoiceId = '';
-    // ✅ payment_method is intentionally null here
-    // Payment method will be selected by user and processed after order creation
-    select_payment_Methods = null;
-    isSelected = List.filled(paymentMethods.length, false);
-    // ✅ Fix: إعادة تعيين paymentFlowState عند مسح حالة الدفع
-    resetPaymentState();
-    update(['payment']);
-  }
-
-  // Handle payment completion
-  void handlePaymentCompletion(String invoiceId) {
-    _lastInvoiceId = invoiceId;
-    debugPrint('Payment completed successfully with invoice ID: $invoiceId');
-    update();
-  }
-
-  // Handle payment cancellation
-  void handlePaymentCancellation() {
-    debugPrint('Payment was cancelled by user');
-    showCustomSnackBar('تم إلغاء عملية الدفع');
-    clearPaymentState();
-  }
-
-  // Handle payment failure
-  void handlePaymentFailure(String error) {
-    debugPrint('Payment failed: $error');
-    showCustomSnackBar('فشلت عملية الدفع: $error');
-    clearPaymentState();
-  }
-
-  // Validate payment method selection
-  bool isPaymentMethodSelected() {
-    return select_payment_Methods != null &&
-        select_payment_Methods!.paymentMethodId != null &&
-        select_payment_Methods!.paymentMethodId! > 0;
-  }
-
-  // Get selected payment method name
-  String getSelectedPaymentMethodName() {
-    if (select_payment_Methods != null) {
-      return select_payment_Methods!.paymentMethodAr ?? 'Unknown';
-    }
-    return 'No payment method selected';
-  }
-
-  // Clear cart when payment is confirmed as paid
-  void clearCartOnPaymentConfirmed(String orderId) async {
-    debugPrint(
-        '\x1B[32m🧹 Payment confirmed as PAID for order $orderId - clearing cart\x1B[0m');
-    await Get.find<CartController>().clearCartList();
-
-    // Force refresh to ensure cart is completely empty
-    await Get.find<CartController>().forceRefreshCart();
-  }
-
-  // CRITICAL: Reset payment state for new orders
-  /// 🥇 Reset payment state - يستخدم PaymentFlowState
-  void resetPaymentState() {
-    _paymentFlowState = PaymentFlowState.idle;
-    debugPrint('🔄 Resetting payment state for new order');
-    _isPaymentInProgress = false;
-    _isOrderPaid = false;
-    _currentOrderId = null;
-    _lastInvoiceId = '';
-  }
-
-  // ==========================================================================================================
   // IN-APP PAYMENT PROCESSING METHODS
+
   // ==========================================================================================================
 
   /// Process digital wallet payments (Apple Pay, Google Pay)
@@ -1001,6 +899,7 @@ class CheckoutController extends GetxController implements GetxService {
         );
       }
       _store = storeController.store;
+      await _hydrateStoreAddressFromStoreSummary(storeId);
 
       // Step 2: Initialize time slots
       if (_store != null) {
@@ -1114,11 +1013,83 @@ class CheckoutController extends GetxController implements GetxService {
     }
   }
 
-  void setOrderType(String? type, {bool notify = true}) {
+    void setOrderType(String? type, {bool notify = true}) {
     _orderType = type;
+    if (_orderType == 'take_away') {
+      // Takeaway must always have zero delivery fee in UI and totals.
+      _calculatedDeliveryCharge = 0.0;
+      final int? targetStoreId = _store?.id ?? Get.find<CartController>().storeId;
+      if (targetStoreId != null && targetStoreId > 0) {
+        _hydrateStoreAddressFromStoreSummary(targetStoreId);
+      }
+    }
     _refreshDeliveryChargeReady(notify: false);
     if (notify) {
-      update();
+      update(['checkout', 'total', 'delivery_charge', 'payment']);
+    }
+  }
+
+    Future<void> _hydrateStoreAddressFromStoreSummary(int storeId) async {
+    try {
+      final String currentAddress = (_store?.address ?? '').trim();
+      if (currentAddress.isNotEmpty) return;
+
+      final Response response = await Get.find<ApiClient>().getData(
+        '${AppConstants.storeSummaryUri}?store_id=$storeId',
+        handleError: false,
+      );
+
+      if (response.statusCode != 200 || response.body == null) {
+        debugPrint(
+            '📍 [CheckoutStoreAddress] store-summary request failed: status=${response.statusCode}');
+        return;
+      }
+
+      final dynamic body = response.body;
+      Map<String, dynamic>? data;
+      Map<String, dynamic>? nestedStore;
+
+      if (body is Map<String, dynamic>) {
+        final dynamic nestedData = body['data'];
+        if (nestedData is Map<String, dynamic>) {
+          data = nestedData;
+          final dynamic storeInData = nestedData['store'];
+          if (storeInData is Map<String, dynamic>) {
+            nestedStore = storeInData;
+          }
+        } else {
+          data = body;
+        }
+
+        final dynamic storeTop = body['store'];
+        if (nestedStore == null && storeTop is Map<String, dynamic>) {
+          nestedStore = storeTop;
+        }
+      }
+
+      final String resolvedAddress = [
+        data?['address']?.toString(),
+        nestedStore?['address']?.toString(),
+      ].whereType<String>().map((v) => v.trim()).firstWhere(
+            (v) => v.isNotEmpty,
+            orElse: () => '',
+          );
+
+      if (resolvedAddress.isNotEmpty) {
+        if (_store == null) {
+          _store = Store(id: storeId, address: resolvedAddress);
+        } else {
+          _store!.address = resolvedAddress;
+        }
+        debugPrint(
+            '📍 [CheckoutStoreAddress] hydrated from store-summary: storeId=$storeId, address="$resolvedAddress"');
+        update(['checkout']);
+      } else {
+        debugPrint(
+            '📍 [CheckoutStoreAddress] store-summary returned empty address for storeId=$storeId');
+      }
+    } catch (e) {
+      debugPrint('📍 [CheckoutStoreAddress] hydration error: $e');
     }
   }
 
@@ -1506,32 +1477,20 @@ class CheckoutController extends GetxController implements GetxService {
     }
 
     debugPrint(
-        '\x1B[32m📋 Creating Order (Unpaid) - Amount: ${placeOrderBody.orderAmount}\x1B[0m');
+        '\x1B[32m[CreateOrder] START (unpaid) amount=${placeOrderBody.orderAmount}\x1B[0m');
 
     try {
       // Create order with "unpaid" status first (REAL E-COMMERCE FLOW)
-      print('═══════════════════════════════════════════════════════════');
-      print('📋 Calling placeOrder() - START');
-      print(' - orderType: ${placeOrderBody.orderType}');
-      print(' - multiParts length: ${multiParts.length}');
-      print('═══════════════════════════════════════════════════════════');
-
-      debugPrint('\x1B[32m📋 Calling placeOrder() - START\x1B[0m');
-      debugPrint('\x1B[32m - orderType: ${placeOrderBody.orderType}\x1B[0m');
-      debugPrint('\x1B[32m - multiParts length: ${multiParts.length}\x1B[0m');
+      debugPrint('\x1B[32m[CreateOrder] Calling placeOrder()...\x1B[0m');
+      debugPrint('\x1B[32m[CreateOrder] orderType=${placeOrderBody.orderType}\x1B[0m');
+      debugPrint('\x1B[32m[CreateOrder] multiParts=${multiParts.length}\x1B[0m');
 
       final Response response =
           await checkoutServiceInterface.placeOrder(placeOrderBody, multiParts);
 
-      print('═══════════════════════════════════════════════════════════');
-      print('📋 placeOrder() returned - END');
-      print(' - statusCode: ${response.statusCode}');
-      print(' - body type: ${response.body.runtimeType}');
-      print('═══════════════════════════════════════════════════════════');
-
-      debugPrint('\x1B[32m📋 placeOrder() returned - END\x1B[0m');
-      debugPrint('\x1B[32m - statusCode: ${response.statusCode}\x1B[0m');
-      debugPrint('\x1B[32m - body type: ${response.body.runtimeType}\x1B[0m');
+      debugPrint('\x1B[32m[CreateOrder] placeOrder() returned\x1B[0m');
+      debugPrint('\x1B[32m[CreateOrder] statusCode=${response.statusCode}\x1B[0m');
+      debugPrint('\x1B[32m[CreateOrder] bodyType=${response.body.runtimeType}\x1B[0m');
 
       // ✅ FIX: قبول 200 أو 201 كـ success (لا نعتمد على success field)
       // لأن prescription endpoint قد لا يرجع success: true
@@ -1544,11 +1503,11 @@ class CheckoutController extends GetxController implements GetxService {
         debugPrint(
             '\x1B[32m✅ Order created successfully: $orderID (unpaid)\x1B[0m');
         debugPrint(
-            "\x1B[32m💰 Amount: ${response.body['total_ammount'] ?? response.body['total_amount'] ?? 'N/A'}\x1B[0m");
+            "\x1B[32m[CreateOrder] amount=${response.body['total_ammount'] ?? response.body['total_amount'] ?? 'N/A'}\x1B[0m");
         debugPrint(
-            "\x1B[32m📊 Status: ${response.body['status'] ?? 'N/A'} (unpaid)\x1B[0m");
+            "\x1B[32m[CreateOrder] status=${response.body['status'] ?? 'N/A'} (unpaid)\x1B[0m");
         debugPrint(
-            "\x1B[32m📦 Response Body Keys: ${response.body is Map ? (response.body as Map).keys.toList() : 'N/A'}\x1B[0m");
+            "\x1B[32m[CreateOrder] keys=${response.body is Map ? (response.body as Map).keys.toList() : 'N/A'}\x1B[0m");
 
         // Store order ID for later payment processing
         if (orderID.isNotEmpty) {
@@ -1567,7 +1526,7 @@ class CheckoutController extends GetxController implements GetxService {
           return orderID;
         } else {
           debugPrint('\x1B[31m❌ Order ID is empty in response!\x1B[0m');
-          debugPrint('\x1B[31m📦 Full Response: ${response.body}\x1B[0m');
+          debugPrint('\x1B[31m[CreateOrder] fullResponse=${response.body}\x1B[0m');
           _paymentFlowState = PaymentFlowState.failed;
           _isLoading = false;
           update();
@@ -1722,6 +1681,75 @@ class CheckoutController extends GetxController implements GetxService {
     }
   }
 
+
+  String _extractReadableApiMessage(dynamic body, {required String fallback}) {
+    String message = fallback;
+
+    if (body is Map<String, dynamic>) {
+      if ((body['message'] as String?)?.isNotEmpty == true) {
+        message = body['message'].toString();
+      } else if (body['error'] != null) {
+        message = body['error'].toString();
+      } else if (body['errors'] is Map && (body['errors'] as Map).isNotEmpty) {
+        message = (body['errors'] as Map).values.first.toString();
+      } else if (body['errors'] is List && (body['errors'] as List).isNotEmpty) {
+        message = (body['errors'] as List).first.toString();
+      }
+    } else if (body is String && body.trim().isNotEmpty) {
+      message = body;
+    }
+
+    return _decodePotentialMojibake(message.trim()).isEmpty
+        ? fallback
+        : _decodePotentialMojibake(message.trim());
+  }
+
+  String _decodePotentialMojibake(String input) {
+    final bool looksBroken = input.contains('�') ||
+        input.contains('�') ||
+        input.contains('�') ||
+        input.contains('�') ||
+        input.contains('�') ||
+        input.contains('ï»¿');
+    if (!looksBroken) {
+      return input;
+    }
+
+    try {
+      String candidate = input;
+      for (int i = 0; i < 2; i++) {
+        final List<int> bytes = latin1.encode(candidate);
+        final String decoded = utf8.decode(bytes, allowMalformed: false);
+        final bool stillBroken = decoded.contains('�') ||
+            decoded.contains('�') ||
+            decoded.contains('�') ||
+            decoded.contains('�') ||
+            decoded.contains('�') ||
+            decoded.contains('ï»¿');
+        if (!stillBroken && decoded.isNotEmpty) {
+          return decoded;
+        }
+        candidate = decoded;
+      }
+    } catch (_) {}
+
+    return input;
+  }
+
+  bool _isQidhaSignatureVerified(dynamic rawStatus) {
+    if (rawStatus is bool) {
+      return rawStatus;
+    }
+    if (rawStatus is num) {
+      return rawStatus == 1;
+    }
+    final String normalized = rawStatus?.toString().trim().toLowerCase() ?? '';
+    return normalized == '1' ||
+        normalized == 'true' ||
+        normalized == 'verified' ||
+        normalized == 'signed' ||
+        normalized == 'active';
+  }
   // Step 2: Process Payment - Called after user chooses payment method
   // 🥇 Anti-loop Guard: يستخدم PaymentFlowState لمنع أي navigation تلقائي
   Future<String> processPayment(
@@ -1775,20 +1803,23 @@ class CheckoutController extends GetxController implements GetxService {
     String resultOrderId = '';
 
     debugPrint(
-        '\x1B[32m💳 Processing Payment for Order: $_currentOrderId - Amount: $parsedOrderAmount\x1B[0m');
+        '\x1B[32m[Payment] Processing order=$_currentOrderId amount=$parsedOrderAmount\x1B[0m');
     debugPrint(
-        '\x1B[32m💰 Frontend Total: $_viewTotalPrice, Backend Amount: $_currentOrderAmount\x1B[0m');
+        '\x1B[32m[Payment] totals frontend=$_viewTotalPrice backend=$_currentOrderAmount\x1B[0m');
 
     try {
-      if (_paymentMethodIndex == 2) {
+      if (_paymentMethodIndex == 2 || select_payment_Methods != null) {
         // Digital Payment (MyFatoorah)
-        debugPrint('\x1B[32m💳 Processing Digital Payment...\x1B[0m');
-        paymentSucceeded =
-            await Pay(context as BuildContext, '$parsedOrderAmount');
+        debugPrint('\x1B[32m[Payment][Digital] processing...\x1B[0m');
+        paymentSucceeded = await Pay(
+          context as BuildContext,
+          '$parsedOrderAmount',
+          contactNumber: contactNumber,
+        );
         if (!paymentSucceeded) {
           _isLoading = false;
           update();
-          showCustomSnackBar('فشلت العملية قم بالمحاوله في وقت اخر');
+          showCustomSnackBar('فشلت العملية، يرجى المحاولة في وقت آخر');
           return '';
         } else {
           // Payment successful
@@ -1796,13 +1827,23 @@ class CheckoutController extends GetxController implements GetxService {
         }
       } else if (_paymentMethodIndex == 0 && isKaidhaPay == true) {
         // Qidha Wallet Payment - Use the new API
-        debugPrint('\x1B[32m[   قيدها  ]  معالجة الدفع...\x1B[0m');
+        debugPrint('\x1B[32m[Payment][Qidha] processing...\x1B[0m');
+
+        // Always refresh wallet state before Qidha checks to avoid stale cached values.
+        try {
+          await kaidhaSubController.get_Wallet_Kaidh(forceRefresh: true);
+          debugPrint(
+              '[Payment][Qidha] wallet refreshed: status=${kaidhaSubController.walletKaidhaModel?.wallet?.status}, signature=${kaidhaSubController.walletKaidhaModel?.wallet?.signatureStatus}');
+        } catch (e) {
+          debugPrint('[Payment][Qidha] wallet refresh failed: $e');
+        }
 
         // Enhanced validation for Qidha wallet
         if (kaidhaSubController.walletKaidhaModel?.wallet == null) {
           _isLoading = false;
           update();
-          showCustomSnackBar('محفظة قيدها غير متاحة - يرجى المحاولة لاحقًا');
+          debugPrint('[Payment][Qidha] blocked: wallet is null');
+          showCustomSnackBar('Qidha wallet is not available right now.');
           return '';
         }
 
@@ -1812,23 +1853,24 @@ class CheckoutController extends GetxController implements GetxService {
             'active') {
           _isLoading = false;
           update();
-          showCustomSnackBar('محفظة قيدها غير نشطة - يرجى تفعيلها أولاً');
+          debugPrint(
+              '[Payment][Qidha] blocked: wallet status=${kaidhaSubController.walletKaidhaModel!.wallet!.status}');
+          showCustomSnackBar('Qidha wallet is not active.');
           return '';
         }
 
-        // Check signature status (handle bool/string/int)
+        // Check signature status (supports bool/int/string variants)
         final dynamic signatureStatusRaw =
             kaidhaSubController.walletKaidhaModel!.wallet!.signatureStatus;
-        final int? signatureStatus = signatureStatusRaw is bool
-            ? (signatureStatusRaw ? 1 : 0)
-            : signatureStatusRaw is int
-                ? signatureStatusRaw
-                : int.tryParse(signatureStatusRaw?.toString() ?? '');
-        if (signatureStatus != 1) {
+        final bool isSignatureVerified =
+            _isQidhaSignatureVerified(signatureStatusRaw);
+        if (!isSignatureVerified) {
           _isLoading = false;
           update();
+          debugPrint(
+              '[Payment][Qidha] blocked: signatureStatus=$signatureStatusRaw');
           showCustomSnackBar(
-              'محفظة قيدها غير مفعلة - يرجى إكمال التحقق من الهوية');
+              'Qidha wallet is not verified. Complete identity verification first.');
           return '';
         }
 
@@ -1841,8 +1883,10 @@ class CheckoutController extends GetxController implements GetxService {
         if (availableBalance < parsedOrderAmount) {
           _isLoading = false;
           update();
+          debugPrint(
+              '[Payment][Qidha] blocked: insufficient balance available=$availableBalance required=$parsedOrderAmount');
           showCustomSnackBar(
-              'الرصيد غير كافي في محفظة قيدها. الرصيد المتاح: ${availableBalance.toStringAsFixed(2)} ريال');
+              'Insufficient Qidha balance. Available: ${availableBalance.toStringAsFixed(2)} SAR.');
           return '';
         }
 
@@ -1855,8 +1899,10 @@ class CheckoutController extends GetxController implements GetxService {
         if (purchaseLimit > 0 && parsedOrderAmount > purchaseLimit) {
           _isLoading = false;
           update();
+          debugPrint(
+              '[Payment][Qidha] blocked: purchase limit exceeded limit=$purchaseLimit amount=$parsedOrderAmount');
           showCustomSnackBar(
-              'تجاوز حد الشراء المسموح. الحد الأقصى: ${purchaseLimit.toStringAsFixed(2)} ريال');
+              'Purchase limit exceeded. Max allowed: ${purchaseLimit.toStringAsFixed(2)} SAR.');
           return '';
         }
 
@@ -1869,47 +1915,43 @@ class CheckoutController extends GetxController implements GetxService {
           final int statusCode = paymentResponse.statusCode ?? 0;
           if (statusCode >= 200 && statusCode < 300) {
             debugPrint(
-                '\x1B[32m✅ Qidha payment processed successfully for order: $_currentOrderId\x1B[0m');
+                '\x1B[32m[Payment][Qidha] success order=$_currentOrderId\x1B[0m');
             paymentSucceeded = true;
             await kaidhaSubController.get_Wallet_Kaidh(); // Refresh balance
           } else {
-            debugPrint('\x1B[33m⚠️ Qidha payment failed: $statusCode\x1B[0m');
+            debugPrint('\x1B[33m[Payment][Qidha] failed status=$statusCode\x1B[0m');
             debugPrint(
-                '\x1B[33m⚠️ Error response: ${paymentResponse.body}\x1B[0m');
+                '\x1B[33m[Payment][Qidha] response=${paymentResponse.body}\x1B[0m');
 
             _isLoading = false;
             update();
 
-            // Enhanced error handling
-            String errorMessage = 'فشل في معالجة الدفع من محفظة قيدها';
-            if (paymentResponse.body != null &&
-                paymentResponse.body is Map<String, dynamic>) {
-              final errorBody = paymentResponse.body as Map<String, dynamic>;
-              if (errorBody.containsKey('message')) {
-                errorMessage = errorBody['message'].toString();
-              }
-            }
+            final String errorMessage = _extractReadableApiMessage(
+              paymentResponse.body,
+              fallback: 'فشل في معالجة الدفع من محفظة قيدها',
+            );
             showCustomSnackBar(errorMessage);
             return '';
           }
         } catch (e) {
           _isLoading = false;
           update();
-          debugPrint('❌ Qidha payment error: $e');
+          debugPrint('[Payment][Qidha] exception: $e');
           showCustomSnackBar(
-              'خطأ في معالجة الدفع من محفظة قيدها. يرجى المحاولة لاحقًا');
+              'Qidha payment error. Please try again later.');
           return '';
         }
       } else if (_paymentMethodIndex == 1 && isMy_Pay == true) {
         // Regular Wallet Payment - Use the new API
-        debugPrint('\x1B[32m[   محفظتي  ]  معالجة الدفع...\x1B[0m');
+        debugPrint('\x1B[32m[Payment][Wallet] processing...\x1B[0m');
 
         // Enhanced validation for regular wallet
         if (profile_Controller.userInfoModel == null) {
           _isLoading = false;
           update();
+          debugPrint('[Payment][Wallet] blocked: userInfo is null');
           showCustomSnackBar(
-              'معلومات المستخدم غير متاحة - يرجى تسجيل الدخول مرة أخرى');
+              'User information is unavailable. Please login again.');
           return '';
         }
 
@@ -1921,8 +1963,10 @@ class CheckoutController extends GetxController implements GetxService {
         if (availableBalance < parsedOrderAmount) {
           _isLoading = false;
           update();
+          debugPrint(
+              '[Payment][Wallet] blocked: insufficient balance available=$availableBalance required=$parsedOrderAmount');
           showCustomSnackBar(
-              'الرصيد غير كافي في المحفظة العادية. الرصيد المتاح: ${availableBalance.toStringAsFixed(2)} ريال');
+              'Insufficient wallet balance. Available: ${availableBalance.toStringAsFixed(2)} SAR.');
           return '';
         }
 
@@ -1934,56 +1978,51 @@ class CheckoutController extends GetxController implements GetxService {
           final int statusCode = paymentResponse.statusCode ?? 0;
           if (statusCode >= 200 && statusCode < 300) {
             debugPrint(
-                '\x1B[32m✅ Regular wallet payment processed successfully for order: $_currentOrderId\x1B[0m');
+                '\x1B[32m[Payment][Wallet] success order=$_currentOrderId\x1B[0m');
             paymentSucceeded = true;
             // Refresh user info to get updated wallet balance
             await profile_Controller.getUserInfo();
           } else {
             debugPrint(
-                '\x1B[33m⚠️ Regular wallet payment failed: $statusCode\x1B[0m');
+                '\x1B[33m[Payment][Wallet] failed status=$statusCode\x1B[0m');
             debugPrint(
-                '\x1B[33m⚠️ Error response: ${paymentResponse.body}\x1B[0m');
+                '\x1B[33m[Payment][Wallet] response=${paymentResponse.body}\x1B[0m');
 
             _isLoading = false;
             update();
 
-            // Enhanced error handling
-            String errorMessage = 'فشل في معالجة الدفع من المحفظة العادية';
-            if (paymentResponse.body != null &&
-                paymentResponse.body is Map<String, dynamic>) {
-              final errorBody = paymentResponse.body as Map<String, dynamic>;
-              if (errorBody.containsKey('message')) {
-                errorMessage = errorBody['message'].toString();
-              }
-            }
+            final String errorMessage = _extractReadableApiMessage(
+              paymentResponse.body,
+              fallback: 'فشل في معالجة الدفع من المحفظة العادية',
+            );
             showCustomSnackBar(errorMessage);
             return '';
           }
         } catch (e) {
           _isLoading = false;
           update();
-          debugPrint('❌ Regular wallet payment error: $e');
+          debugPrint('[Payment][Wallet] exception: $e');
           showCustomSnackBar(
-              'خطأ في معالجة الدفع من المحفظة العادية. يرجى المحاولة لاحقًا');
+              'Wallet payment error. Please try again later.');
           return '';
         }
       } else {
         // Cash on Delivery - No payment processing needed
         debugPrint(
-            '\x1B[32m💰 Cash on Delivery - No payment processing needed\x1B[0m');
+            '\x1B[32m[Payment][COD] no payment processing needed\x1B[0m');
         paymentSucceeded = true;
       }
 
       // ============================ عرض النتيجة النهائية ============================
       if (paymentSucceeded) {
-        debugPrint('\x1B[32m✅ Order $_currentOrderId is now PAID\x1B[0m');
+        debugPrint('\x1B[32m[Payment] order=$_currentOrderId marked paid\x1B[0m');
 
         // 🥇 Update flow state - نجحت العملية
         _paymentFlowState = PaymentFlowState.success;
 
         // Show success message
         Future.delayed(const Duration(seconds: 1), () {
-          showCustomSnackBar('تمت عملية الدفع والطلب بنجاح', isError: false);
+          showCustomSnackBar('order_placed_successfully'.tr, isError: false);
         });
 
         // Store order ID before clearing it
@@ -1995,7 +2034,7 @@ class CheckoutController extends GetxController implements GetxService {
           callback(
             context,
             true,
-            'تم إنشاء الطلب بنجاح',
+            'order_placed_successfully'.tr,
             orderIdString,
             zoneID,
             parsedOrderAmount,
@@ -2027,7 +2066,7 @@ class CheckoutController extends GetxController implements GetxService {
         // ❌ لا Navigation - فقط عرض الرسالة
         // ⛔ لا نستدعي callback عند الفشل لمنع Navigation Loop
         // ✅ UX: عرض رسالة واضحة للمستخدم
-        showCustomSnackBar('فشل في معالجة الدفع، الرجاء المحاولة لاحقًا');
+        showCustomSnackBar('payment_failed'.tr);
         // ❌ تم إزالة callback عند الفشل لمنع Navigation Loop
       }
     } catch (e) {
@@ -2041,8 +2080,8 @@ class CheckoutController extends GetxController implements GetxService {
       // ⛔ لا نستدعي callback عند الفشل لمنع Navigation Loop
       // ✅ UX: عرض رسالة واضحة مع تفاصيل الخطأ
       final String errorMessage = e.toString().contains('timeout')
-          ? 'انتهت مهلة الاتصال - يرجى المحاولة مرة أخرى'
-          : 'حدث خطأ أثناء معالجة الدفع: ${e.toString()}';
+          ? 'connection_to_api_server_failed'.tr
+          : '${'payment_failed'.tr}: ${e.toString()}';
       showCustomSnackBar(errorMessage);
       // ❌ تم إزالة callback عند الفشل لمنع Navigation Loop
     }
@@ -2283,11 +2322,11 @@ class CheckoutController extends GetxController implements GetxService {
               );
             } else {
               debugPrint('❌ Invalid order ID format: $orderID');
-              showCustomSnackBar('خطأ في رقم الطلب - يرجى المحاولة لاحقاً');
+              showCustomSnackBar('transaction_failed'.tr);
             }
           } else {
             debugPrint('❌ Empty or invalid order ID: $orderID');
-            showCustomSnackBar('خطأ في رقم الطلب - يرجى المحاولة لاحقاً');
+            showCustomSnackBar('transaction_failed'.tr);
           }
         }
       }
@@ -2429,3 +2468,6 @@ class CheckoutController extends GetxController implements GetxService {
     }
   }
 }
+
+
+

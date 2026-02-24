@@ -196,7 +196,11 @@ class ChatController extends GetxController implements GetxService {
       response = await chatServiceInterface.getMessages(offset, notificationBody.restaurantId, UserType.vendor.name, conversationID);
     }
 
-    if (response != null && response.body['messages'] != {} && response.statusCode == 200) {
+    final dynamic responseBody = response?.body;
+    if (response != null &&
+        response.statusCode == 200 &&
+        responseBody is Map<String, dynamic> &&
+        responseBody['messages'] != null) {
       if (offset == 1) {
         /// Unread-read
         if(conversationID != null && _conversationModel != null && (Get.context == null || !ResponsiveHelper.isDesktop(Get.context!))) {
@@ -265,23 +269,32 @@ class ChatController extends GetxController implements GetxService {
     Response? response;
     _isLoading = true;
     update();
-    
+
     final List<MultipartBody> myImages = chatServiceInterface.processMultipartBody(_chatImage);
-    
+
+    final int? effectiveConversationId = conversationID ?? _messageModel?.conversation?.id;
+
     if(notificationBody == null || notificationBody.adminId != null) {
-      response = await chatServiceInterface.sendMessage(message, orderId ?? '', myImages, 0, UserType.admin.name, null);
+      response = await chatServiceInterface.sendMessage(
+        message,
+        orderId ?? '',
+        myImages,
+        notificationBody?.adminId ?? 0,
+        UserType.admin.name,
+        effectiveConversationId,
+      );
     } else if(notificationBody.restaurantId != null) {
-      response = await chatServiceInterface.sendMessage(message, '', myImages, notificationBody.restaurantId, UserType.vendor.name, conversationID);
+      response = await chatServiceInterface.sendMessage(message, orderId ?? '', myImages, notificationBody.restaurantId, UserType.vendor.name, effectiveConversationId);
     } else if(notificationBody.deliverymanId != null) {
-      response = await chatServiceInterface.sendMessage(message, '', myImages, notificationBody.deliverymanId, UserType.delivery_man.name, conversationID);
-    } else if(conversationID != null) {
-      response = await chatServiceInterface.sendMessage(message, '', myImages, notificationBody.restaurantId, UserType.vendor.name, conversationID);
+      response = await chatServiceInterface.sendMessage(message, orderId ?? '', myImages, notificationBody.deliverymanId, UserType.delivery_man.name, effectiveConversationId);
+    } else if(effectiveConversationId != null) {
+      response = await chatServiceInterface.sendMessage(message, orderId ?? '', myImages, notificationBody.restaurantId, UserType.vendor.name, effectiveConversationId);
     }
-    if (response!.statusCode == 200) {
+
+    if (response != null && response.statusCode == 200) {
       _chatImage = [];
       _chatRawImage = [];
       _isSendButtonActive = false;
-      _isLoading = false;
       _messageModel = ChatModel.fromJson(response.body as Map<String, dynamic>);
       if(index != null && _searchConversationModel != null) {
         _searchConversationModel!.conversations![index]!.lastMessageTime = DateConverter.isoStringToLocalString(_messageModel!.messages![0].createdAt!);
@@ -296,11 +309,15 @@ class ChatController extends GetxController implements GetxService {
       if(Get.find<ProfileController>().userInfoModel!.userInfo == null) {
         Get.find<ProfileController>().updateUserWithNewData(_messageModel!.conversation!.sender);
       }
-      _sortMessage(notificationBody!.adminId);
+      _sortMessage(notificationBody?.adminId);
       Future.delayed(const Duration(seconds: 2),() {
-        getMessages(1, notificationBody, null, conversationID);
+        getMessages(1, notificationBody, null, effectiveConversationId);
       });
+    } else {
+      debugPrint('[SupportFlow][Chat] sendMessage failed: status=${response?.statusCode}, body=${response?.body}');
+      showCustomSnackBar('failed_to_send_message'.tr);
     }
+    _isLoading = false;
     update();
     return response;
   }

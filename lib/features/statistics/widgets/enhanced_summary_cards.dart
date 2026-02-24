@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
 import '../../../util/app_colors.dart';
 import '../../../util/dimensions.dart';
 import '../controllers/analytics_controller.dart';
 import '../domain/models/analytics_summary.dart';
+import 'package:sixam_mart/common/utils/app_logger.dart';
 
 class EnhancedSummaryCards extends StatelessWidget {
   const EnhancedSummaryCards({super.key});
@@ -230,12 +232,14 @@ class EnhancedSummaryCards extends StatelessWidget {
             icon: Icons.trending_up,
             title: () {
               final String title = 'spending_trend'.tr;
-              print(
-                  '🔍 EnhancedSummaryCards - Spending trend translation: $title');
-              print('🔍 EnhancedSummaryCards - Current locale: ${Get.locale}');
-              print('🔍 EnhancedSummaryCards - Available keys: ${Get.keys}');
-              print(
-                  '🔍 EnhancedSummaryCards - Test translation: ${'hello'.tr}');
+              if (kDebugMode) {
+                appLogger.debug(
+                    '🔍 EnhancedSummaryCards - Spending trend translation: $title');
+                appLogger.debug('🔍 EnhancedSummaryCards - Current locale: ${Get.locale}');
+                appLogger.debug('🔍 EnhancedSummaryCards - Available keys: ${Get.keys}');
+                appLogger.debug(
+                    '🔍 EnhancedSummaryCards - Test translation: ${'hello'.tr}');
+              }
 
               // Temporary fix: Use hardcoded Arabic translations
               if (title == 'spending_trend' || title.isEmpty) {
@@ -243,7 +247,7 @@ class EnhancedSummaryCards extends StatelessWidget {
               }
               return title;
             }(),
-            value: _getTrendText(summary.spendingTrend.trendDirection ?? ''),
+            value: _getTrendText(summary.spendingTrend.trendDirection),
             trend: summary.spendingTrend.monthlyChange,
             color: _getTrendColor(summary.spendingTrend.trendDirection),
           ),
@@ -349,13 +353,17 @@ class EnhancedSummaryCards extends StatelessWidget {
   }
 
   String _getTrendText(String trendDirection) {
-    print('🔍 EnhancedSummaryCards - Trend Direction: $trendDirection');
+    if (kDebugMode) {
+      appLogger.debug('🔍 EnhancedSummaryCards - Trend Direction: $trendDirection');
+    }
     String result;
     switch (trendDirection.toLowerCase()) {
       case 'increasing':
       case 'up':
         result = 'increasing'.tr;
-        print('🔍 EnhancedSummaryCards - Increasing translation: $result');
+        if (kDebugMode) {
+          appLogger.debug('🔍 EnhancedSummaryCards - Increasing translation: $result');
+        }
         // Temporary fix: Use hardcoded Arabic translations
         if (result == 'increasing' || result.isEmpty) {
           return 'متزايد';
@@ -364,7 +372,9 @@ class EnhancedSummaryCards extends StatelessWidget {
       case 'decreasing':
       case 'down':
         result = 'decreasing'.tr;
-        print('🔍 EnhancedSummaryCards - Decreasing translation: $result');
+        if (kDebugMode) {
+          appLogger.debug('🔍 EnhancedSummaryCards - Decreasing translation: $result');
+        }
         // Temporary fix: Use hardcoded Arabic translations
         if (result == 'decreasing' || result.isEmpty) {
           return 'متناقص';
@@ -372,7 +382,9 @@ class EnhancedSummaryCards extends StatelessWidget {
         return result;
       default:
         result = 'stable'.tr;
-        print('🔍 EnhancedSummaryCards - Stable translation: $result');
+        if (kDebugMode) {
+          appLogger.debug('🔍 EnhancedSummaryCards - Stable translation: $result');
+        }
         // Temporary fix: Use hardcoded Arabic translations
         if (result == 'stable' || result.isEmpty) {
           return 'مستقر';

@@ -13,6 +13,7 @@ import 'package:sixam_mart/features/home/screens/home_screen.dart';
 import 'package:sixam_mart/features/item/controllers/item_controller.dart';
 import 'package:sixam_mart/features/splash/controllers/splash_controller.dart';
 import 'package:sixam_mart/features/auth/controllers/auth_controller.dart';
+import 'package:sixam_mart/features/store/controllers/store_controller.dart';
 import 'package:sixam_mart/helper/auth_helper.dart';
 import 'package:sixam_mart/helper/date_converter.dart';
 import 'package:sixam_mart/helper/module_helper.dart';
@@ -308,6 +309,17 @@ class CartController extends GetxController implements GetxService {
       final String key = _buildCartItemKey(cart);
       if (!uniqueItems.containsKey(key)) {
         uniqueItems[key] = cart;
+      } else {
+        final CartModel existing = uniqueItems[key]!;
+        final int mergedQuantity =
+            (existing.quantity ?? 0) + (cart.quantity ?? 0);
+        existing.quantity = mergedQuantity;
+        // Keep authoritative cart_id if one side has it.
+        if ((existing.id == null || existing.id! <= 0) &&
+            cart.id != null &&
+            cart.id! > 0) {
+          existing.id = cart.id;
+        }
       }
     }
     if (uniqueItems.length != items.length && kDebugMode) {
@@ -318,18 +330,21 @@ class CartController extends GetxController implements GetxService {
   }
 
   String _buildCartItemKey(CartModel cart) {
-    final int? cartId = cart.id;
-    if (cartId != null) {
-      return 'id:$cartId';
-    }
     final int? itemId = cart.item?.id;
-    final String variationKey =
-        cart.variation?.map((variation) => variation.type).join(',') ?? '';
+    final String variationKey = jsonEncode(
+      cart.variation?.map((variation) => variation.toJson()).toList() ??
+          const <Map<String, dynamic>>[],
+    );
+    final String foodVariationKey = (cart.foodVariations ?? <List<bool?>>[])
+        .map((group) => group.map((v) => (v ?? false) ? '1' : '0').join(''))
+        .join('|');
     final String addOnKey = cart.addOnIds
             ?.map((addOn) => '${addOn.id}:${addOn.quantity}')
             .join(',') ??
         '';
-    return 'item:$itemId|var:$variationKey|add:$addOnKey';
+    final int? storeId = cart.storeId ?? cart.item?.storeId;
+    final bool isCampaign = cart.isCampaign ?? false;
+    return 'store:$storeId|item:$itemId|campaign:$isCampaign|var:$variationKey|food:$foodVariationKey|add:$addOnKey';
   }
 
   // Removed _notifyCartListChanged() - use _onCartMutated() instead
@@ -1052,9 +1067,9 @@ class CartController extends GetxController implements GetxService {
     debugPrint('🧹 Cart cleared completely (local + online)');
 
     // Reset the flags after a delay to allow normal cart operations
+    _isCartCleared = false;
     Future.delayed(const Duration(seconds: 2), () {
       _justClearedCart = false;
-      _isCartCleared = false;
       debugPrint('✅ Cart cleared flag reset - operations can resume');
     });
   }
@@ -1066,25 +1081,36 @@ class CartController extends GetxController implements GetxService {
   }
 
   bool existAnotherStoreItem(int? storeID, int? moduleId) {
-    // 🔧 FIX: Improved store comparison to prevent false positives
-    if (_cartList.isEmpty) {
+    // Don't short-circuit on empty _cartList only.
+    // _storeId may still represent an active cart store (e.g. during async restore/sync).
+    if (_cartList.isEmpty && (_storeId == null || _storeId! <= 0)) {
       return false;
     }
 
-    // Get current cart's store ID using improved extraction
-    int? currentCartStoreId = _storeId;
+    int? effectiveNewStoreId = storeID;
+    if ((effectiveNewStoreId == null || effectiveNewStoreId <= 0) &&
+        Get.isRegistered<StoreController>()) {
+      effectiveNewStoreId = Get.find<StoreController>().store?.id;
+    }
 
-    // If _storeId is null, search through cart items
-    if (currentCartStoreId == null) {
-      for (final cart in _cartList) {
-        final int? cartStoreId = cart.item?.storeId ?? cart.storeId;
-        if (cartStoreId != null && cartStoreId > 0) {
-          currentCartStoreId = cartStoreId;
-          // Update _storeId for consistency
-          _storeId = cartStoreId;
-          break;
-        }
+    int? currentCartStoreId = _storeId;
+    int? inferredStoreIdFromCart;
+    for (final cart in _cartList) {
+      final int? cartStoreId = cart.item?.storeId ?? cart.storeId;
+      if (cartStoreId != null && cartStoreId > 0) {
+        inferredStoreIdFromCart = cartStoreId;
+        break;
       }
+    }
+
+    if (inferredStoreIdFromCart != null &&
+        (currentCartStoreId == null || currentCartStoreId != inferredStoreIdFromCart)) {
+      if (kDebugMode) {
+        debugPrint(
+            '🔧 existAnotherStoreItem: Reconciling stale _storeId from $currentCartStoreId to $inferredStoreIdFromCart');
+      }
+      currentCartStoreId = inferredStoreIdFromCart;
+      _storeId = inferredStoreIdFromCart;
     }
 
     final int? currentCartModuleId = _cartList
@@ -1095,54 +1121,43 @@ class CartController extends GetxController implements GetxService {
     if (kDebugMode) {
       debugPrint('🔍 existAnotherStoreItem check:');
       debugPrint('   - currentCartStoreId: $currentCartStoreId');
-      debugPrint('   - newStoreID: $storeID');
+      debugPrint('   - newStoreID: $effectiveNewStoreId');
       debugPrint('   - currentCartModuleId: $currentCartModuleId');
       debugPrint('   - newModuleId: $moduleId');
     }
 
-    // 🔧 FIX: Only consider it "another store" if:
-    // 1. Current cart has a valid store ID (not null, > 0)
-    // 2. New item has a valid store ID (not null, > 0)
-    // 3. They are ACTUALLY different
     if (currentCartStoreId != null && currentCartStoreId > 0) {
-      // If new item's storeID is null or invalid, we can't determine - allow adding
-      if (storeID == null || storeID <= 0) {
+      if (effectiveNewStoreId == null || effectiveNewStoreId <= 0) {
         if (kDebugMode) {
-          debugPrint(
-              '   → New item storeID is null/invalid - allowing add (same store assumed)');
+          debugPrint('   -> New item storeID is null/invalid - blocking add (store must be known)');
         }
-        return false; // 🔧 FIX: Changed from true to false - don't block if we can't verify
+        return true;
       }
 
-      // Both IDs are valid - compare them
-      if (storeID != currentCartStoreId) {
+      if (effectiveNewStoreId != currentCartStoreId) {
         if (kDebugMode) {
-          debugPrint(
-              '   → DIFFERENT STORE: $storeID != $currentCartStoreId');
+          debugPrint('   -> DIFFERENT STORE: $effectiveNewStoreId != $currentCartStoreId');
         }
-        return true; // Different store
+        return true;
       }
 
-      // Check module ID only if both are available
       if (currentCartModuleId != null &&
           moduleId != null &&
           moduleId != currentCartModuleId) {
         if (kDebugMode) {
-          debugPrint(
-              '   → DIFFERENT MODULE: $moduleId != $currentCartModuleId');
+          debugPrint('   -> DIFFERENT MODULE: $moduleId != $currentCartModuleId');
         }
-        return true; // Different module
+        return true;
       }
 
       if (kDebugMode) {
-        debugPrint('   → SAME STORE: $storeID == $currentCartStoreId');
+        debugPrint('   -> SAME STORE: $effectiveNewStoreId == $currentCartStoreId');
       }
-      return false; // Same store
+      return false;
     }
 
-    // Fallback to service method if we couldn't determine
     return cartServiceInterface.existAnotherStoreItem(
-        storeID, moduleId, _cartList);
+        effectiveNewStoreId, moduleId, _cartList);
   }
 
   void setCurrentIndex(int index, bool notify) {
@@ -1173,10 +1188,13 @@ class CartController extends GetxController implements GetxService {
     // Check if item already exists in cart
     final int existingIndex = _findExistingCartItem(cart.itemId, cart.variant);
 
-    if (existingIndex != -1 && cart.cartId != null) {
-      // Item exists, use update
-      debugPrint('🔄 Item exists in cart, using UPDATE API');
-      return await updateCartOnline(cart);
+    if (existingIndex != -1) {
+      // Same-store existing item: always use ADD API to append selected quantity.
+      // This avoids cart_id dependency in update flow and matches expected UX.
+      debugPrint('➕ Existing item in same store, using ADD API to append quantity');
+      final OnlineCart addPayload =
+          _buildOnlineCartForAdd(cart, existingIndex: existingIndex);
+      return await addToCartOnline(addPayload);
     } else {
       // Item doesn't exist, use add
       debugPrint('➕ New item, using ADD API');
@@ -1190,39 +1208,78 @@ class CartController extends GetxController implements GetxService {
     required CartModel cartModel,
     required OnlineCart onlineCart,
   }) async {
-    // Enforce single-store cart: prompt user if different store
-    if (existAnotherStoreItem(
-        cartModel.item?.storeId, cartModel.item?.moduleId)) {
-      Get.dialog<void>(
-        ConfirmationDialog(
-          icon: Images.warning,
-          title: 'are_you_sure_to_reset'.tr,
-          description: Get.find<SplashController>()
-                      .configModel
-                      ?.moduleConfig
-                      ?.module
-                      ?.showRestaurantText ==
-                  true
-              ? 'if_you_continue'.tr
-              : 'if_you_continue_without_another_store'.tr,
-          onYesPressed: () async {
-            await clearCartList();
-            await _addToCartWithFallbackInternal(
-              cartModel: cartModel,
-              onlineCart: onlineCart,
-            );
-            Get.back<void>();
-          },
-        ),
-        barrierDismissible: false,
-      );
+    int? effectiveStoreId = cartModel.item?.storeId ?? cartModel.storeId;
+    if ((effectiveStoreId == null || effectiveStoreId <= 0) &&
+        Get.isRegistered<StoreController>()) {
+      effectiveStoreId = Get.find<StoreController>().store?.id;
+    }
+    if (effectiveStoreId != null && effectiveStoreId > 0) {
+      cartModel.storeId ??= effectiveStoreId;
+      cartModel.item?.storeId ??= effectiveStoreId;
+    }
+
+    final int? effectiveModuleId = cartModel.item?.moduleId ??
+        ModuleHelper.getModule()?.id ??
+        ModuleHelper.getCacheModule()?.id;
+    if (effectiveModuleId != null) {
+      cartModel.item?.moduleId ??= effectiveModuleId;
+    }
+
+    // Guard against unknown-store item being added into a non-empty cart.
+    if (_cartList.isNotEmpty && (effectiveStoreId == null || effectiveStoreId <= 0)) {
+      debugPrint(
+          '❌ addToCartWithFallback: blocked add because new item storeId is null/invalid while cart is not empty');
+      showCustomSnackBar('please_try_again'.tr);
       return false;
+    }
+
+    // Enforce single-store cart: block until user confirms/reset is complete.
+    if (existAnotherStoreItem(effectiveStoreId, effectiveModuleId)) {
+      final bool shouldReset = await _confirmResetCartForDifferentStore();
+      if (!shouldReset) {
+        return false;
+      }
+      await clearCartList();
     }
 
     return _addToCartWithFallbackInternal(
       cartModel: cartModel,
       onlineCart: onlineCart,
     );
+  }
+
+  Future<bool> _confirmResetCartForDifferentStore() async {
+    final Completer<bool> completer = Completer<bool>();
+
+    Get.dialog<void>(
+      ConfirmationDialog(
+        icon: Images.warning,
+        title: 'are_you_sure_to_reset'.tr,
+        description: Get.find<SplashController>()
+                    .configModel
+                    ?.moduleConfig
+                    ?.module
+                    ?.showRestaurantText ==
+                true
+            ? 'if_you_continue'.tr
+            : 'if_you_continue_without_another_store'.tr,
+        onYesPressed: () {
+          if (!completer.isCompleted) {
+            completer.complete(true);
+          }
+          Get.back<void>();
+        },
+        onNoPressed: () {
+          if (!completer.isCompleted) {
+            completer.complete(false);
+          }
+          Get.back<void>();
+        },
+      ),
+      barrierDismissible: false,
+    );
+
+    return completer.future;
   }
 
   Future<bool> _addToCartWithFallbackInternal({
@@ -1239,13 +1296,10 @@ class CartController extends GetxController implements GetxService {
       final int currentQuantity = _cartList[existingIndex].quantity ?? 0;
       final int addedQuantity = cartModel.quantity ?? 1;
       _cartList[existingIndex].quantity = currentQuantity + addedQuantity;
-
-      // If cart_id exists, add to pending updates for batch sync
-      if (_cartList[existingIndex].id != null) {
-        _pendingCartUpdates[_cartList[existingIndex].id!] =
-            _cartList[existingIndex].quantity!;
-        _scheduleCartSync();
-      }
+      // IMPORTANT: do not schedule pending quantity sync here.
+      // In additive mode we already call ADD API (append quantity).
+      // Scheduling UPDATE by cart_id on top of ADD can over-increment totals,
+      // especially when backend has duplicate cart rows for the same item.
 
       await cartServiceInterface.addSharedPrefCartList(_cartList);
       _onCartMutated(reason: 'addToCartWithFallback_updateExisting');
@@ -1341,19 +1395,124 @@ class CartController extends GetxController implements GetxService {
 
   // Find existing cart item by itemId and variant
   int _findExistingCartItem(int? itemId, String? variant) {
+    final String normalizedTargetVariant = _normalizeVariantKey(variant);
     for (int i = 0; i < _cartList.length; i++) {
-      if (_cartList[i].item!.id == itemId) {
-        // Check variant match for items with variations
-        final String existingVariant = _cartList[i].variation!.isNotEmpty
-            ? _cartList[i].variation![0].type ?? ''
+      if (_cartList[i].item?.id == itemId) {
+        // Check variant match for items with variations.
+        // Treat "none"/"null"/empty as the same no-variation value.
+        final existingVariations = _cartList[i].variation;
+        final String existingVariant =
+            (existingVariations != null && existingVariations.isNotEmpty)
+            ? existingVariations[0].type ?? ''
             : '';
-
-        if (existingVariant == (variant ?? '')) {
+        if (_normalizeVariantKey(existingVariant) == normalizedTargetVariant) {
           return i;
         }
       }
     }
     return -1;
+  }
+
+  String _normalizeVariantKey(String? variant) {
+    final String normalized = (variant ?? '').trim().toLowerCase();
+    if (normalized.isEmpty || normalized == 'none' || normalized == 'null') {
+      return '';
+    }
+    return normalized;
+  }
+
+  int? _resolveCartIdForOnlineCart(OnlineCart cart) {
+    if (cart.cartId != null && cart.cartId! > 0) {
+      return cart.cartId;
+    }
+    final int existingIndex = _findExistingCartItem(cart.itemId, cart.variant);
+    if (existingIndex == -1) {
+      return null;
+    }
+    final int? candidateCartId = _cartList[existingIndex].id;
+    if (candidateCartId != null && candidateCartId > 0) {
+      return candidateCartId;
+    }
+    return null;
+  }
+
+  int _findExistingCartItemByItemOnly(int? itemId) {
+    if (itemId == null) {
+      return -1;
+    }
+    for (int i = 0; i < _cartList.length; i++) {
+      if (_cartList[i].item?.id == itemId) {
+        return i;
+      }
+    }
+    return -1;
+  }
+
+  OnlineCart _buildOnlineCartWithResolvedIds(
+    OnlineCart cart, {
+    int? existingIndex,
+    int? resolvedCartId,
+  }) {
+    int index = existingIndex ?? _findExistingCartItem(cart.itemId, cart.variant);
+    if (index == -1) {
+      index = _findExistingCartItemByItemOnly(cart.itemId);
+    }
+    final int? finalCartId = resolvedCartId ?? _resolveCartIdForOnlineCart(cart);
+
+    int? resolvedStoreId = cart.storeId;
+    if ((resolvedStoreId == null || resolvedStoreId <= 0) && index != -1) {
+      resolvedStoreId = _cartList[index].storeId ?? _cartList[index].item?.storeId;
+    }
+    if ((resolvedStoreId == null || resolvedStoreId <= 0) && _storeId != null && _storeId! > 0) {
+      resolvedStoreId = _storeId;
+    }
+    if ((resolvedStoreId == null || resolvedStoreId <= 0) && Get.isRegistered<StoreController>()) {
+      final int? currentStoreId = Get.find<StoreController>().store?.id;
+      if (currentStoreId != null && currentStoreId > 0) {
+        resolvedStoreId = currentStoreId;
+      }
+    }
+
+    return OnlineCart(
+      finalCartId,
+      cart.itemId,
+      cart.itemCampaignId,
+      cart.price ?? '0',
+      cart.variant ?? 'none',
+      cart.variation,
+      null,
+      cart.quantity,
+      cart.addOnIds ?? <int?>[],
+      cart.addOns,
+      cart.addOnQtys ?? <int?>[],
+      cart.model ?? 'Item',
+      itemType: cart.itemType,
+      storeId: resolvedStoreId,
+    );
+  }
+
+  OnlineCart _buildOnlineCartForAdd(
+    OnlineCart cart, {
+    int? existingIndex,
+  }) {
+    final OnlineCart normalized =
+        _buildOnlineCartWithResolvedIds(cart, existingIndex: existingIndex);
+    return OnlineCart(
+      null, // add endpoint should not depend on cart_id
+      normalized.itemId,
+      normalized.itemCampaignId,
+      normalized.price ?? '0',
+      normalized.variant ?? 'none',
+      normalized.variation,
+      null,
+      normalized.quantity,
+      normalized.addOnIds ?? <int?>[],
+      normalized.addOns,
+      normalized.addOnQtys ?? <int?>[],
+      normalized.model ?? 'Item',
+      itemType: normalized.itemType,
+      storeId: normalized.storeId,
+    );
   }
 
   Future<bool> addToCartOnline(OnlineCart cart) async {
@@ -1376,6 +1535,7 @@ class CartController extends GetxController implements GetxService {
         _cartList = [];
         _cartList.addAll(cartServiceInterface.formatOnlineCartToLocalCart(
             onlineCartModel: onlineCartList));
+        _cartList = _deduplicateCartList(_cartList);
 
         // 🔥 CRITICAL FIX: Verify all items have cart_id after conversion
         for (final cartItem in _cartList) {
@@ -1426,15 +1586,43 @@ class CartController extends GetxController implements GetxService {
 
   Future<bool> updateCartOnline(OnlineCart cart) async {
     bool success = false;
+    int? resolvedCartId = _resolveCartIdForOnlineCart(cart);
+    if (resolvedCartId == null || resolvedCartId <= 0) {
+      final int fallbackIndex = _findExistingCartItemByItemOnly(cart.itemId);
+      if (fallbackIndex != -1) {
+        final int? fallbackCartId = _cartList[fallbackIndex].id;
+        if (fallbackCartId != null && fallbackCartId > 0) {
+          resolvedCartId = fallbackCartId;
+        }
+      }
+    }
+    if (resolvedCartId == null || resolvedCartId <= 0) {
+      // Try one forced cart refresh first to get authoritative cart_id from server.
+      try {
+        await getCartDataOnline(forceRefresh: true);
+      } catch (_) {}
+      resolvedCartId = _resolveCartIdForOnlineCart(cart);
+    }
+    if (resolvedCartId == null || resolvedCartId <= 0) {
+      debugPrint(
+          '⛔ updateCartOnline skipped: missing cart_id even after refresh (itemId=${cart.itemId}, storeId=${cart.storeId})');
+      debugPrint('   - Keeping optimistic local cart update only');
+      _onCartMutated(reason: 'updateCartOnline_skipped_missingCartId');
+      return true;
+    }
+
+    final OnlineCart normalizedCart =
+        _buildOnlineCartWithResolvedIds(cart, resolvedCartId: resolvedCartId);
 
     // Backend sync (silent, non-blocking)
     final List<OnlineCartModel>? onlineCartList =
-        await cartServiceInterface.updateCartOnline(cart);
+        await cartServiceInterface.updateCartOnline(normalizedCart);
     if (onlineCartList != null) {
       // Update cart silently
       _cartList = [];
       _cartList.addAll(cartServiceInterface.formatOnlineCartToLocalCart(
           onlineCartModel: onlineCartList));
+      _cartList = _deduplicateCartList(_cartList);
 
       // 🔒 CRITICAL FIX: Always save cart locally (for both guest and logged-in users)
       // This ensures cart is preserved even if API fails or network is lost
@@ -1511,6 +1699,14 @@ class CartController extends GetxController implements GetxService {
           }
         }
         _cartList = _deduplicateCartList(_cartList);
+        final int? localStoreId = _cartList
+            .firstWhereOrNull((c) => (c.item?.storeId ?? c.storeId) != null)
+            ?.item
+            ?.storeId ??
+            _cartList.firstWhereOrNull((c) => c.storeId != null)?.storeId;
+        if (localStoreId != null && localStoreId > 0) {
+          _storeId = localStoreId;
+        }
         _onCartMutated(reason: 'getCartDataOnline_fromHive');
         if (kDebugMode) {
           debugPrint(
@@ -1521,6 +1717,14 @@ class CartController extends GetxController implements GetxService {
         final localItems = await _getLocalCartItems();
         if (localItems.isNotEmpty) {
           _cartList = _deduplicateCartList(localItems);
+          final int? localStoreId = _cartList
+              .firstWhereOrNull((c) => (c.item?.storeId ?? c.storeId) != null)
+              ?.item
+              ?.storeId ??
+              _cartList.firstWhereOrNull((c) => c.storeId != null)?.storeId;
+          if (localStoreId != null && localStoreId > 0) {
+            _storeId = localStoreId;
+          }
           _onCartMutated(reason: 'getCartDataOnline_fromSharedPrefs');
           if (kDebugMode) {
             debugPrint(
@@ -1606,30 +1810,18 @@ class CartController extends GetxController implements GetxService {
       List<OnlineCartModel>? onlineCartList =
           await cartServiceInterface.getCartDataOnline();
 
-      // ✅ BACKEND CONTRACT: Extract store_id from response
-      final int? extractedStoreId = cartServiceInterface.getStoreId();
-      if (extractedStoreId != null) {
-        _storeId = extractedStoreId;
+      // Keep API store_id separately until we know whether we will trust API data
+      // or preserve local cart (local-first protection path).
+      final int? apiReportedStoreId = cartServiceInterface.getStoreId();
+      if (apiReportedStoreId != null) {
         debugPrint(
-            '✅ CartController: Stored store_id from API response: $_storeId');
+            '✅ CartController: Received store_id from API response: $apiReportedStoreId');
       } else if (onlineCartList != null && onlineCartList.isNotEmpty) {
-        // Fallback: extract from first cart item (if backend doesn't provide store_id in response)
-        final firstItem = onlineCartList.first.item;
-        if (firstItem?.storeId != null) {
-          _storeId = firstItem!.storeId;
-          debugPrint(
-              '⚠️ CartController: store_id not in response, extracted from first item: $_storeId');
-        } else {
-          debugPrint(
-              '❌ CartController: store_id missing with non-empty cart (backend contract violation)');
-        }
+        debugPrint(
+            '❌ CartController: store_id missing with non-empty cart (backend contract violation)');
       } else {
-        // Empty cart can legitimately have null store_id
         debugPrint('ℹ️ CartController: Cart is empty - store_id may be null');
       }
-
-      // Log final storeId value for debugging
-      debugPrint('🔍 CartController: Final storeId value: $_storeId');
 
       // If we got data but it might be stale, trust local state and skip retries
       if (onlineCartList != null && onlineCartList.isNotEmpty && forceRefresh) {
@@ -1682,6 +1874,12 @@ class CartController extends GetxController implements GetxService {
       }
 
       if (onlineCartList != null && onlineCartList.isNotEmpty) {
+        if (apiReportedStoreId != null) {
+          _storeId = apiReportedStoreId;
+          debugPrint(
+              '✅ CartController: Stored store_id from API response: $_storeId');
+        }
+
         // Cart has items - update from server
         debugPrint(
             '🔄 Before updating cartList - current length: ${_cartList.length}');
@@ -1694,6 +1892,16 @@ class CartController extends GetxController implements GetxService {
         final formatted = cartServiceInterface.formatOnlineCartToLocalCart(
             onlineCartModel: onlineCartList);
         _cartList.addAll(formatted);
+        _cartList = _deduplicateCartList(_cartList);
+
+        if (_storeId == null || _storeId! <= 0) {
+          final int? firstApiItemStoreId = _cartList.first.item?.storeId;
+          if (firstApiItemStoreId != null && firstApiItemStoreId > 0) {
+            _storeId = firstApiItemStoreId;
+            debugPrint(
+                '⚠️ CartController: store_id not in response, extracted from first API cart item: $_storeId');
+          }
+        }
 
         // 🔐 Defensive programming: reject invalid cart state
         if (_cartList.isNotEmpty && _storeId == null) {
@@ -1812,14 +2020,31 @@ class CartController extends GetxController implements GetxService {
             // Keep local cart - don't overwrite with empty API response
             // The cart will sync when API returns valid data
             // Only clear if user explicitly cleared cart (_justClearedCart = true)
+            final int? localStoreId = localCartBeforeSync
+                .firstWhereOrNull(
+                    (c) => (c.item?.storeId ?? c.storeId) != null)
+                ?.item
+                ?.storeId ??
+                localCartBeforeSync
+                    .firstWhereOrNull((c) => c.storeId != null)
+                    ?.storeId;
+            if (localStoreId != null && localStoreId > 0) {
+              _storeId = localStoreId;
+              debugPrint(
+                  '✅ CartController: Preserving local store_id while API cart is empty: $_storeId');
+            }
           }
         } else {
           // No local cart and API is empty - cart is truly empty
+          _storeId = apiReportedStoreId;
           _cartList = [];
           _onCartMutated(reason: 'getCartDataOnline_trulyEmpty');
           debugPrint('✅ Cart is empty - ${_cartList.length} items');
         }
       }
+
+      // Log final storeId value for debugging
+      debugPrint('🔍 CartController: Final storeId value: $_storeId');
     } catch (e, stack) {
       debugPrint('❌ Error in getCartDataOnline: $e\n$stack');
     } finally {
@@ -1920,6 +2145,10 @@ class CartController extends GetxController implements GetxService {
 
   int cartQuantity(int itemId) {
     return cartServiceInterface.cartQuantity(itemId, _cartList);
+  }
+
+  int get totalCartQuantity {
+    return _cartList.fold<int>(0, (sum, item) => sum + (item.quantity ?? 0));
   }
 
   String cartVariant(int itemId) {

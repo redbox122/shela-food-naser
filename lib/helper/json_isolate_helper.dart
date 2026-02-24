@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:sixam_mart/features/item/domain/models/item_model.dart';
+import 'package:sixam_mart/util/app_constants.dart';
 
 /// ⚡ TASK 2: Isolate JSON parsing to prevent main-thread jank
 /// Parses ItemModel JSON in a background isolate to keep UI smooth
@@ -197,14 +198,25 @@ class JsonIsolateHelper {
                     : null;
 
                 final discountValue = itemJson['discount'];
-                final discount = discountValue != null
+                double discount = discountValue != null
                     ? (discountValue is num
                         ? discountValue.toDouble()
                         : double.tryParse(discountValue.toString()) ?? 0.0)
                     : 0.0; // Safe default per backend guarantee
 
-                final discountType = itemJson['discount_type']?.toString() ??
-                    'percent'; // Safe default per backend guarantee
+                String discountType =
+                    itemJson['discount_type']?.toString() ?? 'percent';
+
+                // Fallback: infer discount from original_price if backend discount is missing/zero.
+                if (discount <= 0 &&
+                    originalPrice != null &&
+                    price != null &&
+                    originalPrice > 0 &&
+                    originalPrice > price) {
+                  discount =
+                      (((originalPrice - price) / originalPrice) * 100).clamp(0, 100);
+                  discountType = 'percent';
+                }
 
                 final avgRatingValue = itemJson['avg_rating'];
                 final avgRating = avgRatingValue != null
@@ -213,10 +225,18 @@ class JsonIsolateHelper {
                         : double.tryParse(avgRatingValue.toString()) ?? 0.0)
                     : null;
 
+                final String normalizedImageUrl = _normalizeImageUrl(
+                  itemJson['image_full_url']?.toString(),
+                  fallbackImage: itemJson['image']?.toString(),
+                );
+
                 return Item(
                   id: id,
                   name: itemJson['name']?.toString(),
-                  imageFullUrl: itemJson['image_full_url']?.toString(),
+                  imageFullUrl: normalizedImageUrl.isNotEmpty
+                      ? normalizedImageUrl
+                      : null,
+                  imageStatus: normalizedImageUrl.isNotEmpty ? 'ok' : 'invalid',
                   price: price,
                   originalPrice: originalPrice,
                   discount: discount,
@@ -241,5 +261,33 @@ class JsonIsolateHelper {
       }
       return [];
     }
+  }
+
+  static String _normalizeImageUrl(String? imageFullUrl, {String? fallbackImage}) {
+    String candidate = (imageFullUrl ?? '').trim();
+    if (candidate.isEmpty || candidate == 'null') {
+      candidate = (fallbackImage ?? '').trim();
+    }
+    if (candidate.isEmpty || candidate == 'null') return '';
+
+    if (candidate.startsWith('http://') || candidate.startsWith('https://')) {
+      return candidate;
+    }
+
+    final String base = AppConstants.baseUrl.endsWith('/')
+        ? AppConstants.baseUrl.substring(0, AppConstants.baseUrl.length - 1)
+        : AppConstants.baseUrl;
+
+    if (candidate.startsWith('/')) {
+      return '$base$candidate';
+    }
+
+    // If backend sends "storage/..." or similar relative path
+    if (candidate.startsWith('storage/')) {
+      return '$base/$candidate';
+    }
+
+    // Last fallback: assume item image file name
+    return '$base/storage/item/$candidate';
   }
 }

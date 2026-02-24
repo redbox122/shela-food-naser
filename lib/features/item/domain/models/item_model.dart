@@ -885,7 +885,15 @@ class FoodVariation {
     required = json.parseBool('required');
 
     // ✅ FIX: Support both "options" (backend format) and "values" (legacy format)
-    final optionsData = json['options'] ?? json['values'];
+    dynamic optionsData = json['options'] ??
+        json['values'] ??
+        json['variationValues'] ??
+        json['variation_values'];
+    if (optionsData is String && optionsData.trim().isNotEmpty) {
+      try {
+        optionsData = jsonDecode(optionsData);
+      } catch (_) {}
+    }
     if (optionsData != null && optionsData is List) {
       variationValues = [];
       _logVerbose(
@@ -942,14 +950,20 @@ class VariationValue {
     id = json.parseInt('id');
 
     level = json.parseString('label')
+        ?? json.parseString('level')
+        ?? json.parseString('value')
         ?? json.parseString('name')
+        ?? json.parseString('name_ar')
+        ?? json.parseString('name_en')
         ?? '';
 
     optionPrice = json.parseDouble('optionPrice')
+        ?? json.parseDouble('option_price')
+        ?? json.parseDouble('extra_price')
         ?? json.parseDouble('price')
         ?? 0.0;
 
-    isSelected = json.parseBool('isSelected') ?? false;
+    isSelected = json.parseBool('isSelected');
   }
 
   Map<String, dynamic> toJson() {
@@ -990,7 +1004,7 @@ class Preset {
     PresetData? presetData;
     if (json['preset_data'] != null) {
       try {
-        final dynamic presetDataValue = json['preset_data']?.toString();
+        final dynamic presetDataValue = json['preset_data'];
 
         // Handle different types of preset_data
         if (presetDataValue is Map<String, dynamic>) {
@@ -1067,9 +1081,18 @@ class PresetData {
       List<PresetChoiceGroup>? choiceGroups;
       if (json['choice_groups'] != null) {
         try {
-          final groupsList = json['choice_groups']?.toString();
-          if (groupsList is List) {
-            choiceGroups = (groupsList as List)
+          final dynamic rawGroups = json['choice_groups'];
+          List<dynamic>? groupsList;
+          if (rawGroups is List) {
+            groupsList = rawGroups;
+          } else if (rawGroups is String && rawGroups.trim().isNotEmpty) {
+            final dynamic decoded = jsonDecode(rawGroups);
+            if (decoded is List) {
+              groupsList = decoded;
+            }
+          }
+          if (groupsList != null) {
+            choiceGroups = groupsList
                 .map((e) {
                   try {
                     if (e is Map<String, dynamic>) {
@@ -1089,7 +1112,7 @@ class PresetData {
                 .toList();
           } else {
             _logVerbose(
-                '⚠️ [PresetData.fromJson] choice_groups is not a List: ${groupsList.runtimeType}');
+                '⚠️ [PresetData.fromJson] choice_groups is not a List: ${rawGroups.runtimeType}');
             choiceGroups = null;
           }
         } catch (e) {
@@ -1212,3 +1235,4 @@ class PresetChoice {
     return data;
   }
 }
+

@@ -22,7 +22,7 @@ class FlattenedAppBarContent extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: Dimensions.paddingSizeDefault),
           child: searchWidget,
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 4),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 5),
           child: addressWidget,

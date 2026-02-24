@@ -12,6 +12,7 @@ import 'package:sixam_mart/util/styles.dart';
 import 'package:sixam_mart/common/widgets/custom_image.dart';
 
 class MessageBubbleWidget extends StatelessWidget {
+  static final Set<String> _loggedFallbackKeys = <String>{};
   final Message message;
   final User? user;
   final String userType;
@@ -19,7 +20,21 @@ class MessageBubbleWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final bool isReply = message.senderId != Get.find<ProfileController>().userInfoModel!.userInfo!.id;
+    final ProfileController? profileController = Get.isRegistered<ProfileController>() ? Get.find<ProfileController>() : null;
+    final int? currentUserId = profileController?.userInfoModel?.userInfo?.id;
+    final int? peerUserId = user?.id;
+    final bool isReply;
+
+    if (currentUserId != null && message.senderId != null) {
+      isReply = message.senderId != currentUserId;
+    } else if (peerUserId != null && message.senderId != null) {
+      // Fallback: if current user profile isn't loaded yet, infer side from the conversation peer.
+      isReply = message.senderId == peerUserId;
+      _logIdentityFallbackOnce(currentUserId, message.senderId, peerUserId);
+    } else {
+      isReply = true;
+      _logIdentityFallbackOnce(currentUserId, message.senderId, peerUserId);
+    }
 
     return (isReply)
         ? Container(
@@ -56,7 +71,7 @@ class MessageBubbleWidget extends StatelessWidget {
                               padding: EdgeInsets.all(message.message != null ? Dimensions.paddingSizeDefault : 0),
                               child: Text(message.message ?? '',
                                   style: robotoRegular.copyWith(
-                                      color: Theme.of(context).textTheme.bodyLarge!.color, fontSize: Dimensions.fontSizeSmall)),
+                                      color: Theme.of(context).textTheme.bodyLarge?.color, fontSize: Dimensions.fontSizeSmall)),
                             ),
                           ),
                         const SizedBox(height: 8.0),
@@ -74,7 +89,7 @@ class MessageBubbleWidget extends StatelessWidget {
               ]),
               const SizedBox(height: Dimensions.paddingSizeSmall),
               Text(
-                DateConverter.convertTodayYesterdayFormat(message.createdAt!),
+                _formatDateOrEmpty(message.createdAt),
                 style: robotoRegular.copyWith(color: Theme.of(context).hintColor, fontSize: Dimensions.fontSizeSmall),
               ),
             ]),
@@ -140,7 +155,7 @@ class MessageBubbleWidget extends StatelessWidget {
                 ),
                 const SizedBox(height: Dimensions.paddingSizeSmall),
                 Text(
-                  DateConverter.convertTodayYesterdayFormat(message.createdAt!),
+                  _formatDateOrEmpty(message.createdAt),
                   style: robotoRegular.copyWith(color: Theme.of(context).hintColor, fontSize: Dimensions.fontSizeSmall),
                 ),
                 const SizedBox(height: Dimensions.paddingSizeLarge),
@@ -204,7 +219,7 @@ class MessageBubbleWidget extends StatelessWidget {
                     style: robotoMedium.copyWith(fontSize: Dimensions.fontSizeExtraSmall, color: Colors.deepPurple),
                   ),
                 ),
-                Text(DateConverter.stringToLocalDateOnly(order.createdAt!),
+                Text(_formatOrderDateOrEmpty(order.createdAt),
                     style: robotoRegular.copyWith(fontSize: Dimensions.fontSizeExtraSmall)),
               ]),
             ),
@@ -225,7 +240,7 @@ class MessageBubbleWidget extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                   text: TextSpan(
                     style: robotoRegular.copyWith(
-                      color: Theme.of(context).textTheme.bodyMedium!.color,
+                      color: Theme.of(context).textTheme.bodyMedium?.color,
                       fontSize: Dimensions.fontSizeSmall,
                     ),
                     children: [
@@ -260,5 +275,38 @@ class MessageBubbleWidget extends StatelessWidget {
         ),
       ]),
     );
+  }
+
+  String _formatDateOrEmpty(String? rawDate) {
+    if (rawDate == null || rawDate.isEmpty) {
+      debugPrint('[SupportFlow][Chat] message createdAt is null/empty, showing empty date');
+      return '';
+    }
+    try {
+      return DateConverter.convertTodayYesterdayFormat(rawDate);
+    } catch (e) {
+      debugPrint('[SupportFlow][Chat] failed to format message date: $e (raw: $rawDate)');
+      return '';
+    }
+  }
+
+  String _formatOrderDateOrEmpty(String? rawDate) {
+    if (rawDate == null || rawDate.isEmpty) {
+      return '';
+    }
+    try {
+      return DateConverter.stringToLocalDateOnly(rawDate);
+    } catch (_) {
+      return '';
+    }
+  }
+
+  void _logIdentityFallbackOnce(int? currentUserId, int? senderId, int? peerUserId) {
+    final String key = '$currentUserId|$senderId|$peerUserId';
+    if (_loggedFallbackKeys.add(key)) {
+      debugPrint(
+        '[SupportFlow][Chat] message identity fallback used (currentUserId: $currentUserId, senderId: $senderId, peerUserId: $peerUserId)',
+      );
+    }
   }
 }

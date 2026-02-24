@@ -9,6 +9,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sixam_mart/util/app_constants.dart';
 import 'package:sixam_mart/common/utils/json_parser.dart';
 import 'package:get/get.dart';
+import 'package:flutter/foundation.dart';
+import 'package:sixam_mart/common/utils/app_logger.dart';
 
 class AppVersionService {
   static const String _versionCheckEndpoint = AppConstants.appVersionCheckUri;
@@ -81,7 +83,9 @@ class AppVersionService {
         );
       }
     } catch (e) {
-      print('Error checking for updates: $e');
+      if (kDebugMode) {
+        appLogger.error('Error checking for updates: $e', e);
+      }
       return VersionCheckResult(
         updateAvailable: false,
         isForceUpdate: false,
@@ -102,7 +106,9 @@ class AppVersionService {
         await launchUrl(url, mode: LaunchMode.externalApplication);
       }
     } catch (e) {
-      print('Error launching store: $e');
+      if (kDebugMode) {
+        appLogger.error('Error launching store: $e', e);
+      }
     }
   }
 
@@ -110,7 +116,9 @@ class AppVersionService {
   Future<bool> tryInAppUpdate() async {
     // DISABLED: Play Store InAppUpdate causes crashes on some devices
     // (low battery, low disk space, etc.)
-    print('InAppUpdate disabled to prevent crashes');
+    if (kDebugMode) {
+      appLogger.info('InAppUpdate disabled to prevent crashes');
+    }
     return false;
   }
 

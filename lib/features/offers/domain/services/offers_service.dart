@@ -16,10 +16,18 @@ class OffersService implements Offers_ServiceInterface {
   }
 
   @override
-  Future<ItemModel?> getOffersItem(
-      {int? offset, int? limit, String? id}) async {
+  Future<ItemModel?> getOffersItem({
+    int? offset,
+    int? limit,
+    String? id,
+    bool forceRefresh = false,
+  }) async {
     return await offersRepositoryinterface.getOffersItem(
-        offset: offset, id: id, limit: limit);
+      offset: offset,
+      id: id,
+      limit: limit,
+      forceRefresh: forceRefresh,
+    );
   }
 
   @override

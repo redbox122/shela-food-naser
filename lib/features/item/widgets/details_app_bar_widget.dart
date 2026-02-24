@@ -71,8 +71,9 @@ class DetailsAppBarWidgetState extends State<DetailsAppBarWidget> with SingleTic
                   child: GetBuilder<CartController>(
                     id: 'cart_count', // 🔥 FIX: Use cart_count ID to receive updates from _onCartMutated()
                     builder: (cartController) {
+                    final int cartQuantity = cartController.totalCartQuantity;
                     return Text(
-                      cartController.cartList.length.toString(),
+                      cartQuantity.toString(),
                       style: robotoMedium.copyWith(color: Colors.white, fontSize: 8),
                     );
                   }),

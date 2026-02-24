@@ -1,8 +1,10 @@
 import 'package:get/get.dart';
+import 'package:flutter/foundation.dart';
 import '../domain/models/qidha_wallet_analytics.dart';
 import '../domain/repositories/qidha_wallet_repository.dart';
 import '../../category/domain/models/category_model.dart';
 import '../../category/controllers/category_controller.dart';
+import 'package:sixam_mart/common/utils/app_logger.dart';
 
 class QidhaWalletController extends GetxController {
   final QidhaWalletRepository _repository;
@@ -84,14 +86,18 @@ class QidhaWalletController extends GetxController {
     _transactions.clear();
 
     try {
-      print('🔍 QidhaWalletController: Loading ALL transactions...');
+      if (kDebugMode) {
+        appLogger.debug('🔍 QidhaWalletController: Loading ALL transactions...');
+      }
 
       // First, get the analytics summary to know how many orders were paid
       final summary = await _repository.getAnalyticsSummary();
       final totalOrdersPaid = summary.paymentFrequency.totalOrdersPaid;
 
-      print(
-          '🔍 QidhaWalletController: Total orders paid according to analytics: $totalOrdersPaid');
+      if (kDebugMode) {
+        appLogger.debug(
+            '🔍 QidhaWalletController: Total orders paid according to analytics: $totalOrdersPaid');
+      }
 
       // Load transactions in batches
       int offset = 0;
@@ -99,15 +105,19 @@ class QidhaWalletController extends GetxController {
       bool hasMoreData = true;
 
       while (hasMoreData) {
-        print(
-            '🔍 QidhaWalletController: Loading batch starting at offset $offset');
+        if (kDebugMode) {
+          appLogger.debug(
+              '🔍 QidhaWalletController: Loading batch starting at offset $offset');
+        }
 
         final batch = await _repository.getTransactions(
           offset: offset,
         );
 
-        print(
-            '🔍 QidhaWalletController: Loaded ${batch.length} transactions in this batch');
+        if (kDebugMode) {
+          appLogger.debug(
+              '🔍 QidhaWalletController: Loaded ${batch.length} transactions in this batch');
+        }
 
         if (batch.isEmpty) {
           hasMoreData = false;
@@ -123,11 +133,15 @@ class QidhaWalletController extends GetxController {
         }
       }
 
-      print(
-          '🔍 QidhaWalletController: Finished loading. Total transactions loaded: ${_transactions.length}');
+      if (kDebugMode) {
+        appLogger.info(
+            '🔍 QidhaWalletController: Finished loading. Total transactions loaded: ${_transactions.length}');
+      }
     } catch (e) {
       _transactionsError.value = e.toString();
-      print('🔍 QidhaWalletController: Error loading all transactions: $e');
+      if (kDebugMode) {
+        appLogger.error('🔍 QidhaWalletController: Error loading all transactions: $e', e);
+      }
     } finally {
       _isLoadingTransactions.value = false;
     }
@@ -148,8 +162,10 @@ class QidhaWalletController extends GetxController {
         dateFrom: dateFrom,
         dateTo: dateTo,
       );
-      print(
-          '🔍 QidhaWalletController: Analytics summary loaded, salaryDayInfo: ${summary.salaryDayInfo != null}');
+      if (kDebugMode) {
+        appLogger.debug(
+            '🔍 QidhaWalletController: Analytics summary loaded, salaryDayInfo: ${summary.salaryDayInfo != null}');
+      }
       _analyticsSummary.value = summary;
     } catch (e) {
       _analyticsError.value = e.toString();
@@ -172,8 +188,10 @@ class QidhaWalletController extends GetxController {
     _transactionsError.value = '';
 
     try {
-      print(
-          '🔍 QidhaWalletController: Loading transactions with offset=$offset, limit=$limit, loadMore=$loadMore');
+      if (kDebugMode) {
+        appLogger.debug(
+            '🔍 QidhaWalletController: Loading transactions with offset=$offset, limit=$limit, loadMore=$loadMore');
+      }
       final transactions = await _repository.getTransactions(
         offset: offset,
         limit: limit,
@@ -183,23 +201,31 @@ class QidhaWalletController extends GetxController {
         orderId: orderId,
       );
 
-      print(
-          '🔍 QidhaWalletController: Received ${transactions.length} transactions');
-      print(
-          '🔍 QidhaWalletController: Transaction order IDs: ${transactions.map((t) => t.orderId).toList()}');
+      if (kDebugMode) {
+        appLogger.debug(
+            '🔍 QidhaWalletController: Received ${transactions.length} transactions');
+        appLogger.debug(
+            '🔍 QidhaWalletController: Transaction order IDs: ${transactions.map((t) => t.orderId).toList()}');
+      }
 
       if (loadMore) {
         _transactions.addAll(transactions);
-        print(
-            '🔍 QidhaWalletController: Added to existing list. Total transactions: ${_transactions.length}');
+        if (kDebugMode) {
+          appLogger.debug(
+              '🔍 QidhaWalletController: Added to existing list. Total transactions: ${_transactions.length}');
+        }
       } else {
         _transactions.assignAll(transactions);
-        print(
-            '🔍 QidhaWalletController: Replaced list. Total transactions: ${_transactions.length}');
+        if (kDebugMode) {
+          appLogger.debug(
+              '🔍 QidhaWalletController: Replaced list. Total transactions: ${_transactions.length}');
+        }
       }
     } catch (e) {
       _transactionsError.value = e.toString();
-      print('🔍 QidhaWalletController: Error loading transactions: $e');
+      if (kDebugMode) {
+        appLogger.error('🔍 QidhaWalletController: Error loading transactions: $e', e);
+      }
     } finally {
       _isLoadingTransactions.value = false;
     }
@@ -322,8 +348,10 @@ class QidhaWalletController extends GetxController {
     try {
       if (Get.isRegistered<CategoryController>()) {
         final categoryController = Get.find<CategoryController>();
-        print(
-            'CategoryController found, categoryList length: ${categoryController.categoryList?.length ?? 0}');
+        if (kDebugMode) {
+          appLogger.debug(
+              'CategoryController found, categoryList length: ${categoryController.categoryList?.length ?? 0}');
+        }
 
         if (categoryController.categoryList != null &&
             categoryController.categoryList!.isNotEmpty) {
@@ -333,24 +361,34 @@ class QidhaWalletController extends GetxController {
           );
 
           if (category.id != null) {
-            print(
-                'Found category: ${category.name}, Image: ${category.imageFullUrl}');
+            if (kDebugMode) {
+              appLogger.debug(
+                  'Found category: ${category.name}, Image: ${category.imageFullUrl}');
+            }
             return category.imageFullUrl;
           } else {
-            print('Category with ID $categoryId not found in categoryList');
-            // Print available category IDs for debugging
-            final availableIds =
-                categoryController.categoryList!.map((cat) => cat.id).toList();
-            print('Available category IDs: $availableIds');
+            if (kDebugMode) {
+              appLogger.debug('Category with ID $categoryId not found in categoryList');
+              // Print available category IDs for debugging
+              final availableIds =
+                  categoryController.categoryList!.map((cat) => cat.id).toList();
+              appLogger.debug('Available category IDs: $availableIds');
+            }
           }
         } else {
-          print('CategoryList is null or empty');
+          if (kDebugMode) {
+            appLogger.debug('CategoryList is null or empty');
+          }
         }
       } else {
-        print('CategoryController not registered');
+        if (kDebugMode) {
+          appLogger.debug('CategoryController not registered');
+        }
       }
     } catch (e) {
-      print('Error getting category image for ID $categoryId: $e');
+      if (kDebugMode) {
+        appLogger.error('Error getting category image for ID $categoryId: $e', e);
+      }
     }
     return null;
   }
@@ -364,7 +402,9 @@ class QidhaWalletController extends GetxController {
       // Load categories if not already loaded
       if (categoryController.categoryList == null ||
           categoryController.categoryList!.isEmpty) {
-        print('Loading categories...');
+        if (kDebugMode) {
+          appLogger.debug('Loading categories...');
+        }
         await categoryController.getCategoryList(true);
       }
 
@@ -373,7 +413,9 @@ class QidhaWalletController extends GetxController {
 
       final updatedCategories = _spendingCategories.map((category) {
         final imageUrl = getCategoryImageById(category.categoryId);
-        print('Category ID: ${category.categoryId}, Image URL: $imageUrl');
+        if (kDebugMode) {
+          appLogger.debug('Category ID: ${category.categoryId}, Image URL: $imageUrl');
+        }
         return QidhaSpendingCategory(
           categoryId: category.categoryId,
           categoryName: category.categoryName,
@@ -389,7 +431,9 @@ class QidhaWalletController extends GetxController {
 
       _spendingCategories.value = updatedCategories;
     } else {
-      print('CategoryController not registered, cannot load category images');
+      if (kDebugMode) {
+        appLogger.debug('CategoryController not registered, cannot load category images');
+      }
     }
   }
 }

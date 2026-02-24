@@ -134,6 +134,11 @@ class _GroceryHomeScreenState extends State<GroceryHomeScreen> {
           appLogger.debug('GroceryHomeScreen: allRestaurantsSection enabled = $allRestaurantsEnabled');
           
           if (allRestaurantsEnabled) {
+            if (AppConstants.useBffV2Endpoint) {
+              appLogger.info(
+                  '🛡️ GroceryHomeScreen: Unified-only policy - skipping legacy allStoreModel fetch');
+              return;
+            }
             appLogger.info('📡 GroceryHomeScreen: Initializing legacy pagination engine (allStoreModel)');
             appLogger.debug('GroceryHomeScreen: reload=true ensures clean state and correct totalSize (300+)');
             appLogger.debug('GroceryHomeScreen: Calling storeController.getStoreList(1, true)');

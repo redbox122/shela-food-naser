@@ -39,8 +39,6 @@ class BiometricAuthService {
   
   // Security level constants
   static const int _securityLevelLow = 1;      // PIN only
-  static const int _securityLevelMedium = 2;   // Biometric + PIN
-  static const int _securityLevelHigh = 3;     // Biometric + PIN + Timeout
   static const int _securityLevelMax = 4;      // Biometric + PIN + Timeout + Location
 
   /// Initialize biometric authentication service

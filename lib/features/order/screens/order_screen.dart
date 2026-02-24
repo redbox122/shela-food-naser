@@ -3,7 +3,6 @@
 import 'package:sixam_mart/common/widgets/custom_ink_well.dart';
 import 'package:sixam_mart/features/order/controllers/order_controller.dart';
 import 'package:sixam_mart/features/order/widgets/order_view_widget.dart';
-import 'package:sixam_mart/features/rental_module/rental_order/controllers/taxi_order_controller.dart';
 import 'package:sixam_mart/helper/auth_helper.dart';
 import 'package:sixam_mart/helper/responsive_helper.dart';
 import 'package:sixam_mart/helper/taxi_helper.dart';
@@ -13,7 +12,9 @@ import 'package:sixam_mart/util/styles.dart';
 import 'package:sixam_mart/common/widgets/custom_app_bar.dart';
 import 'package:sixam_mart/features/order/widgets/guest_track_order_input_view_widget.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
+import 'package:sixam_mart/common/utils/app_logger.dart';
 
 class OrderScreen extends StatefulWidget {
   final int? index;
@@ -33,35 +34,48 @@ class OrderScreenState extends State<OrderScreen> with TickerProviderStateMixin 
   @override
   void initState() {
     super.initState();
-    selectTypeIndex = widget.index ?? 0;
-    _tabController = TabController(length: 3, vsync: this);
+    selectTypeIndex = (widget.index ?? 0).clamp(0, 2);
+    _tabController = TabController(length: 3, vsync: this, initialIndex: selectTypeIndex);
     haveTaxiModule = TaxiHelper.haveTaxiModule();
     _tabController.addListener(() {
       if (!_tabController.indexIsChanging) {
         setState(() {
           selectTypeIndex = _tabController.index;
         });
-        print('📌 Selected tab index: $selectTypeIndex');
+        _loadOrdersForSelectedTab();
+        if (kDebugMode) {
+          appLogger.debug('Selected tab index: $selectTypeIndex');
+        }
       }
     });
     initCall();
   }
 
+  void _loadOrdersForSelectedTab() {
+    if (!_isLoggedIn) return;
+    if (selectTypeIndex == 2) {
+      debugPrint('[OrderTab] loading history for tab=2');
+      Get.find<OrderController>().getHistoryOrders(1, isUpdate: true);
+    } else {
+      debugPrint('[OrderTab] loading running/scheduled for tab=$selectTypeIndex');
+      Get.find<OrderController>().getRunningOrders(1, isUpdate: true);
+    }
+  }
+
   void initCall() {
+    debugPrint('[OrderTab] initCall loggedIn=$_isLoggedIn selectedTab=$selectTypeIndex haveTaxi=$haveTaxiModule');
     if (_isLoggedIn) {
-      if (selectTypeIndex == 0) {
-        Get.find<OrderController>().getRunningOrders(1);
-        Get.find<OrderController>().getHistoryOrders(1);
-      } else {
-        Get.find<TaxiOrderController>().getTripList(1);
-        Get.find<TaxiOrderController>().getTripList(1, isRunning: false);
-      }
+      // Always fetch order data for this screen.
+      debugPrint('[OrderTab] initial load running + history orders');
+      Get.find<OrderController>().getRunningOrders(1);
+      Get.find<OrderController>().getHistoryOrders(1);
     }
   }
 
   @override
   Widget build(BuildContext context) {
     _isLoggedIn = AuthHelper.isLoggedIn();
+    debugPrint('[OrderTab] build loggedIn=$_isLoggedIn selectedTab=$selectTypeIndex');
     return Scaffold(
       backgroundColor: Theme.of(context).colorScheme.surface,
       appBar: haveTaxiModule && !ResponsiveHelper.isDesktop(context)
@@ -83,10 +97,10 @@ class OrderScreenState extends State<OrderScreen> with TickerProviderStateMixin 
                               const SizedBox(height: Dimensions.paddingSizeDefault),
                               _buildStyledTabBar(context),
                               Expanded(
-                                child: TabBarView(controller: _tabController, children: [
-                                  OrderViewWidget(isRunning: selectTypeIndex = 0),
-                                  OrderViewWidget(isRunning: selectTypeIndex = 1),
-                                  OrderViewWidget(isRunning: selectTypeIndex = 2),
+                                child: TabBarView(controller: _tabController, children: const [
+                                  OrderViewWidget(isRunning: 0),
+                                  OrderViewWidget(isRunning: 1),
+                                  OrderViewWidget(isRunning: 2),
                                 ]),
                               ),
                             ],
@@ -175,6 +189,7 @@ class OrderScreenState extends State<OrderScreen> with TickerProviderStateMixin 
                       setState(() {
                         selectTypeIndex = index;
                       });
+                      debugPrint('[OrderTab] header switch -> $selectTypeIndex (${type[index]})');
                       initCall();
                     },
                     radius: Dimensions.radiusLarge,

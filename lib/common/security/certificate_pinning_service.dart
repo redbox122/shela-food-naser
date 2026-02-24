@@ -135,11 +135,17 @@ class CertificatePinningService {
   /// [baseUrl] - Base URL for API calls
   static void configureDioWithSecurity(Dio dio, String baseUrl) {
     try {
-      // Add security headers
-      dio.options.headers['X-Requested-With'] = 'XMLHttpRequest';
+      // ⚠️ WEB FIX: على الويب، بعض الـ headers تسبب مشاكل CORS
+      // نضيف فقط الـ headers الآمنة
+      if (!kIsWeb) {
+        // على الموبايل، نضيف كل الـ headers
+        dio.options.headers['X-Requested-With'] = 'XMLHttpRequest';
+        dio.options.headers['X-Frame-Options'] = 'DENY';
+        dio.options.headers['X-XSS-Protection'] = '1; mode=block';
+      }
+      
+      // الـ headers الآمنة على جميع المنصات
       dio.options.headers['X-Content-Type-Options'] = 'nosniff';
-      dio.options.headers['X-Frame-Options'] = 'DENY';
-      dio.options.headers['X-XSS-Protection'] = '1; mode=block';
 
       // Configure timeouts
       dio.options.connectTimeout = const Duration(seconds: 30);
@@ -257,7 +263,7 @@ class CertificatePinningService {
   static Future<bool> testCertificatePinning(String testUrl) async {
     try {
       final uri = Uri.parse(testUrl);
-      final isValid = await validateServerCertificate(uri.host, uri.port ?? 443);
+      final isValid = await validateServerCertificate(uri.host, uri.port);
       
       if (kDebugMode) {
         print('🧪 Certificate pinning test for $testUrl: ${isValid ? 'PASSED' : 'FAILED'}');

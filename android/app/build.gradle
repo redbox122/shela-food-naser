@@ -79,12 +79,20 @@ android {
         debug {
             // default debug signing
         }
+        release {
+            if (keystorePropertiesFile.exists()) {
+                storeFile file(keystoreProperties['storeFile'])
+                storePassword keystoreProperties['storePassword']
+                keyAlias keystoreProperties['keyAlias']
+                keyPassword keystoreProperties['keyPassword']
+            }
+        }
     }
 
     buildTypes {
         release {
             // ✅ أهم سطر: استخدم debug signing
-            signingConfig signingConfigs.debug
+            signingConfig signingConfigs.release
 
             // للتجربة فقط
             minifyEnabled false

@@ -43,6 +43,10 @@ class ItemController extends GetxController implements GetxService {
 
   final Map<int, DateTime> _directAddCooldowns = <int, DateTime>{};
   final Duration _directAddCooldown = const Duration(milliseconds: 350);
+  DateTime? _lastItemNavigationAt;
+  int? _lastNavigatedItemId;
+  static const Duration _itemNavigationDebounce =
+      Duration(milliseconds: 700);
 
   List<Item>? _popularItemList;
   List<Item>? get popularItemList => _popularItemList;
@@ -789,6 +793,15 @@ class ItemController extends GetxController implements GetxService {
     _cartIndex = -1;
   }
 
+  /// Bottom sheet add mode: always start from 1 as delta quantity to add.
+  void resetQuantityForIncrementalAdd({bool notify = true}) {
+    _quantity = 1;
+    _recalculateDetailsViewData();
+    if (notify) {
+      update();
+    }
+  }
+
   Future<int> setExistInCart(Item? item, List<List<bool?>>? selectedVariations,
       {bool notify = false}) async {
     // Early return if item is null
@@ -1228,11 +1241,19 @@ class ItemController extends GetxController implements GetxService {
       }
       return true;
     }
+    // Some food items expose customizations only via add_ons.
+    if (item.addOns != null && item.addOns!.isNotEmpty) {
+      if (logEnabled) {
+        debugPrint('✅ [_hasVariations] Item has ${item.addOns!.length} addOns');
+      }
+      return true;
+    }
     if (logEnabled) {
       debugPrint('❌ [_hasVariations] Item has NO variations');
       debugPrint('   - foodVariations: ${item.foodVariations?.length ?? 0}');
       debugPrint('   - choiceOptions: ${item.choiceOptions?.length ?? 0}');
       debugPrint('   - variations: ${item.variations?.length ?? 0}');
+      debugPrint('   - addOns: ${item.addOns?.length ?? 0}');
     }
     return false;
   }
@@ -1240,6 +1261,18 @@ class ItemController extends GetxController implements GetxService {
   void navigateToItemPage(Item? item, BuildContext context,
       {bool inStore = false, bool isCampaign = false}) async {
     if (item == null) return;
+    final DateTime now = DateTime.now();
+    if (_lastNavigatedItemId == item.id &&
+        _lastItemNavigationAt != null &&
+        now.difference(_lastItemNavigationAt!) < _itemNavigationDebounce) {
+      if (kDebugMode) {
+        debugPrint(
+            '⏭️ [navigateToItemPage] Double tap blocked for item: ${item.id}');
+      }
+      return;
+    }
+    _lastNavigatedItemId = item.id;
+    _lastItemNavigationAt = now;
 
     const bool logEnabled = kDebugMode && AppConstants.enableVerboseLogs;
     if (logEnabled) {
@@ -1266,62 +1299,34 @@ class ItemController extends GetxController implements GetxService {
       debugPrint('   - item.moduleType: ${item.moduleType}');
     }
 
-    // ✅ For food module items, ALWAYS fetch full details to ensure foodVariations are loaded
-    // Category list items might not have full variation data populated, so we always fetch
-    Item? fullItem = item;
-    if (isFoodModule) {
-      // Always fetch full details for food module items to ensure we have complete data
-      // This ensures we always have foodVariations even if category list item doesn't have them
-      if (logEnabled) {
-        debugPrint('   - Fetching full item details for food module item...');
-      }
-      try {
-        fullItem = await itemServiceInterface.getItemDetails(item.id);
-        if (logEnabled) {
-          debugPrint('🔍 [navigateToItemPage] Fetched full item details:');
-          debugPrint('   - Item ID: ${fullItem?.id}');
-          debugPrint(
-              '   - Has foodVariations: ${fullItem?.foodVariations != null && fullItem!.foodVariations!.isNotEmpty}');
-          debugPrint(
-              '   - foodVariations count: ${fullItem?.foodVariations?.length ?? 0}');
-          debugPrint(
-              '   - Has choiceOptions: ${fullItem?.choiceOptions != null && fullItem!.choiceOptions!.isNotEmpty}');
-          debugPrint(
-              '   - Has variations: ${fullItem?.variations != null && fullItem!.variations!.isNotEmpty}');
-        }
-      } catch (e) {
-        if (logEnabled) {
-          debugPrint('⚠️ [navigateToItemPage] Error fetching item details: $e');
-          debugPrint('   - Falling back to original item');
-        }
-        // Fallback to original item
-        fullItem = item;
-      }
-    }
+    // ItemBottomSheet does the detail fetch for food items.
+    // Keep a single request path to avoid duplicate item/details calls.
+    final Item fullItem = item;
 
     if (!context.mounted) {
       return;
     }
 
-    // For food module: show ItemBottomSheet only if item has variations
-    // Otherwise, show ItemDetailsScreen (like ecommerce)
-    // ✅ Null-safe: Check if fullItem is not null before accessing
-    if (isFoodModule && fullItem != null && _hasVariations(fullItem)) {
+    // For food module: always open ItemBottomSheet (same UX as restaurant app style)
+    if (isFoodModule) {
+      final Item itemToOpen = fullItem;
       if (logEnabled) {
         debugPrint(
-            '✅ [navigateToItemPage] Opening ItemBottomSheet - item has variations');
+            '✅ [navigateToItemPage] Opening ItemBottomSheet for food item');
       }
       ResponsiveHelper.isMobile(context)
           ? Get.bottomSheet<void>(
               ItemBottomSheet(
-                  item: fullItem, inStorePage: inStore, isCampaign: isCampaign),
+                  item: itemToOpen,
+                  inStorePage: inStore,
+                  isCampaign: isCampaign),
               backgroundColor: Colors.transparent,
               isScrollControlled: true,
             )
           : Get.dialog<void>(
               Dialog(
                   child: ItemBottomSheet(
-                      item: fullItem,
+                      item: itemToOpen,
                       inStorePage: inStore,
                       isCampaign: isCampaign)),
             );
@@ -1329,14 +1334,12 @@ class ItemController extends GetxController implements GetxService {
       if (logEnabled) {
         debugPrint('📄 [navigateToItemPage] Navigating to ItemDetailsScreen');
         debugPrint('   - isFoodModule: $isFoodModule');
-        debugPrint('   - fullItem is null: ${fullItem == null}');
-        if (fullItem != null) {
-          debugPrint('   - hasVariations: ${_hasVariations(fullItem)}');
-        }
+        debugPrint('   - fullItem is null: false');
+        debugPrint('   - hasVariations: ${_hasVariations(fullItem)}');
       }
       // Navigate to ItemDetailsScreen (for ecommerce or food items without variations)
       // ✅ Use original item if fullItem is null (fallback)
-      final itemToNavigate = fullItem ?? item;
+      final itemToNavigate = fullItem;
       final List<Item> allItems = [];
       Get.toNamed<void>(
           RouteHelper.getItemDetailsRoute(itemToNavigate.id, inStore),
@@ -1383,17 +1386,25 @@ class ItemController extends GetxController implements GetxService {
     // ✅ Treat null variations as "no variations" so we can add directly.
     final bool hasNoFoodVariations =
         item.foodVariations == null || item.foodVariations!.isEmpty;
+    final bool hasNoAddOns = item.addOns == null || item.addOns!.isEmpty;
     final bool hasNoVariations =
         item.variations == null || item.variations!.isEmpty;
-    if ((hasNoFoodVariations && item.moduleType == AppConstants.food) ||
+    if ((hasNoFoodVariations &&
+            hasNoAddOns &&
+            item.moduleType == AppConstants.food) ||
         (hasNoVariations && item.moduleType != AppConstants.food)) {
       // ✅ Backend already calculated discount - price is ALREADY discounted!
       final double discountedPrice = item.price!;
       final double originalPrice = item.originalPrice ?? item.price!;
       final double discountAmount = originalPrice - discountedPrice;
 
-      // 🔧 FIX: Get storeId from multiple sources to ensure it's never null
-      int? effectiveStoreId3 = item.storeId;
+      // In store page context, trust current store first to avoid false
+      // "different store" prompts when item.storeId is inconsistent.
+      int? effectiveStoreId3;
+      if (inStore && Get.isRegistered<StoreController>()) {
+        effectiveStoreId3 = Get.find<StoreController>().store?.id;
+      }
+      effectiveStoreId3 ??= item.storeId;
       if (effectiveStoreId3 == null && Get.isRegistered<StoreController>()) {
         effectiveStoreId3 = Get.find<StoreController>().store?.id;
       }
@@ -1435,7 +1446,7 @@ class ItemController extends GetxController implements GetxService {
       // TEMP: stock gate is intentionally disabled to allow add-to-cart
       // even when backend returns zero stock.
       if (Get.find<CartController>().existAnotherStoreItem(
-          cartModel.item!.storeId,
+          effectiveStoreId3,
           ModuleHelper.getModule() != null
               ? ModuleHelper.getModule()?.id
               : ModuleHelper.getCacheModule()?.id)) {
@@ -1502,3 +1513,4 @@ class ItemController extends GetxController implements GetxService {
     }
   }
 }
+

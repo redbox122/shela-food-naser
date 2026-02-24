@@ -23,13 +23,13 @@ class ModulesViewWidget extends StatelessWidget {
         ModuleModel(id: -2, moduleName: 'مطاعم', moduleType: 'food'),
         ModuleModel(id: -3, moduleName: 'مقاهي', moduleType: 'food'),
         ModuleModel(id: -4, moduleName: 'صيدليات', moduleType: 'pharmacy'),
-        ModuleModel(id: -5, moduleName: 'محلات تجارية', moduleType: 'ecommerce'),
+        ModuleModel(
+            id: -5, moduleName: 'محلات تجارية', moduleType: 'ecommerce'),
       ];
 
       final bool isFallbackList = moduleList == null || moduleList.isEmpty;
-      final List<ModuleModel> modules = isFallbackList
-          ? fallbackModules
-          : (moduleList).cast<ModuleModel>();
+      final List<ModuleModel> modules =
+          isFallbackList ? fallbackModules : (moduleList).cast<ModuleModel>();
       final List<ModuleModel> sortedModules = [
         ...modules.where((module) => !disabledModuleIds.contains(module.id)),
         ...modules.where((module) => disabledModuleIds.contains(module.id)),
@@ -37,28 +37,31 @@ class ModulesViewWidget extends StatelessWidget {
 
       return (moduleList != null && moduleList.isNotEmpty) || modules.isNotEmpty
           ? LayoutBuilder(
-                  builder: (context, constraints) {
-                    const mainAxisSpacing = 10.0;
-                    const itemHeight = 72.0;
-                    final bool isFallback = isFallbackList;
-                    if (kDebugMode && isFallback) {
-                      debugPrint('⚠️ ModulesViewWidget: Using fallback module list (API modules missing)');
-                    }
+              builder: (context, constraints) {
+                const mainAxisSpacing = 10.0;
+                const itemHeight = 72.0;
+                final bool isFallback = isFallbackList;
+                if (kDebugMode && isFallback) {
+                  debugPrint(
+                      '⚠️ ModulesViewWidget: Using fallback module list (API modules missing)');
+                }
 
-                    return Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Padding(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: Dimensions.paddingSizeDefault),
-                          child: TitleWidget(
-                            title: 'our_services'.tr,
-                          ),
-                        ),
-                        Padding(
-                          padding: const EdgeInsets.all(
-                              Dimensions.paddingSizeDefault),
-                          child: AnimationLimiter(
+                return Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: Dimensions.paddingSizeDefault),
+                      child: TitleWidget(
+                        title: 'our_services'.tr,
+                      ),
+                    ),
+                    Padding(
+                      padding:
+                          const EdgeInsets.all(Dimensions.paddingSizeDefault),
+                      child: Stack(
+                        children: [
+                          AnimationLimiter(
                             child: ListView.separated(
                               shrinkWrap: true,
                               physics: const NeverScrollableScrollPhysics(),
@@ -69,52 +72,56 @@ class ModulesViewWidget extends StatelessWidget {
                                 final module = sortedModules[index];
                                 final bool isDisabled = isFallback ||
                                     disabledModuleIds.contains(module.id);
+                                final bool blockedBySwitch =
+                                    splashController.isModuleSwitching;
+                                final bool isTapDisabled =
+                                    isDisabled || blockedBySwitch;
                                 return SizedBox(
                                   height: itemHeight,
                                   child: AnimationConfiguration.staggeredList(
                                     position: index,
-                                    duration:
-                                        const Duration(milliseconds: 375),
+                                    duration: const Duration(milliseconds: 375),
                                     child: SlideAnimation(
                                       verticalOffset: 50.0,
                                       child: FadeInAnimation(
                                         child: InkWell(
-                                          onTap: isDisabled ? null : () {
-                                            HapticFeedback.lightImpact();
-                                            try {
-                                              // 🏗️ MODULE-FIRST ARCHITECTURE: Use selectModule for clean module selection
-                                              // selectModule updates Single Source of Truth and navigates to Dashboard
-                                              // This is the ONLY way to select a module from UI - no switchModule, no cleanup, no heavy operations
-                                              
-                                              // 🔍 DIAGNOSTIC LOG: Confirm module tap
-                                              if (kDebugMode) {
-                                                debugPrint('👆 ModulesViewWidget: Module tapped -> id=${module.id} name=${module.moduleName}');
-                                              }
-                                              
-                                              splashController.selectModule(module, context: context);
-                                              
-                                              if (kDebugMode) {
-                                                debugPrint('✅ ModulesViewWidget: selectModule() call completed');
-                                              }
-                                            } catch (e, stackTrace) {
-                                              debugPrint(
-                                                  '❌ ModulesViewWidget: Error selecting module: $e');
-                                              debugPrint(
-                                                  'Stack trace: $stackTrace');
-                                              if (context.mounted) {
-                                                Get.snackbar(
-                                                  'Error',
-                                                  'Failed to select module. Please try again.',
-                                                  snackPosition:
-                                                      SnackPosition.BOTTOM,
-                                                );
-                                              }
-                                            }
-                                          },
+                                          onTap: isTapDisabled
+                                              ? null
+                                              : () {
+                                                  HapticFeedback.lightImpact();
+                                                  try {
+                                                    if (kDebugMode) {
+                                                      debugPrint(
+                                                          '👆 ModulesViewWidget: Module tapped -> id=${module.id} name=${module.moduleName}');
+                                                    }
+                                                    splashController
+                                                        .selectModule(module,
+                                                            context: context);
+                                                    if (kDebugMode) {
+                                                      debugPrint(
+                                                          '✅ ModulesViewWidget: selectModule() call completed');
+                                                    }
+                                                  } catch (e, stackTrace) {
+                                                    debugPrint(
+                                                        '❌ ModulesViewWidget: Error selecting module: $e');
+                                                    debugPrint(
+                                                        'Stack trace: $stackTrace');
+                                                    if (context.mounted) {
+                                                      Get.snackbar(
+                                                        'Error',
+                                                        'Failed to select module. Please try again.',
+                                                        snackPosition:
+                                                            SnackPosition
+                                                                .BOTTOM,
+                                                      );
+                                                    }
+                                                  }
+                                                },
                                           child: Container(
                                             decoration: BoxDecoration(
-                                              color: isDisabled
-                                                  ? Colors.grey.withValues(alpha: 0.15)
+                                              color: isTapDisabled
+                                                  ? Colors.grey
+                                                      .withValues(alpha: 0.15)
                                                   : Colors.white,
                                               borderRadius:
                                                   BorderRadius.circular(16),
@@ -128,10 +135,10 @@ class ModulesViewWidget extends StatelessWidget {
                                               ],
                                             ),
                                             padding: const EdgeInsets.symmetric(
-                                              horizontal: Dimensions
-                                                  .paddingSizeDefault,
-                                              vertical: Dimensions
-                                                  .paddingSizeSmall,
+                                              horizontal:
+                                                  Dimensions.paddingSizeDefault,
+                                              vertical:
+                                                  Dimensions.paddingSizeSmall,
                                             ),
                                             child: Row(
                                               children: [
@@ -141,7 +148,8 @@ class ModulesViewWidget extends StatelessWidget {
                                                   decoration: BoxDecoration(
                                                     color: Theme.of(context)
                                                         .primaryColor
-                                                        .withValues(alpha: 0.08),
+                                                        .withValues(
+                                                            alpha: 0.08),
                                                     borderRadius:
                                                         BorderRadius.circular(
                                                             12),
@@ -165,20 +173,26 @@ class ModulesViewWidget extends StatelessWidget {
                                                           ),
                                                           if (isDisabled)
                                                             Container(
-                                                              color: Colors.black
-                                                                  .withValues(alpha: 0.45),
+                                                              color: Colors
+                                                                  .black
+                                                                  .withValues(
+                                                                      alpha:
+                                                                          0.45),
                                                               alignment:
-                                                                  Alignment.center,
+                                                                  Alignment
+                                                                      .center,
                                                               child: Text(
                                                                 isFallback
-                                                                    ? 'قريبًا'
-                                                                    : 'قريبًا',
-                                                                style: TextStyle(
-                                                                  color:
-                                                                      Colors.white,
+                                                                    ? 'قريباً'
+                                                                    : 'قريباً',
+                                                                style:
+                                                                    TextStyle(
+                                                                  color: Colors
+                                                                      .white,
                                                                   fontSize: 10,
                                                                   fontWeight:
-                                                                      FontWeight.w600,
+                                                                      FontWeight
+                                                                          .w600,
                                                                 ),
                                                               ),
                                                             ),
@@ -197,12 +211,13 @@ class ModulesViewWidget extends StatelessWidget {
                                                       fontSize: 14,
                                                       fontWeight:
                                                           FontWeight.w600,
-                                                      color: isDisabled
+                                                      color: isTapDisabled
                                                           ? Theme.of(context)
                                                               .textTheme
                                                               .bodyMedium
                                                               ?.color
-                                                              ?.withValues(alpha: 0.5)
+                                                              ?.withValues(
+                                                                  alpha: 0.5)
                                                           : Theme.of(context)
                                                               .textTheme
                                                               .bodyMedium
@@ -224,11 +239,54 @@ class ModulesViewWidget extends StatelessWidget {
                               },
                             ),
                           ),
-                        ),
-                      ],
-                    );
-                  },
-                )
+                          if (splashController.isModuleSwitching)
+                            Positioned.fill(
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  color: Colors.black.withValues(alpha: 0.18),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Center(
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 14,
+                                      vertical: 10,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: Colors.white,
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                    child: const Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        SizedBox(
+                                          width: 16,
+                                          height: 16,
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 2,
+                                          ),
+                                        ),
+                                        SizedBox(width: 10),
+                                        Text(
+                                          'جاري التبديل...',
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                  ],
+                );
+              },
+            )
           : const SizedBox(); // No shimmer needed, modules should be loaded already
     });
   }

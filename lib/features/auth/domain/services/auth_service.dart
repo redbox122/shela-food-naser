@@ -8,6 +8,7 @@ import 'package:sixam_mart/features/auth/domain/reposotories/auth_repository_int
 import 'package:sixam_mart/features/auth/domain/services/auth_service_interface.dart';
 import 'package:sixam_mart/features/profile/controllers/profile_controller.dart';
 import 'package:sixam_mart/features/wallet_kaidha_subscription/controllers/kaidhaSub_controller.dart';
+import 'package:sixam_mart/helper/admin_otp_bypass_helper.dart';
 
 class AuthService implements AuthServiceInterface {
   final AuthRepositoryInterface authRepositoryInterface;
@@ -18,52 +19,19 @@ class AuthService implements AuthServiceInterface {
     return authRepositoryInterface.isSharedPrefNotificationActive();
   }
 
-  /*@override
-  Future<ResponseModel> registration(SignUpBodyModel signUpBody, bool isCustomerVerificationOn) async {
-    ResponseModel responseModel = await authRepositoryInterface.registration(signUpBody);
-    if(responseModel.isSuccess) {
-      if(!isCustomerVerificationOn) {
-        authRepositoryInterface.saveUserToken(responseModel.message!);
-        await authRepositoryInterface.updateToken();
-        authRepositoryInterface.clearSharedPrefGuestId();
-      }
-    }
-    return responseModel;
-  }*/
-
   @override
   Future<ResponseModel> registration(SignUpBodyModel signUpBody) async {
     final Response response = await authRepositoryInterface.registration(signUpBody);
     if (response.statusCode == 200) {
-      final AuthResponseModel authResponse = AuthResponseModel.fromJson(response.body as Map<String, dynamic>);
+      final AuthResponseModel authResponse =
+          AuthResponseModel.fromJson(response.body as Map<String, dynamic>);
       await _updateHeaderFunctionality(authResponse);
-      return ResponseModel(true, authResponse.token ?? '', authResponseModel: authResponse);
+      return ResponseModel(true, authResponse.token ?? '',
+          authResponseModel: authResponse);
     } else {
       return ResponseModel(false, response.statusText);
     }
   }
-
-/*  @override
-  Future<ResponseModel> login({String? phone, String? password, required bool isCustomerVerificationOn}) async {
-    Response response = await authRepositoryInterface.login(phone: phone, password: password);
-    ResponseModel responseModel;
-    if (response.statusCode == 200) {
-
-      // Get.find<AuthController>().firebaseVerifyPhoneNumber(phone!);
-      // responseModel = ResponseModel(false, 'success');
-      if(isCustomerVerificationOn && response.body['is_phone_verified'] == 0) {
-
-      }else {
-        authRepositoryInterface.saveUserToken(response.body['token']);
-        await authRepositoryInterface.updateToken();
-        authRepositoryInterface.clearSharedPrefGuestId();
-      }
-      responseModel = ResponseModel(true, '${response.body['is_phone_verified']}${response.body['token']}', isPhoneVerified: response.body['is_phone_verified'] == 1);
-    } else {
-      responseModel = ResponseModel(false, response.statusText, isPhoneVerified: response.body['is_phone_verified'] == 1);
-    }
-    return responseModel;
-  }*/
 
   @override
   Future<ResponseModel> login(
@@ -72,40 +40,172 @@ class AuthService implements AuthServiceInterface {
       required String loginType,
       required String fieldType,
       bool alreadyInApp = false}) async {
+    debugPrint('AUTH SERVICE LOGIN CALLED');
+    debugPrint('loginType=$loginType hasPassword=${password.isNotEmpty}');
     final Response response = await authRepositoryInterface.login(
-        emailOrPhone: emailOrPhone, password: password, loginType: loginType, fieldType: fieldType);
+        emailOrPhone: emailOrPhone,
+        password: password,
+        loginType: loginType,
+        fieldType: fieldType);
     if (response.statusCode == 200) {
-      final AuthResponseModel authResponse = AuthResponseModel.fromJson(response.body as Map<String, dynamic>);
-      await _updateHeaderFunctionality(authResponse, alreadyInApp: alreadyInApp);
-      
-      // ⚡ PERFORMANCE: Extract user data from login response and update controllers immediately
-      _updateUserDataFromLoginResponse(response.body as Map<String, dynamic>);
-      
-      return ResponseModel(true, authResponse.token ?? '', authResponseModel: authResponse);
+      final Map<String, dynamic> responseBody =
+          (response.body is Map<String, dynamic>)
+              ? response.body as Map<String, dynamic>
+              : <String, dynamic>{};
+
+      final bool otpRequired =
+          responseBody['otp_required'] == true || responseBody['otp_required'] == 1;
+      if (otpRequired) {
+        final String otpPhone =
+            responseBody['phone']?.toString() ?? emailOrPhone;
+
+        // Admin-only OTP bypass: do not route to OTP screen.
+        // Attempt backend verification directly using the fixed code.
+        if (AdminOtpBypassHelper.isBypassPhone(otpPhone)) {
+          if (kDebugMode) {
+            debugPrint(
+                '🔐 AuthService: Admin OTP bypass login flow for $otpPhone');
+          }
+
+          final Response bypassResponse =
+              await authRepositoryInterface.verifyLoginOtp(
+            phone: otpPhone,
+            otp: AdminOtpBypassHelper.fixedOtp,
+          );
+
+          if (bypassResponse.statusCode == 200) {
+            final Map<String, dynamic> bypassBody =
+                (bypassResponse.body is Map<String, dynamic>)
+                    ? bypassResponse.body as Map<String, dynamic>
+                    : <String, dynamic>{};
+
+            final AuthResponseModel authResponse =
+                AuthResponseModel.fromJson(bypassBody);
+            if (authResponse.token != null && authResponse.token!.isNotEmpty) {
+              if (!bypassBody.containsKey('is_phone_verified')) {
+                authResponse.isPhoneVerified = true;
+              }
+              if (!bypassBody.containsKey('is_personal_info')) {
+                authResponse.isPersonalInfo = true;
+              }
+              if (!bypassBody.containsKey('is_email_verified')) {
+                authResponse.isEmailVerified = true;
+              }
+
+              await _updateHeaderFunctionality(authResponse,
+                  alreadyInApp: alreadyInApp);
+              _updateUserDataFromLoginResponse(bypassBody);
+              return ResponseModel(true, authResponse.token ?? '',
+                  authResponseModel: authResponse);
+            }
+
+            if (kDebugMode) {
+              debugPrint(
+                  '⚠️ AuthService: Admin bypass returned 200 but without token');
+            }
+          } else {
+            if (kDebugMode) {
+              debugPrint(
+                  '⚠️ AuthService: Admin bypass response has no token, keeping OTP-required flow');
+            }
+          }
+        }
+
+        return ResponseModel(true, 'otp_required',
+            otpRequired: true,
+            otpPhone: otpPhone);
+      }
+
+      final AuthResponseModel authResponse =
+          AuthResponseModel.fromJson(responseBody);
+      await _updateHeaderFunctionality(authResponse,
+          alreadyInApp: alreadyInApp);
+
+      // ? PERFORMANCE: Extract user data from login response and update controllers immediately
+      _updateUserDataFromLoginResponse(responseBody);
+
+      return ResponseModel(true, authResponse.token ?? '',
+          authResponseModel: authResponse);
     } else {
       return ResponseModel(false, response.statusText);
     }
   }
 
-  /// ⚡ PERFORMANCE: Update user data from login response (minimal data for instant menu rendering)
+  @override
+  Future<ResponseModel> verifyLoginOtp(
+      {required String phone,
+      required String otp,
+      bool alreadyInApp = false}) async {
+    Response response =
+        await authRepositoryInterface.verifyLoginOtp(phone: phone, otp: otp);
+
+    // Admin-only fallback:
+    // If login-otp endpoint rejects fixed code, try verifyPhone endpoint.
+    if (response.statusCode != 200 &&
+        AdminOtpBypassHelper.isBypassPhone(phone) &&
+        otp == AdminOtpBypassHelper.fixedOtp) {
+      if (kDebugMode) {
+        debugPrint(
+            '🔁 AuthService: verifyLoginOtp failed for admin phone, trying verifyPhone fallback');
+      }
+      response = await authRepositoryInterface.otpLogin(
+        phone: phone,
+        otp: otp,
+        loginType: 'manual',
+        verified: 'yes',
+      );
+    }
+
+    if (response.statusCode == 200) {
+      final Map<String, dynamic> responseBody =
+          (response.body is Map<String, dynamic>)
+              ? response.body as Map<String, dynamic>
+              : <String, dynamic>{};
+      final AuthResponseModel authResponse =
+          AuthResponseModel.fromJson(responseBody);
+      if (authResponse.token == null || authResponse.token!.isEmpty) {
+        return ResponseModel(false, 'Login not completed: missing token');
+      }
+
+      if (!responseBody.containsKey('is_phone_verified')) {
+        authResponse.isPhoneVerified = true;
+      }
+      if (!responseBody.containsKey('is_personal_info')) {
+        authResponse.isPersonalInfo = true;
+      }
+      if (!responseBody.containsKey('is_email_verified')) {
+        authResponse.isEmailVerified = true;
+      }
+
+      await _updateHeaderFunctionality(authResponse,
+          alreadyInApp: alreadyInApp);
+      _updateUserDataFromLoginResponse(responseBody);
+      return ResponseModel(true, authResponse.token ?? '',
+          authResponseModel: authResponse);
+    } else {
+      return ResponseModel(false, response.statusText);
+    }
+  }
+
+  /// ? PERFORMANCE: Update user data from login response (minimal data for instant menu rendering)
   /// Extracts user data and wallet flags from login response and updates controllers immediately
   void _updateUserDataFromLoginResponse(Map<String, dynamic> responseBody) {
     try {
-      print('🔍 AuthService: Checking login response for user data...');
+      debugPrint('🔍 AuthService: Checking login response for user data...');
       
       // Check if user data exists in response (backend will add 'user' field)
       if (responseBody.containsKey('user') && responseBody['user'] is Map) {
         final userData = responseBody['user'] as Map<String, dynamic>;
-        print('✅ AuthService: User data found in login response');
-        print('   - ID: ${userData['id']}');
-        print('   - Name: ${userData['f_name']} ${userData['l_name']}');
-        print('   - Loyalty Points: ${userData['loyalty_point'] ?? 0}');
-        print('   - Wallet Balance: ${userData['wallet_balance'] ?? 0.0}');
-        print('   - Has Qidha Wallet: ${userData['has_qidha_wallet'] ?? false}');
+        debugPrint('✅ AuthService: User data found in login response');
+        debugPrint('   - ID: ${userData['id']}');
+        debugPrint('   - Name: ${userData['f_name']} ${userData['l_name']}');
+        debugPrint('   - Loyalty Points: ${userData['loyalty_point'] ?? 0}');
+        debugPrint('   - Wallet Balance: ${userData['wallet_balance'] ?? 0.0}');
+        debugPrint('   - Has Qidha Wallet: ${userData['has_qidha_wallet'] ?? false}');
         
         // Update ProfileController with minimal user data
         if (Get.isRegistered<ProfileController>()) {
-          print('📝 AuthService: Updating ProfileController with user data...');
+          debugPrint('📝 AuthService: Updating ProfileController with user data...');
           final profileController = Get.find<ProfileController>();
           profileController.setUserInfoFromLogin(
             id: userData['id'] is int ? userData['id'] as int : int.tryParse(userData['id']?.toString() ?? '0'),
@@ -118,17 +218,17 @@ class AuthService implements AuthServiceInterface {
                 ? (double.tryParse(userData['wallet_balance'] as String) ?? 0.0)
                 : ((userData['wallet_balance'] is num) ? (userData['wallet_balance'] as num).toDouble() : 0.0),
           );
-          print('✅ AuthService: ProfileController updated successfully');
+          debugPrint('✅ AuthService: ProfileController updated successfully');
         } else {
-          print('⚠️ AuthService: ProfileController not registered');
+          debugPrint('⚠️ AuthService: ProfileController not registered');
         }
         
         // Update Qidha wallet state if wallet exists
         if (userData['has_qidha_wallet'] == true) {
-          print('💳 AuthService: User has Qidha wallet - updating wallet state...');
-          print('   - Signed: ${userData['qidha_wallet_signed'] ?? false}');
-          print('   - Active: ${userData['qidha_wallet_active'] ?? false}');
-          print('   - Balance: ${userData['qidha_wallet_balance'] ?? 'null'}');
+          debugPrint('💳 AuthService: User has Qidha wallet - updating wallet state...');
+          debugPrint('   - Signed: ${userData['qidha_wallet_signed'] ?? false}');
+          debugPrint('   - Active: ${userData['qidha_wallet_active'] ?? false}');
+          debugPrint('   - Balance: ${userData['qidha_wallet_balance'] ?? 'null'}');
           
           if (Get.isRegistered<KaidhaSubscription_Controller>()) {
             final kaidhaController = Get.find<KaidhaSubscription_Controller>();
@@ -137,7 +237,7 @@ class AuthService implements AuthServiceInterface {
               active: userData['qidha_wallet_active'] == true,
               balance: userData['qidha_wallet_balance']?.toString(),
             );
-            print('✅ AuthService: Wallet state updated successfully');
+            debugPrint('✅ AuthService: Wallet state updated successfully');
             
             // Only fetch full wallet data if wallet is not signed/active (needed for subscription flow)
             final qidhaWalletSigned = userData['qidha_wallet_signed'] is bool 
@@ -147,26 +247,26 @@ class AuthService implements AuthServiceInterface {
                 ? userData['qidha_wallet_active'] as bool 
                 : (userData['qidha_wallet_active']?.toString() == '1' || userData['qidha_wallet_active']?.toString() == 'true');
             if (!qidhaWalletSigned || !qidhaWalletActive) {
-              print('🔄 AuthService: Wallet not signed/active - loading full wallet data in background...');
+              debugPrint('🔄 AuthService: Wallet not signed/active - loading full wallet data in background...');
               // Load full wallet data in background (non-blocking) - needed for subscription flow
               kaidhaController.get_Wallet_Kaidh();
             } else {
-              print('⚡ AuthService: Wallet is signed and active - no API call needed (balance already set)');
+              debugPrint('⚡ AuthService: Wallet is signed and active - no API call needed (balance already set)');
             }
           } else {
-            print('⚠️ AuthService: KaidhaSubscription_Controller not registered');
+            debugPrint('⚠️ AuthService: KaidhaSubscription_Controller not registered');
           }
         } else {
-          print('ℹ️ AuthService: User has no Qidha wallet');
+          debugPrint('ℹ️ AuthService: User has no Qidha wallet');
         }
       } else {
-        print('⚠️ AuthService: No user data in login response (backend may not have updated yet)');
-        print('   - Response keys: ${responseBody.keys.toList()}');
+        debugPrint('⚠️ AuthService: No user data in login response (backend may not have updated yet)');
+        debugPrint('   - Response keys: ${responseBody.keys.toList()}');
       }
     } catch (e, stackTrace) {
       if (kDebugMode) {
-        print('❌ AuthService: Error updating user data from login response - $e');
-        print('   Stack trace: $stackTrace');
+        debugPrint('❌ AuthService: Error updating user data from login response - $e');
+        debugPrint('   Stack trace: $stackTrace');
       }
       // Don't throw - login should still succeed even if user data extraction fails
     }
@@ -197,9 +297,21 @@ class AuthService implements AuthServiceInterface {
       bool alreadyInApp = false}) async {
     final Response response = await authRepositoryInterface.otpLogin(phone: phone, otp: otp, loginType: loginType, verified: verified);
     if (response.statusCode == 200) {
-      final AuthResponseModel authResponse = AuthResponseModel.fromJson(response.body as Map<String, dynamic>);
-      await _updateHeaderFunctionality(authResponse, alreadyInApp: alreadyInApp);
-      return ResponseModel(true, authResponse.token ?? '', authResponseModel: authResponse);
+      final Map<String, dynamic> responseBody =
+          (response.body is Map<String, dynamic>)
+              ? response.body as Map<String, dynamic>
+              : <String, dynamic>{};
+      final bool hasToken = responseBody['token'] != null;
+      if (hasToken) {
+        final AuthResponseModel authResponse =
+            AuthResponseModel.fromJson(responseBody);
+        await _updateHeaderFunctionality(authResponse,
+            alreadyInApp: alreadyInApp);
+        _updateUserDataFromLoginResponse(responseBody);
+        return ResponseModel(true, authResponse.token ?? '',
+            authResponseModel: authResponse);
+      }
+      return ResponseModel(true, response.statusText ?? 'success');
     } else {
       return ResponseModel(false, response.statusText);
     }
@@ -207,11 +319,17 @@ class AuthService implements AuthServiceInterface {
 
   @override
   Future<ResponseModel> resendOtp({required String phone}) async {
+    if (AdminOtpBypassHelper.isBypassPhone(phone)) {
+      if (kDebugMode) {
+        debugPrint(
+            '🔐 AuthService: Admin OTP bypass active, skipping resend API for $phone');
+      }
+      return ResponseModel(true, 'success');
+    }
+
     final Response response = await authRepositoryInterface.resend_Otp(phone: phone);
     if (response.statusCode == 200) {
-      final AuthResponseModel authResponse = AuthResponseModel.fromJson(response.body as Map<String, dynamic>);
-      await _updateHeaderFunctionality(authResponse);
-      return ResponseModel(true, authResponse.token ?? '', authResponseModel: authResponse);
+      return ResponseModel(true, response.statusText ?? 'success');
     } else {
       return ResponseModel(false, response.statusText);
     }
@@ -222,43 +340,18 @@ class AuthService implements AuthServiceInterface {
     return await authRepositoryInterface.guestLogin();
   }
 
-  /*@override
-  Future<bool> loginWithSocialMedia(SocialLogInBody socialLogInBody, int timeout, bool isCustomerVerificationOn) async {
-    bool canNavigateToLocation = false;
-    Response response = await authRepositoryInterface.loginWithSocialMedia(socialLogInBody, timeout);
-    if (response.statusCode == 200) {
-      String? token = response.body['token'];
-      if(token != null && token.isNotEmpty) {
-        if(isCustomerVerificationOn && response.body['is_phone_verified'] == 0) {
-          if(Get.find<SplashController>().configModel!.firebaseOtpVerification!) {
-            Get.find<AuthController>().firebaseVerifyPhoneNumber(response.body['phone'], token, fromSignUp: true);
-          }else{
-            Get.toNamed(RouteHelper.getVerificationRoute(response.body['phone'] ?? socialLogInBody.email, token, RouteHelper.signUp, ''));
-          }
-        }else {
-          authRepositoryInterface.saveUserToken(response.body['token']);
-          await authRepositoryInterface.updateToken();
-          authRepositoryInterface.clearSharedPrefGuestId();
-          canNavigateToLocation = true;
-        }
-      }else {
-        Get.toNamed(RouteHelper.getForgotPassRoute(true, socialLogInBody));
-      }
-    }else if(response.statusCode == 403 && response.body['errors'][0]['code'] == 'email'){
-      Get.toNamed(RouteHelper.getForgotPassRoute(true, socialLogInBody));
-    } else {
-      showCustomSnackBar(response.statusText);
-    }
-    return canNavigateToLocation;
-  }*/
-
   @override
-  Future<ResponseModel> loginWithSocialMedia(SocialLogInBody socialLogInModel, {bool isCustomerVerificationOn = false}) async {
-    final Response response = await authRepositoryInterface.loginWithSocialMedia(socialLogInModel);
+  Future<ResponseModel> loginWithSocialMedia(SocialLogInBody socialLogInBody,
+      {bool isCustomerVerificationOn = false}) async {
+    final Response response =
+        await authRepositoryInterface.loginWithSocialMedia(socialLogInBody);
     if (response.statusCode == 200) {
-      final AuthResponseModel authResponse = AuthResponseModel.fromJson(response.body as Map<String, dynamic>);
+      final AuthResponseModel authResponse =
+          AuthResponseModel.fromJson(response.body as Map<String, dynamic>);
       await _updateHeaderFunctionality(authResponse);
-      return ResponseModel(true, authResponse.token ?? '', authResponseModel: authResponse);
+      _updateUserDataFromLoginResponse(response.body as Map<String, dynamic>);
+      return ResponseModel(true, authResponse.token ?? '',
+          authResponseModel: authResponse);
     } else {
       return ResponseModel(false, response.statusText);
     }
@@ -273,11 +366,19 @@ class AuthService implements AuthServiceInterface {
       required String? referCode,
       bool alreadyInApp = false}) async {
     final Response response = await authRepositoryInterface.updatePersonalInfo(
-        name: name, phone: phone, email: email, loginType: loginType, referCode: referCode);
+        name: name,
+        phone: phone,
+        email: email,
+        loginType: loginType,
+        referCode: referCode);
     if (response.statusCode == 200) {
-      final AuthResponseModel authResponse = AuthResponseModel.fromJson(response.body as Map<String, dynamic>);
-      await _updateHeaderFunctionality(authResponse, alreadyInApp: alreadyInApp);
-      return ResponseModel(true, authResponse.token ?? '', authResponseModel: authResponse);
+      final AuthResponseModel authResponse =
+          AuthResponseModel.fromJson(response.body as Map<String, dynamic>);
+      await _updateHeaderFunctionality(authResponse,
+          alreadyInApp: alreadyInApp);
+      _updateUserDataFromLoginResponse(response.body as Map<String, dynamic>);
+      return ResponseModel(true, authResponse.token ?? '',
+          authResponseModel: authResponse);
     } else {
       return ResponseModel(false, response.statusText);
     }
@@ -394,3 +495,5 @@ class AuthService implements AuthServiceInterface {
     return await authRepositoryInterface.saveDeviceToken();
   }
 }
+
+

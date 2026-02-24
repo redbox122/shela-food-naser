@@ -10,6 +10,7 @@ import 'package:sixam_mart/features/brands/domain/repositories/brands_repository
 import 'package:sixam_mart/features/item/domain/models/item_model.dart';
 import 'package:sixam_mart/features/splash/controllers/splash_controller.dart';
 import 'package:sixam_mart/util/app_constants.dart';
+import 'package:sixam_mart/common/utils/app_logger.dart';
 
 class BrandsRepository implements BrandsRepositoryInterface {
   final ApiClient apiClient;
@@ -23,7 +24,7 @@ class BrandsRepository implements BrandsRepositoryInterface {
     
     if (!_brandsEndpointAvailable) {
       if (kDebugMode) {
-        print(
+        appLogger.debug(
             '🏷️ BrandsRepository: Brands endpoint unavailable (404), skipping request');
       }
       return brandList ?? <BrandModel>[];
@@ -37,29 +38,33 @@ class BrandsRepository implements BrandsRepositoryInterface {
     switch (source) {
       case DataSourceEnum.client:
         // 🔍 DEBUG: Log request details to diagnose empty response
-        print('🏷️ BrandsRepository: Making API call to ${AppConstants.brandListUri}');
-        print('🏷️ BrandsRepository: Current moduleId = $moduleId');
-        print('🏷️ BrandsRepository: Headers being sent:');
-        final headers = apiClient.getHeader();
-        headers.forEach((key, value) {
-          print('   - $key: $value');
-        });
+        if (kDebugMode && AppConstants.enableVerboseLogs) {
+          appLogger.debug('🏷️ BrandsRepository: Making API call to ${AppConstants.brandListUri}');
+          appLogger.debug('🏷️ BrandsRepository: Current moduleId = $moduleId');
+          appLogger.debug('🏷️ BrandsRepository: Headers being sent:');
+          final headers = apiClient.getHeader();
+          headers.forEach((key, value) {
+            appLogger.debug('   - $key: $value');
+          });
+        }
         
         final Response response = await apiClient.getData(AppConstants.brandListUri);
         
         // 🔍 DEBUG: Log response details
-        print('🏷️ BrandsRepository: API Response:');
-        print('   - Status Code: ${response.statusCode}');
-        print('   - Response Type: ${response.body.runtimeType}');
-        if (response.body is List) {
-          print('   - Array Length: ${response.body.length}');
+        if (kDebugMode && AppConstants.enableVerboseLogs) {
+          appLogger.debug('🏷️ BrandsRepository: API Response:');
+          appLogger.debug('   - Status Code: ${response.statusCode}');
+          appLogger.debug('   - Response Type: ${response.body.runtimeType}');
+          if (response.body is List) {
+            appLogger.debug('   - Array Length: ${response.body.length}');
+          }
+          appLogger.debug('   - Raw Response: ${response.body}');
         }
-        print('   - Raw Response: ${response.body}');
         
         if (response.statusCode == 404) {
           _brandsEndpointAvailable = false;
           if (kDebugMode) {
-            print(
+            appLogger.warning(
                 '🏷️ BrandsRepository: Endpoint not found (404). Disabling brands requests.');
           }
           return <BrandModel>[];
@@ -73,20 +78,22 @@ class BrandsRepository implements BrandsRepositoryInterface {
           }
           
           // 🔍 DEBUG: Log parsed results
-          print('🏷️ BrandsRepository: Parsed ${brandList.length} brands');
-          if (brandList.isNotEmpty) {
-            print('🏷️ BrandsRepository: Sample brands:');
-            for (int i = 0; i < (brandList.length > 3 ? 3 : brandList.length); i++) {
-              final brand = brandList[i];
-              print('   - Brand ${brand.id}: "${brand.name}" (image: ${brand.imageFullUrl})');
+          if (kDebugMode && AppConstants.enableVerboseLogs) {
+            appLogger.debug('🏷️ BrandsRepository: Parsed ${brandList.length} brands');
+            if (brandList.isNotEmpty) {
+              appLogger.debug('🏷️ BrandsRepository: Sample brands:');
+              for (int i = 0; i < (brandList.length > 3 ? 3 : brandList.length); i++) {
+                final brand = brandList[i];
+                appLogger.debug('   - Brand ${brand.id}: "${brand.name}" (image: ${brand.imageFullUrl})');
+              }
+            } else {
+              appLogger.warning('⚠️ BrandsRepository: Backend returned EMPTY array!');
+              appLogger.warning('⚠️ Possible causes:');
+              appLogger.warning('   1. No brands configured for moduleId=$moduleId in backend database');
+              appLogger.warning('   2. Backend filtering brands incorrectly');
+              appLogger.warning('   3. Backend requires different header format');
+              appLogger.warning('   4. Zone or other filter preventing brands from being returned');
             }
-          } else {
-            print('⚠️ BrandsRepository: Backend returned EMPTY array!');
-            print('⚠️ Possible causes:');
-            print('   1. No brands configured for moduleId=$moduleId in backend database');
-            print('   2. Backend filtering brands incorrectly');
-            print('   3. Backend requires different header format');
-            print('   4. Zone or other filter preventing brands from being returned');
           }
           
           LocalClient.organize(source, cacheId, jsonEncode(response.body),
@@ -103,7 +110,9 @@ class BrandsRepository implements BrandsRepositoryInterface {
           for (var brand in decoded) {
             brandList.add(BrandModel.fromJson(brand as Map<String, dynamic>));
           }
-          print('🏷️ BrandsRepository: Loaded ${brandList.length} brands from cache');
+          if (kDebugMode) {
+            appLogger.debug('🏷️ BrandsRepository: Loaded ${brandList.length} brands from cache');
+          }
         }
         break;
     }
@@ -134,14 +143,20 @@ class BrandsRepository implements BrandsRepositoryInterface {
                                 brandItemModel.items!.first.originalPrice != null;
         
         if (hasOriginalPrice) {
-          print('🎯 Brand Items Cache HIT: brandId=$brandId, offset=$offset');
+          if (kDebugMode) {
+            appLogger.debug('🎯 Brand Items Cache HIT: brandId=$brandId, offset=$offset');
+          }
           return brandItemModel;
         } else {
-          print('🔄 Cache missing original_price field, refetching from API');
+          if (kDebugMode) {
+            appLogger.debug('🔄 Cache missing original_price field, refetching from API');
+          }
           // Continue to API call to get fresh data with original_price
         }
       } catch (e) {
-        print('❌ Brand Items Cache corrupted, fetching from API: $e');
+        if (kDebugMode) {
+          appLogger.warning('❌ Brand Items Cache corrupted, fetching from API: $e');
+        }
         // If cache is corrupted, continue to API call
       }
     }
@@ -157,8 +172,10 @@ class BrandsRepository implements BrandsRepositoryInterface {
       // Cache the response for 10 minutes
       await LocalClient.organize(DataSourceEnum.client, cacheKey,
           jsonEncode(response.body), apiClient.getHeader());
-      print(
-          '💾 Brand Items cached: brandId=$brandId, offset=$offset, items=${brandItemModel.items?.length ?? 0}');
+      if (kDebugMode) {
+        appLogger.debug(
+            '💾 Brand Items cached: brandId=$brandId, offset=$offset, items=${brandItemModel.items?.length ?? 0}');
+      }
     }
     return brandItemModel;
   }
@@ -190,14 +207,20 @@ class BrandsRepository implements BrandsRepositoryInterface {
                                 brandSearchItemModel.items!.first.originalPrice != null;
         
         if (hasOriginalPrice) {
-          print(
-              '🎯 Brand Search Cache HIT: brandId=$brandId, searchText=$searchText');
+          if (kDebugMode) {
+            appLogger.debug(
+                '🎯 Brand Search Cache HIT: brandId=$brandId, searchText=$searchText');
+          }
           return brandSearchItemModel;
         } else {
-          print('🔄 Search cache missing original_price field, refetching from API');
+          if (kDebugMode) {
+            appLogger.debug('🔄 Search cache missing original_price field, refetching from API');
+          }
         }
       } catch (e) {
-        print('❌ Brand Search Cache corrupted, fetching from API: $e');
+        if (kDebugMode) {
+          appLogger.warning('❌ Brand Search Cache corrupted, fetching from API: $e');
+        }
       }
     }
 
@@ -221,8 +244,10 @@ class BrandsRepository implements BrandsRepositoryInterface {
       // Cache the response for 5 minutes (shorter than regular items)
       await LocalClient.organize(DataSourceEnum.client, cacheKey,
           jsonEncode(response.body), apiClient.getHeader());
-      print(
-          '💾 Brand Search cached: brandId=$brandId, searchText=$searchText, items=${brandSearchItemModel.items?.length ?? 0}');
+      if (kDebugMode) {
+        appLogger.debug(
+            '💾 Brand Search cached: brandId=$brandId, searchText=$searchText, items=${brandSearchItemModel.items?.length ?? 0}');
+      }
     }
     return brandSearchItemModel;
   }
@@ -255,14 +280,20 @@ class BrandsRepository implements BrandsRepositoryInterface {
                                 brandFilterItemModel.items!.first.originalPrice != null;
         
         if (hasOriginalPrice) {
-          print(
-              '🎯 Brand Filter Cache HIT: brandId=$brandId, categoryId=$categoryId');
+          if (kDebugMode) {
+            appLogger.debug(
+                '🎯 Brand Filter Cache HIT: brandId=$brandId, categoryId=$categoryId');
+          }
           return brandFilterItemModel;
         } else {
-          print('🔄 Filter cache missing original_price field, refetching from API');
+          if (kDebugMode) {
+            appLogger.debug('🔄 Filter cache missing original_price field, refetching from API');
+          }
         }
       } catch (e) {
-        print('❌ Brand Filter Cache corrupted, fetching from API: $e');
+        if (kDebugMode) {
+          appLogger.warning('❌ Brand Filter Cache corrupted, fetching from API: $e');
+        }
       }
     }
 
@@ -289,8 +320,10 @@ class BrandsRepository implements BrandsRepositoryInterface {
       // Cache the response for 10 minutes
       await LocalClient.organize(DataSourceEnum.client, cacheKey,
           jsonEncode(response.body), apiClient.getHeader());
-      print(
-          '💾 Brand Filter cached: brandId=$brandId, categoryId=$categoryId, items=${brandFilterItemModel.items?.length ?? 0}');
+      if (kDebugMode) {
+        appLogger.debug(
+            '💾 Brand Filter cached: brandId=$brandId, categoryId=$categoryId, items=${brandFilterItemModel.items?.length ?? 0}');
+      }
     }
     return brandFilterItemModel;
   }

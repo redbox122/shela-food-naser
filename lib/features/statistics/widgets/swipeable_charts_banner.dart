@@ -101,7 +101,7 @@ class _SwipeableChartsBannerState extends State<SwipeableChartsBanner> {
         items: controller.availableTrendPeriods.map((String period) {
           return DropdownMenuItem<String>(
             value: period,
-            child: Text(period.tr ?? ''),
+            child: Text(period.tr),
           );
         }).toList(),
         onChanged: (String? newValue) {

@@ -44,6 +44,36 @@ class MenuScreen extends StatefulWidget {
 }
 
 class _MenuScreenState extends State<MenuScreen> {
+  bool _hasServiceAccess() {
+    return AuthHelper.isLoggedIn() &&
+        !Get.find<AuthController>().isGuestLoggedIn();
+  }
+
+  Future<void> _showLoginRequiredAndRedirect() async {
+    final String redirectPage = Get.currentRoute;
+    showCustomSnackBar(
+      'هذه الخدمة تتطلب تسجيل الدخول. سيتم تحويلك لصفحة تسجيل الدخول.',
+      isError: false,
+      showDuration: 1,
+    );
+    await Future.delayed(const Duration(milliseconds: 1100));
+    if (!mounted) {
+      return;
+    }
+    if (Get.isDialogOpen ?? false) {
+      Get.back();
+    }
+    await Get.toNamed(RouteHelper.getSignInRoute(redirectPage));
+  }
+
+  Future<void> _runWithLoginRequired(VoidCallback onAuthorized) async {
+    if (_hasServiceAccess()) {
+      onAuthorized();
+      return;
+    }
+    await _showLoginRequiredAndRedirect();
+  }
+
   @override
   void initState() {
     super.initState();
@@ -52,7 +82,8 @@ class _MenuScreenState extends State<MenuScreen> {
     if (AuthHelper.isLoggedIn() && profileController.userInfoModel != null) {
       // Data already exists - show UI instantly, refresh balance in background
       if (kDebugMode) {
-        debugPrint('⚡ MenuScreen: userInfoModel exists - showing UI instantly');
+        debugPrint(
+            '⚡ MenuScreen: userInfoModel exists - showing UI instantly');
         debugPrint(
             '   - Name: ${profileController.userInfoModel?.fName} ${profileController.userInfoModel?.lName}');
       }
@@ -192,7 +223,8 @@ class _MenuScreenState extends State<MenuScreen> {
         }
       } else {
         if (kDebugMode) {
-          debugPrint('ℹ️ MenuScreen: User not logged in - skipping data load');
+          debugPrint(
+              'ℹ️ MenuScreen: User not logged in - skipping data load');
         }
       }
 
@@ -527,6 +559,9 @@ class _MenuScreenState extends State<MenuScreen> {
                                     icon: Images.couponIcon,
                                     title: 'coupon'.tr,
                                     route: RouteHelper.getCouponRoute(),
+                                    onTap: () => _runWithLoginRequired(() {
+                                      Get.toNamed(RouteHelper.getCouponRoute());
+                                    }),
                                     hideDivider: loyaltyPointStatus == 1 ||
                                             customerWalletStatus == 1
                                         ? false
@@ -538,16 +573,11 @@ class _MenuScreenState extends State<MenuScreen> {
                                           icon: Images.statistics,
                                           title: 'statistics'.tr,
                                           route: RouteHelper.getStatistics(),
-                                          onTap: () {
-                                            if (Get.find<AuthController>()
-                                                .isGuestLoggedIn()) {
-                                              showCustomSnackBar(
-                                                  'هذه الميزة متاحة للأعضاء المسجلين فقط');
-                                            } else {
-                                              Get.toNamed(
-                                                  RouteHelper.getStatistics());
-                                            }
-                                          },
+                                          onTap: () =>
+                                              _runWithLoginRequired(() {
+                                            Get.toNamed(
+                                                RouteHelper.getStatistics());
+                                          }),
                                           hideDivider: (toggleDmRegistration &&
                                                       !ResponsiveHelper
                                                           .isDesktop(
@@ -565,6 +595,11 @@ class _MenuScreenState extends State<MenuScreen> {
                                           icon: Images.discount,
                                           title: 'discount'.tr,
                                           route: RouteHelper.getDiscount(),
+                                          onTap: () =>
+                                              _runWithLoginRequired(() {
+                                            Get.toNamed(
+                                                RouteHelper.getDiscount());
+                                          }),
                                           hideDivider: (toggleDmRegistration &&
                                                       !ResponsiveHelper
                                                           .isDesktop(
@@ -581,9 +616,9 @@ class _MenuScreenState extends State<MenuScreen> {
                                     icon: Images.walletCreditIcon,
                                     title: 'invest_her_bond'.tr,
                                     route: '',
-                                    onTap: () {
+                                    onTap: () => _runWithLoginRequired(() {
                                       _launchURL();
-                                    },
+                                    }),
                                     hideDivider: (toggleDmRegistration &&
                                                 !ResponsiveHelper.isDesktop(
                                                     context)) ||
@@ -598,8 +633,10 @@ class _MenuScreenState extends State<MenuScreen> {
                                       icon: Images.walletCreditIcon,
                                       title: 'KiadaWallet_Subscription'.tr,
                                       route: '',
-                                      onTap: () => _launchExternalUrl(
-                                          AppConstants.qaydhaWebsiteUrl),
+                                      onTap: () => _runWithLoginRequired(() {
+                                        _launchExternalUrl(
+                                            AppConstants.qaydhaWebsiteUrl);
+                                      }),
                                       hideDivider: (toggleDmRegistration &&
                                                   !ResponsiveHelper.isDesktop(
                                                       context)) ||
@@ -624,8 +661,9 @@ class _MenuScreenState extends State<MenuScreen> {
                                             wallet?.signatureStatus;
                                         final isSigned = signatureStatus == 1 ||
                                             signatureStatus == true;
-                                        final walletStatus =
-                                            wallet?.status?.toString().toLowerCase();
+                                        final walletStatus = wallet?.status
+                                            ?.toString()
+                                            .toLowerCase();
                                         if (!AuthHelper.isGuestLoggedIn() &&
                                             (walletModel == null ||
                                                 wallet == null ||
@@ -815,6 +853,11 @@ class _MenuScreenState extends State<MenuScreen> {
                                           title: 'refer_and_earn'.tr,
                                           route: RouteHelper
                                               .getReferAndEarnRoute(),
+                                          onTap: () =>
+                                              _runWithLoginRequired(() {
+                                            Get.toNamed(RouteHelper
+                                                .getReferAndEarnRoute());
+                                          }),
                                           hideDivider: (toggleDmRegistration &&
                                                       !ResponsiveHelper
                                                           .isDesktop(
@@ -836,6 +879,16 @@ class _MenuScreenState extends State<MenuScreen> {
                                               isLoggedIn,
                                               DeliverymanReg_Controller
                                                   .status_model),
+                                          onTap: () =>
+                                              _runWithLoginRequired(() {
+                                            final route = getStatusRoute(
+                                                true,
+                                                DeliverymanReg_Controller
+                                                    .status_model);
+                                            if (route.isNotEmpty) {
+                                              Get.toNamed(route);
+                                            }
+                                          }),
                                           suffix: getStatusSuffix(
                                               isLoggedIn,
                                               DeliverymanReg_Controller
@@ -849,6 +902,14 @@ class _MenuScreenState extends State<MenuScreen> {
                                           title: 'delegate'.tr,
                                           route: _getDelegateRoute(
                                               isLoggedIn, delegate_Controller),
+                                          onTap: () =>
+                                              _runWithLoginRequired(() {
+                                            final route = _getDelegateRoute(
+                                                true, delegate_Controller);
+                                            if (route.isNotEmpty) {
+                                              Get.toNamed(route);
+                                            }
+                                          }),
                                           suffix: _getDelegateSuffix(
                                               isLoggedIn, delegate_Controller),
                                         ),
@@ -877,6 +938,11 @@ class _MenuScreenState extends State<MenuScreen> {
                                                 hideDivider: true,
                                                 route: RouteHelper
                                                     .getRestaurantRegistrationRoute(),
+                                                onTap: () =>
+                                                    _runWithLoginRequired(() {
+                                                  Get.toNamed(RouteHelper
+                                                      .getRestaurantRegistrationRoute());
+                                                }),
                                               )
                                             : const SizedBox(),
                                       ]),
@@ -920,12 +986,17 @@ class _MenuScreenState extends State<MenuScreen> {
                                   PortionWidget(
                                       icon: Images.chatIcon,
                                       title: 'live_chat'.tr,
-                                      route:
-                                          RouteHelper.getConversationRoute()),
+                                      route: RouteHelper.getConversationRoute(),
+                                      onTap: () => _runWithLoginRequired(() {
+                                            Get.toNamed(
+                                                RouteHelper.getConversationRoute());
+                                          })),
                                   PortionWidget(
                                       icon: Images.helpIcon,
                                       title: 'help_and_support'.tr,
-                                      route: RouteHelper.getSupportRoute()),
+                                      route: RouteHelper.getSupportRoute(),
+                                      onTap: () => Get.toNamed(
+                                          RouteHelper.getSupportRoute())),
                                   PortionWidget(
                                       icon: Images.helpIcon,
                                       title: 'check_for_updates'.tr,
@@ -1133,7 +1204,7 @@ class _MenuScreenState extends State<MenuScreen> {
     if (controller.isLoading) return 'الحالة';
 
     final model = controller.delegate_model;
-    if (model == null) return 'قدم طلب';
+    if (model == null) return 'قدّم طلب';
 
     switch (model.delegateStatus) {
       case 'pending':
@@ -1197,7 +1268,8 @@ class _MenuScreenState extends State<MenuScreen> {
   /// Ensure data is loaded before navigation after logout
   Future<void> _ensureDataLoadedBeforeNavigation() async {
     try {
-      debugPrint('🔄 MenuScreen: Ensuring data is loaded before navigation...');
+      debugPrint(
+          '🔄 MenuScreen: Ensuring data is loaded before navigation...');
 
       // Check if cache is valid and restore data
       if (await ComprehensiveHomeCacheManager.isCacheValid()) {

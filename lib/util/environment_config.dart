@@ -11,6 +11,9 @@
 /// - production: Production server
 library;
 
+import 'package:flutter/foundation.dart';
+import 'package:sixam_mart/common/utils/app_logger.dart';
+
 
 enum Environment { development, staging, production }
 
@@ -73,9 +76,11 @@ class EnvironmentConfig {
 
   /// Print current environment configuration
   static void printConfig() {
-    print('🌍 Environment: $environmentName');
-    print('🔗 Base URL: $baseUrl');
-    print('🌐 Web URL: $webHostedUrl');
-    print('📝 Description: $description');
+    if (kDebugMode) {
+      appLogger.info('🌍 Environment: $environmentName');
+      appLogger.info('🔗 Base URL: $baseUrl');
+      appLogger.info('🌐 Web URL: $webHostedUrl');
+      appLogger.info('📝 Description: $description');
+    }
   }
 }

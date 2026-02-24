@@ -20,7 +20,8 @@ class LocationRepository implements LocationRepositoryInterface {
   // Zone cache constants
   static const String _zoneCacheKey = 'cached_zone_data';
   static const String _zoneCacheTimeKey = 'cached_zone_timestamp';
-  static const int _zoneCacheTTL = 30 * 60 * 1000; // 30 minutes in milliseconds
+  static final int _zoneCacheTTL =
+      HiveCacheConfig.zoneTTL.inMilliseconds; // 24h by config
   
   // Cache key for getAllZones (all zones list)
   static const String _allZonesCacheKey = 'cached_all_zones_data';

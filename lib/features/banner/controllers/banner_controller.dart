@@ -13,10 +13,18 @@ import 'package:sixam_mart/common/cache/comprehensive_home_cache_manager.dart';
 import 'package:collection/collection.dart';
 import 'package:sixam_mart/features/splash/controllers/splash_controller.dart';
 import 'package:sixam_mart/common/models/module_model.dart';
+import 'package:sixam_mart/common/utils/app_logger.dart';
+import 'package:sixam_mart/core/cache/hive_home_cache_service.dart';
 
 class BannerController extends GetxController implements GetxService {
   final BannerServiceInterface bannerServiceInterface;
   BannerController({required this.bannerServiceInterface});
+
+  @override
+  void onClose() {
+    invalidateAll();
+    super.onClose();
+  }
 
   // Public getter for promotional content loading (used by SplashController)
   BannerServiceInterface get bannerService => bannerServiceInterface;
@@ -27,12 +35,20 @@ class BannerController extends GetxController implements GetxService {
   // 🚫 UI THREAD PROTECTION: Track last loaded module ID to prevent duplicate API calls
   int? _lastLoadedModuleId;
   int? get lastLoadedModuleId => _lastLoadedModuleId;
+  final Map<int, BannerModel> _featuredBannerCacheByModule = {};
+  final Map<int, Future<BannerModel?>> _featuredBannerRequests = {};
 
   // Deep equality checker for banners
   static const DeepCollectionEquality _deepEquality = DeepCollectionEquality();
   // TEMP: Disable deep equality checks to force UI updates.
   static const bool _disableDeepEquality = true;
   bool _hasDistributedOnce = false;
+  Future<void>? _inFlightStartupPreload;
+  DateTime? _lastGlobalStartupPreloadAt;
+
+  bool _shouldUseUnifiedOnly(ModuleModel? module) {
+    return AppConstants.useBffV2Endpoint && module?.moduleType == 'food';
+  }
 
   // 🚫 REMOVED: Static variable hack - causes race conditions and state ghosts
   // BannerController is the single source of truth for banner state
@@ -81,14 +97,21 @@ class BannerController extends GetxController implements GetxService {
       if (splashController.selectedModule.value != null) {
         // Module already selected - load banners immediately
         if (kDebugMode) {
-          print(
+          appLogger.debug(
               '🏗️ [Module-First] BannerController: Module already selected (id=${splashController.selectedModule.value?.id}) - loading banners');
         }
-        getFeaturedBanner();
+        if (_shouldUseUnifiedOnly(splashController.selectedModule.value)) {
+          if (kDebugMode) {
+            appLogger.debug(
+                '🛡️ BannerController: Skipping legacy featured banner fetch for food module (V2 unified is source of truth)');
+          }
+        } else {
+          getFeaturedBanner();
+        }
       } else {
         // Module not selected yet - listen for module selection
         if (kDebugMode) {
-          print(
+          appLogger.debug(
               '🏗️ [Module-First] BannerController: No module selected yet - waiting for module selection');
         }
       }
@@ -103,21 +126,28 @@ class BannerController extends GetxController implements GetxService {
               _featuredBannerList != null &&
               _featuredBannerList!.isNotEmpty) {
             if (kDebugMode) {
-              print(
+              appLogger.debug(
                   '⚡ BannerController: Banners already loaded for module ${module.id} - skipping');
             }
             return;
           }
 
           if (kDebugMode) {
-            print(
+            appLogger.debug(
                 '🏗️ [Module-First] BannerController: Module selected (id=${module.id}) - loading banners');
+          }
+          if (_shouldUseUnifiedOnly(module)) {
+            if (kDebugMode) {
+              appLogger.debug(
+                  '🛡️ BannerController: Ignoring legacy featured banner fetch on module change (food + V2)');
+            }
+            return;
           }
           getFeaturedBanner();
         } else {
           // Global banners: keep last loaded banners even if module becomes null
           if (kDebugMode) {
-            print(
+            appLogger.debug(
                 '🏗️ [Module-First] BannerController: Module cleared - preserving banner data');
           }
           _lastLoadedModuleId = null;
@@ -128,15 +158,12 @@ class BannerController extends GetxController implements GetxService {
 
   Future<BannerModel?> getFeaturedBanner() async {
     try {
-      // 🚫 UI THREAD PROTECTION: Prevent duplicate API calls
-      // Check if already loading or if banners already loaded for current module
-      if (_isLoading) {
-        if (kDebugMode) {
-          print(
-              '🚫 BannerController.getFeaturedBanner: Already loading - skipping duplicate call');
-        }
-        return null;
-      }
+      final bool hadExistingBanners =
+          _featuredBannerList != null && _featuredBannerList!.isNotEmpty;
+      final List<String?> previousFeaturedImages =
+          List<String?>.from(_featuredBannerList ?? <String?>[]);
+      final List<dynamic> previousFeaturedData =
+          List<dynamic>.from(_featuredBannerDataList ?? <dynamic>[]);
 
       // Get current module ID
       int? currentModuleId;
@@ -157,10 +184,39 @@ class BannerController extends GetxController implements GetxService {
       // Global banners: if module is null, do not clear or force reload
       if (currentModule == null) {
         if (kDebugMode) {
-          print(
+          appLogger.debug(
               '🚫 BannerController.getFeaturedBanner: No module selected - preserving existing banners');
         }
         return null;
+      }
+
+      if (_shouldUseUnifiedOnly(currentModule)) {
+        if (kDebugMode) {
+          appLogger.debug(
+              '🛡️ BannerController.getFeaturedBanner: Skipped legacy endpoint for food module; waiting for unified banners');
+        }
+        return null;
+      }
+
+      if (currentModuleId != null &&
+          _featuredBannerCacheByModule.containsKey(currentModuleId)) {
+        final cached = _featuredBannerCacheByModule[currentModuleId]!;
+        _lastLoadedModuleId = currentModuleId;
+        setFromUnified(bannerModel: cached, silent: true);
+        if (kDebugMode) {
+          appLogger.debug(
+              'BannerController.getFeaturedBanner: Using in-memory cache for module $currentModuleId');
+        }
+        return cached;
+      }
+
+      if (currentModuleId != null &&
+          _featuredBannerRequests.containsKey(currentModuleId)) {
+        if (kDebugMode) {
+          appLogger.debug(
+              'BannerController.getFeaturedBanner: Waiting for in-flight request of module $currentModuleId');
+        }
+        return _featuredBannerRequests[currentModuleId]!;
       }
 
       // 🚫 UI THREAD PROTECTION: Skip if banners already loaded for this module
@@ -169,7 +225,7 @@ class BannerController extends GetxController implements GetxService {
           _featuredBannerList != null &&
           _featuredBannerList!.isNotEmpty) {
         if (kDebugMode) {
-          print(
+          appLogger.debug(
               '⚡ BannerController.getFeaturedBanner: Banners already loaded for module $currentModuleId - skipping API call');
         }
         return null;
@@ -183,13 +239,13 @@ class BannerController extends GetxController implements GetxService {
           bannersSectionValue == null || bannersSectionValue == '1';
 
       if (kDebugMode) {
-        print(
+        appLogger.debug(
             '🔍 BannerController.getFeaturedBanner: bannersSection=$bannersSectionValue, enabled=$bannersSectionEnabled');
       }
 
       if (!bannersSectionEnabled) {
         if (kDebugMode) {
-          print(
+          appLogger.warning(
               '⚠️ BannerController.getFeaturedBanner: Banners section is disabled (bannersSection="$bannersSectionValue")');
         }
         // Initialize empty lists to prevent null issues in UI
@@ -204,33 +260,50 @@ class BannerController extends GetxController implements GetxService {
       _lastLoadedModuleId = currentModuleId;
 
       if (kDebugMode) {
-        print(
+        appLogger.debug(
             '🚀 BannerController.getFeaturedBanner: Loading featured banners from API for module $currentModuleId...');
       }
 
-      final BannerModel? bannerModel =
-          await bannerServiceInterface.getFeaturedBannerList();
+      final request = bannerServiceInterface.getFeaturedBannerList();
+      if (currentModuleId != null) {
+        _featuredBannerRequests[currentModuleId] = request;
+      }
+      final BannerModel? bannerModel = await request;
+      if (currentModuleId != null) {
+        final active = _featuredBannerRequests[currentModuleId];
+        if (identical(active, request)) {
+          _featuredBannerRequests.remove(currentModuleId);
+        }
+      }
 
       if (bannerModel == null) {
         if (kDebugMode) {
-          print(
+          appLogger.warning(
               '⚠️ BannerController.getFeaturedBanner: API returned null banner model');
         }
-        _featuredBannerList = [];
-        _featuredBannerDataList = [];
+        _isLoading = false;
+        if (hadExistingBanners) {
+          if (kDebugMode) {
+            appLogger.debug(
+                '🛡️ BannerController.getFeaturedBanner: Preserving existing banners after null API response');
+          }
+          return null;
+        }
+        _featuredBannerList = <String?>[];
+        _featuredBannerDataList = <dynamic>[];
+        _bannerImageList = <String?>[];
+        _bannerDataList = <dynamic>[];
         update();
         return BannerModel(campaigns: [], banners: []);
       }
 
       if (kDebugMode) {
-        print(
+        appLogger.debug(
             '📦 BannerController.getFeaturedBanner: Received banner model - campaigns: ${bannerModel.campaigns?.length ?? 0}, banners: ${bannerModel.banners?.length ?? 0}');
       }
 
       _featuredBannerList = [];
       _featuredBannerDataList = [];
-
-      final List<int?> moduleIdList = bannerServiceInterface.moduleIdList();
 
       // Process campaigns
       if (bannerModel.campaigns != null && bannerModel.campaigns!.isNotEmpty) {
@@ -259,11 +332,9 @@ class BannerController extends GetxController implements GetxService {
               _featuredBannerList!.add(banner.imageFullUrl);
             }
 
-            if (banner.item != null &&
-                moduleIdList.contains(banner.item!.moduleId)) {
+            if (banner.item != null) {
               _featuredBannerDataList!.add(banner.item);
-            } else if (banner.store != null &&
-                moduleIdList.contains(banner.store!.moduleId)) {
+            } else if (banner.store != null) {
               _featuredBannerDataList!.add(banner.store);
             } else if (banner.type == 'default') {
               _featuredBannerDataList!.add(banner.link);
@@ -274,30 +345,236 @@ class BannerController extends GetxController implements GetxService {
         }
       }
 
+      if (_featuredBannerList == null || _featuredBannerList!.isEmpty) {
+        _isLoading = false;
+        if (hadExistingBanners) {
+          _featuredBannerList = previousFeaturedImages;
+          _featuredBannerDataList = previousFeaturedData;
+          _bannerImageList = List<String?>.from(previousFeaturedImages);
+          _bannerDataList = List<dynamic>.from(previousFeaturedData);
+          if (kDebugMode) {
+            appLogger.debug(
+                '🛡️ BannerController.getFeaturedBanner: Empty API payload - preserving previous banners');
+          }
+          update();
+          return null;
+        }
+      }
+
       if (kDebugMode) {
-        print(
+        appLogger.info(
             '✅ BannerController.getFeaturedBanner: Loaded ${_featuredBannerList!.length} featured banners successfully for module $currentModuleId');
       }
 
+      // Keep regular banner lists in sync for UI compatibility checks.
+      _bannerImageList = List<String?>.from(_featuredBannerList ?? <String?>[]);
+      _bannerDataList =
+          List<dynamic>.from(_featuredBannerDataList ?? <dynamic>[]);
+
+      if (currentModuleId != null) {
+        _featuredBannerCacheByModule[currentModuleId] = bannerModel;
+      }
       _isLoading = false;
       update();
       return bannerModel;
     } catch (e, stackTrace) {
+      final failedModuleId = _lastLoadedModuleId;
+      if (failedModuleId != null) {
+        _featuredBannerRequests.remove(failedModuleId);
+      }
       if (kDebugMode) {
-        print(
-            '❌ BannerController.getFeaturedBanner: Error loading featured banners: $e');
-        print('❌ Stack trace: $stackTrace');
+        appLogger.error(
+            '❌ BannerController.getFeaturedBanner: Error loading featured banners: $e',
+            e,
+            stackTrace);
       }
       _isLoading = false;
-      _featuredBannerList = [];
-      _featuredBannerDataList = [];
-      update();
+      if (_featuredBannerList == null || _featuredBannerList!.isEmpty) {
+        _featuredBannerList = <String?>[];
+        _featuredBannerDataList = <dynamic>[];
+        _bannerImageList = <String?>[];
+        _bannerDataList = <dynamic>[];
+        update();
+      }
       return null;
     }
   }
 
   void clearBanner() {
     _bannerImageList = null;
+  }
+
+  void invalidateModule(int moduleId) {
+    _featuredBannerCacheByModule.remove(moduleId);
+    _featuredBannerRequests.remove(moduleId);
+    if (_lastLoadedModuleId == moduleId) {
+      _lastLoadedModuleId = null;
+    }
+    if (kDebugMode) {
+      appLogger.debug(
+          'BannerController: Invalidated in-memory banner cache for module $moduleId');
+    }
+  }
+
+  void invalidateAll() {
+    _featuredBannerCacheByModule.clear();
+    _featuredBannerRequests.clear();
+    _lastLoadedModuleId = null;
+    if (kDebugMode) {
+      appLogger.debug('BannerController: Cleared all in-memory banner cache');
+    }
+  }
+
+  Future<BannerModel?> forceRefresh(int moduleId) async {
+    invalidateModule(moduleId);
+    return getFeaturedBanner();
+  }
+
+  /// Warm up featured banners once at app startup and treat them as global.
+  /// This allows food modules with empty unified banners to still render banners.
+  ///
+  /// Uses Future-based deduplication: if a preload is already in flight, concurrent
+  /// callers AWAIT the same Future instead of returning immediately (which was the
+  /// old boolean-flag bug that caused banners not to be ready in time).
+  Future<void> preloadGlobalBannersAtStartup({bool force = false}) async {
+    // If already in flight, await the existing request instead of returning early.
+    // This ensures callers like preloadCoreModulesForFastSwitch() actually wait.
+    if (_inFlightStartupPreload != null && !force) {
+      await _inFlightStartupPreload;
+      return;
+    }
+
+    final bool hasInMemoryBanners =
+        (_featuredBannerList?.isNotEmpty ?? false) ||
+            (_bannerImageList?.isNotEmpty ?? false);
+    final bool calledRecently = _lastGlobalStartupPreloadAt != null &&
+        DateTime.now().difference(_lastGlobalStartupPreloadAt!) <
+            const Duration(seconds: 20);
+    if (!force && (hasInMemoryBanners || calledRecently)) {
+      return;
+    }
+
+    // Assign before awaiting so any concurrent caller that arrives now will await it.
+    _inFlightStartupPreload = _runStartupPreload();
+    try {
+      await _inFlightStartupPreload!;
+    } finally {
+      _inFlightStartupPreload = null;
+    }
+  }
+
+  Future<void> _runStartupPreload() async {
+    ApiClient? apiClient;
+    ModuleModel? selectedBefore;
+    try {
+      final splashController = Get.isRegistered<SplashController>()
+          ? Get.find<SplashController>()
+          : null;
+      apiClient = Get.isRegistered<ApiClient>() ? Get.find<ApiClient>() : null;
+
+      selectedBefore = splashController?.selectedModule.value;
+      final int? previousModuleId = selectedBefore?.id;
+
+      // Featured banners are global from backend perspective. We warm them via module 3.
+      if (apiClient != null) {
+        apiClient.updateHeader(
+          null,
+          null,
+          null,
+          null,
+          3,
+          null,
+          null,
+        );
+      }
+
+      // Force fresh featured banners on startup warm-up to avoid 304+empty-cache.
+      await HiveHomeCacheService()
+          .clearETagForUri('${AppConstants.bannerUri}?featured=1');
+      // Also clear ETag for promotional banner to prevent 304+no-local-cache scenario.
+      await HiveHomeCacheService()
+          .clearETagForUri(AppConstants.promotionalBannerUri);
+
+      final BannerModel? bannerModel =
+          await bannerServiceInterface.getFeaturedBannerList();
+      final PromotionalBanner? promotionalBanner =
+          await bannerServiceInterface.getPromotionalBannerList();
+      // Apply promotional banner first — independent of whether featured banners loaded.
+      if (promotionalBanner != null) {
+        _promotionalBanner = promotionalBanner;
+        if (kDebugMode) {
+          appLogger.info(
+              '✅ BannerController.preloadGlobalBannersAtStartup: Warmed promotional banner');
+        }
+      } else {
+        if (kDebugMode) {
+          appLogger.warning(
+              '⚠️ BannerController.preloadGlobalBannersAtStartup: Promotional banner payload is empty');
+        }
+      }
+
+      final bool hasPayload = bannerModel != null &&
+          ((bannerModel.banners?.isNotEmpty ?? false) ||
+              (bannerModel.campaigns?.isNotEmpty ?? false));
+
+      if (!hasPayload) {
+        if (kDebugMode) {
+          appLogger.warning(
+              '⚠️ BannerController.preloadGlobalBannersAtStartup: API returned empty payload');
+        }
+        // Still refresh UI so promotional banner (if loaded) is displayed.
+        update();
+        return;
+      }
+
+      setFromUnified(bannerModel: bannerModel, silent: false);
+
+      // Persist the same banner payload for all known modules to maximize cache hits.
+      final cacheService = HiveHomeCacheService();
+      final Set<int> moduleIds = <int>{3};
+      if (previousModuleId != null) {
+        moduleIds.add(previousModuleId);
+      }
+      final modules = splashController?.moduleList;
+      if (modules != null) {
+        for (final module in modules) {
+          if (module.id != null) {
+            moduleIds.add(module.id!);
+          }
+        }
+      }
+
+      for (final moduleId in moduleIds) {
+        _featuredBannerCacheByModule[moduleId] = bannerModel;
+        await cacheService.saveBanners(moduleId, bannerModel);
+      }
+
+      // Refresh listeners once after startup warm-up for both featured + promotional banners.
+      update();
+
+      if (kDebugMode) {
+        appLogger.info(
+            '✅ BannerController.preloadGlobalBannersAtStartup: Warmed ${bannerModel.banners?.length ?? 0} banners for modules=${moduleIds.toList()}');
+      }
+    } catch (e, stackTrace) {
+      if (kDebugMode) {
+        appLogger.error('❌ BannerController.preloadGlobalBannersAtStartup: $e',
+            e, stackTrace);
+      }
+    } finally {
+      if (apiClient != null && selectedBefore?.id != null) {
+        apiClient.updateHeader(
+          null,
+          null,
+          null,
+          null,
+          selectedBefore!.id,
+          null,
+          null,
+        );
+      }
+      _lastGlobalStartupPreloadAt = DateTime.now();
+    }
   }
 
   Future<void> resetToDefault() async {
@@ -322,6 +599,8 @@ class BannerController extends GetxController implements GetxService {
       _currentIndex = 0;
       _isLoading = false;
       _lastLoadedModuleId = null; // Clear module tracking
+      _featuredBannerCacheByModule.clear();
+      _featuredBannerRequests.clear();
       _hasDistributedOnce = false;
 
       // 🚫 REMOVED: Static variable cleanup - no longer used
@@ -341,6 +620,24 @@ class BannerController extends GetxController implements GetxService {
   Future<BannerModel?> getBannerList(bool reload,
       {DataSourceEnum dataSource = DataSourceEnum.local,
       bool fromRecall = false}) async {
+    int? currentModuleId;
+    if (Get.isRegistered<SplashController>()) {
+      currentModuleId = Get.find<SplashController>().selectedModule.value?.id;
+    }
+    if (!reload &&
+        !fromRecall &&
+        dataSource == DataSourceEnum.local &&
+        currentModuleId != null &&
+        _lastLoadedModuleId == currentModuleId &&
+        _featuredBannerList != null &&
+        _featuredBannerList!.isNotEmpty) {
+      if (kDebugMode) {
+        appLogger.debug(
+            'BannerController.getBannerList: Module $currentModuleId banners already in memory - skip local cache reload');
+      }
+      return null;
+    }
+
     // Always load from cache when dataSource is local, even if data exists
     if (_bannerImageList == null ||
         reload ||
@@ -360,7 +657,7 @@ class BannerController extends GetxController implements GetxService {
         // Silent refresh - don't show loading state
         _isLoading = false;
         if (kDebugMode) {
-          print(
+          appLogger.debug(
               '✅ BannerController: Silent refresh - preserving Success state (has existing banners)');
         }
       } else if (reload || dataSource == DataSourceEnum.client) {
@@ -379,7 +676,7 @@ class BannerController extends GetxController implements GetxService {
             final bannerData = cachedData['banners'] as Map<String, dynamic>;
             if (bannerData['bannerImageList'] != null ||
                 bannerData['bannerDataList'] != null) {
-              print(
+              appLogger.info(
                   '✅ BannerController: Loading banners from comprehensive cache');
               setBannerDataFromCache(
                 bannerImageList: bannerData['bannerImageList'] is List
@@ -409,7 +706,7 @@ class BannerController extends GetxController implements GetxService {
               // 🔧 FIX: If loaded from cache, refresh in background (non-blocking)
               // This ensures data is fresh without blocking UI
               if (kDebugMode) {
-                print(
+                appLogger.debug(
                     '🔄 BannerController: Cache loaded - refreshing in background');
               }
               bannerServiceInterface
@@ -425,18 +722,20 @@ class BannerController extends GetxController implements GetxService {
                       _featuredBannerList!.isNotEmpty;
                   if (wasEmpty && nowHasData) {
                     if (kDebugMode) {
-                      print(
+                      appLogger.debug(
                           '🔧 BannerController: Background refresh - empty-to-non-empty transition, forcing update');
                     }
                     update(); // Force update after background refresh
                   }
                   if (kDebugMode) {
-                    print('✅ BannerController: Background refresh completed');
+                    appLogger.info(
+                        '✅ BannerController: Background refresh completed');
                   }
                 }
               }).catchError((Object e) {
                 if (kDebugMode) {
-                  print('⚠️ BannerController: Background refresh failed: $e');
+                  appLogger.warning(
+                      '⚠️ BannerController: Background refresh failed: $e');
                 }
               });
 
@@ -444,7 +743,7 @@ class BannerController extends GetxController implements GetxService {
             }
           }
         } catch (e) {
-          print(
+          appLogger.warning(
               '⚠️ BannerController: Error loading from comprehensive cache: $e');
         }
       }
@@ -540,14 +839,14 @@ class BannerController extends GetxController implements GetxService {
           _deepEquality.equals(oldDataList, newDataList)) {
         _isLoading = false;
         if (kDebugMode) {
-          print(
+          appLogger.debug(
               '✅ BannerController: Data unchanged (deep equality check), skipping UI update to prevent flicker');
         }
         return;
       }
 
       if (isEmptyToNonEmpty && kDebugMode) {
-        print(
+        appLogger.debug(
             '🔧 BannerController._prepareBanner: Empty-to-non-empty transition detected - forcing update');
       }
       final bool hasAnyBanners =
@@ -555,7 +854,7 @@ class BannerController extends GetxController implements GetxService {
       if (!_hasDistributedOnce && hasAnyBanners) {
         _hasDistributedOnce = true;
         if (kDebugMode) {
-          print(
+          appLogger.debug(
               '⚡ BannerController._prepareBanner: First distribution detected - forcing update');
         }
       }
@@ -577,7 +876,7 @@ class BannerController extends GetxController implements GetxService {
     // If bootstrap has no banners and we already have banners loaded, don't overwrite
     if (!hasCampaigns && !hasBanners && hasExistingBanners) {
       if (kDebugMode) {
-        print(
+        appLogger.warning(
             '⚠️ BannerController: Bootstrap has no banners, keeping existing ${_featuredBannerList!.length} banners');
       }
       return;
@@ -624,10 +923,7 @@ class BannerController extends GetxController implements GetxService {
       }
     }
 
-    // Process banners
-    // ⚡ CRITICAL: Filter by moduleId to match getFeaturedBanner() behavior
-    final List<int?> moduleIdList = bannerServiceInterface.moduleIdList();
-    final bool shouldSkipModuleFilter = moduleIdList.isEmpty;
+    // Process banners (global banners: no module filtering)
 
     if (hasBanners) {
       for (final banner in bannerModel.banners!) {
@@ -639,16 +935,11 @@ class BannerController extends GetxController implements GetxService {
             _featuredBannerList!.add(banner.imageFullUrl);
           }
 
-          // Filter by moduleId to match getFeaturedBanner() behavior
           dynamic bannerData;
-          if (banner.item != null &&
-              (shouldSkipModuleFilter ||
-                  moduleIdList.contains(banner.item!.moduleId))) {
+          if (banner.item != null) {
             bannerData = banner.item;
             _featuredBannerDataList!.add(banner.item);
-          } else if (banner.store != null &&
-              (shouldSkipModuleFilter ||
-                  moduleIdList.contains(banner.store!.moduleId))) {
+          } else if (banner.store != null) {
             bannerData = banner.store;
             _featuredBannerDataList!.add(banner.store);
           } else if (banner.type == 'default') {
@@ -679,7 +970,7 @@ class BannerController extends GetxController implements GetxService {
     final isEmptyToNonEmpty = wasFeaturedBannerEmpty && nowHasFeaturedBanners;
 
     if (isEmptyToNonEmpty && kDebugMode) {
-      print(
+      appLogger.debug(
           '🔧 BannerController.setBannerDataFromBootstrap: Empty-to-non-empty transition detected (${_featuredBannerList!.length} banners) - forcing update');
     }
 
@@ -694,20 +985,20 @@ class BannerController extends GetxController implements GetxService {
         _deepEquality.equals(oldDataList, newDataList)) {
       _isLoading = false;
       if (kDebugMode) {
-        print(
+        appLogger.debug(
             '✅ BannerController: Data unchanged (deep equality check), skipping UI update to prevent flicker');
       }
       return;
     }
 
     if (kDebugMode && isEmptyToNonEmpty) {
-      print(
+      appLogger.info(
           '✅ BannerController.setBannerDataFromBootstrap: Updating UI after empty-to-non-empty transition');
     }
     update();
     if (kDebugMode) {
       final bannerCount = _featuredBannerList?.length ?? 0;
-      print(
+      appLogger.info(
           '✅ BannerController: Banner data set from bootstrap ($bannerCount banners)');
     }
   }
@@ -728,7 +1019,7 @@ class BannerController extends GetxController implements GetxService {
     if (!hasCampaigns && !hasBanners) {
       // No banners in unified data - don't overwrite existing banners
       if (kDebugMode) {
-        print(
+        appLogger.warning(
             '⚠️ BannerController.setFromUnified: No banners in unified data, preserving existing banners');
       }
       return;
@@ -769,9 +1060,7 @@ class BannerController extends GetxController implements GetxService {
       }
     }
 
-    // Process banners
-    final List<int?> moduleIdList = bannerServiceInterface.moduleIdList();
-    final bool shouldSkipModuleFilter = moduleIdList.isEmpty;
+    // Process banners (global banners: no module filtering)
 
     if (hasBanners) {
       for (final banner in bannerModel.banners!) {
@@ -783,16 +1072,11 @@ class BannerController extends GetxController implements GetxService {
             _featuredBannerList!.add(banner.imageFullUrl);
           }
 
-          // Filter by moduleId to match getFeaturedBanner() behavior
           dynamic bannerData;
-          if (banner.item != null &&
-              (shouldSkipModuleFilter ||
-                  moduleIdList.contains(banner.item!.moduleId))) {
+          if (banner.item != null) {
             bannerData = banner.item;
             _featuredBannerDataList!.add(banner.item);
-          } else if (banner.store != null &&
-              (shouldSkipModuleFilter ||
-                  moduleIdList.contains(banner.store!.moduleId))) {
+          } else if (banner.store != null) {
             bannerData = banner.store;
             _featuredBannerDataList!.add(banner.store);
           } else if (banner.type == 'default') {
@@ -830,7 +1114,7 @@ class BannerController extends GetxController implements GetxService {
     if (!_hasDistributedOnce && hasAnyBanners) {
       _hasDistributedOnce = true;
       if (kDebugMode) {
-        print(
+        appLogger.debug(
             '⚡ BannerController.setFromUnified: First distribution detected - forcing update');
       }
       update();
@@ -840,7 +1124,7 @@ class BannerController extends GetxController implements GetxService {
     // 🔥 RULE: Empty-to-non-empty transition = ALWAYS update (no silent mode)
     if (isEmptyToNonEmpty) {
       if (kDebugMode) {
-        print(
+        appLogger.debug(
             '🔧 BannerController.setFromUnified: Empty-to-non-empty transition detected - forcing update');
       }
       update();
@@ -850,7 +1134,7 @@ class BannerController extends GetxController implements GetxService {
     // If silent mode and not empty-to-non-empty, skip update
     if (silent && !_disableDeepEquality) {
       if (kDebugMode) {
-        print(
+        appLogger.debug(
             '✅ BannerController.setFromUnified: Silent mode - skipping update (no empty-to-non-empty transition)');
       }
       return;
@@ -860,8 +1144,20 @@ class BannerController extends GetxController implements GetxService {
     update();
     if (kDebugMode) {
       final bannerCount = _featuredBannerList?.length ?? 0;
-      print(
+      appLogger.info(
           '✅ BannerController.setFromUnified: Updated banners ($bannerCount banners)');
+    }
+  }
+
+  /// Clear unified banners when switching modules and new payload is empty.
+  void clearUnifiedBanners({bool notify = true}) {
+    _featuredBannerList = [];
+    _featuredBannerDataList = [];
+    _bannerImageList = [];
+    _bannerDataList = [];
+    _isLoading = false;
+    if (notify) {
+      update();
     }
   }
 
@@ -930,7 +1226,7 @@ class BannerController extends GetxController implements GetxService {
     try {
       if (_promotionalBanner == null || reload) {
         if (kDebugMode) {
-          print(
+          appLogger.debug(
               '🚀 BannerController.getPromotionalBannerList: Loading promotional banners from API...');
         }
 
@@ -938,13 +1234,16 @@ class BannerController extends GetxController implements GetxService {
             await bannerServiceInterface.getPromotionalBannerList();
         if (promotionalBanner != null) {
           _promotionalBanner = promotionalBanner;
+          final String? promoUrl = promotionalBanner.bottomSectionBannerFullUrl;
           if (kDebugMode) {
-            print(
+            appLogger.info(
                 '✅ BannerController.getPromotionalBannerList: Loaded promotional banner successfully');
+            appLogger.info(
+                '🔍 BannerController.getPromotionalBannerList: bottomSectionBannerFullUrl=${promoUrl ?? "null"}');
           }
         } else {
           if (kDebugMode) {
-            print(
+            appLogger.warning(
                 '⚠️ BannerController.getPromotionalBannerList: API returned null promotional banner');
           }
         }
@@ -952,8 +1251,9 @@ class BannerController extends GetxController implements GetxService {
       }
     } catch (e) {
       if (kDebugMode) {
-        print(
-            '❌ BannerController.getPromotionalBannerList: Error fetching promotional banner: $e');
+        appLogger.error(
+            '❌ BannerController.getPromotionalBannerList: Error fetching promotional banner: $e',
+            e);
       }
       update();
       return null;
@@ -988,7 +1288,7 @@ class BannerController extends GetxController implements GetxService {
     if (wasFeaturedBannerEmpty && isFeaturedBannerNonEmpty) {
       isEmptyToNonEmpty = true;
       if (kDebugMode) {
-        print(
+        appLogger.debug(
             '🔧 BannerController: Empty-to-non-empty transition detected for featured banners (${featuredBannerList.length} items) - forcing update');
       }
     }
@@ -1000,7 +1300,7 @@ class BannerController extends GetxController implements GetxService {
     if (wasBannerImageEmpty && isBannerImageNonEmpty) {
       isEmptyToNonEmpty = true;
       if (kDebugMode) {
-        print(
+        appLogger.debug(
             '🔧 BannerController: Empty-to-non-empty transition detected for regular banners (${bannerImageList.length} items) - forcing update');
       }
     }
@@ -1016,7 +1316,7 @@ class BannerController extends GetxController implements GetxService {
       _hasDistributedOnce = true;
       hasChanged = true;
       if (kDebugMode) {
-        print(
+        appLogger.debug(
             '⚡ BannerController.setBannerDataFromCache: First distribution detected - forcing update');
       }
     }
@@ -1053,14 +1353,14 @@ class BannerController extends GetxController implements GetxService {
 
     if (hasChanged) {
       if (kDebugMode && isEmptyToNonEmpty) {
-        print(
+        appLogger.info(
             '✅ BannerController: Updating UI after empty-to-non-empty transition');
       }
       update();
     } else {
       _isLoading = false;
       if (kDebugMode) {
-        print(
+        appLogger.debug(
             '✅ BannerController: Data unchanged (deep equality check), skipping UI update to prevent flicker');
       }
     }
@@ -1080,15 +1380,16 @@ class BannerController extends GetxController implements GetxService {
         // Raw JSON from disk cache - deserialize it
         bannerModel = BannerModel.fromJson(data);
       } else {
-        print(
+        appLogger.warning(
             '⚠️ BannerController: Unexpected data type for banner: ${data.runtimeType}');
         return;
       }
 
       _prepareBanner(bannerModel);
-      print('✅ BannerController: Loaded banners from cache');
+      appLogger.info('✅ BannerController: Loaded banners from cache');
     } catch (e) {
-      print('❌ BannerController: Error setting banner from cache: $e');
+      appLogger.error(
+          '❌ BannerController: Error setting banner from cache: $e', e);
     }
   }
 
@@ -1105,7 +1406,7 @@ class BannerController extends GetxController implements GetxService {
         bannerModel = BannerModel.fromJson(data);
       } else {
         if (kDebugMode) {
-          print(
+          appLogger.warning(
               '⚠️ BannerController: Unexpected data type for featured banner: ${data.runtimeType}');
         }
         return;
@@ -1119,7 +1420,8 @@ class BannerController extends GetxController implements GetxService {
 
       if (!hasCampaigns && !hasBanners) {
         if (kDebugMode) {
-          print('⚠️ BannerController: Cache has no featured banners');
+          appLogger
+              .warning('⚠️ BannerController: Cache has no featured banners');
         }
         _featuredBannerList = [];
         _featuredBannerDataList = [];
@@ -1130,8 +1432,6 @@ class BannerController extends GetxController implements GetxService {
       // Clear existing featured banners
       _featuredBannerList = [];
       _featuredBannerDataList = [];
-
-      final List<int?> moduleIdList = bannerServiceInterface.moduleIdList();
 
       // Process campaigns
       if (hasCampaigns) {
@@ -1160,12 +1460,9 @@ class BannerController extends GetxController implements GetxService {
               _featuredBannerList!.add(banner.imageFullUrl);
             }
 
-            // Filter by moduleId to match getFeaturedBanner() behavior
-            if (banner.item != null &&
-                moduleIdList.contains(banner.item!.moduleId)) {
+            if (banner.item != null) {
               _featuredBannerDataList!.add(banner.item);
-            } else if (banner.store != null &&
-                moduleIdList.contains(banner.store!.moduleId)) {
+            } else if (banner.store != null) {
               _featuredBannerDataList!.add(banner.store);
             } else if (banner.type == 'default') {
               _featuredBannerDataList!.add(banner.link);
@@ -1181,14 +1478,15 @@ class BannerController extends GetxController implements GetxService {
       update();
       if (kDebugMode) {
         final bannerCount = _featuredBannerList?.length ?? 0;
-        print(
+        appLogger.info(
             '✅ BannerController: Loaded $bannerCount featured banners from cache');
       }
     } catch (e, stackTrace) {
       if (kDebugMode) {
-        print(
-            '❌ BannerController: Error setting featured banner from cache: $e');
-        print('❌ Stack trace: $stackTrace');
+        appLogger.error(
+            '❌ BannerController: Error setting featured banner from cache: $e',
+            e,
+            stackTrace);
       }
       _featuredBannerList = [];
       _featuredBannerDataList = [];
@@ -1208,15 +1506,17 @@ class BannerController extends GetxController implements GetxService {
         // Raw JSON from disk cache - deserialize it
         _promotionalBanner = PromotionalBanner.fromJson(data);
       } else {
-        print(
+        appLogger.warning(
             '⚠️ BannerController: Unexpected data type for promotional banner: ${data.runtimeType}');
         return;
       }
       update();
-      print('✅ BannerController: Loaded promotional banner from cache');
+      appLogger
+          .info('✅ BannerController: Loaded promotional banner from cache');
     } catch (e) {
-      print(
-          '❌ BannerController: Error setting promotional banner from cache: $e');
+      appLogger.error(
+          '❌ BannerController: Error setting promotional banner from cache: $e',
+          e);
     }
   }
 }

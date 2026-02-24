@@ -2,6 +2,9 @@ import '../../domain/models/qidha_wallet_analytics.dart';
 import '../../domain/repositories/qidha_wallet_repository.dart';
 import '../api/qidha_wallet_api_client.dart';
 import '../network_info.dart';
+import 'package:flutter/foundation.dart';
+import 'package:sixam_mart/common/utils/app_logger.dart';
+import 'package:sixam_mart/util/app_constants.dart';
 
 class QidhaWalletRepositoryImpl implements QidhaWalletRepository {
   final QidhaWalletApiClient qidhaWalletApiClient;
@@ -25,10 +28,12 @@ class QidhaWalletRepositoryImpl implements QidhaWalletRepository {
           dateFrom: dateFrom,
           dateTo: dateTo,
         );
-        print(
-            '🔍 QidhaWalletRepository: Analytics response keys: ${response['data']?.keys.toList()}');
-        print(
-            '🔍 QidhaWalletRepository: Has salary_day_info: ${response['data']?.containsKey('salary_day_info')}');
+        if (kDebugMode && AppConstants.enableVerboseLogs) {
+          appLogger.debug(
+              '🔍 QidhaWalletRepository: Analytics response keys: ${response['data']?.keys.toList()}');
+          appLogger.debug(
+              '🔍 QidhaWalletRepository: Has salary_day_info: ${response['data']?.containsKey('salary_day_info')}');
+        }
         return QidhaWalletAnalyticsSummary.fromJson(response['data'] as Map<String, dynamic>);
       } catch (e) {
         throw Exception('Failed to fetch Qidha wallet analytics summary: $e');
@@ -50,8 +55,10 @@ class QidhaWalletRepositoryImpl implements QidhaWalletRepository {
   }) async {
     if (await networkInfo.isConnected) {
       try {
-        print(
-            '🔍 QidhaWalletRepository: Loading transactions with offset=$offset, limit=$limit');
+        if (kDebugMode && AppConstants.enableVerboseLogs) {
+          appLogger.debug(
+              '🔍 QidhaWalletRepository: Loading transactions with offset=$offset, limit=$limit');
+        }
         final response = await qidhaWalletApiClient.getTransactions(
           offset: offset,
           limit: limit,
@@ -61,7 +68,9 @@ class QidhaWalletRepositoryImpl implements QidhaWalletRepository {
           orderId: orderId,
         );
 
-        print('🔍 QidhaWalletRepository: Raw API response: $response');
+        if (kDebugMode && AppConstants.enableVerboseLogs) {
+          appLogger.debug('🔍 QidhaWalletRepository: Raw API response: $response');
+        }
 
         final List<dynamic> transactionsJson;
         final dynamic transactionsData = response['transactions'];
@@ -71,10 +80,12 @@ class QidhaWalletRepositoryImpl implements QidhaWalletRepository {
           transactionsJson = <dynamic>[];
         }
 
-        print(
-            '🔍 QidhaWalletRepository: Found ${transactionsJson.length} transactions');
-        print(
-            '🔍 QidhaWalletRepository: Transaction IDs: ${transactionsJson.map((t) => t['id']).toList()}');
+        if (kDebugMode && AppConstants.enableVerboseLogs) {
+          appLogger.debug(
+              '🔍 QidhaWalletRepository: Found ${transactionsJson.length} transactions');
+          appLogger.debug(
+              '🔍 QidhaWalletRepository: Transaction IDs: ${transactionsJson.map((t) => t['id']).toList()}');
+        }
 
         return transactionsJson
             .map((json) => QidhaTransaction.fromJson(json as Map<String, dynamic>))

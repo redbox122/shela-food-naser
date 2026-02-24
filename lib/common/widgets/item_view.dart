@@ -23,6 +23,9 @@ class ItemsView extends StatefulWidget {
   final bool isFeatured;
   final bool verticalItem;
   final bool? isFoodOrGrocery;
+  final bool navigateItemToStoreOnTap;
+  final String? noDataActionText;
+  final VoidCallback? onNoDataActionTap;
   const ItemsView(
       {super.key,
       required this.stores,
@@ -36,7 +39,10 @@ class ItemsView extends StatefulWidget {
       this.verticalItem = false,
       this.inStorePage = false,
       this.isFeatured = false,
-      this.isFoodOrGrocery = true});
+      this.isFoodOrGrocery = true,
+      this.navigateItemToStoreOnTap = false,
+      this.noDataActionText,
+      this.onNoDataActionTap});
 
   @override
   State<ItemsView> createState() => _ItemsViewState();
@@ -129,20 +135,36 @@ class _ItemsViewState extends State<ItemsView> {
                             isCampaign: widget.isCampaign,
                             verticalItem: widget.verticalItem,
                             inStore: widget.inStorePage,
+                            navigateItemToStoreOnTap:
+                                widget.navigateItemToStoreOnTap,
                           );
                   },
                 )
-              : NoDataScreen(
-                  text: widget.noDataText ??
-                      (widget.isStore
-                          ? Get.find<SplashController>()
-                                  .configModel!
-                                  .moduleConfig!
-                                  .module!
-                                  .showRestaurantText!
-                              ? 'no_restaurant_available'.tr
-                              : 'no_store_available'.tr
-                          : 'no_item_available'.tr),
+              : Column(
+                  children: [
+                    NoDataScreen(
+                      text: widget.noDataText ??
+                          (widget.isStore
+                              ? Get.find<SplashController>()
+                                      .configModel!
+                                      .moduleConfig!
+                                      .module!
+                                      .showRestaurantText!
+                                  ? 'no_restaurant_available'.tr
+                                  : 'no_store_available'.tr
+                              : 'no_item_available'.tr),
+                    ),
+                    if (widget.onNoDataActionTap != null)
+                      Padding(
+                        padding: const EdgeInsets.only(
+                            top: Dimensions.paddingSizeSmall),
+                        child: OutlinedButton(
+                          onPressed: widget.onNoDataActionTap,
+                          child:
+                              Text(widget.noDataActionText ?? 'reset'.tr),
+                        ),
+                      ),
+                  ],
                 )
           : widget.isStore
               ? GridView.builder(

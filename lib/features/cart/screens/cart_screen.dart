@@ -87,56 +87,64 @@ Future<void> _writeDebugLogAsync(String location, String message,
 }
 // #endregion
 
+bool _isCheckoutFlowInProgress = false;
+
 /// Helper function to navigate to checkout with loading dialog
 /// Shows engaging animation while preparing checkout data
 Future<void> _navigateToCheckoutWithLoading(
   BuildContext context,
   CartController cartController,
 ) async {
+  if (_isCheckoutFlowInProgress || Get.currentRoute.contains('/checkout')) {
+    debugPrint('⏳ Checkout flow already in progress - skipping duplicate call');
+    return;
+  }
+
+  // Freeze cart snapshot to avoid race conditions while async prep is running.
+  final List<CartModel> checkoutCartSnapshot =
+      List<CartModel>.from(cartController.cartList);
   final storeId = cartController.storeId ??
-      (cartController.cartList.isNotEmpty
-          ? cartController.cartList.first.item?.storeId
+      (checkoutCartSnapshot.isNotEmpty
+          ? checkoutCartSnapshot.first.item?.storeId
           : null);
 
-  if (storeId == null) {
+  if (storeId == null || checkoutCartSnapshot.isEmpty) {
     showCustomSnackBar('invalid_cart_item'.tr);
     return;
   }
 
-  // Show loading dialog
+  _isCheckoutFlowInProgress = true;
   showCheckoutLoadingDialog(context);
 
   try {
-    // Calculate distance
     await _CartScreenState._calculateAndSetDistanceBeforeCheckout();
     if (!context.mounted) return;
 
     final checkoutController = Get.find<CheckoutController>();
 
-    // Initialize checkout data (delivery fee calculation)
     await checkoutController.initCheckoutData(
       context,
       storeId,
-      preloadedCartList: cartController.cartList,
+      preloadedCartList: checkoutCartSnapshot,
       preCalculatedDistance: checkoutController.preCalculatedDistance,
     );
     if (!context.mounted) return;
 
-    // Dismiss loading dialog
-    dismissCheckoutLoadingDialog(context);
+    dismissCheckoutLoadingDialog();
+    await Future<void>.delayed(const Duration(milliseconds: 16));
     if (!context.mounted) return;
-
-    // Navigate to checkout - all data is now ready
     RouteHelper.navigateToCheckout(
-      cartList: cartController.cartList,
+      cartList: checkoutCartSnapshot,
       storeId: storeId,
     );
   } catch (e) {
-    debugPrint('❌ [Cart→Checkout] Error during preparation: $e');
+    debugPrint('? [Cart?Checkout] Error during preparation: $e');
     if (context.mounted) {
-      dismissCheckoutLoadingDialog(context);
       showCustomSnackBar('unable_to_proceed_checkout'.tr);
     }
+  } finally {
+    dismissCheckoutLoadingDialogSafely(context);
+    _isCheckoutFlowInProgress = false;
   }
 }
 
@@ -174,6 +182,13 @@ class _CartScreenState extends State<CartScreen> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
+    // Cart may stay in widget tree while OTP/login routes are on top.
+    // Skip cart refresh logic unless cart route is actually active/current.
+    final bool isCurrentRoute = ModalRoute.of(context)?.isCurrent ?? false;
+    if (!isCurrentRoute || !Get.currentRoute.contains('/cart')) {
+      return;
+    }
+
     // Skip the first call (happens right after initState)
     // This prevents duplicate API calls on screen load
     if (_isFirstDidChangeDependencies) {
@@ -468,13 +483,33 @@ class _CartScreenState extends State<CartScreen> {
                                                                     .cartList
                                                                     .asMap()
                                                                     .entries
-                                                                    .map(
+                                                            .map(
                                                                         (entry) {
                                                               final int index =
                                                                   entry.key;
                                                               final CartModel
                                                                   cart =
                                                                   entry.value;
+                                                              final List<AddOns>
+                                                                  safeAddOns =
+                                                                  index <
+                                                                          cartController
+                                                                              .addOnsList
+                                                                              .length
+                                                                      ? cartController
+                                                                              .addOnsList[
+                                                                          index]
+                                                                      : <AddOns>[];
+                                                              final bool
+                                                                  safeIsAvailable =
+                                                                  index <
+                                                                          cartController
+                                                                              .availableList
+                                                                              .length
+                                                                      ? cartController
+                                                                              .availableList[
+                                                                          index]
+                                                                      : true;
                                                               return Padding(
                                                                 padding: const EdgeInsets
                                                                     .symmetric(
@@ -487,13 +522,10 @@ class _CartScreenState extends State<CartScreen> {
                                                                   cart: cart,
                                                                   cartIndex:
                                                                       index,
-                                                                  addOns: cartController
-                                                                          .addOnsList[
-                                                                      index],
+                                                                  addOns:
+                                                                      safeAddOns,
                                                                   isAvailable:
-                                                                      cartController
-                                                                              .availableList[
-                                                                          index],
+                                                                      safeIsAvailable,
                                                                   cartController:
                                                                       cartController,
                                                                 ),
@@ -1161,8 +1193,8 @@ class _CartScreenState extends State<CartScreen> {
 
   Future<void> showReferAndEarnSnackBar() async {
     final String text = 'your_referral_discount_added_on_your_first_order'.tr;
-    if (Get.find<ProfileController>().userInfoModel != null &&
-        Get.find<ProfileController>().userInfoModel!.isValidForDiscount!) {
+    final userInfo = Get.find<ProfileController>().userInfoModel;
+    if (userInfo?.isValidForDiscount == true) {
       showCustomSnackBar(text, isError: false);
     }
   }
@@ -1726,13 +1758,11 @@ class _ModernSummaryRow extends StatelessWidget {
   const _ModernSummaryRow({
     required this.label,
     required this.value,
-    this.trailingNote,
     this.isTotal = false,
   });
 
   final String label;
   final Widget value;
-  final String? trailingNote;
   final bool isTotal;
 
   @override
@@ -1754,24 +1784,9 @@ class _ModernSummaryRow extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Text(label, style: labelStyle),
-          Row(
-            children: [
-              if (trailingNote != null) ...[
-                Text(
-                  trailingNote!,
-                  style: const TextStyle(
-                    color: CartColors.light,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(width: 8),
-              ],
-              DefaultTextStyle(
-                style: valueStyle,
-                child: value,
-              ),
-            ],
+          DefaultTextStyle(
+            style: valueStyle,
+            child: value,
           ),
         ],
       ),
@@ -1885,38 +1900,13 @@ class _ModernPaymentButton extends StatelessWidget {
                           barrierDismissible: false,
                         );
                         if (!context.mounted) return;
-
-                        if (AuthHelper.isLoggedIn()) {
-                          final bool isLocationValid = await _CartScreenState
-                              .validateLocationForCheckout();
-                          if (!context.mounted) return;
-
-                          if (isLocationValid) {
-                            await _navigateToCheckoutWithLoading(
-                              context,
-                              cartController,
-                            );
-                          }
-                        }
                       } else {
                         // ✅ إضافة <void>
                         await Get.toNamed<void>(
                             RouteHelper.getSignInRoute(Get.currentRoute));
                         if (!context.mounted) return;
-
-                        if (AuthHelper.isLoggedIn()) {
-                          final bool isLocationValid = await _CartScreenState
-                              .validateLocationForCheckout();
-                          if (!context.mounted) return;
-
-                          if (isLocationValid) {
-                            await _navigateToCheckoutWithLoading(
-                              context,
-                              cartController,
-                            );
-                          }
-                        }
                       }
+                      return;
                     } else {
                       await _navigateToCheckoutWithLoading(
                         context,
@@ -1972,13 +1962,22 @@ class CheckoutButton extends StatelessWidget {
       {super.key, required this.cartController, required this.availableList});
 
   Future<void> _proceedToCheckout(BuildContext context) async {
+    if (_isCheckoutFlowInProgress || Get.currentRoute.contains('/checkout')) {
+      debugPrint(
+          '⏳ Checkout flow already in progress - skipping duplicate call');
+      return;
+    }
+
     try {
-      if (cartController.cartList.isEmpty) {
+      final List<CartModel> checkoutCartSnapshot =
+          List<CartModel>.from(cartController.cartList);
+
+      if (checkoutCartSnapshot.isEmpty) {
         showCustomSnackBar('cart_empty'.tr);
         return;
       }
 
-      final firstItem = cartController.cartList.first;
+      final firstItem = checkoutCartSnapshot.first;
       if (firstItem.item?.storeId == null || firstItem.item?.moduleId == null) {
         showCustomSnackBar('invalid_cart_item'.tr);
         return;
@@ -2020,9 +2019,7 @@ class CheckoutButton extends StatelessWidget {
           isLoggedIn = AuthHelper.isLoggedIn();
         }
 
-        if (!isLoggedIn) {
-          return;
-        }
+        return;
       }
 
       final bool isLocationValid =
@@ -2034,6 +2031,7 @@ class CheckoutButton extends StatelessWidget {
 
       // ✅ FIX: Show loading dialog while preparing checkout data
       // This ensures all data is loaded before showing checkout screen
+      _isCheckoutFlowInProgress = true;
       showCheckoutLoadingDialog(context);
 
       try {
@@ -2047,7 +2045,7 @@ class CheckoutButton extends StatelessWidget {
         await checkoutController.initCheckoutData(
           context,
           storeId,
-          preloadedCartList: cartController.cartList,
+          preloadedCartList: checkoutCartSnapshot,
           preCalculatedDistance: checkoutController.preCalculatedDistance,
         );
         if (!context.mounted) return;
@@ -2058,7 +2056,6 @@ class CheckoutButton extends StatelessWidget {
         final double minimumOrder = storeController.store?.minimumOrder ?? 0;
 
         if (minimumOrder > 0 && subTotal < minimumOrder) {
-          dismissCheckoutLoadingDialog(context);
           showCustomSnackBar(
               '${'minimum_order_amount_is'.tr} ${PriceConverter.convertPrice(minimumOrder)}');
           return;
@@ -2066,31 +2063,37 @@ class CheckoutButton extends StatelessWidget {
 
         if (!cartController.cartList.first.item!.scheduleOrder! &&
             availableList.contains(false)) {
-          dismissCheckoutLoadingDialog(context);
           showCustomSnackBar('one_or_more_product_unavailable'.tr);
           return;
         }
 
         final finalStoreId = cartController.storeId ?? storeId;
 
-        // Dismiss loading dialog
-        dismissCheckoutLoadingDialog(context);
         if (!context.mounted) return;
 
+        // Close loading dialog before pushing checkout route to avoid
+        // route stack conflicts where previous route becomes DIALOG.
+        dismissCheckoutLoadingDialog();
+        await Future<void>.delayed(const Duration(milliseconds: 16));
+        if (!context.mounted) return;
         // Navigate to checkout - all data is now ready
         RouteHelper.navigateToCheckout(
-          cartList: cartController.cartList,
+          cartList: checkoutCartSnapshot,
           storeId: finalStoreId,
         );
       } catch (e) {
         debugPrint('❌ [Cart→Checkout] Error during preparation: $e');
         if (context.mounted) {
-          dismissCheckoutLoadingDialog(context);
           showCustomSnackBar('unable_to_proceed_checkout'.tr);
         }
+      } finally {
+        // Always close loading dialog for every early-return/error path.
+        dismissCheckoutLoadingDialogSafely(context);
+        _isCheckoutFlowInProgress = false;
       }
     } catch (e) {
       debugPrint('❌ [Cart→Checkout] Error: $e');
+      dismissCheckoutLoadingDialogSafely(context);
       showCustomSnackBar('unable_to_proceed_checkout'.tr);
     }
   }

@@ -6,6 +6,7 @@ import 'package:sixam_mart/features/banner/domain/repositories/banner_repository
 import 'package:sixam_mart/features/banner/domain/services/banner_service_interface.dart';
 import 'package:sixam_mart/features/location/domain/models/zone_response_model.dart';
 import 'package:sixam_mart/helper/address_helper.dart';
+import 'package:flutter/foundation.dart';
 
 class BannerService implements BannerServiceInterface {
   final BannerRepositoryInterface bannerRepositoryInterface;
@@ -25,8 +26,24 @@ class BannerService implements BannerServiceInterface {
 
   @override
   Future<BannerModel?> getFeaturedBannerList() async {
-    final result = await bannerRepositoryInterface.getList(isFeaturedBanner: true);
-    return result is BannerModel? ? result : null;
+    if (kDebugMode) {
+      debugPrint('📡 BannerService: Fetching featured banners from repository');
+    }
+    try {
+      final result =
+          await bannerRepositoryInterface.getList(isFeaturedBanner: true);
+      final model = result is BannerModel? ? result : null;
+      if (kDebugMode) {
+        debugPrint(
+            '✅ BannerService: Featured banners fetch completed (campaigns=${model?.campaigns?.length ?? 0}, banners=${model?.banners?.length ?? 0})');
+      }
+      return model;
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('❌ BannerService: Error fetching featured banners: $e');
+      }
+      rethrow;
+    }
   }
 
   @override

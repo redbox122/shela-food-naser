@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:sixam_mart/common/widgets/debug_popup_panel.dart';
 import 'package:sixam_mart/features/location/controllers/location_controller.dart';
 import 'package:sixam_mart/features/notification/controllers/notification_controller.dart';
+import 'package:sixam_mart/features/notification/screens/notification_screen.dart';
 import 'package:sixam_mart/features/store/controllers/store_controller.dart';
 import 'package:sixam_mart/features/splash/controllers/splash_controller.dart';
 import 'package:sixam_mart/helper/address_helper.dart';
@@ -236,10 +237,32 @@ class _AnimatedNotificationIconState extends State<_AnimatedNotificationIcon>
 Widget build_NotificationIcon(BuildContext context) {
   return _AnimatedNotificationIcon(
     onPressed: () {
-      Get.toNamed<String>(RouteHelper.getNotificationRoute());
+      _openNotificationCenter();
     },
     iconColor: Theme.of(context).extension<CustomThemeExtension>()!.white_Color,
   );
+}
+
+Future<void> _openNotificationCenter() async {
+  final String route = RouteHelper.getNotificationRoute();
+  debugPrint(
+      '[NotificationIcon] tap currentRoute=${Get.currentRoute} targetRoute=$route');
+
+  if (Get.currentRoute.startsWith(RouteHelper.notification)) {
+    debugPrint('[NotificationIcon] already on notification route - skip push');
+    return;
+  }
+
+  try {
+    await Get.toNamed<dynamic>(route);
+  } catch (error, stackTrace) {
+    debugPrint('[NotificationIcon] named route failed: $error');
+    debugPrintStack(
+        label: '[NotificationIcon] named route stack', stackTrace: stackTrace);
+    await Get.to<dynamic>(
+      () => const NotificationScreen(fromNotification: false),
+    );
+  }
 }
 
 // ================== Address section with icons and text

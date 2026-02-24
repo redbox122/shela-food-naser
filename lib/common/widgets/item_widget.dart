@@ -5,11 +5,15 @@ import 'package:sixam_mart/common/widgets/custom_favourite_widget.dart';
 import 'package:sixam_mart/common/widgets/custom_ink_well.dart';
 import 'package:sixam_mart/common/widgets/hover/text_hover.dart';
 import 'package:sixam_mart/features/item/controllers/item_controller.dart';
+import 'package:sixam_mart/features/cart/controllers/cart_controller.dart';
 import 'package:sixam_mart/features/language/controllers/language_controller.dart';
 import 'package:sixam_mart/features/splash/controllers/splash_controller.dart';
 import 'package:sixam_mart/features/favourite/controllers/favourite_controller.dart';
+import 'package:sixam_mart/features/checkout/domain/models/place_order_body_model.dart';
+import 'package:sixam_mart/features/cart/domain/models/cart_model.dart';
 import 'package:sixam_mart/features/item/domain/models/item_model.dart';
 import 'package:sixam_mart/common/models/module_model.dart';
+import 'package:sixam_mart/features/store/controllers/store_controller.dart';
 import 'package:sixam_mart/features/store/domain/models/store_model.dart';
 import 'package:sixam_mart/helper/price_converter.dart';
 import 'package:sixam_mart/helper/responsive_helper.dart';
@@ -21,11 +25,18 @@ import 'package:sixam_mart/common/widgets/custom_image.dart';
 import 'package:sixam_mart/common/widgets/discount_tag.dart';
 import 'package:sixam_mart/common/widgets/not_available_widget.dart';
 import 'package:sixam_mart/common/widgets/organic_tag.dart';
+import 'package:sixam_mart/common/widgets/confirmation_dialog.dart';
 import 'package:sixam_mart/features/store/screens/store_screen.dart';
+import 'package:sixam_mart/helper/module_helper.dart';
+import 'package:sixam_mart/util/images.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 class ItemWidget extends StatelessWidget {
+  static final Map<String, DateTime> _tapLocks = <String, DateTime>{};
+  static const Duration _tapLockWindow = Duration(milliseconds: 800);
+
   final Item? item;
   final Store? store;
   final bool isStore;
@@ -39,6 +50,7 @@ class ItemWidget extends StatelessWidget {
   final double? imageWidth;
   final bool? isCornerTag;
   final bool verticalItem;
+  final bool navigateItemToStoreOnTap;
 
   const ItemWidget({
     super.key,
@@ -55,7 +67,26 @@ class ItemWidget extends StatelessWidget {
     this.imageHeight,
     this.imageWidth,
     this.isCornerTag = false,
+    this.navigateItemToStoreOnTap = false,
   });
+
+  String _tapLockKey() {
+    if (isStore) {
+      return 'store_${store?.id ?? 0}';
+    }
+    return 'item_${item?.id ?? 0}_store_${item?.storeId ?? 0}';
+  }
+
+  bool _isTapLocked() {
+    final String key = _tapLockKey();
+    final DateTime now = DateTime.now();
+    final DateTime? lastTap = _tapLocks[key];
+    if (lastTap != null && now.difference(lastTap) < _tapLockWindow) {
+      return true;
+    }
+    _tapLocks[key] = now;
+    return false;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -67,15 +98,13 @@ class ItemWidget extends StatelessWidget {
     final String? discountType = _getDiscountType();
     final bool isAvailable = _getAvailability();
 
-    // 🔥 FIX: Add height constraints for SliverList compatibility
-    // Vertical items need more height, horizontal items need less
+    // Keep a minimum height for visual consistency, but avoid a hard max height.
+    // A strict max can cause RenderFlex bottom overflow with longer text/font scale.
     final double minHeight = verticalItem ? 140.0 : 100.0;
-    final double maxHeight = verticalItem ? 200.0 : 140.0;
 
     return Container(
       constraints: BoxConstraints(
         minHeight: minHeight,
-        maxHeight: maxHeight,
       ),
       child: Stack(
         children: [
@@ -116,7 +145,7 @@ class ItemWidget extends StatelessWidget {
     if (isStore) {
       return store!.discount != null ? store!.discount!.discount : 0;
     }
-    return (item!.storeDiscount == 0 || isCampaign)
+    return ((item!.storeDiscount ?? 0) == 0 || isCampaign)
         ? item!.discount
         : item!.storeDiscount;
   }
@@ -127,7 +156,7 @@ class ItemWidget extends StatelessWidget {
           ? store!.discount!.discountType
           : 'percent';
     }
-    return (item!.storeDiscount == 0 || isCampaign)
+    return ((item!.storeDiscount ?? 0) == 0 || isCampaign)
         ? item!.discountType
         : 'percent';
   }
@@ -152,7 +181,7 @@ class ItemWidget extends StatelessWidget {
         ],
       ),
       child: CustomInkWell(
-        onTap: _onItemTap,
+        onTap: () => _onItemTap(context),
         radius: Dimensions.radiusDefault,
         padding: ResponsiveHelper.isDesktop(context)
             ? EdgeInsets.all(fromCartSuggestion
@@ -162,31 +191,26 @@ class ItemWidget extends StatelessWidget {
                 horizontal: Dimensions.paddingSizeSmall,
                 vertical: Dimensions.paddingSizeExtraSmall),
         child: TextHover(builder: (hovered) {
-          return Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Expanded(
-                child: Padding(
-                  padding: EdgeInsets.symmetric(
-                      vertical: desktop ? 0 : Dimensions.paddingSizeExtraSmall),
-                  child: verticalItem
-                      ? Column(
-                          children: [
-                            _buildImageSection(context, hovered, discount,
-                                discountType, isAvailable),
-                            _buildTextInfo(context, hovered),
-                          ],
-                        )
-                      : Row(
-                          children: [
-                            _buildImageSection(context, hovered, discount,
-                                discountType, isAvailable),
-                            _buildTextInfo(context, hovered),
-                          ],
-                        ),
-                ),
-              ),
-            ],
+          return Padding(
+            padding: EdgeInsets.symmetric(
+                vertical: desktop ? 0 : Dimensions.paddingSizeExtraSmall),
+            child: verticalItem
+                ? Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      _buildImageSection(
+                          context, hovered, discount, discountType, isAvailable),
+                      _buildTextInfo(context, hovered),
+                    ],
+                  )
+                : Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildImageSection(
+                          context, hovered, discount, discountType, isAvailable),
+                      Expanded(child: _buildTextInfo(context, hovered)),
+                    ],
+                  ),
           );
         }),
       ),
@@ -194,7 +218,14 @@ class ItemWidget extends StatelessWidget {
   }
 
   // Item on tap handler
-  void _onItemTap() {
+  Future<void> _onItemTap(BuildContext context) async {
+    if (_isTapLocked()) {
+      if (kDebugMode) {
+        debugPrint('⏭️ [ItemWidget] Double tap blocked');
+      }
+      return;
+    }
+
     if (isStore) {
       if (store != null) {
         if (isFeatured && Get.find<SplashController>().moduleList != null) {
@@ -214,6 +245,134 @@ class ItemWidget extends StatelessWidget {
       }
     } else {
       if (item != null) {
+        if (navigateItemToStoreOnTap && item!.storeId != null) {
+          // ✅ FIX: Check for different store before auto-adding to cart
+          final cartController = Get.find<CartController>();
+          final moduleId = ModuleHelper.getModule() != null
+              ? ModuleHelper.getModule()?.id
+              : ModuleHelper.getCacheModule()?.id;
+          
+          int? effectiveStoreId;
+          if (inStore && Get.isRegistered<StoreController>()) {
+            effectiveStoreId = Get.find<StoreController>().store?.id;
+          }
+          effectiveStoreId ??= item!.storeId;
+
+          if (cartController.existAnotherStoreItem(effectiveStoreId, moduleId)) {
+            // Show confirmation dialog before clearing cart and adding new item
+            Get.dialog<void>(
+              ConfirmationDialog(
+                icon: Images.warning,
+                title: 'are_you_sure_to_reset'.tr,
+                description: Get.find<SplashController>()
+                        .configModel!
+                        .moduleConfig!
+                        .module!
+                        .showRestaurantText!
+                    ? 'if_you_continue'.tr
+                    : 'if_you_continue_without_another_store'.tr,
+                onYesPressed: () async {
+                  if (kDebugMode) {
+                    debugPrint('✅ [ItemWidget] User confirmed - clearing cart and adding item');
+                    debugPrint('   - Item ID: ${item!.id}, Store ID: ${item!.storeId}');
+                  }
+                  
+                  Get.back<void>(); // Close dialog first
+                  
+                  try {
+                    // ✅ CRITICAL FIX: Always clear local cart first to reset _storeId
+                    // This ensures the new item can be added even if online clear fails
+                    if (kDebugMode) {
+                      debugPrint('🔄 [ItemWidget] Clearing local cart first...');
+                    }
+                    await cartController.clearCartList(canRemoveOnline: false);
+                    
+                    // Then try to clear online cart (non-blocking)
+                    if (kDebugMode) {
+                      debugPrint('🔄 [ItemWidget] Clearing cart online...');
+                    }
+                    cartController.clearCartOnline(); // Don't await - non-blocking
+                    
+                    if (kDebugMode) {
+                      debugPrint('✅ [ItemWidget] Local cart cleared, proceeding with add...');
+                    }
+                    
+                    // ✅ FIX: Check if item has variations/addons before trying to add
+                    // Category restaurants flow: add directly without extras,
+                    // then continue to store page.
+                    if (kDebugMode) {
+                      debugPrint(
+                          '➕ [ItemWidget] Category flow: adding item without extras before navigation...');
+                    }
+                    final bool added = await _tryAutoAddSimpleItemToCart(
+                      item!,
+                      ignoreOptionRequirements: true,
+                    );
+                    if (!added && kDebugMode) {
+                      debugPrint(
+                          '⚠️ [ItemWidget] Auto-add failed, continuing to store page');
+                    }
+
+                    await Future.delayed(const Duration(milliseconds: 300));
+
+                    final int? focusedCategoryId = item!.categoryId;
+                    final int? focusedItemId = item!.id;
+                    Get.toNamed(
+                      RouteHelper.getStoreRoute(
+                        id: item!.storeId,
+                        page: 'item',
+                        categoryId: focusedCategoryId,
+                        itemId: focusedItemId,
+                      ),
+                      arguments: StoreScreen(
+                        store: Store(id: item!.storeId),
+                        fromModule: false,
+                      ),
+                    );
+                  } catch (e, stackTrace) {
+                    if (kDebugMode) {
+                      debugPrint('❌ [ItemWidget] Error in onYesPressed: $e');
+                      debugPrint('Stack trace: $stackTrace');
+                    }
+                    // Show error to user
+                    Get.snackbar(
+                      'error'.tr,
+                      'please_try_again'.tr,
+                      snackPosition: SnackPosition.BOTTOM,
+                    );
+                  }
+                },
+              ),
+              barrierDismissible: false,
+            );
+            return;
+          }
+          
+          // Same store or empty cart - add directly
+          final bool added = await _tryAutoAddSimpleItemToCart(
+            item!,
+            ignoreOptionRequirements: true,
+          );
+          if (!added && kDebugMode) {
+            debugPrint(
+                '⚠️ [ItemWidget] Auto-add failed, continuing to store page without snackbar');
+          }
+          final int? focusedCategoryId = item!.categoryId;
+          final int? focusedItemId = item!.id;
+          Get.toNamed(
+            RouteHelper.getStoreRoute(
+              id: item!.storeId,
+              page: 'item',
+              categoryId: focusedCategoryId,
+              itemId: focusedItemId,
+            ),
+            arguments: StoreScreen(
+              store: Store(id: item!.storeId),
+              fromModule: false,
+            ),
+          );
+          return;
+        }
         // Added null check for item
         if (isFeatured && Get.find<SplashController>().moduleList != null) {
           for (final ModuleModel module
@@ -224,67 +383,175 @@ class ItemWidget extends StatelessWidget {
             }
           }
         }
-        Get.find<ItemController>().navigateToItemPage(item!, Get.context!,
+        Get.find<ItemController>().navigateToItemPage(item!, context,
             inStore: inStore, isCampaign: isCampaign);
       }
+    }
+  }
+
+  Future<bool> _tryAutoAddSimpleItemToCart(
+    Item product, {
+    bool ignoreOptionRequirements = false,
+  }) async {
+    if (kDebugMode) {
+      debugPrint('🛒 [ItemWidget] _tryAutoAddSimpleItemToCart called for: ${product.name} (ID: ${product.id})');
+    }
+    
+    // Skip auto-add for items that require option/variation selection.
+    final bool hasFoodVariations =
+        product.foodVariations != null && product.foodVariations!.isNotEmpty;
+    final bool hasChoiceOptions =
+        product.choiceOptions != null && product.choiceOptions!.isNotEmpty;
+    if (!ignoreOptionRequirements && (hasFoodVariations || hasChoiceOptions)) {
+      if (kDebugMode) {
+        debugPrint('⏭️ [ItemWidget] Skipping auto-add - item has variations/addons');
+      }
+      return false;
+    }
+
+    if (!Get.isRegistered<CartController>()) {
+      if (kDebugMode) {
+        debugPrint('⚠️ [ItemWidget] CartController not registered');
+      }
+      return false;
+    }
+
+    try {
+      final CartController cartController = Get.find<CartController>();
+      final double unitPrice = (product.price ?? 0).toDouble();
+      
+      if (kDebugMode) {
+        debugPrint('💰 [ItemWidget] Creating cart models - price: $unitPrice, storeId: ${product.storeId}');
+      }
+      
+      final OnlineCart onlineCart = OnlineCart(
+        null,
+        product.id,
+        null,
+        unitPrice.toString(),
+        '',
+        null,
+        null,
+        1,
+        <int?>[],
+        null,
+        <int?>[],
+        'Item',
+        itemType: 'Item',
+        storeId: product.storeId,
+      );
+
+      final CartModel cartModel = CartModel(
+        id: null,
+        storeId: product.storeId,
+        price: unitPrice,
+        discountedPrice: unitPrice,
+        variation: const <Variation>[],
+        foodVariations: const <List<bool?>>[],
+        discountAmount: 0,
+        quantity: 1,
+        addOnIds: const <AddOn>[],
+        addOns: const <AddOns>[],
+        isCampaign: false,
+        stock: product.stock,
+        item: product,
+        quantityLimit: product.quantityLimit,
+      );
+
+      if (kDebugMode) {
+        debugPrint('➕ [ItemWidget] Calling addToCartWithFallback...');
+      }
+      
+      // ✅ FIX: Wait for cart addition to complete and verify success
+      bool addSuccess = await cartController.addToCartWithFallback(
+          cartModel: cartModel, onlineCart: onlineCart);
+      if (!addSuccess) {
+        // Retry once to reduce transient API/cache race failures.
+        addSuccess = await cartController.addToCartWithFallback(
+            cartModel: cartModel, onlineCart: onlineCart);
+      }
+      
+      if (kDebugMode) {
+        debugPrint('${addSuccess ? "✅" : "⚠️"} [ItemWidget] addToCartWithFallback result: $addSuccess');
+      }
+      
+      if (addSuccess) {
+        // Wait a bit for cart sync to complete
+        if (kDebugMode) {
+          debugPrint('⏳ [ItemWidget] Waiting for cart sync...');
+        }
+        await Future.delayed(const Duration(milliseconds: 200));
+        if (kDebugMode) {
+          debugPrint('✅ [ItemWidget] Cart sync wait completed');
+        }
+      }
+      return addSuccess;
+    } catch (e, stackTrace) {
+      // Log error but don't block navigation
+      if (kDebugMode) {
+        debugPrint('❌ [ItemWidget] _tryAutoAddSimpleItemToCart error: $e');
+        debugPrint('Stack trace: $stackTrace');
+      }
+      return false;
     }
   }
 
   // Text info widget
   Widget _buildTextInfo(BuildContext context, bool hovered) {
     final bool ltr = Get.find<LocalizationController>().isLtr;
-    return Expanded(
-      child: Padding(
-        padding: EdgeInsets.only(right: ltr ? 0 : 8, left: ltr ? 8 : 0),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-          crossAxisAlignment:
-              ltr ? CrossAxisAlignment.start : CrossAxisAlignment.end,
-          children: [
-            Row(
-              children: [
-                _buildItemName(),
-                const SizedBox(width: Dimensions.paddingSizeSmall),
-                _buildItemUnit(context),
-              ],
-            ),
-            _buildStoreOrItemDescription(context),
-            if (!isStore &&
-                item!.nutrition != null &&
-                item!.nutrition!.calories != null)
-              Padding(
-                padding: const EdgeInsets.only(top: 4.0),
-                child: Row(
-                  children: [
-                    Icon(
-                      Icons.local_fire_department,
-                      size: 14,
-                      color: Theme.of(context).primaryColor,
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      '${item!.nutrition!.calories} ${'calories'.tr}',
-                      style: robotoRegular.copyWith(
-                        fontSize: Dimensions.fontSizeExtraSmall,
-                        color: Theme.of(context).disabledColor,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            Flexible(
+    return Padding(
+      padding: EdgeInsets.only(right: ltr ? 0 : 8, left: ltr ? 8 : 0),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        crossAxisAlignment: ltr ? CrossAxisAlignment.start : CrossAxisAlignment.end,
+        children: [
+          Row(
+            children: [
+              _buildItemName(),
+              const SizedBox(width: Dimensions.paddingSizeSmall),
+              _buildItemUnit(context),
+            ],
+          ),
+          _buildStoreOrItemDescription(context),
+          if (!isStore &&
+              item!.nutrition != null &&
+              item!.nutrition!.calories != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 4.0),
               child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Flexible(
-                    child: _buildPriceSection(context),
+                  Icon(
+                    Icons.local_fire_department,
+                    size: 14,
+                    color: Theme.of(context).primaryColor,
                   ),
-                  CartCountView(item: item!, index: index),
+                  const SizedBox(width: 4),
+                  Text(
+                    '${item!.nutrition!.calories} ${'calories'.tr}',
+                    style: robotoRegular.copyWith(
+                      fontSize: Dimensions.fontSizeExtraSmall,
+                      color: Theme.of(context).disabledColor,
+                    ),
+                  ),
                 ],
               ),
             ),
-          ],
-        ),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Flexible(
+                child: _buildPriceSection(context),
+              ),
+              CartCountView(
+                item: item!,
+                index: index,
+                inStorePage: inStore,
+                isCampaign: isCampaign,
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }
@@ -427,12 +694,9 @@ class ItemWidget extends StatelessWidget {
       double? discount, String? discountType, bool ltr) {
     return (!isStore && isCornerTag! == false)
         ? Positioned(
-            right: ltr ? 0 : null,
-            left: ltr ? null : 0,
+            left: 0,
             child: CornerDiscountTag(
-              bannerPosition: ltr
-                  ? CornerBannerPosition.topRight
-                  : CornerBannerPosition.topLeft,
+              bannerPosition: CornerBannerPosition.bottomLeft,
               discount: discount,
               discountType: discountType,
               freeDelivery: isStore ? store!.freeDelivery : false,
@@ -466,16 +730,30 @@ class SimilarItemWidget extends StatelessWidget {
 
   // Helper methods to get discount, type, and availability
   double? _getDiscount() {
-    return (item!.storeDiscount == 0) ? item!.discount : item!.storeDiscount;
+    return ((item!.storeDiscount ?? 0) == 0)
+        ? item!.discount
+        : item!.storeDiscount;
   }
 
   String? _getDiscountType() {
-    return (item!.storeDiscount == 0) ? item!.discountType : 'percent';
+    return ((item!.storeDiscount ?? 0) == 0)
+        ? item!.discountType
+        : 'percent';
   }
 
   bool _getAvailability() {
     // TEMP: force product availability.
     return true;
+  }
+
+  // Item on tap handler
+  Future<void> _onItemTap(BuildContext context) async {
+    if (item != null) {
+      Get.find<ItemController>().navigateToItemPage(
+        item!,
+        context,
+      );
+    }
   }
 
   // Main container widget
@@ -493,9 +771,9 @@ class SimilarItemWidget extends StatelessWidget {
         ],
       ),
       width: 250,
-      height: 200,
+      constraints: const BoxConstraints(minHeight: 200),
       child: CustomInkWell(
-        onTap: _onItemTap,
+        onTap: () => _onItemTap(context),
         radius: Dimensions.radiusDefault,
         padding: ResponsiveHelper.isDesktop(context)
             ? const EdgeInsets.all(Dimensions.paddingSizeSmall)
@@ -503,91 +781,75 @@ class SimilarItemWidget extends StatelessWidget {
                 horizontal: Dimensions.paddingSizeSmall,
                 vertical: Dimensions.paddingSizeExtraSmall),
         child: TextHover(builder: (hovered) {
-          return Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Expanded(
-                child: Padding(
-                    padding: EdgeInsets.symmetric(
-                        vertical:
-                            desktop ? 0 : Dimensions.paddingSizeExtraSmall),
-                    child: Column(
-                      children: [
-                        _buildImageSection(context, hovered, discount,
-                            discountType, isAvailable),
-                        _buildTextInfo(context, hovered),
-                      ],
-                    )),
-              ),
-            ],
+          return Padding(
+            padding: EdgeInsets.symmetric(
+                vertical: desktop ? 0 : Dimensions.paddingSizeExtraSmall),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _buildImageSection(
+                    context, hovered, discount, discountType, isAvailable),
+                _buildTextInfo(context, hovered),
+              ],
+            ),
           );
         }),
       ),
     );
   }
 
-  // Item on tap handler
-  void _onItemTap() {
-    Get.find<ItemController>().navigateToItemPage(
-      item!,
-      Get.context!,
-    );
-  }
-
   // Text info widget
   Widget _buildTextInfo(BuildContext context, bool hovered) {
     final bool ltr = Get.find<LocalizationController>().isLtr;
-    return Expanded(
-      child: Padding(
-        padding: EdgeInsets.only(right: ltr ? 0 : 8, left: ltr ? 8 : 0),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-          crossAxisAlignment:
-              ltr ? CrossAxisAlignment.start : CrossAxisAlignment.end,
-          children: [
-            Row(
-              children: [
-                _buildItemName(),
-                const SizedBox(width: Dimensions.paddingSizeSmall),
-                _buildItemUnit(context),
-              ],
-            ),
-            _buildStoreOrItemDescription(context),
-            if (item!.nutrition != null && item!.nutrition!.calories != null)
-              Padding(
-                padding: const EdgeInsets.only(top: 4.0),
-                child: Row(
-                  children: [
-                    Icon(
-                      Icons.local_fire_department,
-                      size: 14,
-                      color: Theme.of(context).primaryColor,
+    return Padding(
+      padding: EdgeInsets.only(right: ltr ? 0 : 8, left: ltr ? 8 : 0),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        crossAxisAlignment: ltr ? CrossAxisAlignment.start : CrossAxisAlignment.end,
+        children: [
+          Row(
+            children: [
+              _buildItemName(),
+              const SizedBox(width: Dimensions.paddingSizeSmall),
+              _buildItemUnit(context),
+            ],
+          ),
+          _buildStoreOrItemDescription(context),
+          if (item!.nutrition != null && item!.nutrition!.calories != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 4.0),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.local_fire_department,
+                    size: 14,
+                    color: Theme.of(context).primaryColor,
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    '${item!.nutrition!.calories} ${'calories'.tr}',
+                    style: robotoRegular.copyWith(
+                      fontSize: Dimensions.fontSizeExtraSmall,
+                      color: Theme.of(context).disabledColor,
                     ),
-                    const SizedBox(width: 4),
-                    Text(
-                      '${item!.nutrition!.calories} ${'calories'.tr}',
-                      style: robotoRegular.copyWith(
-                        fontSize: Dimensions.fontSizeExtraSmall,
-                        color: Theme.of(context).disabledColor,
-                      ),
-                    ),
-                  ],
-                ),
+                  ),
+                ],
               ),
-            Row(
-              children: [
-                Flexible(
-                  child: _buildPriceSection(context),
-                ),
-                const SizedBox(width: Dimensions.paddingSizeExtraLarge),
-                CartCountView(
-                  item: item!,
-                  index: 0,
-                ),
-              ],
             ),
-          ],
-        ),
+          Row(
+            children: [
+              Flexible(
+                child: _buildPriceSection(context),
+              ),
+              const SizedBox(width: Dimensions.paddingSizeExtraLarge),
+              CartCountView(
+                item: item!,
+                index: 0,
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }

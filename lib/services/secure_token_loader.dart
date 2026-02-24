@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:sixam_mart/util/app_constants.dart';
+import 'package:sixam_mart/common/utils/app_logger.dart';
 
 class SecureTokenLoader {
   static bool _initialized = false;
@@ -18,9 +19,13 @@ class SecureTokenLoader {
       }
 
       _initialized = true;
-      print('✅ Secure tokens loaded successfully');
+      if (kDebugMode) {
+        appLogger.info('✅ Secure tokens loaded successfully');
+      }
     } catch (e) {
-      print('❌ Failed to load secure tokens: $e');
+      if (kDebugMode) {
+        appLogger.error('❌ Failed to load secure tokens: $e', e);
+      }
       // Fallback to empty tokens (app will show error)
     }
   }
@@ -38,19 +43,23 @@ class SecureTokenLoader {
         testToken: testToken.isNotEmpty ? testToken : null,
       );
 
-      print(
-          '✅ Android tokens loaded: Live=${liveToken.isNotEmpty}, Test=${testToken.isNotEmpty}');
+      if (kDebugMode) {
+        appLogger.info(
+            '✅ Android tokens loaded: Live=${liveToken.isNotEmpty}, Test=${testToken.isNotEmpty}');
+      }
     } catch (e) {
       // 🔧 FIX: Better error handling - check if it's TOKEN_NOT_FOUND (expected in debug builds)
       final errorString = e.toString();
       if (errorString.contains('TOKEN_NOT_FOUND')) {
         if (kDebugMode) {
-          print('⚠️ SecureTokenLoader: TOKEN_NOT_FOUND - This is expected in debug builds without BuildConfig tokens');
-          print('   - Payment tokens will use environment variables or be empty');
-          print('   - This does not affect app functionality, only payment integration');
+          appLogger.warning('⚠️ SecureTokenLoader: TOKEN_NOT_FOUND - This is expected in debug builds without BuildConfig tokens');
+          appLogger.debug('   - Payment tokens will use environment variables or be empty');
+          appLogger.debug('   - This does not affect app functionality, only payment integration');
         }
       } else {
-        print('❌ Android token loading failed: $e');
+        if (kDebugMode) {
+          appLogger.error('❌ Android token loading failed: $e', e);
+        }
       }
       
       // Fallback to environment variables
@@ -81,7 +90,9 @@ class SecureTokenLoader {
         testToken: testToken.isNotEmpty ? testToken : null,
       );
     } catch (e) {
-      print('❌ iOS token loading failed: $e');
+      if (kDebugMode) {
+        appLogger.error('❌ iOS token loading failed: $e', e);
+      }
     }
   }
 

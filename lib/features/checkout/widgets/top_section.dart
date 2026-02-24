@@ -1,6 +1,7 @@
-// ignore_for_file: unnecessary_brace_in_string_interps, use_build_context_synchronously, unused_local_variable, unnecessary_import, non_constant_identifier_names, avoid_print, unrelated_type_equality_checks, unnecessary_string_interpolations
+﻿// ignore_for_file: unnecessary_brace_in_string_interps, use_build_context_synchronously, unused_local_variable, unnecessary_import, non_constant_identifier_names, avoid_print, unrelated_type_equality_checks, unnecessary_string_interpolations
 
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:dotted_border/dotted_border.dart';
 import 'package:get/get.dart';
@@ -14,6 +15,7 @@ import 'package:sixam_mart/features/cart/domain/models/cart_model.dart';
 import 'package:sixam_mart/common/models/config_model.dart';
 import 'package:sixam_mart/features/checkout/controllers/checkout_controller.dart';
 import 'package:sixam_mart/helper/auth_helper.dart';
+import 'package:sixam_mart/helper/price_converter.dart';
 import 'package:sixam_mart/helper/responsive_helper.dart';
 import 'package:sixam_mart/util/dimensions.dart';
 import 'package:sixam_mart/util/styles.dart';
@@ -27,6 +29,7 @@ import 'package:sixam_mart/features/checkout/widgets/partial_pay_view.dart';
 import 'package:sixam_mart/features/checkout/widgets/payment_section.dart';
 import 'package:sixam_mart/features/checkout/widgets/time_slot_section.dart';
 import 'package:sixam_mart/features/checkout/widgets/web_delivery_instruction_view.dart';
+import 'package:sixam_mart/features/store/controllers/store_controller.dart';
 import 'package:sixam_mart/features/store/widgets/camera_button_sheet_widget.dart';
 
 class TopSection extends StatelessWidget {
@@ -111,10 +114,77 @@ class TopSection extends StatelessWidget {
     final bool isGuestLoggedIn = AuthHelper.isGuestLoggedIn();
 
     return GetBuilder<CheckoutController>(
-      id: 'checkout', // التحديث الجزئي باستخدام ID
+      id: 'checkout', // Partial rebuild using checkout ID.
       builder: (controller) {
-        // نستخدم controller المتاح هنا لضمان الحصول على أحدث البيانات المحسوبة
+        // Use the reactive controller instance to ensure latest computed values.
         final bool takeAway = (controller.orderType == 'take_away');
+        final bool hasStoreDetailsName =
+            (controller.store?.name ?? '').trim().isNotEmpty;
+        final bool hasStoreDetailsAddress =
+            (controller.store?.address ?? '').trim().isNotEmpty;
+        final int? pickupStoreId = controller.store?.id ??
+            (cartList != null && cartList!.isNotEmpty
+                ? cartList!.first?.item?.storeId
+                : null);
+        final bool hasCartFallbackName = cartList != null &&
+            cartList!.isNotEmpty &&
+            (cartList!.first?.item?.storeName ?? '').trim().isNotEmpty;
+        final String pickupDataSource = (hasStoreDetailsName ||
+                hasStoreDetailsAddress)
+            ? 'checkout_store_details'
+            : (hasCartFallbackName ? 'cart_item_fallback' : 'none');
+        final String pickupStoreName = hasStoreDetailsName
+            ? (controller.store!.name ?? '')
+            : (hasCartFallbackName
+                ? (cartList!.first?.item?.storeName ?? '')
+                : '');
+        String pickupStoreAddress = (controller.store?.address ?? '').trim();
+
+        if (pickupStoreAddress.isEmpty && pickupStoreId != null) {
+          try {
+            final StoreController storeController = Get.find<StoreController>();
+            final cachedStores = <dynamic>[
+              ...(storeController.popularStoreList ?? const []),
+              ...(storeController.latestStoreList ?? const []),
+              ...(storeController.featuredStoreList ?? const []),
+              ...(storeController.topOfferStoreList ?? const []),
+              ...(storeController.visitAgainStoreList ?? const []),
+              ...(storeController.allStoreModel?.stores ?? const []),
+              ...(storeController.storeModel?.stores ?? const []),
+            ];
+            final String resolvedStoreId = pickupStoreId.toString();
+            int matchedStores = 0;
+            for (final s in cachedStores) {
+              if (s == null) continue;
+              final String sid = (s.id ?? '').toString();
+              if (sid == resolvedStoreId) {
+                matchedStores++;
+                final String candidateAddress = (s.address ?? '').toString().trim();
+                if (candidateAddress.isNotEmpty) {
+                  pickupStoreAddress = candidateAddress;
+                  break;
+                }
+              }
+            }
+            if (kDebugMode && takeAway) {
+              debugPrint(
+                  '📍 [PickupLocationUI] cache-fallback lookup: targetStoreId=$resolvedStoreId, matchedStores=$matchedStores, resolvedAddress="$pickupStoreAddress"');
+            }
+          } catch (_) {}
+        }
+
+        if (kDebugMode && takeAway) {
+          debugPrint('📍 [PickupLocationUI] source=$pickupDataSource');
+          debugPrint('   - orderType: ${controller.orderType}');
+          debugPrint('   - store.id(resolved): $pickupStoreId');
+          debugPrint('   - store.id: ${controller.store?.id}');
+          debugPrint('   - store.name(raw): ${controller.store?.name}');
+          debugPrint('   - store.address(raw): ${controller.store?.address}');
+          debugPrint(
+              '   - cart.first.item.storeName(raw): ${cartList != null && cartList!.isNotEmpty ? cartList!.first?.item?.storeName : null}');
+          debugPrint('   - pickupStoreName(resolved): $pickupStoreName');
+          debugPrint('   - pickupStoreAddress(resolved): $pickupStoreAddress');
+        }
 
         return Container(
           decoration: ResponsiveHelper.isDesktop(context)
@@ -128,7 +198,7 @@ class TopSection extends StatelessWidget {
               : null,
           child: Column(
             children: [
-              // قسم الروشتة (Prescription)
+              // Prescription section.
               storeId != null && isPrescriptionRequired
                   ? Container(
                       decoration: BoxDecoration(
@@ -245,7 +315,7 @@ class TopSection extends StatelessWidget {
 
               const SizedBox(height: Dimensions.paddingSizeSmall),
 
-              // قسم خيارات التوصيل (Delivery Option)
+              // Delivery options section.
               Container(
                 decoration: BoxDecoration(
                   color: Theme.of(context).cardColor,
@@ -261,7 +331,7 @@ class TopSection extends StatelessWidget {
                     Text('delivery_type'.tr, style: robotoMedium),
                     const SizedBox(height: Dimensions.paddingSizeSmall),
                     
-                    // ✅ استخدام deliveryCharge من الـ parameter
+                    // Use deliveryCharge passed from parent.
                     DeliveryOptionButtonWidget(
                       value: 'delivery',
                       title: 'home_delivery'.tr,
@@ -271,52 +341,60 @@ class TopSection extends StatelessWidget {
                       total: total,
                       deliveryChargeForView: controller.isDeliveryChargeReady
                           ? deliveryChargeForView
-                          : 'loading'.tr, // إظهار حالة التحميل
+                          : 'loading'.tr, // Show loading state.
                       badWeatherCharge: badWeatherCharge,
                       extraChargeForToolTip: extraChargeForToolTip,
                     ),
 
-                    const SizedBox(height: Dimensions.paddingSizeLarge),
+                    const SizedBox(height: Dimensions.paddingSizeSmall),
 
-                    // قسم عرض موقع التوصيل مع حالة الحساب الجاري
-                    Container(
-                      padding: const EdgeInsets.all(Dimensions.paddingSizeDefault),
-                      decoration: BoxDecoration(
-                        color: Theme.of(context).primaryColor.withValues(alpha: 0.05),
-                        borderRadius: BorderRadius.circular(Dimensions.radiusSmall),
-                        border: Border.all(color: Theme.of(context).primaryColor.withValues(alpha: 0.2)),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(children: [
-                            Icon(Icons.location_on, color: Theme.of(context).primaryColor, size: 20),
-                            const SizedBox(width: Dimensions.paddingSizeSmall),
-                            Text('delivery_location'.tr, style: robotoMedium.copyWith(color: Theme.of(context).primaryColor)),
-                          ]),
-                          const SizedBox(height: Dimensions.paddingSizeSmall),
-                          
-                          // 💡 تنبيه المستخدم أثناء الحساب
-                          if (!controller.isDeliveryChargeReady && !takeAway)
-                             Padding(
-                               padding: const EdgeInsets.only(bottom: 8.0),
-                               child: Text('calculating_delivery_fee'.tr, style: robotoRegular.copyWith(color: Colors.orange, fontSize: Dimensions.fontSizeSmall)),
-                             ),
-
-                          if (address.isNotEmpty && controller.addressIndex != null && controller.addressIndex! < address.length)
-                            Text(address[controller.addressIndex!].address ?? '', style: robotoRegular.copyWith(fontSize: Dimensions.fontSizeDefault))
-                          else
-                            Text('no_address_selected'.tr, style: robotoRegular.copyWith(fontSize: Dimensions.fontSizeDefault, color: Theme.of(context).disabledColor)),
-                        ],
-                      ),
+                    DeliveryOptionButtonWidget(
+                      value: 'take_away',
+                      title: 'take_away'.tr,
+                      charge: 0,
+                      isFree: true,
+                      fromWeb: true,
+                      total: total,
+                      deliveryChargeForView: PriceConverter.convertPrice(0),
+                      badWeatherCharge: 0,
+                      extraChargeForToolTip: 0,
                     ),
+
+                    if (takeAway) ...[
+                      const SizedBox(height: Dimensions.paddingSizeLarge),
+                      Container(
+                        padding: const EdgeInsets.all(Dimensions.paddingSizeDefault),
+                        decoration: BoxDecoration(
+                          color: Theme.of(context).primaryColor.withValues(alpha: 0.05),
+                          borderRadius: BorderRadius.circular(Dimensions.radiusSmall),
+                          border: Border.all(color: Theme.of(context).primaryColor.withValues(alpha: 0.2)),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(children: [
+                              Icon(Icons.location_on, color: Theme.of(context).primaryColor, size: 20),
+                              const SizedBox(width: Dimensions.paddingSizeSmall),
+                              Text('pickup_location'.tr, style: robotoMedium.copyWith(color: Theme.of(context).primaryColor)),
+                            ]),
+                            const SizedBox(height: Dimensions.paddingSizeExtraSmall),
+                            if (pickupStoreName.isNotEmpty)
+                              Text(pickupStoreName, style: robotoMedium.copyWith(fontSize: Dimensions.fontSizeDefault)),
+                            if (pickupStoreAddress.isNotEmpty)
+                              Text(pickupStoreAddress, style: robotoRegular.copyWith(fontSize: Dimensions.fontSizeDefault))
+                            else
+                              Text('no_data_found'.tr, style: robotoRegular.copyWith(fontSize: Dimensions.fontSizeDefault, color: Theme.of(context).disabledColor)),
+                          ],
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               ),
 
               const SizedBox(height: Dimensions.paddingSizeLarge),
 
-              // قسم العنوان (DeliverySection)
+              // Delivery address section.
               DeliverySection(
                 checkoutController: controller,
                 address: address,
@@ -330,12 +408,12 @@ class TopSection extends StatelessWidget {
 
               SizedBox(height: !takeAway ? (isDesktop ? Dimensions.paddingSizeLarge : Dimensions.paddingSizeSmall) : 0),
 
-              // تعليمات التوصيل
+              // Delivery instructions.
               !takeAway ? (isDesktop ? const WebDeliveryInstructionView() : const DeliveryInstructionView()) : const SizedBox(),
               
               SizedBox(height: !takeAway ? (isDesktop ? Dimensions.paddingSizeLarge : Dimensions.paddingSizeSmall) : 0),
 
-              // إنشاء حساب للضيوف
+              // Guest account creation.
               isGuestLoggedIn && Get.find<SplashController>().configModel!.centralizeLoginSetup!.manualLoginStatus!
                   ? GuestCreateAccount(
                       guestPasswordController: guestPasswordController,
@@ -347,7 +425,7 @@ class TopSection extends StatelessWidget {
 
               SizedBox(height: isGuestLoggedIn ? Dimensions.paddingSizeSmall : 0),
 
-              // اختيار الوقت (Time Slot)
+              // Time slot selection.
               TimeSlotSection(
                 storeId: storeId,
                 checkoutController: controller,
@@ -358,18 +436,18 @@ class TopSection extends StatelessWidget {
                 module: module,
               ),
 
-              // قسم الكوبون
+              // Coupon section.
               !isDesktop && !isGuestLoggedIn
                   ? CouponSection(
                       storeId: storeId,
                       checkoutController: controller,
                       total: total, price: price, discount: discount, addOns: addOns,
-                      deliveryCharge: deliveryCharge, // استخدام الـ parameter
+                      deliveryCharge: deliveryCharge, // Use value from parent.
                       variationPrice: variationPrice,
                     )
                   : const SizedBox(),
 
-              // بقشيش المندوب
+              // Delivery man tips.
               DeliveryManTipsSection(
                 takeAway: takeAway,
                 tooltipController3: dmTipsTooltipController,
@@ -378,7 +456,7 @@ class TopSection extends StatelessWidget {
                 storeId: storeId,
               ),
 
-              // قسم الدفع (Payment)
+              // Payment section.
               Container(
                 decoration: isDesktop ? const BoxDecoration() : BoxDecoration(
                     color: Theme.of(context).cardColor,

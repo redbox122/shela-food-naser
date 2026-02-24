@@ -16,14 +16,16 @@ import 'package:sixam_mart/features/store/domain/models/store_model.dart';
 import 'package:sixam_mart/features/banner/controllers/banner_controller.dart';
 import 'package:sixam_mart/features/banner/domain/models/banner_model.dart';
 import 'package:sixam_mart/features/splash/controllers/splash_controller.dart';
-import 'package:sixam_mart/features/location/controllers/location_controller.dart';
 import 'package:sixam_mart/api/api_client.dart';
 import 'package:sixam_mart/helper/address_helper.dart';
 import 'package:sixam_mart/features/address/domain/models/address_model.dart';
+import 'package:sixam_mart/common/utils/app_logger.dart';
+import 'package:sixam_mart/util/app_constants.dart';
 
 class HomeController extends GetxController implements GetxService {
   final HomeServiceInterface homeServiceInterface;
   HomeController({required this.homeServiceInterface});
+  final bool _isUnifiedModeEnabled = AppConstants.useBffV2Endpoint;
 
   // 🔧 FIX: Track last loaded module to prevent duplicate loads (Cold Start Loop Prevention)
   int? _lastLoadedModuleId;
@@ -31,6 +33,10 @@ class HomeController extends GetxController implements GetxService {
 
   // 🔧 FIX: Track if initial load has happened to prevent Cold Start Loop
   bool _hasInitialLoadCompleted = false;
+  Worker? _moduleWorker;
+  bool _isHomeDataLoading = false;
+  DateTime? _lastHomeDataLoadAt;
+  static const Duration _homeDataLoadThrottle = Duration(seconds: 3);
 
   @override
   void onInit() {
@@ -44,7 +50,8 @@ class HomeController extends GetxController implements GetxService {
     // 🛡️ LOOP PREVENTION: Only fires when module ACTUALLY changes to a DIFFERENT value
     if (Get.isRegistered<SplashController>()) {
       final splashController = Get.find<SplashController>();
-      ever(splashController.selectedModule, (module) {
+      _moduleWorker?.dispose();
+      _moduleWorker = ever(splashController.selectedModule, (module) {
         // 🛡️ Guard 1: Skip if module is null
         if (module == null) {
           if (kDebugMode) {
@@ -325,64 +332,158 @@ class HomeController extends GetxController implements GetxService {
     bool forcePartial = false,
     bool forceRefresh = false,
   }) async {
+    if (_isHomeDataLoading) {
+      if (kDebugMode) {
+        print(
+            '⏭️ HomeController: loadHomeData skipped - request already in progress');
+      }
+      return;
+    }
+
+    final now = DateTime.now();
+    if (!forceRefresh &&
+        _lastHomeDataLoadAt != null &&
+        now.difference(_lastHomeDataLoadAt!) < _homeDataLoadThrottle) {
+      if (kDebugMode) {
+        print(
+            '⏭️ HomeController: loadHomeData throttled (${now.difference(_lastHomeDataLoadAt!).inMilliseconds}ms since last call)');
+      }
+      return;
+    }
+
+    _isHomeDataLoading = true;
+    _lastHomeDataLoadAt = now;
     if (kDebugMode) {
       print(
           '🏠 HomeController: loadHomeData called (forcePartial: $forcePartial, forceRefresh: $forceRefresh)');
     }
 
-    // 🔧 FIX 1: Check if current module is "food" type (restaurants or cafes)
-    // Food modules MUST use V2 unified endpoint - no fallback allowed
-    bool isFoodModule = false;
-    if (Get.isRegistered<SplashController>()) {
-      final moduleType = Get.find<SplashController>().module?.moduleType;
-      isFoodModule = moduleType == 'food';
-      if (kDebugMode && isFoodModule) {
-        print(
-            '🍽️ HomeController: Food module detected - V2 only mode (no fallback)');
-      }
-    }
-
-    // Decide data source
-    // 🔧 FIX 1: Food modules always use unified (never partial)
-    final shouldUsePartial = !isFoodModule &&
-        (forcePartial || _dataSource == HomeDataSource.partial);
-
-    if (shouldUsePartial) {
-      if (kDebugMode) {
-        print('📡 HomeController: Using partial endpoints (fallback mode)');
-      }
-      await _loadPartialHome(forceRefresh);
-    } else {
-      if (kDebugMode) {
-        print('⚡ HomeController: Attempting unified endpoint first');
-      }
-      final success = await _loadUnifiedHome(forceRefresh);
-      if (!success) {
-        // 🔧 FIX 1: Food modules do NOT fall back - stay on loading until V2 succeeds
-        if (isFoodModule) {
-          if (kDebugMode) {
-            print(
-                '🛡️ HomeController: Food module - NO fallback to partial (V2 required)');
-            print(
-                '   → User will see loading state until V2 endpoint returns data');
-          }
-          // Do NOT call _loadPartialHome() for food modules
-          // This forces the app to wait for V2 endpoint
-        } else {
-          if (kDebugMode) {
-            print(
-                '⚠️ HomeController: Unified endpoint failed, falling back to partial');
-          }
-          await _loadPartialHome(forceRefresh);
+    try {
+      // 🔧 FIX 1: Check if current module is "food" type (restaurants or cafes)
+      // Food modules MUST use V2 unified endpoint - no fallback allowed
+      bool isFoodModule = false;
+      int? currentModuleId;
+      String? currentModuleType;
+      if (Get.isRegistered<SplashController>()) {
+        final splashController = Get.find<SplashController>();
+        currentModuleId = splashController.module?.id;
+        currentModuleType = splashController.module?.moduleType;
+        isFoodModule = currentModuleType == 'food';
+        if (kDebugMode && isFoodModule) {
+          appLogger.info('Food module detected - V2 only mode (no fallback)');
         }
       }
+
+      _logHeaderSnapshot(
+        source: 'loadHomeData.entry',
+        moduleId: currentModuleId,
+        moduleType: currentModuleType,
+      );
+
+      if (Get.isRegistered<ApiClient>()) {
+        final apiClient = Get.find<ApiClient>();
+        if (!apiClient.hasValidHomeHeaders()) {
+          if (kDebugMode) {
+            debugPrint(
+                '🚫 HomeController: Home request blocked - invalid headers '
+                '(module-id/zone-id missing)');
+          }
+          return;
+        }
+      }
+
+      // Decide data source
+      // Unified-only policy: when v2 is enabled, direct partial calls are blocked
+      // except controlled fallback after specific unified failures.
+      final shouldUsePartial = !_isUnifiedModeEnabled &&
+          !isFoodModule &&
+          (forcePartial || _dataSource == HomeDataSource.partial);
+
+      if (shouldUsePartial) {
+        if (kDebugMode) {
+          print('📡 HomeController: Using partial endpoints (fallback mode)');
+        }
+        await _loadPartialHome(forceRefresh);
+      } else {
+        if (kDebugMode) {
+          print('⚡ HomeController: Attempting unified endpoint first');
+        }
+        final success = await _loadUnifiedHome(forceRefresh);
+        if (!success) {
+          final unifiedController = Get.isRegistered<HomeUnifiedController>()
+              ? Get.find<HomeUnifiedController>()
+              : null;
+          final statusCode = unifiedController?.lastRequestStatusCode;
+          final errorCode = unifiedController?.lastRequestErrorCode;
+          final bool headerBlocked =
+              unifiedController?.wasLastFailureHeaderBlocked == true ||
+                  statusCode == 428 ||
+                  errorCode == 'home_headers_invalid';
+          final bool recoverableFailure =
+              statusCode == null || statusCode == 1 || (statusCode >= 500);
+
+          // Food modules never fallback.
+          // Unified-only mode: fallback only for recoverable failures, once.
+          if (isFoodModule ||
+              headerBlocked ||
+              (_isUnifiedModeEnabled && !recoverableFailure)) {
+            if (kDebugMode) {
+              print(
+                  '🛡️ HomeController: Unified failure - partial fallback blocked');
+              print(
+                  '   → isFood=$isFoodModule, headerBlocked=$headerBlocked, status=$statusCode, error=$errorCode');
+            }
+          } else {
+            if (kDebugMode) {
+              print(
+                  '⚠️ HomeController: Unified endpoint failed (status=$statusCode), partial fallback allowed once');
+            }
+            await _loadPartialHome(forceRefresh);
+          }
+        }
+      }
+    } finally {
+      _isHomeDataLoading = false;
     }
+  }
+
+  void _logHeaderSnapshot({
+    required String source,
+    int? moduleId,
+    String? moduleType,
+  }) {
+    if (!kDebugMode) return;
+
+    String? headerModuleId;
+    String? headerZoneId;
+    if (Get.isRegistered<ApiClient>()) {
+      final headers = Get.find<ApiClient>().getHeader();
+      headerModuleId = headers['module-id'];
+      headerZoneId = headers['zone-id'];
+    }
+
+    debugPrint(
+        '[Diag] HomeController[$source]: moduleId=$moduleId, moduleType=$moduleType, '
+        'header.module-id=$headerModuleId, header.zone-id=$headerZoneId');
   }
 
   /// Load home data from unified endpoint
   /// Returns true if successful, false otherwise
   Future<bool> _loadUnifiedHome(bool forceRefresh) async {
     try {
+      int? moduleId;
+      String? moduleType;
+      if (Get.isRegistered<SplashController>()) {
+        final splashController = Get.find<SplashController>();
+        moduleId = splashController.module?.id;
+        moduleType = splashController.module?.moduleType;
+      }
+      _logHeaderSnapshot(
+        source: 'unified.before_request',
+        moduleId: moduleId,
+        moduleType: moduleType,
+      );
+
       // Check if HomeUnifiedController is registered
       if (!Get.isRegistered<HomeUnifiedController>()) {
         if (kDebugMode) {
@@ -399,13 +500,25 @@ class HomeController extends GetxController implements GetxService {
         forceRefresh: forceRefresh,
         showLoading: false,
       );
+      final statusCode = unifiedController.lastRequestStatusCode;
+      final errorCode = unifiedController.lastRequestErrorCode;
+      final bool hasUsableUnifiedData = unifiedController.hasCachedData ||
+          (unifiedController.unifiedData?.isValid ?? false);
+      final bool isUnifiedSuccess =
+          success || statusCode == 304 || hasUsableUnifiedData;
 
-      if (success) {
+      if (isUnifiedSuccess) {
         if (kDebugMode) {
-          print('✅ HomeController: Unified endpoint loaded successfully');
+          print('✅ HomeController: Unified considered successful '
+              '(success=$success, status=$statusCode, hasData=$hasUsableUnifiedData)');
         }
         _dataSource = HomeDataSource.unified;
         return true;
+      }
+
+      if (kDebugMode) {
+        print('⚠️ HomeController: Unified considered failed '
+            '(success=$success, status=$statusCode, error=$errorCode, hasData=$hasUsableUnifiedData)');
       }
 
       return false;
@@ -423,6 +536,27 @@ class HomeController extends GetxController implements GetxService {
   /// It should only be used when unified endpoint fails or is disabled.
   Future<void> _loadPartialHome(bool forceRefresh) async {
     try {
+      if (_isUnifiedModeEnabled) {
+        if (kDebugMode) {
+          print(
+              '🛡️ HomeController: Unified-only mode enabled - skipping partial endpoints');
+        }
+        return;
+      }
+
+      int? moduleId;
+      String? moduleType;
+      if (Get.isRegistered<SplashController>()) {
+        final splashController = Get.find<SplashController>();
+        moduleId = splashController.module?.id;
+        moduleType = splashController.module?.moduleType;
+      }
+      _logHeaderSnapshot(
+        source: 'partial.before_request',
+        moduleId: moduleId,
+        moduleType: moduleType,
+      );
+
       if (kDebugMode) {
         print('📡 HomeController: Loading from partial endpoints');
       }
@@ -486,5 +620,11 @@ class HomeController extends GetxController implements GetxService {
       }
       rethrow;
     }
+  }
+
+  @override
+  void onClose() {
+    _moduleWorker?.dispose();
+    super.onClose();
   }
 }

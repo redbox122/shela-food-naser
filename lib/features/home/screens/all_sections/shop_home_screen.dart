@@ -299,6 +299,11 @@ class _ShopHomeScreenState extends State<ShopHomeScreen> {
           appLogger.debug('ShopHomeScreen: allRestaurantsSection enabled = $allRestaurantsEnabled (moduleId: $moduleId)');
           
           if (allRestaurantsEnabled) {
+            if (AppConstants.useBffV2Endpoint) {
+              appLogger.info(
+                  '🛡️ ShopHomeScreen: Unified-only policy - skipping legacy allStoreModel fetch');
+              return;
+            }
             appLogger.info('📡 ShopHomeScreen: Initializing legacy pagination engine (allStoreModel)');
             appLogger.debug('ShopHomeScreen: reload=true ensures clean state and correct totalSize (300+)');
             appLogger.debug('ShopHomeScreen: Calling storeController.getStoreList(1, true)');

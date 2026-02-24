@@ -13,8 +13,15 @@ class CartCountView extends StatelessWidget {
   final Item item;
   final Widget? child;
   final int? index;
+  final bool inStorePage;
+  final bool isCampaign;
   const CartCountView(
-      {super.key, required this.item, this.child, this.index = -1});
+      {super.key,
+      required this.item,
+      this.child,
+      this.index = -1,
+      this.inStorePage = false,
+      this.isCampaign = false});
 
   @override
   Widget build(BuildContext context) {
@@ -172,7 +179,13 @@ class CartCountView extends StatelessWidget {
                   }
                 }
                 HapticFeedback.lightImpact();
-                Get.find<ItemController>().itemDirectlyAddToCart(item, context);
+                // Keep "+" behavior identical to card tap behavior.
+                Get.find<ItemController>().navigateToItemPage(
+                  item,
+                  context,
+                  inStore: inStorePage,
+                  isCampaign: isCampaign,
+                );
               },
               child: child ??
                   Container(

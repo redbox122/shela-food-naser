@@ -10,6 +10,8 @@ import 'package:sixam_mart/features/auth/domain/reposotories/store_registration_
 import 'package:sixam_mart/features/business/domain/models/package_model.dart';
 import 'package:sixam_mart/util/app_constants.dart';
 import 'package:http/http.dart' as http;
+import 'package:flutter/foundation.dart';
+import 'package:sixam_mart/common/utils/app_logger.dart';
 
 class StoreRegistrationRepository
     implements StoreRegistrationRepositoryInterface {
@@ -20,7 +22,9 @@ class StoreRegistrationRepository
   Future<Response> registerStore(
       StoreBodyModel store, XFile? logo, XFile? cover) async {
     if (apiClient.token == null || apiClient.token!.isEmpty) {
-      print('⚠️ لا يوجد توكن.');
+      if (kDebugMode) {
+        appLogger.warning('⚠️ لا يوجد توكن.');
+      }
       showCustomSnackBar('الرجاء تسجيل الدخول أولاً');
       return const Response(
           statusCode: 401, statusText: 'Unauthorized: Missing token');
@@ -64,8 +68,9 @@ class StoreRegistrationRepository
     try {
       final http.StreamedResponse response = await request.send();
       final body = await response.stream.bytesToString();
-      // ignore: avoid_print
-      print('📩 Response: $body');
+      if (kDebugMode && AppConstants.enableVerboseLogs) {
+        appLogger.debug('📩 Response: $body');
+      }
 
       final Map<String, dynamic> jsonResponse =
           jsonDecode(body) as Map<String, dynamic>;
@@ -123,7 +128,9 @@ class StoreRegistrationRepository
       );
     } catch (e) {
       showCustomSnackBar('❌ حدث خطأ أثناء الاتصال بالخادم');
-      print('❌ Exception occurred: $e');
+      if (kDebugMode) {
+        appLogger.error('❌ Exception occurred: $e', e);
+      }
       return const Response(statusCode: 500, statusText: 'Server Error');
     }
   }

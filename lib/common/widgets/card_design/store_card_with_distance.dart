@@ -8,7 +8,6 @@ import 'package:sixam_mart/features/language/controllers/language_controller.dar
 import 'package:sixam_mart/features/splash/controllers/splash_controller.dart';
 import 'package:sixam_mart/features/store/controllers/store_controller.dart';
 import 'package:sixam_mart/features/favourite/controllers/favourite_controller.dart';
-import 'package:sixam_mart/common/models/module_model.dart';
 import 'package:sixam_mart/features/store/domain/models/store_model.dart';
 import 'package:sixam_mart/helper/auth_helper.dart';
 import 'package:sixam_mart/helper/route_helper.dart';
@@ -48,6 +47,57 @@ class _StoreCardWithDistanceState extends State<StoreCardWithDistance> {
   String _heroTag(String type, int storeId) {
     final int safeIndex = widget.heroIndex ?? 0;
     return '${widget.heroSection}_${type}_${storeId}_$safeIndex';
+  }
+
+  void _handleStoreTap(Store store) {
+    final splashController = Get.find<SplashController>();
+    final int? currentModuleId = splashController.module?.id;
+    final int? targetModuleId = store.moduleId;
+    int? moduleIndex;
+    if (targetModuleId != null && splashController.moduleList != null) {
+      final int foundIndex = splashController.moduleList!
+          .indexWhere((module) => module.id == targetModuleId);
+      if (foundIndex >= 0) {
+        moduleIndex = foundIndex;
+      }
+    }
+
+    // Hyper Shella cards should take user to module home, not store details.
+    if (targetModuleId == 3) {
+      if (moduleIndex != null && currentModuleId != targetModuleId) {
+        splashController.switchModule(context, moduleIndex, true);
+      } else {
+        Get.offNamed(
+          RouteHelper.getModuleHomeRoute(targetModuleId!),
+          arguments: {
+            'module_id': targetModuleId,
+            'skip_splash': true,
+          },
+        );
+      }
+      return;
+    }
+
+    if (targetModuleId != null &&
+        currentModuleId != null &&
+        currentModuleId != targetModuleId) {
+      if (moduleIndex != null) {
+        splashController.switchModule(context, moduleIndex, true);
+        return;
+      }
+    }
+
+    final String heroBannerTag = _heroTag('store_image_distance', store.id ?? 0);
+    final String heroLogoTag = _heroTag('store_logo', store.id ?? 0);
+    Get.toNamed(
+      RouteHelper.getStoreRoute(id: store.id, page: 'store'),
+      arguments: StoreScreen(
+        store: store,
+        fromModule: false,
+        heroBannerTag: heroBannerTag,
+        heroLogoTag: heroLogoTag,
+      ),
+    );
   }
 
   void _handleVisibilityChanged(VisibilityInfo info) {
@@ -105,30 +155,7 @@ class _StoreCardWithDistanceState extends State<StoreCardWithDistance> {
               ],
             ),
             child: CustomInkWell(
-              onTap: () {
-                final String heroBannerTag =
-                    _heroTag('store_image_distance', store.id ?? 0);
-                final String heroLogoTag =
-                    _heroTag('store_logo', store.id ?? 0);
-                if (Get.find<SplashController>().moduleList != null) {
-                  for (final ModuleModel module
-                      in Get.find<SplashController>().moduleList!) {
-                    if (module.id == store.moduleId) {
-                      Get.find<SplashController>().setModule(module);
-                      break;
-                    }
-                  }
-                }
-                Get.toNamed(
-                  RouteHelper.getStoreRoute(id: store.id, page: 'store'),
-                  arguments: StoreScreen(
-                    store: store,
-                    fromModule: false,
-                    heroBannerTag: heroBannerTag,
-                    heroLogoTag: heroLogoTag,
-                  ),
-                );
-              },
+              onTap: () => _handleStoreTap(store),
               radius: Dimensions.radiusDefault,
               child: TextHover(builder: (hovered) {
                 return Column(children: [
@@ -587,32 +614,8 @@ class _StoreCardWithDistanceState extends State<StoreCardWithDistance> {
                                             child: CustomButton(
                                               height: 28,
                                               radius: Dimensions.radiusSmall,
-                                              onPressed: () {
-                                                if (Get.find<SplashController>()
-                                                        .moduleList !=
-                                                    null) {
-                                                  for (final ModuleModel module
-                                                      in Get.find<
-                                                              SplashController>()
-                                                          .moduleList!) {
-                                                    if (module.id ==
-                                                        store.moduleId) {
-                                                      Get.find<
-                                                              SplashController>()
-                                                          .setModule(module);
-                                                      break;
-                                                    }
-                                                  }
-                                                }
-                                                Get.toNamed(
-                                                  RouteHelper.getStoreRoute(
-                                                      id: store.id,
-                                                      page: 'store'),
-                                                  arguments: StoreScreen(
-                                                      store: store,
-                                                      fromModule: false),
-                                                );
-                                              },
+                                              onPressed: () =>
+                                                  _handleStoreTap(store),
                                               buttonText: 'visit'.tr,
                                               color: Theme.of(context)
                                                   .primaryColor,

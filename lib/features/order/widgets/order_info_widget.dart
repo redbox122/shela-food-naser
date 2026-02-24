@@ -34,8 +34,8 @@ class OrderInfoWidget extends StatelessWidget {
   final bool parcel;
   final bool prescriptionOrder;
   final OrderController orderController;
-  final Function timerCancel;
-  final Function startApiCall;
+  final VoidCallback timerCancel;
+  final VoidCallback startApiCall;
   final bool showChatPermission;
   const OrderInfoWidget(
       {super.key,
@@ -53,6 +53,9 @@ class OrderInfoWidget extends StatelessWidget {
     final ExpansibleController controller = ExpansibleController();
     final bool isDesktop = ResponsiveHelper.isDesktop(context);
     final bool isGuestLoggedIn = AuthHelper.isGuestLoggedIn();
+    final bool showOtpVerification =
+        (Get.find<SplashController>().configModel?.orderDeliveryVerification ?? false) &&
+            (order.otp?.isNotEmpty ?? false);
     return Stack(children: [
       !isDesktop
           ? OrderBannerViewWidget(
@@ -148,17 +151,17 @@ class OrderInfoWidget extends StatelessWidget {
 
               //
 
-              Get.find<SplashController>().configModel!.orderDeliveryVerification!
+              showOtpVerification
                   ? const Divider(height: Dimensions.paddingSizeLarge)
                   : const SizedBox(),
 
               //
 
-              Get.find<SplashController>().configModel!.orderDeliveryVerification!
+              showOtpVerification
                   ? Row(children: [
                       Text('${'delivery_verification_code'.tr}:', style: robotoRegular),
                       const Expanded(child: SizedBox()),
-                      Text(order.otp!, style: robotoMedium),
+                      Text(order.otp ?? '', style: robotoMedium),
                     ])
                   : const SizedBox(),
 
@@ -209,9 +212,9 @@ class OrderInfoWidget extends StatelessWidget {
                       )),
                   const SizedBox(width: Dimensions.paddingSizeExtraSmall),
                   Text(
-                    order.orderStatus == 'delivered'
+                    order.orderStatus == 'delivered' && (order.delivered?.isNotEmpty ?? false)
                         ? '${'delivered_at'.tr} \n${DateConverter.dateTimeStringToDateTime(order.delivered!)}'
-                        : order.orderStatus!.tr,
+                        : (order.orderStatus ?? '').tr,
                     style: robotoRegular.copyWith(fontSize: Dimensions.fontSizeSmall),
                   ),
                 ]),
@@ -223,7 +226,7 @@ class OrderInfoWidget extends StatelessWidget {
                         Text('${'cutlery'.tr}: ', style: robotoRegular),
                         const Expanded(child: SizedBox()),
                         Text(
-                          order.cutlery! ? 'yes'.tr : 'no'.tr,
+                          (order.cutlery ?? false) ? 'yes'.tr : 'no'.tr,
                           style: robotoRegular,
                         ),
                       ]),

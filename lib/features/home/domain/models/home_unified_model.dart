@@ -9,6 +9,7 @@ import 'package:sixam_mart/features/item/domain/models/basic_campaign_model.dart
 import 'package:sixam_mart/features/home/domain/models/business_settings_model.dart';
 import 'package:sixam_mart/features/banner/domain/models/promotional_banner_model.dart';
 import 'package:sixam_mart/common/utils/json_parser.dart';
+import 'package:sixam_mart/common/utils/app_logger.dart';
 
 /// Home Unified Response Model
 ///
@@ -63,7 +64,7 @@ class HomeUnifiedModel {
           if (banner is Map<String, dynamic>) {
             bannersList.add(Banner.fromJson(banner));
             if (kDebugMode && bannersList.length == 1) {
-              print(
+              appLogger.debug(
                   '   - First banner parsed: ${bannersList.first.imageFullUrl}');
             }
           }
@@ -96,7 +97,7 @@ class HomeUnifiedModel {
           if (campaign is Map<String, dynamic>) {
             campaignsList.add(BasicCampaignModel.fromJson(campaign));
             if (kDebugMode && campaignsList.length == 1) {
-              print(
+              appLogger.debug(
                   '   - First campaign parsed: ${campaignsList.first.imageFullUrl}');
             }
           }

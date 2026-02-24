@@ -38,9 +38,37 @@ class _ReferAndEarnScreenState extends State<ReferAndEarnScreen> {
   }
 
   void _initCall() {
-    if (AuthHelper.isLoggedIn() && Get.find<ProfileController>().userInfoModel == null) {
-      Get.find<ProfileController>().getUserInfo();
+    if (!AuthHelper.isLoggedIn()) {
+      return;
     }
+    final profileController = Get.find<ProfileController>();
+    final String currentRefCode =
+        profileController.userInfoModel?.refCode?.trim() ?? '';
+    if (profileController.userInfoModel == null || currentRefCode.isEmpty) {
+      profileController.getUserInfo();
+    }
+  }
+
+  String _resolveStoreLink() {
+    final config = Get.find<SplashController>().configModel;
+    final List<String?> candidates = <String?>[
+      GetPlatform.isAndroid ? config?.appUrlAndroid : config?.appUrlIos,
+      GetPlatform.isAndroid
+          ? config?.landingPageLinks?.appUrlAndroid
+          : config?.landingPageLinks?.appUrlIos,
+      config?.appUrlAndroid,
+      config?.appUrlIos,
+      config?.landingPageLinks?.appUrlAndroid,
+      config?.landingPageLinks?.appUrlIos,
+    ];
+
+    for (final link in candidates) {
+      final String value = (link ?? '').trim();
+      if (value.isNotEmpty) {
+        return value;
+      }
+    }
+    return '';
   }
 
   @override
@@ -60,6 +88,11 @@ class _ReferAndEarnScreenState extends State<ReferAndEarnScreen> {
                         child: SizedBox(
                           width: Dimensions.webMaxWidth,
                           child: GetBuilder<ProfileController>(builder: (profileController) {
+                            final String referralCode =
+                                profileController.userInfoModel?.refCode
+                                        ?.trim() ??
+                                    '';
+                            final String storeLink = _resolveStoreLink();
                             return Column(children: [
                               Image.asset(
                                 Images.referImage,
@@ -146,20 +179,23 @@ class _ReferAndEarnScreenState extends State<ReferAndEarnScreen> {
                                               padding: const EdgeInsets.only(
                                                   left: Dimensions.paddingSizeLarge, right: Dimensions.paddingSizeLarge),
                                               child: Text(
-                                                profileController.userInfoModel != null
-                                                    ? profileController.userInfoModel!.refCode ?? ''
-                                                    : '',
+                                                referralCode.isNotEmpty
+                                                    ? referralCode
+                                                    : '--',
                                                 style: robotoMedium.copyWith(fontSize: Dimensions.fontSizeExtraLarge),
                                               ),
                                             ),
                                           ),
                                           InkWell(
                                             onTap: () {
-                                              if (profileController.userInfoModel!.refCode!.isNotEmpty) {
-                                                Clipboard.setData(ClipboardData(
-                                                    text:
-                                                        '${profileController.userInfoModel != null ? profileController.userInfoModel!.refCode : ''}'));
+                                              if (referralCode.isNotEmpty) {
+                                                Clipboard.setData(
+                                                    ClipboardData(
+                                                        text: referralCode));
                                                 showCustomSnackBar('referral_code_copied'.tr, isError: false);
+                                              } else {
+                                                profileController.getUserInfo();
+                                                showCustomSnackBar('Referral code is not available yet');
                                               }
                                             },
                                             child: Container(
@@ -183,11 +219,16 @@ class _ReferAndEarnScreenState extends State<ReferAndEarnScreen> {
                               Wrap(children: [
                                 InkWell(
                                   onTap: () {
-                                    Share.share(
-                                      Get.find<SplashController>().configModel?.appUrlAndroid != null
-                                          ? '${AppConstants.appName} ${'referral_code'.tr}: ${profileController.userInfoModel!.refCode} \n${'download_app_from_this_link'.tr}: ${Get.find<SplashController>().configModel?.appUrlAndroid}'
-                                          : '${AppConstants.appName} ${'referral_code'.tr}: ${profileController.userInfoModel!.refCode}',
-                                    );
+                                    if (referralCode.isEmpty) {
+                                      profileController.getUserInfo();
+                                      showCustomSnackBar(
+                                          'Referral code is not available yet');
+                                      return;
+                                    }
+                                    final String shareText = storeLink.isNotEmpty
+                                        ? '${AppConstants.appName} ${'referral_code'.tr}: $referralCode \n${'download_app_from_this_link'.tr}: $storeLink'
+                                        : '${AppConstants.appName} ${'referral_code'.tr}: $referralCode';
+                                    Share.share(shareText);
                                   },
                                   child: Container(
                                     decoration: BoxDecoration(

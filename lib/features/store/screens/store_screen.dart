@@ -67,6 +67,7 @@ class _StoreScreenState extends State<StoreScreen> {
   final ScrollController scrollController = ScrollController();
   final ScrollController scrollController2 = ScrollController();
   final TextEditingController _searchController = TextEditingController();
+  bool _requestedStoreBootstrap = false;
 
   @override
   void initState() {
@@ -91,6 +92,36 @@ class _StoreScreenState extends State<StoreScreen> {
     // FoodRestaurantDetailScreen / GroceryStoreDetailScreen handle all data loading
     // This prevents 3 lifecycle calls and duplicate API requests
     // initDataCall() removed - specialized screens handle initialization
+    _bootstrapStoreIfNeeded();
+  }
+
+  void _bootstrapStoreIfNeeded() {
+    final splashController = Get.find<SplashController>();
+    final moduleType = splashController.module?.moduleType?.toString();
+    final bool isFood = moduleType == AppConstants.food;
+    final bool isGrocery =
+        moduleType == AppConstants.grocery || splashController.module?.id == 7;
+
+    // Food/Grocery have dedicated screens that handle their own loading.
+    if (isFood || isGrocery) return;
+
+    final int? storeId = widget.store?.id;
+    final bool hasFullStoreData = (widget.store?.name ?? '').isNotEmpty;
+    if (storeId == null || storeId <= 0 || hasFullStoreData) return;
+    if (_requestedStoreBootstrap) return;
+
+    _requestedStoreBootstrap = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      Get.find<StoreController>()
+          .getStoreDetails(
+            context,
+            Store(id: storeId),
+            widget.fromModule,
+            slug: widget.slug,
+          )
+          .catchError((_) => null);
+    });
   }
 
   @override
@@ -190,6 +221,15 @@ class _StoreScreenState extends State<StoreScreen> {
 
             // Only show error if both storeController.store AND widget.store are null
             if (displayStore == null || displayStore.name == null) {
+              final bool isBootstrapLoading = storeController.isLoading &&
+                  widget.store?.id != null &&
+                  widget.store!.id! > 0;
+              if (isBootstrapLoading) {
+                return const Center(
+                  child:
+                      LoadingWidget(messageKey: 'loading', showMessage: true),
+                );
+              }
               return Center(
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,

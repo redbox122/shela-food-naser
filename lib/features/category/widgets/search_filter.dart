@@ -284,7 +284,13 @@ class ChoiceChipsRow extends StatelessWidget {
                         style: TextStyle(
                             color: isSelected ? Colors.white : Colors.black)),
                     const SizedBox(width: 4),
-                    Image.asset(Images.sar, width: 12, height: 12),
+                    Image.asset(
+                      Images.sar,
+                      width: 12,
+                      height: 12,
+                      cacheWidth: 36,
+                      cacheHeight: 36,
+                    ),
                     const SizedBox(width: 6),
                     Text('-',
                         style: TextStyle(
@@ -294,7 +300,13 @@ class ChoiceChipsRow extends StatelessWidget {
                         style: TextStyle(
                             color: isSelected ? Colors.white : Colors.black)),
                     const SizedBox(width: 4),
-                    Image.asset(Images.sar, width: 12, height: 12),
+                    Image.asset(
+                      Images.sar,
+                      width: 12,
+                      height: 12,
+                      cacheWidth: 36,
+                      cacheHeight: 36,
+                    ),
                   ],
                 )
               : Text(option,

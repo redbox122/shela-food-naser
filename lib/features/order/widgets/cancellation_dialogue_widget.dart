@@ -1,21 +1,53 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:sixam_mart/features/order/controllers/order_controller.dart';
+import 'package:sixam_mart/helper/route_helper.dart';
 import 'package:sixam_mart/util/dimensions.dart';
 import 'package:sixam_mart/util/styles.dart';
 import 'package:sixam_mart/common/widgets/custom_button.dart';
 import 'package:sixam_mart/common/widgets/custom_snackbar.dart';
 
-class CancellationDialogueWidget extends StatelessWidget {
+class CancellationDialogueWidget extends StatefulWidget {
   final int? orderId;
   const CancellationDialogueWidget({super.key, required this.orderId});
 
   @override
+  State<CancellationDialogueWidget> createState() => _CancellationDialogueWidgetState();
+}
+
+class _CancellationDialogueWidgetState extends State<CancellationDialogueWidget> {
+  static const String _introMessageAr =
+      'عزيزنا العميل، رأيك يهمنا لنرتقي بخدمتك!\n'
+      'يؤسفنا رغبتك في إلغاء الطلب، واختيارك للسبب بدقة يساعدنا على تطوير تجربتك في المرات القادمة وتقديم خدمة تليق بتوقعاتك.';
+
+  static const Map<String, List<String>> _groupedReasonsAr = <String, List<String>>{
+    '1. قرارات الشراء والتعديل:': <String>[
+      'أود تغيير وسيلة الدفع.',
+      'أرغب في إضافة منتجات أخرى (تعديل الطلب).',
+      'لم أعد بحاجة للمنتج في الوقت الحالي.',
+    ],
+    '2. ملاحظات الشحن والخدمات اللوجستية:': <String>[
+      'مدة التوصيل المتوقعة لا تناسبني.',
+      'تكلفة الشحن مرتفعة.',
+      'تم تكرار الطلب عن طريق الخطأ.',
+    ],
+    '3. تفاصيل المنتج والعروض:': <String>[
+      'اختيار خاطئ لبيانات المنتج (المقاس/اللون/النوع).',
+      'وجدت عرضاً أفضل في مكان آخر.',
+      'أرغب في إعادة الطلب لاستخدام كود الخصم.',
+    ],
+  };
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Get.find<OrderController>().getOrderCancelReasons();
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
-    Get.find<OrderController>().getOrderCancelReasons();
-
-    //
-
     return Dialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(Dimensions.radiusSmall)),
       insetPadding: const EdgeInsets.all(30),
@@ -36,40 +68,71 @@ class CancellationDialogueWidget extends StatelessWidget {
                 Text('select_cancellation_reasons'.tr,
                     style: robotoMedium.copyWith(color: Theme.of(context).primaryColor, fontSize: Dimensions.fontSizeLarge)),
                 const SizedBox(height: Dimensions.paddingSizeExtraSmall),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: Dimensions.paddingSizeDefault),
+                  child: Text(
+                    _introMessageAr,
+                    textAlign: TextAlign.center,
+                    style: robotoRegular.copyWith(
+                      color: Theme.of(context).hintColor,
+                      fontSize: Dimensions.fontSizeSmall,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: Dimensions.paddingSizeExtraSmall),
               ]),
             ),
             Expanded(
-              child: orderController.orderCancelReasons != null
-                  ? orderController.orderCancelReasons!.isNotEmpty
-                      ? ListView.builder(
-                          itemCount: orderController.orderCancelReasons!.length,
-                          shrinkWrap: true,
-                          itemBuilder: (context, index) {
-                            return Padding(
-                              padding: const EdgeInsets.symmetric(horizontal: Dimensions.paddingSizeSmall),
-                              child: ListTile(
-                                onTap: () {
-                                  orderController.setOrderCancelReason(orderController.orderCancelReasons![index].reason);
-                                },
-                                title: Row(
-                                  children: [
-                                    Icon(
-                                        orderController.orderCancelReasons![index].reason == orderController.cancelReason
-                                            ? Icons.radio_button_checked
-                                            : Icons.radio_button_off,
-                                        color: Theme.of(context).primaryColor,
-                                        size: 18),
-                                    const SizedBox(width: Dimensions.paddingSizeExtraSmall),
-                                    Flexible(
-                                        child: Text(orderController.orderCancelReasons![index].reason!,
-                                            style: robotoRegular, maxLines: 3, overflow: TextOverflow.ellipsis)),
-                                  ],
+              child: ListView(
+                padding: const EdgeInsets.symmetric(horizontal: Dimensions.paddingSizeSmall),
+                children: _groupedReasonsAr.entries.map((entry) {
+                  final String sectionTitle = entry.key;
+                  final List<String> reasons = entry.value;
+
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.only(
+                          top: Dimensions.paddingSizeSmall,
+                          bottom: Dimensions.paddingSizeExtraSmall,
+                        ),
+                        child: Text(
+                          sectionTitle,
+                          style: robotoMedium.copyWith(fontSize: Dimensions.fontSizeDefault),
+                        ),
+                      ),
+                      ...reasons.map((reason) {
+                        return ListTile(
+                          dense: true,
+                          contentPadding: EdgeInsets.zero,
+                          onTap: () => orderController.setOrderCancelReason(reason),
+                          title: Row(
+                            children: [
+                              Icon(
+                                reason == orderController.cancelReason
+                                    ? Icons.radio_button_checked
+                                    : Icons.radio_button_off,
+                                color: Theme.of(context).primaryColor,
+                                size: 18,
+                              ),
+                              const SizedBox(width: Dimensions.paddingSizeExtraSmall),
+                              Expanded(
+                                child: Text(
+                                  reason,
+                                  style: robotoRegular,
+                                  maxLines: 3,
+                                  overflow: TextOverflow.ellipsis,
                                 ),
                               ),
-                            );
-                          })
-                      : Center(child: Text('no_reasons_available'.tr))
-                  : const Center(child: CircularProgressIndicator()),
+                            ],
+                          ),
+                        );
+                      }),
+                    ],
+                  );
+                }).toList(),
+              ),
             ),
             const SizedBox(height: Dimensions.paddingSizeExtraSmall),
             Padding(
@@ -89,10 +152,19 @@ class CancellationDialogueWidget extends StatelessWidget {
                         buttonText: 'submit'.tr,
                         radius: 50,
                         onPressed: () {
+                          debugPrint('[OrderCancel][UI] submit pressed reason=${orderController.cancelReason} orderId=${widget.orderId}');
                           if (orderController.cancelReason != '' && orderController.cancelReason != null) {
-                            orderController.cancelOrder(orderId, orderController.cancelReason).then((success) {
+                            orderController.cancelOrder(widget.orderId, orderController.cancelReason).then((success) {
+                              debugPrint('[OrderCancel][UI] submit result=$success');
                               if (success) {
-                                orderController.trackOrder(orderId.toString(), null, true);
+                                // Success/failure refund message is already handled
+                                // in cancelOrder repository response using backend flags
+                                // (e.g. refund_processed=false for non-refundable cases).
+                                Future.delayed(const Duration(milliseconds: 1200), () {
+                                  if (Get.currentRoute != RouteHelper.initial) {
+                                    Get.offAllNamed(RouteHelper.getInitialRoute());
+                                  }
+                                });
                               }
                             });
                           } else {

@@ -193,7 +193,7 @@ class _RiyadhMapSearchState extends State<RiyadhMapSearch> {
   void _showError(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(message ?? ''),
+        content: Text(message),
         duration: const Duration(seconds: 2),
       ),
     );

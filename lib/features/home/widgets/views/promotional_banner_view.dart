@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
 import 'package:shimmer_animation/shimmer_animation.dart';
 import 'package:sixam_mart/features/banner/controllers/banner_controller.dart';
@@ -15,14 +16,18 @@ class PromotionalBannerView extends StatelessWidget {
     return GetBuilder<BannerController>(builder: (bannerController) {
       final String? bannerUrl =
           bannerController.promotionalBanner?.bottomSectionBannerFullUrl;
-      final bool hasBannerUrl =
-          bannerUrl != null && bannerUrl.isNotEmpty;
+      if (kDebugMode) {
+        debugPrint(
+            '[PromotionalBannerView] url=${bannerUrl ?? "null"} hasUrl=${(bannerUrl?.isNotEmpty ?? false)}');
+      }
+      final bool hasBannerUrl = bannerUrl != null && bannerUrl.isNotEmpty;
       if (!hasBannerUrl) {
         return const PromotionalBannerShimmerView();
       }
       return InkWell(
         onTap: () async {
-          final link = bannerController.promotionalBanner?.bottomSectionBannerLink;
+          final link =
+              bannerController.promotionalBanner?.bottomSectionBannerLink;
           if (link != null && link.isNotEmpty) {
             if (await canLaunchUrlString(link)) {
               await launchUrlString(link, mode: LaunchMode.externalApplication);
@@ -66,7 +71,8 @@ class PromotionalBannerShimmerView extends StatelessWidget {
     return Shimmer(
       duration: const Duration(seconds: 2),
       child: Container(
-        height: 90, width: double.infinity,
+        height: 90,
+        width: double.infinity,
         decoration: BoxDecoration(
           color: Colors.grey[300],
           borderRadius: BorderRadius.circular(Dimensions.paddingSizeExtraSmall),

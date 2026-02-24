@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -55,8 +56,13 @@ class _FoodRestaurantDetailScreenState
       {}; // Track which categories are currently loading
   final Map<int?, int> _categoryOffsets = {};
   final Map<int?, int> _categoryTotalSizes = {};
+  final Map<int, List<Item>> _slimMenuCategoryItemsFull = {};
   bool _isPaginatingItems = false;
-  static const int _itemsPageLimit = 10;
+  int? _focusedCategoryIdFromRoute;
+  int? _focusedItemIdFromRoute;
+  int? _highlightedItemId;
+  bool _routeFocusApplied = false;
+  static const int _itemsPageLimit = 7;
 
   @override
   void initState() {
@@ -78,8 +84,226 @@ class _FoodRestaurantDetailScreenState
     appLogger.debug('FoodRestaurantDetailScreen: Slug = ${widget.slug}');
     appLogger.debug('FoodRestaurantDetailScreen: Module Type = Food');
 
+    _readRouteFocusParams();
     _scrollController.addListener(_onScrollLoadMore);
     _initializeData();
+  }
+
+  void _readRouteFocusParams() {
+    _focusedCategoryIdFromRoute =
+        int.tryParse(Get.parameters['category_id'] ?? '');
+    _focusedItemIdFromRoute = int.tryParse(Get.parameters['item_id'] ?? '');
+    _highlightedItemId = _focusedItemIdFromRoute;
+    if (kDebugMode &&
+        (_focusedCategoryIdFromRoute != null ||
+            _focusedItemIdFromRoute != null)) {
+      debugPrint(
+          'FoodRestaurantDetailScreen: route focus category=$_focusedCategoryIdFromRoute, item=$_focusedItemIdFromRoute');
+    }
+  }
+
+  int? _resolveInitialCategoryId(List<CategoryModel> categories) {
+    final int? focusedCategoryId = _focusedCategoryIdFromRoute;
+    if (focusedCategoryId != null && focusedCategoryId > 0) {
+      final bool exists = categories.any((c) => c.id == focusedCategoryId);
+      if (exists) {
+        return focusedCategoryId;
+      }
+    }
+    if (categories.length > 1) {
+      return categories[1].id;
+    }
+    return null;
+  }
+
+  void _pinFocusedItemIfPresent(int? categoryId) {
+    final int? focusedItemId = _focusedItemIdFromRoute;
+    if (focusedItemId == null || categoryId == null || categoryId == 0) {
+      return;
+    }
+    final List<Item>? items = _categoryItemsMap[categoryId];
+    if (items == null || items.length < 2) {
+      return;
+    }
+    final int index = items.indexWhere((item) => item.id == focusedItemId);
+    if (index > 0) {
+      final Item focusedItem = items.removeAt(index);
+      items.insert(0, focusedItem);
+    }
+  }
+
+  List<Item> _buildInitialCategoryChunk({
+    required int categoryId,
+    required List<Item> fullItems,
+  }) {
+    if (fullItems.isEmpty) {
+      return <Item>[];
+    }
+
+    final int end = math.min(_itemsPageLimit, fullItems.length);
+    final List<Item> chunk = List<Item>.from(fullItems.sublist(0, end));
+
+    final int? focusedCategoryId = _focusedCategoryIdFromRoute;
+    final int? focusedItemId = _focusedItemIdFromRoute;
+    if (focusedCategoryId == null ||
+        focusedItemId == null ||
+        focusedCategoryId != categoryId) {
+      return chunk;
+    }
+
+    if (chunk.any((item) => item.id == focusedItemId)) {
+      return chunk;
+    }
+
+    final int focusedIndex =
+        fullItems.indexWhere((item) => item.id == focusedItemId);
+    if (focusedIndex < 0) {
+      return chunk;
+    }
+
+    final Item focusedItem = fullItems[focusedIndex];
+    if (chunk.length == _itemsPageLimit) {
+      chunk.removeLast();
+    }
+    chunk.insert(0, focusedItem);
+    return chunk;
+  }
+
+  List<Item> _dedupeItemsById(List<Item> items, {String? source}) {
+    if (items.length < 2) return items;
+    final seen = <int>{};
+    final result = <Item>[];
+    int removed = 0;
+
+    for (final item in items) {
+      final id = item.id;
+      if (id == null) {
+        result.add(item);
+        continue;
+      }
+      if (seen.add(id)) {
+        result.add(item);
+      } else {
+        removed++;
+      }
+    }
+
+    if (kDebugMode && removed > 0) {
+      debugPrint(
+          '🧹 FoodRestaurantDetailScreen: Removed $removed duplicate items${source != null ? ' from $source' : ''}');
+    }
+    return result;
+  }
+
+  void _applyRouteFocusScrollIfNeeded() {
+    if (_routeFocusApplied) {
+      return;
+    }
+    final int? focusedCategoryId = _focusedCategoryIdFromRoute;
+    if (focusedCategoryId == null || focusedCategoryId <= 0) {
+      return;
+    }
+    if (_selectedCategoryId != focusedCategoryId) {
+      return;
+    }
+
+    _routeFocusApplied = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final key = _categoryKeys[focusedCategoryId];
+      if (key?.currentContext != null) {
+        Scrollable.ensureVisible(
+          key!.currentContext!,
+          duration: const Duration(milliseconds: 260),
+          curve: Curves.easeInOut,
+          alignment: 0.08,
+        );
+      }
+    });
+  }
+
+  Future<void> _hydrateCategoryCompletelyIfNeeded({
+    required StoreController storeController,
+    required int storeId,
+    required int categoryId,
+    bool fetchFirstPageIfUnknown = false,
+  }) async {
+    if (categoryId <= 0) {
+      return;
+    }
+
+    // Guard against tight loops if backend returns partial/empty pages.
+    int guard = 0;
+    if (fetchFirstPageIfUnknown &&
+        (_categoryTotalSizes[categoryId] ?? 0) <= 0) {
+      final firstPage = await storeController.fetchCategoryItemsPage(
+        storeId: storeId,
+        categoryId: categoryId,
+        offset: 1,
+        limit: _itemsPageLimit,
+      );
+      final List<Item> firstItems = _dedupeItemsById(
+        firstPage?.items ?? <Item>[],
+        source: 'hydrate_first_page_$categoryId',
+      );
+      final int firstTotal = firstPage?.totalSize ?? 0;
+      _categoryItemsMap[categoryId] = List<Item>.from(firstItems);
+      _categoryOffsets[categoryId] = 1;
+      _categoryTotalSizes[categoryId] = firstTotal;
+      _loadedCategoryIds.add(categoryId);
+      _pinFocusedItemIfPresent(categoryId);
+      guard++;
+    }
+
+    while (mounted && guard < 8) {
+      final int loadedCount = _categoryItemsMap[categoryId]?.length ?? 0;
+      final int totalSize = _categoryTotalSizes[categoryId] ?? 0;
+      if (totalSize <= 0 || loadedCount >= totalSize) {
+        break;
+      }
+
+      final int currentOffset = _categoryOffsets[categoryId] ?? 1;
+      final int nextOffset = currentOffset + 1;
+
+      final categoryItemModel = await storeController.fetchCategoryItemsPage(
+        storeId: storeId,
+        categoryId: categoryId,
+        offset: nextOffset,
+        limit: _itemsPageLimit,
+      );
+
+      final List<Item> newItems = _dedupeItemsById(
+        categoryItemModel?.items ?? <Item>[],
+        source: 'hydrate_next_page_$categoryId',
+      );
+      final int nextTotal = categoryItemModel?.totalSize ?? totalSize;
+      _categoryTotalSizes[categoryId] = nextTotal;
+      _categoryOffsets[categoryId] = nextOffset;
+
+      if (newItems.isEmpty) {
+        final int alreadyLoaded = _categoryItemsMap[categoryId]?.length ?? 0;
+        if (alreadyLoaded > 0) {
+          // Backend sometimes reports inflated total_size while next pages are empty.
+          // Lock total to loaded count to stop pointless offset retries.
+          _categoryTotalSizes[categoryId] = alreadyLoaded;
+        }
+        break;
+      }
+
+      final List<Item> existingItems =
+          _categoryItemsMap.putIfAbsent(categoryId, () => <Item>[]);
+      for (final item in newItems) {
+        if (!existingItems.any((e) => e.id == item.id)) {
+          existingItems.add(item);
+        }
+      }
+      _pinFocusedItemIfPresent(categoryId);
+      guard++;
+    }
+
+    if (mounted) {
+      setState(() {});
+    }
   }
 
   @override
@@ -143,6 +367,24 @@ class _FoodRestaurantDetailScreenState
       });
     }
     try {
+      // If slim menu already has full category items in memory, paginate locally first.
+      final List<Item>? fullCategoryItems = _slimMenuCategoryItemsFull[categoryId];
+      if (fullCategoryItems != null && fullCategoryItems.isNotEmpty) {
+        final List<Item> existingItems =
+            _categoryItemsMap.putIfAbsent(categoryId, () => <Item>[]);
+        final int start = existingItems.length;
+        final int end = math.min(start + _itemsPageLimit, fullCategoryItems.length);
+
+        if (start < end) {
+          existingItems.addAll(fullCategoryItems.sublist(start, end));
+          _categoryTotalSizes[categoryId] = fullCategoryItems.length;
+          _categoryOffsets[categoryId] = ((existingItems.length + _itemsPageLimit - 1) / _itemsPageLimit).floor();
+        } else {
+          _categoryTotalSizes[categoryId] = existingItems.length;
+        }
+        return;
+      }
+
       final categoryItemModel = await storeController.fetchCategoryItemsPage(
         storeId: storeId,
         categoryId: categoryId,
@@ -158,7 +400,7 @@ class _FoodRestaurantDetailScreenState
         _categoryOffsets[categoryId] = currentOffset + 1;
         _categoryTotalSizes[categoryId] = total;
       } else if (total > 0) {
-        _categoryTotalSizes[categoryId] = total;
+        _categoryTotalSizes[categoryId] = loadedCount;
       }
     } catch (_) {
     } finally {
@@ -255,7 +497,7 @@ class _FoodRestaurantDetailScreenState
 
     // ✅ FRONTEND ONLY: ALWAYS fetch items - even if storeId is 0, try to fetch anyway
     // This ensures items are requested even if store ID is missing
-    if (storeId != 0) {
+    if (finalStoreId != 0) {
       appLogger.info(
           '📡 FoodRestaurantDetailScreen: Fetching menu items in background for store ID: $storeId');
       appLogger.info('   ✅ ALWAYS fetching items (store.open status ignored)');
@@ -476,18 +718,26 @@ class _FoodRestaurantDetailScreenState
     appLogger.debug(
         'FoodRestaurantDetailScreen: Total categories to load: ${categories.length - 1}');
     appLogger.debug('FoodRestaurantDetailScreen: Store ID: $storeId');
+    final int maxInitialCategoryLoads =
+        storeController.categoryList?.length ??
+            (categories.isNotEmpty ? categories.length - 1 : 0);
 
     final categoryFutures = <Future<void>>[];
+    int queuedCount = 0;
     for (int i = 1; i < categories.length; i++) {
       final category = categories[i];
       final categoryId = category.id;
       if (categoryId == null || categoryId == 0) continue;
+      if (queuedCount >= maxInitialCategoryLoads) {
+        continue;
+      }
       if (kDebugMode) {
         debugPrint('');
         debugPrint(
             '   📡 [$i/${categories.length - 1}] Queuing category: ${category.name} (ID: $categoryId)');
       }
       _loadingCategoryIds.add(categoryId);
+      queuedCount++;
       categoryFutures.add(
         storeController.storeServiceInterface
             .getStoreItemList(
@@ -505,6 +755,7 @@ class _FoodRestaurantDetailScreenState
                 '   ✅ Loaded ${allCategoryItems.length} items for ${category.name} (ID: $categoryId, Total available: $totalSize)');
           }
           _categoryItemsMap[categoryId] = List<Item>.from(allCategoryItems);
+          _pinFocusedItemIfPresent(categoryId);
           _categoryOffsets[categoryId] = 1;
           _categoryTotalSizes[categoryId] = totalSize;
           if (!_categoryKeys.containsKey(categoryId)) {
@@ -550,13 +801,103 @@ class _FoodRestaurantDetailScreenState
       debugPrint('');
     }
     if (_selectedCategoryId == null && categories.length > 1) {
-      final firstCategory = categories[1];
+      final int? initialCategoryId = _resolveInitialCategoryId(categories);
+      final CategoryModel firstCategory = categories.firstWhere(
+        (category) => category.id == initialCategoryId,
+        orElse: () => categories[1],
+      );
       setState(() {
         _selectedCategoryId = firstCategory.id;
       });
       if (kDebugMode) {
         debugPrint(
             '   ✅ Auto-selected first category: ${firstCategory.name} (ID: ${firstCategory.id})');
+      }
+      if (firstCategory.id != null &&
+          !_loadedCategoryIds.contains(firstCategory.id)) {
+        _loadCategoryItems(
+          storeController,
+          storeId,
+          firstCategory.id!,
+          firstCategory.name ?? '',
+        );
+      }
+      _applyRouteFocusScrollIfNeeded();
+      final int? focusedCategoryId = _focusedCategoryIdFromRoute;
+      if (focusedCategoryId != null && focusedCategoryId > 0) {
+        unawaited(_hydrateCategoryCompletelyIfNeeded(
+          storeController: storeController,
+          storeId: storeId,
+          categoryId: focusedCategoryId,
+          fetchFirstPageIfUnknown: true,
+        ));
+      }
+    }
+  }
+
+  Future<void> _loadCategoryItems(StoreController storeController, int storeId,
+      int categoryId, String categoryName) async {
+    if (_loadedCategoryIds.contains(categoryId) ||
+        _loadingCategoryIds.contains(categoryId)) {
+      return;
+    }
+    _loadingCategoryIds.add(categoryId);
+    try {
+      // If slim menu already has this category, load only first page-sized chunk.
+      final List<Item>? fullCategoryItems = _slimMenuCategoryItemsFull[categoryId];
+      if (fullCategoryItems != null) {
+        final List<Item> firstChunk = _dedupeItemsById(
+          _buildInitialCategoryChunk(
+            categoryId: categoryId,
+            fullItems: fullCategoryItems,
+          ),
+          source: 'slim_menu_chunk_$categoryId',
+        );
+        _categoryItemsMap[categoryId] = List<Item>.from(firstChunk);
+        _pinFocusedItemIfPresent(categoryId);
+        _categoryOffsets[categoryId] = 1;
+        _categoryTotalSizes[categoryId] = fullCategoryItems.length;
+        if (!_categoryKeys.containsKey(categoryId)) {
+          _categoryKeys[categoryId] = GlobalKey();
+        }
+        return;
+      }
+
+      final categoryItemModel =
+          await storeController.storeServiceInterface.getStoreItemList(
+        storeId,
+        1,
+        categoryId,
+        'all',
+        limit: _itemsPageLimit,
+      );
+      final allCategoryItems = _dedupeItemsById(
+        categoryItemModel?.items ?? <Item>[],
+        source: 'category_items_api_$categoryId',
+      );
+      final totalSize = categoryItemModel?.totalSize ?? 0;
+      _categoryItemsMap[categoryId] = List<Item>.from(allCategoryItems);
+      _pinFocusedItemIfPresent(categoryId);
+      _categoryOffsets[categoryId] = 1;
+      _categoryTotalSizes[categoryId] = totalSize;
+      if (!_categoryKeys.containsKey(categoryId)) {
+        _categoryKeys[categoryId] = GlobalKey();
+      }
+      if (categoryId == _focusedCategoryIdFromRoute) {
+        unawaited(_hydrateCategoryCompletelyIfNeeded(
+          storeController: storeController,
+          storeId: storeId,
+          categoryId: categoryId,
+          fetchFirstPageIfUnknown: false,
+        ));
+      }
+    } catch (e) {
+      _categoryItemsMap[categoryId] = [];
+    } finally {
+      _loadingCategoryIds.remove(categoryId);
+      _loadedCategoryIds.add(categoryId);
+      if (mounted) {
+        setState(() {});
       }
     }
   }
@@ -600,6 +941,7 @@ class _FoodRestaurantDetailScreenState
   /// This replaces the parallel loading approach with a single API call
   void _populateCategoryMapFromSlimMenu(SlimMenuResponse slimMenuResponse) {
     if (kDebugMode) {
+      debugPrint('[FoodRestaurantDetailScreen] SlimMenu v3 populate start');
       debugPrint(
           '🚀 [FoodRestaurantDetailScreen] _populateCategoryMapFromSlimMenu() - Populating from slim menu');
       debugPrint(
@@ -610,17 +952,30 @@ class _FoodRestaurantDetailScreenState
     _categoryItemsMap.clear();
     _loadedCategoryIds.clear();
     _loadingCategoryIds.clear();
+    _categoryOffsets.clear();
+    _categoryTotalSizes.clear();
+    _slimMenuCategoryItemsFull.clear();
 
-    // Populate map from slim menu response
+    final int? focusedCategoryId = _focusedCategoryIdFromRoute;
+
+    // Keep full slim-menu data in memory and show first chunk for each category.
     for (final category in slimMenuResponse.categories) {
       if (category.id != 0) {
-        final categoryId = category.id;
-        final items =
-            category.items.map((slimItem) => slimItem.toItem()).toList();
-        _categoryItemsMap[categoryId] = items;
+        final int categoryId = category.id;
+        final List<Item> items = _dedupeItemsById(
+          category.items.map((slimItem) => slimItem.toItem()).toList(),
+          source: 'slim_menu_category_$categoryId',
+        );
+
+        _slimMenuCategoryItemsFull[categoryId] = items;
+        _categoryItemsMap[categoryId] = _buildInitialCategoryChunk(
+          categoryId: categoryId,
+          fullItems: items,
+        );
+        _categoryOffsets[categoryId] = 1;
+        _categoryTotalSizes[categoryId] = items.length;
         _loadedCategoryIds.add(categoryId);
 
-        // Ensure GlobalKey exists for this category
         if (!_categoryKeys.containsKey(categoryId)) {
           _categoryKeys[categoryId] = GlobalKey();
         }
@@ -632,19 +987,59 @@ class _FoodRestaurantDetailScreenState
       }
     }
 
-    // Set selected category to first non-"all" category
-    if (slimMenuResponse.categories.isNotEmpty) {
-      final firstCategory = slimMenuResponse.categories.first;
-      if (firstCategory.id != 0) {
-        _selectedCategoryId = firstCategory.id;
-        if (kDebugMode) {
-          debugPrint(
-              '   ✅ Auto-selected first category: ${firstCategory.name} (ID: ${firstCategory.id})');
-        }
+    // Safety fallback: if for any reason loaded categories got reduced,
+    // repopulate first chunk for all categories from slim-menu memory.
+    final int expectedCategories =
+        slimMenuResponse.categories.where((c) => c.id != 0).length;
+    if (_loadedCategoryIds.length < expectedCategories) {
+      for (final entry in _slimMenuCategoryItemsFull.entries) {
+        final int categoryId = entry.key;
+        final List<Item> fullItems = _dedupeItemsById(
+          entry.value,
+          source: 'slim_menu_fallback_$categoryId',
+        );
+        _categoryItemsMap[categoryId] = _buildInitialCategoryChunk(
+          categoryId: categoryId,
+          fullItems: fullItems,
+        );
+        _categoryOffsets[categoryId] = 1;
+        _categoryTotalSizes[categoryId] = fullItems.length;
+        _loadedCategoryIds.add(categoryId);
+        _categoryKeys.putIfAbsent(categoryId, () => GlobalKey());
+      }
+      if (kDebugMode) {
+        debugPrint(
+            '[FoodRestaurantDetailScreen] SlimMenu v3 fallback loaded ${_loadedCategoryIds.length}/$expectedCategories categories');
       }
     }
 
+    // Select initial category (route-focused if available, otherwise first).
+    if (slimMenuResponse.categories.isNotEmpty) {
+      final SlimMenuCategory firstCategory =
+          (focusedCategoryId != null && focusedCategoryId > 0)
+              ? slimMenuResponse.categories.firstWhere(
+                  (category) => category.id == focusedCategoryId,
+                  orElse: () => slimMenuResponse.categories.first,
+                )
+              : slimMenuResponse.categories.first;
+      if (firstCategory.id != 0) {
+        _selectedCategoryId = firstCategory.id;
+        _pinFocusedItemIfPresent(firstCategory.id);
+        final int initialCount =
+            _categoryItemsMap[firstCategory.id]?.length ?? 0;
+        final int totalCount = _categoryTotalSizes[firstCategory.id] ?? 0;
+
+        if (kDebugMode) {
+          debugPrint(
+              '   ✅ Auto-selected first category: ${firstCategory.name} (ID: ${firstCategory.id})');
+          debugPrint('   📦 Initial chunk loaded: $initialCount/$totalCount');
+        }
+      }
+    }
+    _applyRouteFocusScrollIfNeeded();
+
     if (kDebugMode) {
+      debugPrint('[FoodRestaurantDetailScreen] SlimMenu v3 populate done');
       debugPrint(
           '🎉 [FoodRestaurantDetailScreen] Slim menu population complete: ${_loadedCategoryIds.length} categories, ${_categoryItemsMap.values.fold<int>(0, (sum, items) => sum + items.length)} items');
     }
@@ -671,6 +1066,21 @@ class _FoodRestaurantDetailScreenState
         curve: Curves.easeInOut,
       );
     } else {
+      final storeController = Get.find<StoreController>();
+      final int? storeId = storeController.store?.id ?? widget.store?.id;
+      if (storeId != null &&
+          !_loadedCategoryIds.contains(categoryId) &&
+          !_loadingCategoryIds.contains(categoryId)) {
+        _loadCategoryItems(storeController, storeId, categoryId, categoryName);
+      }
+      if (storeId != null && categoryId != 0) {
+        unawaited(_hydrateCategoryCompletelyIfNeeded(
+          storeController: storeController,
+          storeId: storeId,
+          categoryId: categoryId,
+          fetchFirstPageIfUnknown: true,
+        ));
+      }
       // Scroll to the selected category section
       final key = _categoryKeys[categoryId];
       if (key != null && key.currentContext != null) {
@@ -706,37 +1116,44 @@ class _FoodRestaurantDetailScreenState
                   storeController.storeErrorStatusCode == 500 &&
                   displayStore == null) {
                 return Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Icon(Icons.error_outline,
-                          size: 64, color: Colors.red),
-                      const SizedBox(height: 16),
-                      const Text(
-                        'Failed to load store details',
-                        style: TextStyle(
-                            fontSize: 18, fontWeight: FontWeight.bold),
-                      ),
-                      const SizedBox(height: 8),
-                      const Text('Please check your connection and try again'),
-                      const SizedBox(height: 24),
-                      ElevatedButton.icon(
-                        onPressed: () {
-                          storeController.retryStoreDetails(
-                            context,
-                            Store(id: widget.store?.id),
-                            widget.fromModule,
-                            slug: widget.slug,
-                          );
-                        },
-                        icon: const Icon(Icons.refresh),
-                        label: const Text('Retry'),
-                        style: ElevatedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 24, vertical: 12),
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: Dimensions.paddingSizeLarge,
+                        vertical: Dimensions.paddingSizeDefault),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(Icons.error_outline,
+                            size: 64, color: Colors.red),
+                        const SizedBox(height: 16),
+                        const Text(
+                          'Failed to load store details',
+                          style: TextStyle(
+                              fontSize: 18, fontWeight: FontWeight.bold),
                         ),
-                      ),
-                    ],
+                        const SizedBox(height: 8),
+                        const Text(
+                            'Please check your connection and try again'),
+                        const SizedBox(height: 24),
+                        ElevatedButton.icon(
+                          onPressed: () {
+                            storeController.retryStoreDetails(
+                              context,
+                              Store(id: widget.store?.id),
+                              widget.fromModule,
+                              slug: widget.slug,
+                            );
+                          },
+                          icon: const Icon(Icons.refresh),
+                          label: const Text('Retry'),
+                          style: ElevatedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 24, vertical: 12),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 );
               }
@@ -772,45 +1189,53 @@ class _FoodRestaurantDetailScreenState
                       title: Text(widget.store!.name ?? ''),
                     ),
                     body: Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          const Icon(Icons.wifi_off,
-                              size: 64, color: Colors.orange),
-                          const SizedBox(height: 16),
-                          Text(
-                            widget.store!.name ?? '',
-                            style: const TextStyle(
-                                fontSize: 20, fontWeight: FontWeight.bold),
-                          ),
-                          const SizedBox(height: 8),
-                          const Text(
-                            'Connection Timeout',
-                            style: TextStyle(fontSize: 16, color: Colors.grey),
-                          ),
-                          const SizedBox(height: 8),
-                          const Text(
-                            'Please check your connection and try again',
-                            style: TextStyle(fontSize: 14, color: Colors.grey),
-                          ),
-                          const SizedBox(height: 24),
-                          ElevatedButton.icon(
-                            onPressed: () {
-                              storeController.retryStoreDetails(
-                                context,
-                                widget.store!,
-                                widget.fromModule,
-                                slug: widget.slug,
-                              );
-                            },
-                            icon: const Icon(Icons.refresh),
-                            label: const Text('Retry'),
-                            style: ElevatedButton.styleFrom(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 24, vertical: 12),
+                      child: SingleChildScrollView(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: Dimensions.paddingSizeLarge,
+                            vertical: Dimensions.paddingSizeDefault),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Icon(Icons.wifi_off,
+                                size: 64, color: Colors.orange),
+                            const SizedBox(height: 16),
+                            Text(
+                              widget.store!.name ?? '',
+                              style: const TextStyle(
+                                  fontSize: 20, fontWeight: FontWeight.bold),
                             ),
-                          ),
-                        ],
+                            const SizedBox(height: 8),
+                            const Text(
+                              'Connection Timeout',
+                              style:
+                                  TextStyle(fontSize: 16, color: Colors.grey),
+                            ),
+                            const SizedBox(height: 8),
+                            const Text(
+                              'Please check your connection and try again',
+                              style:
+                                  TextStyle(fontSize: 14, color: Colors.grey),
+                            ),
+                            const SizedBox(height: 24),
+                            ElevatedButton.icon(
+                              onPressed: () {
+                                storeController.retryStoreDetails(
+                                  context,
+                                  widget.store!,
+                                  widget.fromModule,
+                                  slug: widget.slug,
+                                );
+                              },
+                              icon: const Icon(Icons.refresh),
+                              label: const Text('Retry'),
+                              style: ElevatedButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 24, vertical: 12),
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   );
@@ -822,28 +1247,36 @@ class _FoodRestaurantDetailScreenState
                       title: Text(widget.store!.name ?? ''),
                     ),
                     body: Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          const Icon(Icons.location_off,
-                              size: 64, color: Colors.orange),
-                          const SizedBox(height: 16),
-                          Text(
-                            widget.store!.name ?? '',
-                            style: const TextStyle(
-                                fontSize: 20, fontWeight: FontWeight.bold),
-                          ),
-                          const SizedBox(height: 8),
-                          const Text(
-                            'Out of Coverage',
-                            style: TextStyle(fontSize: 16, color: Colors.grey),
-                          ),
-                          const SizedBox(height: 8),
-                          const Text(
-                            'This store is not available in your area',
-                            style: TextStyle(fontSize: 14, color: Colors.grey),
-                          ),
-                        ],
+                      child: SingleChildScrollView(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: Dimensions.paddingSizeLarge,
+                            vertical: Dimensions.paddingSizeDefault),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Icon(Icons.location_off,
+                                size: 64, color: Colors.orange),
+                            const SizedBox(height: 16),
+                            Text(
+                              widget.store!.name ?? '',
+                              style: const TextStyle(
+                                  fontSize: 20, fontWeight: FontWeight.bold),
+                            ),
+                            const SizedBox(height: 8),
+                            const Text(
+                              'Out of Coverage',
+                              style:
+                                  TextStyle(fontSize: 16, color: Colors.grey),
+                            ),
+                            const SizedBox(height: 8),
+                            const Text(
+                              'This store is not available in your area',
+                              style:
+                                  TextStyle(fontSize: 14, color: Colors.grey),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   );
@@ -863,8 +1296,9 @@ class _FoodRestaurantDetailScreenState
                     localizationController.locale.languageCode;
                 for (final category in widget.store!.categoryDetails!) {
                   // Skip subcategories (parent_id != 0)
-                  if (category.parentId != null && category.parentId != 0)
+                  if (category.parentId != null && category.parentId != 0) {
                     continue;
+                  }
 
                   String? categoryName = category.name;
                   // Apply language-specific name if available
@@ -932,7 +1366,7 @@ class _FoodRestaurantDetailScreenState
                   // ⚡ V2: Use displayStore for immediate render, updates smoothly when detailed data arrives
                   SliverToBoxAdapter(
                     child: Padding(
-                      padding: const EdgeInsets.only(top: 50),
+                      padding: const EdgeInsets.only(top: 44),
                       child: FoodRestaurantInfoSection(
                         store: displayStore,
                       ),
@@ -1081,8 +1515,10 @@ class _FoodRestaurantDetailScreenState
         final categoryId = category.id;
         final isLoaded = _loadedCategoryIds.contains(categoryId);
         final isLoading = _loadingCategoryIds.contains(categoryId);
-        final List<Item> items =
-            List<Item>.from(_categoryItemsMap[categoryId] ?? []);
+        final List<Item> items = _dedupeItemsById(
+          List<Item>.from(_categoryItemsMap[categoryId] ?? []),
+          source: 'render_category_${category.id}',
+        );
 
         // Keep available items first, then apply selected price order inside each group.
         if (items.isNotEmpty) {
@@ -1103,6 +1539,7 @@ class _FoodRestaurantDetailScreenState
                 items: items,
                 sectionKey: _categoryKeys[categoryId]!,
                 isLoading: isLoading,
+                highlightedItemId: _highlightedItemId,
               ),
             ),
           );
@@ -1117,7 +1554,16 @@ class _FoodRestaurantDetailScreenState
     List<Item> items,
     StoreController storeController,
   ) {
+    final int? highlightedItemId = _highlightedItemId;
     items.sort((a, b) {
+      if (highlightedItemId != null) {
+        final bool aIsHighlighted = a.id == highlightedItemId;
+        final bool bIsHighlighted = b.id == highlightedItemId;
+        if (aIsHighlighted != bIsHighlighted) {
+          return aIsHighlighted ? -1 : 1;
+        }
+      }
+
       final bool aOutOfStock = _isOutOfStock(a);
       final bool bOutOfStock = _isOutOfStock(b);
 
@@ -1163,7 +1609,7 @@ class _FoodRestaurantDetailScreenState
             child: Shimmer(
               duration: const Duration(seconds: 2),
               child: Container(
-                height: 120,
+                height: 140,
                 padding: const EdgeInsets.all(Dimensions.paddingSizeDefault),
                 decoration: BoxDecoration(
                   color: Colors.grey[300],
@@ -1174,7 +1620,7 @@ class _FoodRestaurantDetailScreenState
                     // Image skeleton
                     Container(
                       width: 100,
-                      height: 100,
+                      height: 88,
                       decoration: BoxDecoration(
                         color: Colors.grey[400],
                         borderRadius:
@@ -1265,7 +1711,7 @@ class _FoodRestaurantDetailScreenState
             child: Shimmer(
               duration: const Duration(seconds: 2),
               child: Container(
-                height: 120,
+                height: 140,
                 padding: const EdgeInsets.all(Dimensions.paddingSizeDefault),
                 decoration: BoxDecoration(
                   color: Colors.grey[300],
@@ -1276,7 +1722,7 @@ class _FoodRestaurantDetailScreenState
                     // Image skeleton
                     Container(
                       width: 100,
-                      height: 100,
+                      height: 88,
                       decoration: BoxDecoration(
                         color: Colors.grey[400],
                         borderRadius:
@@ -1329,3 +1775,4 @@ class _FoodRestaurantDetailScreenState
     ];
   }
 }
+

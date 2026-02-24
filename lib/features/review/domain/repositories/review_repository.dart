@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
 import 'package:sixam_mart/common/models/response_model.dart';
 import 'package:sixam_mart/api/api_client.dart';
@@ -9,6 +10,49 @@ import 'package:sixam_mart/util/app_constants.dart';
 class ReviewRepository implements ReviewRepositoryInterface {
   final ApiClient apiClient;
   ReviewRepository({required this.apiClient});
+
+  String _extractErrorMessage(Response response) {
+    String message = '';
+    final dynamic body = response.body;
+
+    if (body is Map<String, dynamic>) {
+      message = body['message']?.toString() ?? '';
+      if (message.isEmpty) {
+        message = body['error']?.toString() ?? '';
+      }
+    }
+
+    if (message.isEmpty) {
+      message = response.statusText?.toString() ?? '';
+    }
+
+    return message.trim();
+  }
+
+  bool _looksLikeSensitiveServerException(String message) {
+    final lower = message.toLowerCase();
+    return lower.contains('illuminate\\') ||
+        lower.contains('exception') ||
+        lower.contains('sqlstate') ||
+        lower.contains('connection.php') ||
+        lower.contains('/vendor/') ||
+        lower.contains(' file:') ||
+        lower.contains(' line:');
+  }
+
+  String _toSafeErrorMessage(Response response) {
+    final String raw = _extractErrorMessage(response);
+
+    if (kDebugMode && raw.isNotEmpty) {
+      debugPrint('[ReviewSubmit] raw error message: $raw');
+    }
+
+    if (raw.isEmpty || _looksLikeSensitiveServerException(raw)) {
+      return 'something_went_wrong'.tr;
+    }
+
+    return raw;
+  }
 
   @override
   Future<List<ReviewModel>?> getList({int? offset, String? storeID}) async {
@@ -30,7 +74,7 @@ class ReviewRepository implements ReviewRepositoryInterface {
     if (response.statusCode == 200) {
       responseModel = ResponseModel(true, 'review_submitted_successfully'.tr);
     } else {
-      responseModel = ResponseModel(false, response.statusText);
+      responseModel = ResponseModel(false, _toSafeErrorMessage(response));
     }
     return responseModel;
   }
@@ -42,7 +86,7 @@ class ReviewRepository implements ReviewRepositoryInterface {
     if (response.statusCode == 200) {
       responseModel = ResponseModel(true, 'review_submitted_successfully'.tr);
     } else {
-      responseModel = ResponseModel(false, response.statusText);
+      responseModel = ResponseModel(false, _toSafeErrorMessage(response));
     }
     return responseModel;
   }

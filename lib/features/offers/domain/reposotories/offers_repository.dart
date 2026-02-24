@@ -16,6 +16,8 @@ import 'package:sixam_mart/helper/string_extension.dart';
 
 class OffersRepository implements OffersRepositoryInterface {
   final ApiClient apiClient;
+  final Map<int, DateTime> _lastETagClearAt = <int, DateTime>{};
+  static const Duration _etagClearCooldown = Duration(seconds: 30);
 
   OffersRepository({required this.apiClient});
 
@@ -42,6 +44,10 @@ class OffersRepository implements OffersRepositoryInterface {
     try {
       OffersModel offersModel =
           OffersModel(success: false, data: [], message: '');
+      int? currentModuleId;
+      if (Get.isRegistered<SplashController>()) {
+        currentModuleId = Get.find<SplashController>().module?.id;
+      }
 
       final Response response = await apiClient.getData(AppConstants.offersUri);
 
@@ -57,11 +63,7 @@ class OffersRepository implements OffersRepositoryInterface {
 
         try {
           // Use current module ID only (no cross-module fallback)
-          int? moduleId;
-          if (Get.isRegistered<SplashController>()) {
-            final splashController = Get.find<SplashController>();
-            moduleId = splashController.module?.id;
-          }
+          final moduleId = currentModuleId;
 
           if (moduleId != null) {
             cachedOffers = await cacheService.loadOffers(moduleId);
@@ -107,13 +109,37 @@ class OffersRepository implements OffersRepositoryInterface {
           }
         }
 
-        // TEMP: LOOP PREVENTION DISABLED - force fresh fetch if cache is missing
+        // Cache is missing while server returns 304.
+        // Clear endpoint ETag once and retry without ETag to repair cache.
         if (kDebugMode) {
           print(
-              '⚠️ Offers_Repository: 304 received but cache missing - forcing fresh fetch (loop prevention disabled)');
+              '⚠️ Offers_Repository: 304 received but cache missing - clearing ETag and forcing fresh fetch');
         }
 
         try {
+          if (currentModuleId != null) {
+            final now = DateTime.now();
+            final lastClearAt = _lastETagClearAt[currentModuleId];
+            if (lastClearAt != null &&
+                now.difference(lastClearAt) < _etagClearCooldown) {
+              final remainingSeconds =
+                  (_etagClearCooldown - now.difference(lastClearAt)).inSeconds;
+              if (kDebugMode) {
+                print(
+                    '⏸️ Offers_Repository: ETag clear on cooldown for module $currentModuleId (${remainingSeconds}s remaining)');
+              }
+              return OffersModel(
+                success: true,
+                data: <Datum>[],
+                message: 'ETag clear cooldown active',
+              );
+            }
+          }
+
+          await cacheService.clearETagForUri(AppConstants.offersUri);
+          if (currentModuleId != null) {
+            _lastETagClearAt[currentModuleId] = DateTime.now();
+          }
           final Response retryResponse =
               await apiClient.getData(AppConstants.offersUri, useEtag: false);
           if (retryResponse.statusCode == 200 ||
@@ -139,12 +165,9 @@ class OffersRepository implements OffersRepositoryInterface {
                 );
               }
 
-              if (Get.isRegistered<SplashController>()) {
-                final moduleId = Get.find<SplashController>().module?.id;
-                if (moduleId != null) {
-                  await HiveHomeCacheService()
-                      .saveOffers(moduleId, freshOffers);
-                }
+              if (currentModuleId != null) {
+                await HiveHomeCacheService()
+                    .saveOffers(currentModuleId, freshOffers);
               }
 
               return freshOffers;
@@ -196,11 +219,9 @@ class OffersRepository implements OffersRepositoryInterface {
             );
           }
 
-          if (Get.isRegistered<SplashController>()) {
-            final moduleId = Get.find<SplashController>().module?.id;
-            if (moduleId != null) {
-              await HiveHomeCacheService().saveOffers(moduleId, offersModel);
-            }
+          if (currentModuleId != null) {
+            await HiveHomeCacheService()
+                .saveOffers(currentModuleId, offersModel);
           }
 
           return offersModel;
@@ -224,17 +245,20 @@ class OffersRepository implements OffersRepositoryInterface {
   }
 
   @override
-  Future<ItemModel?> getOffersItem(
-      {int? offset, int? limit, String? id}) async {
+  Future<ItemModel?> getOffersItem({
+    int? offset,
+    int? limit,
+    String? id,
+    bool forceRefresh = false,
+  }) async {
     ItemModel? offersItem;
-    final Response response = await apiClient.getData(
-      '${AppConstants.offersItemUri}$id/newitems?offset=$offset&limit=$limit',
-    );
-    if (response.statusCode == 200) {
+    final uri =
+        '${AppConstants.offersItemUri}$id/newitems?offset=$offset&limit=$limit';
+
+    Future<ItemModel?> parseOffersItems(Response response) async {
       // Debug: Print the raw API response to see what we're receiving
       if (kDebugMode) {
-        print(
-            '🔍 Offers API Endpoint: ${AppConstants.offersItemUri}$id/newitems?offset=$offset&limit=$limit');
+        print('🔍 Offers API Endpoint: $uri');
       }
 
       // ⚡ TASK 2: Parse JSON in isolate to prevent main-thread jank
@@ -265,11 +289,34 @@ class OffersRepository implements OffersRepositoryInterface {
       }
 
       // Parse slim offers items in isolate (handles new API structure: products_count, products)
-      offersItem = await JsonIsolateHelper.parseSlimOffersItemModel(jsonString);
+      final parsed =
+          await JsonIsolateHelper.parseSlimOffersItemModel(jsonString);
 
       if (kDebugMode) {
         print(
-            '✅ Offers_Repository: Parsed ${offersItem?.items?.length ?? 0} slim items in isolate (total: ${offersItem?.totalSize ?? 0})');
+            '✅ Offers_Repository: Parsed ${parsed?.items?.length ?? 0} slim items in isolate (total: ${parsed?.totalSize ?? 0})');
+      }
+      return parsed;
+    }
+
+    final Response response = await apiClient.getData(
+      uri,
+      useEtag: !forceRefresh,
+    );
+    if (response.statusCode == 200) {
+      offersItem = await parseOffersItems(response);
+    } else if (response.statusCode == 304) {
+      if (kDebugMode) {
+        print(
+            '⚠️ Offers_Repository: 304 Not Modified for offers items (id=$id, offset=$offset). Retrying without ETag.');
+      }
+      final Response freshResponse =
+          await apiClient.getData(uri, useEtag: false);
+      if (freshResponse.statusCode == 200) {
+        offersItem = await parseOffersItems(freshResponse);
+      } else if (kDebugMode) {
+        print(
+            '❌ Offers_Repository: Fresh retry after 304 failed (status=${freshResponse.statusCode})');
       }
     }
     return offersItem;
@@ -278,42 +325,64 @@ class OffersRepository implements OffersRepositoryInterface {
   @override
   Future<ItemModel?> getOffersSearchItemList(String searchText, String? offerId,
       int offset, String type, int categoryId) async {
-    ItemModel? offersSearchItem;
+    final String encodedQuery = Uri.encodeQueryComponent(searchText.trim());
     String url =
-        '${AppConstants.offersItemUri}$offerId/search?query=$searchText&offset=$offset&limit=20&filter=$type';
+        '${AppConstants.offersItemUri}$offerId/search?query=$encodedQuery&offset=$offset&limit=20';
+    if (type.isNotEmpty && type != 'all') {
+      url += '&filter=$type';
+    }
     if (categoryId != 0) {
       url += '&category_ids=$categoryId';
     }
 
-    final Response response = await apiClient.getData(url);
-    if (response.statusCode == 200) {
-      // Check if response body is valid JSON (Map) or HTML (String)
+    ItemModel? parseSearchResponse(Response response) {
       final body = response.body;
       if (body is Map<String, dynamic>) {
         try {
-          offersSearchItem = ItemModel.fromJson(body);
+          return ItemModel.fromJson(body);
         } catch (e) {
-          print('❌ Error parsing offers search response: $e');
+          print('? Error parsing offers search response: $e');
           return null;
         }
-      } else if (response.body is String) {
-        // Handle HTML response (server error page)
+      } else if (body is String) {
         print(
-            '❌ API returned HTML instead of JSON for search. This indicates a server error.');
-        print(
-            'Response body preview: ${response.body.toString().safeSubstring(100)}');
+            '? API returned HTML instead of JSON for search. This indicates a server error.');
+        print('Response body preview: ${body.safeSubstring(100)}');
         return null;
       } else {
-        print(
-            '❌ Unexpected search response body type: ${response.body.runtimeType}');
+        print('? Unexpected search response body type: ${body.runtimeType}');
         return null;
       }
+    }
+
+    final Response response = await apiClient.getData(url);
+    if (response.statusCode == 200 || response.statusCode == 201) {
+      return parseSearchResponse(response);
+    } else if (response.statusCode == 304) {
+      if (kDebugMode) {
+        print(
+            '?? Offers_Repository: 304 Not Modified for offers search. Trying cache body then retry without ETag.');
+      }
+
+      final ItemModel? cached = parseSearchResponse(response);
+      if (cached != null) {
+        return cached;
+      }
+
+      final Response freshResponse =
+          await apiClient.getData(url, useEtag: false);
+      if (freshResponse.statusCode == 200 || freshResponse.statusCode == 201) {
+        return parseSearchResponse(freshResponse);
+      }
+
+      print(
+          '? Offers search retry without ETag failed with status: ${freshResponse.statusCode}');
+      return null;
     } else {
       print(
-          '❌ Search API call failed with status code: ${response.statusCode}');
+          '? Search API call failed with status code: ${response.statusCode}');
       return null;
     }
-    return offersSearchItem;
   }
 
   @override
@@ -370,3 +439,4 @@ class OffersRepository implements OffersRepositoryInterface {
   }
 //
 }
+

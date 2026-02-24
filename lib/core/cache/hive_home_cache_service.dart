@@ -178,7 +178,19 @@ class HiveHomeCacheService {
     }
 
     if (_openLazyBoxes.containsKey(boxName)) {
-      return _openLazyBoxes[boxName]!;
+      final cachedBox = _openLazyBoxes[boxName]!;
+      if (cachedBox.isOpen) {
+        return cachedBox;
+      }
+      // Drop stale closed handle so a fresh box can be acquired.
+      _openLazyBoxes.remove(boxName);
+    }
+
+    // Reuse an already-open Hive box if available (e.g., reopened elsewhere).
+    if (Hive.isBoxOpen(boxName)) {
+      final box = Hive.lazyBox(boxName);
+      _openLazyBoxes[boxName] = box;
+      return box;
     }
 
     try {
@@ -299,12 +311,24 @@ class HiveHomeCacheService {
 
     try {
       final boxName = HiveCacheConfig.getCategoryBoxName(moduleId);
-      final box = await _getLazyBox(boxName);
       // ⚡ Perform JSON encoding in isolate (non-blocking)
       final jsonString = await HiveIsolateHelper.serializeCategories(data);
-      await box.put('categories', jsonString);
-      await _saveTimestamp(boxName, 'categories', DateTime.now());
-      // 🔧 CRITICAL FIX: Flush to ensure data is persisted to disk immediately
+      LazyBox box = await _getLazyBox(boxName);
+      try {
+        await box.put('categories', jsonString);
+        await _saveTimestamp(boxName, 'categories', DateTime.now());
+        // 🔧 CRITICAL FIX: Flush to ensure data is persisted to disk immediately
+        await box.flush();
+      } on HiveError catch (e) {
+        if (e.toString().contains('already been closed')) {
+          _openLazyBoxes.remove(boxName);
+          box = await _getLazyBox(boxName);
+          await box.put('categories', jsonString);
+          await _saveTimestamp(boxName, 'categories', DateTime.now());
+        } else {
+          rethrow;
+        }
+      }
       await box.flush();
       if (kDebugMode) {
         print(
@@ -1029,7 +1053,7 @@ class HiveHomeCacheService {
 
   /// Invalidate home unified cache for a module
   /// 🔧 FIX: Used when cached data has empty banners (stale cache)
-  Future<void> invalidateHomeUnifiedCache(int moduleId) async {
+  Future<void> invalidateHomeUnifiedCache(int moduleId, {bool clearEtag = false}) async {
     if (!HiveCacheConfig.isHiveEnabled) {
       return;
     }
@@ -1043,13 +1067,13 @@ class HiveHomeCacheService {
 
       // Delete the timestamp to mark cache as invalid
       await _deleteTimestamp(boxName, 'home_unified');
-
-      // 🔧 FIX: Also clear ETag to force fresh request (bypass 304)
-      await clearETagForUri('/api/v2/home-unified');
+      if (clearEtag) {
+        await clearETagForUri('/api/v2/home-unified');
+      }
 
       if (kDebugMode) {
         print(
-            '🗑️ HiveHomeCacheService: Invalidated home unified cache for module $moduleId (including ETag)');
+            'HiveHomeCacheService: Invalidated home unified cache for module $moduleId${clearEtag ? ' (including ETag)' : ''}');
       }
     } catch (e) {
       if (kDebugMode) {
@@ -1067,10 +1091,25 @@ class HiveHomeCacheService {
 
     try {
       final box = await _getLazyBox(HiveCacheConfig.appConfigBoxName);
-      final etagKey = 'etag_${uri.replaceAll('/', '_').replaceAll(':', '_')}';
-      await box.delete(etagKey);
+      final normalizedUri =
+          uri.replaceAll('/', '_').replaceAll(':', '_');
+      final exactEtagKey = 'etag_$normalizedUri';
+      await box.delete(exactEtagKey);
+
+      // Also remove scoped/full-url variants (e.g. with query/module scope).
+      final keysToDelete = box.keys
+          .whereType<String>()
+          .where((key) =>
+              key.startsWith('etag_') &&
+              key != exactEtagKey &&
+              key.contains(normalizedUri))
+          .toList();
+      for (final key in keysToDelete) {
+        await box.delete(key);
+      }
       if (kDebugMode) {
-        print('🗑️ HiveHomeCacheService: Cleared ETag for $uri');
+        print(
+            '🗑️ HiveHomeCacheService: Cleared ETag for $uri (${1 + keysToDelete.length} key(s))');
       }
     } catch (e) {
       if (kDebugMode) {
@@ -1563,3 +1602,4 @@ class HiveHomeCacheService {
     }
   }
 }
+

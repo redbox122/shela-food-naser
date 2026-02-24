@@ -14,6 +14,7 @@ import 'package:sixam_mart/features/banner/controllers/banner_controller.dart';
 import 'package:sixam_mart/features/splash/controllers/splash_controller.dart';
 import 'package:sixam_mart/helper/header_helper.dart';
 import 'package:sixam_mart/util/app_constants.dart';
+import 'package:sixam_mart/common/utils/app_logger.dart';
 
 class BannerRepository implements BannerRepositoryInterface {
   final ApiClient apiClient;
@@ -63,7 +64,7 @@ class BannerRepository implements BannerRepositoryInterface {
         // 🔧 FIX: Handle 304 Not Modified - load from Hive cache immediately with multi-source fallback
         if (response.statusCode == 304) {
           if (kDebugMode && AppConstants.enableVerboseLogs) {
-            print(
+            appLogger.debug(
                 '✅ Banner_Repository: 304 Not Modified received - loading from Hive cache');
           }
 
@@ -79,13 +80,13 @@ class BannerRepository implements BannerRepositoryInterface {
                     (cachedBanners.campaigns != null &&
                         cachedBanners.campaigns!.isNotEmpty))) {
               if (kDebugMode && AppConstants.enableVerboseLogs) {
-                print(
+                appLogger.info(
                     '✅ Banner_Repository: Loaded banners from Hive cache (moduleId: $moduleId)');
               }
               return cachedBanners;
             } else {
               if (kDebugMode && AppConstants.enableVerboseLogs) {
-                print(
+                appLogger.warning(
                     '⚠️ Banner_Repository: No cached banners found for moduleId: $moduleId');
               }
             }
@@ -93,7 +94,7 @@ class BannerRepository implements BannerRepositoryInterface {
             // Fallback 2: Try moduleId = 3 (eCommerce) if current module failed
             if (moduleId != 3) {
               if (kDebugMode && AppConstants.enableVerboseLogs) {
-                print(
+                appLogger.debug(
                     '🔄 Banner_Repository: Trying fallback to moduleId=3 (eCommerce)');
               }
               final fallbackBanners = await cacheService.loadBanners(3);
@@ -104,7 +105,7 @@ class BannerRepository implements BannerRepositoryInterface {
                           fallbackBanners.campaigns!.isNotEmpty))) {
                 cachedBanners = fallbackBanners;
                 if (kDebugMode && AppConstants.enableVerboseLogs) {
-                  print(
+                  appLogger.info(
                       '✅ Banner_Repository: Loaded banners from moduleId=3 cache');
                 }
                 return cachedBanners;
@@ -113,7 +114,7 @@ class BannerRepository implements BannerRepositoryInterface {
 
             // Fallback 3: Try BannerController static pre-fetched data
             if (kDebugMode && AppConstants.enableVerboseLogs) {
-              print(
+              appLogger.debug(
                   '🔄 Banner_Repository: Trying BannerController static pre-fetched data');
             }
 
@@ -128,26 +129,26 @@ class BannerRepository implements BannerRepositoryInterface {
                       (preFetchedBannerData.campaigns != null &&
                           preFetchedBannerData.campaigns!.isNotEmpty))) {
                 if (kDebugMode && AppConstants.enableVerboseLogs) {
-                  print(
+                  appLogger.info(
                       '✅ Banner_Repository: Loaded banners from static pre-fetched data');
                 }
                 return preFetchedBannerData;
               }
             } catch (e) {
               if (kDebugMode && AppConstants.enableVerboseLogs) {
-                print(
+                appLogger.warning(
                     '⚠️ Banner_Repository: Error accessing BannerController static data: $e');
               }
             }
           } catch (e) {
             if (kDebugMode && AppConstants.enableVerboseLogs) {
-              print('❌ Banner_Repository: Error loading from cache on 304: $e');
+              appLogger.error('❌ Banner_Repository: Error loading from cache on 304: $e', e);
             }
           }
 
           // All fallbacks failed - return null (304 means data unchanged, but cache unavailable)
           if (kDebugMode && AppConstants.enableVerboseLogs) {
-            print(
+            appLogger.warning(
                 '⚠️ Banner_Repository: 304 received but all cache sources failed');
           }
           return null;
@@ -186,20 +187,20 @@ class BannerRepository implements BannerRepositoryInterface {
       const uri = '${AppConstants.bannerUri}?featured=1';
 
       if (kDebugMode && AppConstants.enableVerboseLogs) {
-        print('🔍 BannerRepository._getFeaturedBannerList: Calling API: $uri');
+        appLogger.debug('🔍 BannerRepository._getFeaturedBannerList: Calling API: $uri');
       }
 
       final Response response =
           await apiClient.getData(uri, headers: HeaderHelper.featuredHeader());
 
       if (kDebugMode && AppConstants.enableVerboseLogs) {
-        print(
+        appLogger.debug(
             '📊 BannerRepository._getFeaturedBannerList: Response status: ${response.statusCode}');
       }
 
       if (response.statusCode == 304) {
         if (kDebugMode && AppConstants.enableVerboseLogs) {
-          print(
+          appLogger.debug(
               '✅ BannerRepository._getFeaturedBannerList: 304 Not Modified - loading from cache');
         }
 
@@ -217,7 +218,7 @@ class BannerRepository implements BannerRepositoryInterface {
                 (cachedBanners.campaigns != null &&
                     cachedBanners.campaigns!.isNotEmpty))) {
           if (kDebugMode && AppConstants.enableVerboseLogs) {
-            print(
+            appLogger.info(
                 '✅ BannerRepository._getFeaturedBannerList: Loaded banners from cache (moduleId: $moduleId)');
           }
           return cachedBanners;
@@ -225,7 +226,7 @@ class BannerRepository implements BannerRepositoryInterface {
 
         if (moduleId != 3) {
           if (kDebugMode && AppConstants.enableVerboseLogs) {
-            print(
+            appLogger.debug(
                 '🔄 BannerRepository._getFeaturedBannerList: Trying fallback cache for moduleId=3');
           }
           cachedBanners = await cacheService.loadBanners(3);
@@ -245,32 +246,30 @@ class BannerRepository implements BannerRepositoryInterface {
         try {
           bannerModel = BannerModel.fromJson(response.body as Map<String, dynamic>);
           if (kDebugMode && AppConstants.enableVerboseLogs) {
-            print(
+            appLogger.info(
                 '✅ BannerRepository._getFeaturedBannerList: Successfully parsed banner model - campaigns: ${bannerModel.campaigns?.length ?? 0}, banners: ${bannerModel.banners?.length ?? 0}');
           }
         } catch (e, stackTrace) {
           if (kDebugMode && AppConstants.enableVerboseLogs) {
-            print(
-                '❌ BannerRepository._getFeaturedBannerList: Error parsing banner model: $e');
-            print('❌ Stack trace: $stackTrace');
+            appLogger.error(
+                '❌ BannerRepository._getFeaturedBannerList: Error parsing banner model: $e', e, stackTrace);
           }
           return null;
         }
       } else {
         if (kDebugMode && AppConstants.enableVerboseLogs) {
-          print(
+          appLogger.warning(
               '⚠️ BannerRepository._getFeaturedBannerList: API returned non-200 status: ${response.statusCode}');
           if (response.body != null) {
-            print('⚠️ Response body: ${response.body}');
+            appLogger.warning('⚠️ Response body: ${response.body}');
           }
         }
       }
       return bannerModel;
     } catch (e, stackTrace) {
       if (kDebugMode && AppConstants.enableVerboseLogs) {
-        print(
-            '❌ BannerRepository._getFeaturedBannerList: Exception during API call: $e');
-        print('❌ Stack trace: $stackTrace');
+        appLogger.error(
+            '❌ BannerRepository._getFeaturedBannerList: Exception during API call: $e', e, stackTrace);
       }
       return null;
     }
@@ -292,6 +291,19 @@ class BannerRepository implements BannerRepositoryInterface {
         await apiClient.getData(AppConstants.promotionalBannerUri);
     if (response.statusCode == 200 && response.body is Map) {
       promotionalBanner = PromotionalBanner.fromJson(response.body as Map<String, dynamic>);
+    } else if (response.statusCode == 304) {
+      // 304 with no local cache → force a fresh fetch by clearing the ETag and retrying once.
+      if (kDebugMode) {
+        appLogger.warning(
+            '⚠️ BannerRepository._getPromotionalBannerList: 304 received with no local cache — retrying fresh');
+      }
+      await HiveHomeCacheService().clearETagForUri(AppConstants.promotionalBannerUri);
+      final Response retryResponse =
+          await apiClient.getData(AppConstants.promotionalBannerUri);
+      if (retryResponse.statusCode == 200 && retryResponse.body is Map) {
+        promotionalBanner =
+            PromotionalBanner.fromJson(retryResponse.body as Map<String, dynamic>);
+      }
     }
     return promotionalBanner;
   }

@@ -48,7 +48,7 @@ class WebLanguageScreen extends StatelessWidget {
                         ),
                         padding: const EdgeInsets.all(Dimensions.paddingSizeExtraLarge),
                         child: const CustomAssetImageWidget(
-                          Images.languageBackground,
+                          Images.languageBg,
                           fit: BoxFit.contain,
                         ),
                       ),

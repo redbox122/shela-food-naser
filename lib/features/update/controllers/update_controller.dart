@@ -1,8 +1,10 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
 import 'package:sixam_mart/services/app_version_service.dart';
 import 'package:sixam_mart/widgets/update_dialog.dart';
+import 'package:sixam_mart/common/utils/app_logger.dart';
 
 class UpdateController extends GetxController with WidgetsBindingObserver {
   final AppVersionService _versionService = AppVersionService();
@@ -34,10 +36,14 @@ class UpdateController extends GetxController with WidgetsBindingObserver {
 
   /// Check for app updates
   Future<void> checkForUpdates({bool showLoading = true}) async {
-    print('🎯 checkForUpdates called with showLoading: $showLoading');
+    if (kDebugMode) {
+      appLogger.debug('🎯 checkForUpdates called with showLoading: $showLoading');
+    }
 
     if (_isChecking) {
-      print('⏭️ Already checking for updates, skipping...');
+      if (kDebugMode) {
+        appLogger.debug('⏭️ Already checking for updates, skipping...');
+      }
       return;
     }
 
@@ -47,10 +53,14 @@ class UpdateController extends GetxController with WidgetsBindingObserver {
 
       // Only check if enough time has passed
       final shouldCheck = await _versionService.shouldCheckForUpdates();
-      print('⏰ Should check for updates: $shouldCheck');
+      if (kDebugMode) {
+        appLogger.debug('⏰ Should check for updates: $shouldCheck');
+      }
 
       if (!shouldCheck) {
-        print('⏭️ Skipping update check - 24 hours not elapsed');
+        if (kDebugMode) {
+          appLogger.debug('⏭️ Skipping update check - 24 hours not elapsed');
+        }
         return;
       }
 
@@ -84,7 +94,9 @@ class UpdateController extends GetxController with WidgetsBindingObserver {
       if (showLoading) {
         Get.back(); // Close loading dialog
       }
-      print('Error checking for updates: $e');
+      if (kDebugMode) {
+        appLogger.error('Error checking for updates: $e', e);
+      }
       if (showLoading) {
         _showErrorMessage();
       }
@@ -167,10 +179,14 @@ class UpdateController extends GetxController with WidgetsBindingObserver {
 
   /// Check for updates on app start
   Future<void> checkForUpdatesOnStart() async {
-    print('🚀 UpdateController.checkForUpdatesOnStart() called');
+    if (kDebugMode) {
+      appLogger.debug('🚀 UpdateController.checkForUpdatesOnStart() called');
+    }
     // Add a small delay to ensure app is fully loaded
     Timer(const Duration(seconds: 2), () {
-      print('⏰ Timer fired, calling checkForUpdates...');
+      if (kDebugMode) {
+        appLogger.debug('⏰ Timer fired, calling checkForUpdates...');
+      }
       checkForUpdates(showLoading: false);
     });
   }

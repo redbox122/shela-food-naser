@@ -13,6 +13,8 @@ import 'package:sixam_mart/util/design_tokens.dart';
 import 'package:sixam_mart/features/splash/controllers/splash_controller.dart';
 import 'package:sixam_mart/common/models/module_model.dart';
 import 'package:sixam_mart/util/app_constants.dart';
+import 'package:flutter/foundation.dart';
+import 'package:sixam_mart/common/utils/app_logger.dart';
 import 'package:sixam_mart/common/widgets/custom_image.dart';
 import 'package:sixam_mart/common/widgets/smart_image.dart';
 import 'package:sixam_mart/util/images.dart';
@@ -41,6 +43,9 @@ class SearchScreenState extends State<SearchScreen>
   static const Duration _debounceDelay = Duration(milliseconds: 400);
   bool _showSuggestion = false;
   bool _isLoadingSuggestions = false;
+  final Map<int, int> _storeVisibleItemCount = <int, int>{};
+  String? _lastSearchResultsQuery;
+  bool _isSyncingSearchText = false;
 
   late AnimationController _focusAnimationController;
   late Animation<double> _focusScaleAnimation;
@@ -132,19 +137,24 @@ class SearchScreenState extends State<SearchScreen>
 
   void _actionSearch(bool isStore, String? queryText, bool fromHome) {
     if (queryText != null && queryText.isNotEmpty) {
+      if (_lastSearchResultsQuery != queryText) {
+        _storeVisibleItemCount.clear();
+      }
       _showSuggestion = false;
       _searchFocusNode.unfocus();
-      print(
-          '🔍 Search triggered: $queryText, isStore: $isStore, fromHome: $fromHome');
-      
+      if (kDebugMode) {
+        appLogger.debug(
+            '🔍 Search triggered: $queryText, isStore: $isStore, fromHome: $fromHome');
+      }
+
       final searchController = Get.find<search.Search_Controller>();
-      
+
       // Set store mode first to update UI immediately
       searchController.setStore(isStore);
-      
+
       // Exit search mode so results can be displayed
       searchController.setSearchMode(false);
-      
+
       // Trigger search (will search both items and stores in parallel)
       searchController.searchData(query: queryText, fromHome: fromHome);
 
@@ -153,9 +163,67 @@ class SearchScreenState extends State<SearchScreen>
     }
   }
 
+  void _resetSearchStateForModuleSwitch(
+      search.Search_Controller searchController, ModuleModel module) {
+    _debounceTimer?.cancel();
+    _Search_Controller.clear();
+    _showSuggestion = false;
+    _isLoadingSuggestions = false;
+    _storeVisibleItemCount.clear();
+    _lastSearchResultsQuery = null;
+
+    // Clear all controller search/result state to avoid carrying stale ids
+    // across module contexts.
+    searchController.setSearchMode(true);
+    searchController.setSearchText('');
+    searchController.setStore(module.moduleType != 'ecommerce');
+  }
+
+  bool _isComingSoonModule(ModuleModel module) {
+    final String moduleType =
+        (module.moduleType ?? '').toString().trim().toLowerCase();
+    final String moduleName =
+        (module.moduleName ?? '').toString().trim().toLowerCase();
+
+    final bool isPharmacy = moduleType == AppConstants.pharmacy ||
+        moduleName.contains('صيدلي') ||
+        moduleName.contains('pharmacy') ||
+        moduleName.contains('pharm');
+    final bool isCommercialStores = moduleName.contains('المحلات التجارية') ||
+        moduleName.contains('محلات تجارية') ||
+        moduleName.contains('commercial') ||
+        moduleName.contains('shop');
+
+    return isPharmacy || isCommercialStores;
+  }
+
+  int _moduleSortPriority(ModuleModel module) {
+    final String moduleType =
+        (module.moduleType ?? '').toString().trim().toLowerCase();
+    final String moduleName =
+        (module.moduleName ?? '').toString().trim().toLowerCase();
+
+    if (_isComingSoonModule(module)) return 90;
+    if (moduleType == AppConstants.ecommerce ||
+        moduleName.contains('هايبر') ||
+        moduleName.contains('hyper')) {
+      return 1; // Hyper first
+    }
+    if (moduleName.contains('مطعم') || moduleName.contains('restaurant')) {
+      return 2; // Restaurants second
+    }
+    if (moduleName.contains('مقهى') ||
+        moduleName.contains('كاف') ||
+        moduleName.contains('cafe') ||
+        moduleName.contains('coffee')) {
+      return 3; // Cafes third
+    }
+    return 10;
+  }
+
   void _switchTab(bool isStore) {
     final searchController = Get.find<search.Search_Controller>();
-    
+
     // Only switch if different from current mode
     if (searchController.isStore != isStore) {
       searchController.setStore(isStore);
@@ -180,7 +248,20 @@ class SearchScreenState extends State<SearchScreen>
           child: GetBuilder<search.Search_Controller>(
             builder: (searchController) {
               if (!GetPlatform.isWeb) {
-                _Search_Controller.text = searchController.searchText!;
+                final String desiredText = searchController.searchText ?? '';
+                if (_Search_Controller.text != desiredText) {
+                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                    if (!mounted) return;
+                    if (_Search_Controller.text == desiredText) return;
+                    _isSyncingSearchText = true;
+                    _Search_Controller.value = TextEditingValue(
+                      text: desiredText,
+                      selection:
+                          TextSelection.collapsed(offset: desiredText.length),
+                    );
+                    _isSyncingSearchText = false;
+                  });
+                }
               }
 
               return Directionality(
@@ -254,8 +335,16 @@ class SearchScreenState extends State<SearchScreen>
   /// Module chips section for filtering by module
   Widget _ModuleChipsSection() {
     return GetBuilder<SplashController>(
+      id: 'moduleList',
       builder: (splashController) {
-        final moduleList = splashController.moduleList ?? [];
+        final moduleList =
+            List<ModuleModel>.from(splashController.moduleList ?? []);
+        moduleList.sort((a, b) {
+          final int p =
+              _moduleSortPriority(a).compareTo(_moduleSortPriority(b));
+          if (p != 0) return p;
+          return (a.id ?? 0).compareTo(b.id ?? 0);
+        });
         final currentModule = splashController.module;
 
         // Don't show if less than 2 modules
@@ -267,7 +356,7 @@ class SearchScreenState extends State<SearchScreen>
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             SizedBox(
-              height: 55,
+              height: 68,
               child: ListView.separated(
                 scrollDirection: Axis.horizontal,
                 itemCount: moduleList.length,
@@ -276,42 +365,34 @@ class SearchScreenState extends State<SearchScreen>
                   final module = moduleList[index];
                   final isActive =
                       currentModule != null && module.id == currentModule.id;
+                  final bool isComingSoon = _isComingSoonModule(module);
 
                   return _ModuleChip(
                     module: module,
                     isActive: isActive,
-                    onTap: () {
+                    isComingSoon: isComingSoon,
+                    onTap: () async {
+                      if (isComingSoon) {
+                        return;
+                      }
                       if (!isActive) {
-                        // Switch module
-                        final moduleIndex = moduleList.indexOf(module);
-                        if (moduleIndex >= 0) {
-                          splashController.switchModule(
-                              context, moduleIndex, true);
+                        // In search screen, switch module context only
+                        // without navigating away to module dashboard.
+                        await splashController.setModule(module);
 
-                          // Wait for module to switch, then reload all search data
-                          Future.delayed(const Duration(milliseconds: 500), () {
-                            final searchController =
-                                Get.find<search.Search_Controller>();
+                        final searchController =
+                            Get.find<search.Search_Controller>();
 
-                            // Reload trending and popular categories for new module
-                            searchController.getPopularCategories();
-                            searchController.getTrendingCategories();
+                        // Reset search first so no stale results are shown.
+                        _resetSearchStateForModuleSwitch(
+                            searchController, module);
 
-                            // Re-search if there's a query
-                            if (searchController.searchText != null &&
-                                searchController.searchText!.isNotEmpty) {
-                              _actionSearch(
-                                searchController.isStore,
-                                searchController.searchText,
-                                false,
-                              );
-                            }
+                        // Reload discovery sections for selected module.
+                        await searchController.getPopularCategories();
+                        await searchController.getTrendingCategories();
 
-                            // Force UI update
-                            if (mounted) {
-                              setState(() {});
-                            }
-                          });
+                        if (mounted) {
+                          setState(() {});
                         }
                       }
                     },
@@ -329,57 +410,142 @@ class SearchScreenState extends State<SearchScreen>
   Widget _ModuleChip({
     required ModuleModel module,
     required bool isActive,
+    required bool isComingSoon,
     required VoidCallback onTap,
   }) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(8),
-      child: Container(
-        padding: const EdgeInsets.symmetric(
-          horizontal: 12,
-          vertical: 8,
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // Module icon - simple, no circular container
-                CustomImage(
-                  image: module.iconFullUrl ?? '',
-                  width: 24,
-                  height: 24,
-                  placeholder: Images.placeholder,
-                ),
-                const SizedBox(width: 6),
-                // Module name
-                Text(
+    if (isComingSoon) {
+      return SizedBox(
+        width: 150,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+          decoration: BoxDecoration(
+            color: const Color(0xFFE9E9E9),
+            borderRadius: BorderRadius.circular(12),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.1),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
                   module.moduleName ?? '',
                   style: TextStyle(
-                    color: isActive ? Colors.red : Colors.grey.shade600,
+                    color: Colors.grey.shade700,
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
-                    letterSpacing: -0.1,
                   ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
-              ],
-            ),
-            // Red underline for active state
-            if (isActive) ...[
-              const SizedBox(height: 2),
-              Container(
-                height: 2,
-                width: 40,
-                decoration: BoxDecoration(
-                  color: Colors.red,
-                  borderRadius: BorderRadius.circular(1),
-                ),
+              ),
+              const SizedBox(width: 6),
+              Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  Container(
+                    width: 28,
+                    height: 28,
+                    padding: const EdgeInsets.all(3),
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade500,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: CustomImage(
+                      image: module.iconFullUrl ?? '',
+                      width: 22,
+                      height: 22,
+                      placeholder: Images.placeholder,
+                    ),
+                  ),
+                  Positioned(
+                    left: 2,
+                    right: 2,
+                    bottom: -5,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 3, vertical: 1),
+                      decoration: BoxDecoration(
+                        color: Colors.black87,
+                        borderRadius: BorderRadius.circular(5),
+                      ),
+                      child: Text(
+                        'coming_soon'.tr,
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 7,
+                          fontWeight: FontWeight.w700,
+                          height: 1.0,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ],
-          ],
+          ),
+        ),
+      );
+    }
+
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(8),
+      child: SizedBox(
+        width: 150,
+        child: Container(
+          constraints: const BoxConstraints(minHeight: 44),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Row(
+                children: [
+                  CustomImage(
+                    image: module.iconFullUrl ?? '',
+                    width: 24,
+                    height: 24,
+                    placeholder: Images.placeholder,
+                  ),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      module.moduleName ?? '',
+                      style: TextStyle(
+                        color: isActive ? Colors.red : Colors.grey.shade600,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        letterSpacing: -0.1,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ),
+              if (isActive) ...[
+                const SizedBox(height: 4),
+                Align(
+                  alignment: Alignment.center,
+                  child: Container(
+                    height: 2,
+                    width: 34,
+                    decoration: BoxDecoration(
+                      color: Colors.red,
+                      borderRadius: BorderRadius.circular(1),
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ),
         ),
       ),
     );
@@ -425,6 +591,7 @@ class SearchScreenState extends State<SearchScreen>
                             letterSpacing: -0.2,
                           ),
                           onChanged: (text) {
+                            if (_isSyncingSearchText) return;
                             _searchSuggestions(text);
                             searchController.setSearchText(text);
                             setState(() {});
@@ -453,6 +620,7 @@ class SearchScreenState extends State<SearchScreen>
                                     onPressed: () {
                                       _Search_Controller.clear();
                                       _showSuggestion = false;
+                                      if (_isSyncingSearchText) return;
                                       searchController.setSearchText('');
                                       setState(() {});
                                     },
@@ -577,6 +745,7 @@ class SearchScreenState extends State<SearchScreen>
                             letterSpacing: -0.2,
                           ),
                           onChanged: (text) {
+                            if (_isSyncingSearchText) return;
                             _searchSuggestions(text);
                             searchController.setSearchText(text);
                             setState(() {});
@@ -605,6 +774,7 @@ class SearchScreenState extends State<SearchScreen>
                                     onPressed: () {
                                       _Search_Controller.clear();
                                       _showSuggestion = false;
+                                      if (_isSyncingSearchText) return;
                                       searchController.setSearchText('');
                                       setState(() {});
                                     },
@@ -700,9 +870,7 @@ class SearchScreenState extends State<SearchScreen>
                         Padding(
                           padding: const EdgeInsets.symmetric(vertical: 8),
                           child: Text(
-                            isEcommerce
-                                ? 'item'.tr
-                                : 'item'.tr,
+                            isEcommerce ? 'item'.tr : 'item'.tr,
                             style: TextStyle(
                               color: (isEcommerce ? !isStoreTab : !isStoreTab)
                                   ? Colors.red
@@ -750,9 +918,7 @@ class SearchScreenState extends State<SearchScreen>
                                     ? 'restaurants'.tr
                                     : 'stores'.tr),
                             style: TextStyle(
-                              color: (isEcommerce
-                                      ? false
-                                      : isStoreTab)
+                              color: (isEcommerce ? false : isStoreTab)
                                   ? Colors.red
                                   : Colors.grey.shade600,
                               fontSize: 14,
@@ -836,7 +1002,8 @@ class SearchScreenState extends State<SearchScreen>
             ),
           );
         },
-        separatorBuilder: (_, __) => const SizedBox(width: DesignTokens.spaceSmall),
+        separatorBuilder: (_, __) =>
+            const SizedBox(width: DesignTokens.spaceSmall),
         itemCount: 3,
       ),
     );
@@ -1112,8 +1279,14 @@ class SearchScreenState extends State<SearchScreen>
     );
   }
 
-  /// Widget to display stores with their items horizontally
+  /// Widget to display stores with their items in a compact grid
   Widget _StoresWithItemsView(search.Search_Controller searchController) {
+    final String currentQuery = searchController.searchText ?? '';
+    if (_lastSearchResultsQuery != currentQuery) {
+      _lastSearchResultsQuery = currentQuery;
+      _storeVisibleItemCount.clear();
+    }
+
     // ✅ Show beautiful loading indicator while searching
     if (searchController.isLoading) {
       return const Padding(
@@ -1197,13 +1370,22 @@ class SearchScreenState extends State<SearchScreen>
     );
   }
 
-  /// Card showing a store with its items horizontally
+  /// Card showing a store with its items in a 2-column grid + more action
   Widget _StoreWithItemsCard({
     required Store? store,
     required int storeId,
     required String storeName,
     required List<Item> items,
   }) {
+    final splashController = Get.find<SplashController>();
+    final bool disableStoreNavigationInHyper =
+        splashController.module?.moduleType == AppConstants.ecommerce ||
+            splashController.module?.id == 3;
+    final int visibleCount = _storeVisibleItemCount[storeId] ?? 6;
+    final int itemCountToShow =
+        visibleCount > items.length ? items.length : visibleCount;
+    final bool hasMoreItems = itemCountToShow < items.length;
+
     return Container(
       margin: const EdgeInsets.only(bottom: DesignTokens.spaceSmall),
       decoration: BoxDecoration(
@@ -1219,12 +1401,15 @@ class SearchScreenState extends State<SearchScreen>
         children: [
           // Store header
           InkWell(
-            onTap: () {
-              if (store != null) {
-                Get.toNamed(
-                    RouteHelper.getStoreRoute(id: store.id, page: 'store'));
-              }
-            },
+            onTap: disableStoreNavigationInHyper
+                ? null
+                : () {
+                    final int? targetStoreId = store?.id ?? storeId;
+                    if (targetStoreId != null && targetStoreId > 0) {
+                      Get.toNamed(RouteHelper.getStoreRoute(
+                          id: targetStoreId, page: 'store'));
+                    }
+                  },
             child: Padding(
               padding: const EdgeInsets.all(DesignTokens.spaceDefault),
               child: Row(
@@ -1265,37 +1450,49 @@ class SearchScreenState extends State<SearchScreen>
                       ],
                     ),
                   ),
-                  const Icon(
+                  Icon(
                     Icons.arrow_forward_ios,
-                    color: DesignTokens.textLight,
+                    color: disableStoreNavigationInHyper
+                        ? DesignTokens.divider
+                        : DesignTokens.textLight,
                     size: 16,
                   ),
                 ],
               ),
             ),
           ),
-          // Items horizontal scroll
-          SizedBox(
-            height: 180,
-            child: ListView.builder(
-              scrollDirection: Axis.horizontal,
-              padding:
-                  const EdgeInsets.symmetric(horizontal: DesignTokens.spaceDefault),
-              itemCount: items.length,
+          Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: DesignTokens.spaceDefault,
+            ),
+            child: GridView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: itemCountToShow,
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 2,
+                crossAxisSpacing: DesignTokens.spaceSmall,
+                mainAxisSpacing: DesignTokens.spaceSmall,
+                childAspectRatio: 0.88,
+              ),
               itemBuilder: (context, index) {
                 final item = items[index];
-                return Container(
-                  width: 140,
-                  margin: const EdgeInsets.only(right: DesignTokens.spaceSmall),
-                  child: InkWell(
-                    onTap: () {
-                      Get.find<ItemController>().navigateToItemPage(
-                        item,
-                        context,
-                      );
-                    },
-                    borderRadius:
-                        BorderRadius.circular(DesignTokens.radiusSmall),
+                return InkWell(
+                  onTap: () {
+                    Get.find<ItemController>().navigateToItemPage(
+                      item,
+                      context,
+                    );
+                  },
+                  borderRadius: BorderRadius.circular(DesignTokens.radiusSmall),
+                  child: Container(
+                    padding: const EdgeInsets.all(DesignTokens.spaceExtraSmall),
+                    decoration: BoxDecoration(
+                      color: DesignTokens.cardBackground,
+                      borderRadius:
+                          BorderRadius.circular(DesignTokens.radiusSmall),
+                      border: Border.all(color: DesignTokens.divider),
+                    ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -1304,14 +1501,14 @@ class SearchScreenState extends State<SearchScreen>
                               BorderRadius.circular(DesignTokens.radiusSmall),
                           child: SmartImage(
                             url: item.imageFullUrl ?? '',
-                            width: 140,
-                            height: 100,
+                            width: double.infinity,
+                            height: 88,
                             cacheWidth: 300,
                             cacheHeight: 300,
                             fit: BoxFit.cover,
                             errorWidget: Container(
-                              width: 140,
-                              height: 100,
+                              width: double.infinity,
+                              height: 88,
                               color: DesignTokens.divider,
                               child: const Icon(
                                 Icons.image_not_supported,
@@ -1321,24 +1518,25 @@ class SearchScreenState extends State<SearchScreen>
                             ),
                           ),
                         ),
-                        const SizedBox(height: DesignTokens.spaceSmall),
-                        Text(
-                          item.name ?? '',
-                          style: const TextStyle(
-                            color: DesignTokens.textDark,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w500,
-                            letterSpacing: -0.1,
-                          ),
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                        ),
                         const SizedBox(height: DesignTokens.spaceExtraSmall),
+                        Expanded(
+                          child: Text(
+                            item.name ?? '',
+                            style: const TextStyle(
+                              color: DesignTokens.textDark,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w500,
+                              letterSpacing: -0.1,
+                            ),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
                         Text(
                           '${item.price ?? 0} ${'currency'.tr}',
                           style: const TextStyle(
                             color: DesignTokens.secondaryOrange,
-                            fontSize: 14,
+                            fontSize: 13,
                             fontWeight: FontWeight.w700,
                           ),
                         ),
@@ -1349,7 +1547,18 @@ class SearchScreenState extends State<SearchScreen>
               },
             ),
           ),
-          const SizedBox(height: DesignTokens.spaceDefault),
+          if (hasMoreItems)
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton(
+                onPressed: () {
+                  setState(() {
+                    _storeVisibleItemCount[storeId] = itemCountToShow + 6;
+                  });
+                },
+                child: Text('more'.tr),
+              ),
+            ),
         ],
       ),
     );
@@ -1432,7 +1641,8 @@ class SearchScreenState extends State<SearchScreen>
                 child: Stack(
                   children: [
                     SmartImage(
-                      url: category.imageFullUrl ?? AppConstants.placeholderImageUrl,
+                      url: category.imageFullUrl ??
+                          AppConstants.placeholderImageUrl,
                       width: 100,
                       height: 70,
                       cacheWidth: 300,
@@ -1462,8 +1672,8 @@ class SearchScreenState extends State<SearchScreen>
               ),
               const SizedBox(height: DesignTokens.spaceSmall),
               Padding(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: DesignTokens.spaceSmall),
+                padding: const EdgeInsets.symmetric(
+                    horizontal: DesignTokens.spaceSmall),
                 child: Text(
                   category.name ?? 'Category',
                   style: const TextStyle(
@@ -1491,9 +1701,21 @@ class SearchScreenState extends State<SearchScreen>
       child: InkWell(
         onTap: () {
           if (isStore) {
-            Get.toNamed(RouteHelper.getStoreRoute(id: (item.id is int? ? item.id : (item.id != null ? int.tryParse(item.id.toString()) : null)) as int?, page: 'store'));
+            Get.toNamed(RouteHelper.getStoreRoute(
+                id: (item.id is int?
+                    ? item.id
+                    : (item.id != null
+                        ? int.tryParse(item.id.toString())
+                        : null)) as int?,
+                page: 'store'));
           } else {
-            Get.toNamed(RouteHelper.getItemDetailsRoute((item.id is int? ? item.id : (item.id != null ? int.tryParse(item.id.toString()) : null)) as int?, false));
+            Get.toNamed(RouteHelper.getItemDetailsRoute(
+                (item.id is int?
+                    ? item.id
+                    : (item.id != null
+                        ? int.tryParse(item.id.toString())
+                        : null)) as int?,
+                false));
           }
         },
         borderRadius: BorderRadius.circular(DesignTokens.radiusMedium),
@@ -1516,7 +1738,8 @@ class SearchScreenState extends State<SearchScreen>
                       ? (item.logoFullUrl ??
                           item.imageFullUrl ??
                           AppConstants.placeholderImageUrl60)
-                      : (item.imageFullUrl ?? AppConstants.placeholderImageUrl60)) as String,
+                      : (item.imageFullUrl ??
+                          AppConstants.placeholderImageUrl60)) as String,
                   width: 64,
                   height: 64,
                   cacheWidth: 300,
@@ -1540,7 +1763,8 @@ class SearchScreenState extends State<SearchScreen>
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      (item.name ?? (isStore ? 'Store Name' : 'Item Name')) as String,
+                      (item.name ?? (isStore ? 'Store Name' : 'Item Name'))
+                          as String,
                       style: const TextStyle(
                         color: DesignTokens.textDark,
                         fontSize: 16,
@@ -1563,7 +1787,8 @@ class SearchScreenState extends State<SearchScreen>
                     ],
                     if (isStore &&
                         item.avgRating != null &&
-                        (item.avgRating is num && (item.avgRating as num) > 0)) ...[
+                        (item.avgRating is num &&
+                            (item.avgRating as num) > 0)) ...[
                       const SizedBox(height: DesignTokens.spaceExtraSmall),
                       Row(
                         children: [
@@ -1574,7 +1799,9 @@ class SearchScreenState extends State<SearchScreen>
                           ),
                           const SizedBox(width: DesignTokens.spaceExtraSmall),
                           Text(
-                            (item.avgRating is num ? (item.avgRating as num).toStringAsFixed(1) : '0.0'),
+                            (item.avgRating is num
+                                ? (item.avgRating as num).toStringAsFixed(1)
+                                : '0.0'),
                             style: const TextStyle(
                               color: DesignTokens.textDark,
                               fontSize: 14,
@@ -1582,7 +1809,8 @@ class SearchScreenState extends State<SearchScreen>
                             ),
                           ),
                           if (item.ratingCount != null &&
-                              (item.ratingCount is num && (item.ratingCount as num) > 0)) ...[
+                              (item.ratingCount is num &&
+                                  (item.ratingCount as num) > 0)) ...[
                             const SizedBox(width: DesignTokens.spaceExtraSmall),
                             Text(
                               '(${item.ratingCount})',
@@ -1645,8 +1873,7 @@ class _CategoryTile {
   _CategoryTile({
     required this.title,
     required this.image,
-        required this.banner, // ✅ أضفناه
-
+    required this.banner, // ✅ أضفناه
   });
 }
 
@@ -1665,14 +1892,14 @@ class _MostSearchedTile extends StatelessWidget {
     final radius = BorderRadius.circular(DesignTokens.radiusDefault);
 
     // Use category data if available, otherwise use default tile
-final tile = category is _CategoryTile
-    ? category
-    : _CategoryTile(
-        title: (category?.name ?? 'Category') as String,
-        image: (category?.imageFullUrl ?? AppConstants.placeholderImageUrl) as String,
-        banner: false, // ✅ الحل
-      );
-
+    final tile = category is _CategoryTile
+        ? category
+        : _CategoryTile(
+            title: (category?.name ?? 'Category') as String,
+            image: (category?.imageFullUrl ?? AppConstants.placeholderImageUrl)
+                as String,
+            banner: false, // ✅ الحل
+          );
 
     final img = ClipRRect(
       borderRadius: radius,

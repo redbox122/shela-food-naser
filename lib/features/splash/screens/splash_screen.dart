@@ -138,6 +138,21 @@ class SplashScreenState extends State<SplashScreen> {
           }
         }
       }
+
+      // Bug#2 FIX: Await the preload with a hard cap of 3 s instead of firing
+      // it unawaited. Without the await the user could select a module on the
+      // MultiModuleHomeScreen while preloadModuleDataForSplash() still holds
+      // _isFetching = true, causing onModuleReady → loadHomeData() to be
+      // silently dropped. The 3 s cap keeps startup fast even if the backend
+      // is slow; the minimum splash duration (2.5 s) runs concurrently so the
+      // net UX cost is at most ~0.5 s on a cold network.
+      await splashController
+          .preloadCoreModulesForFastSwitch()
+          .timeout(
+            const Duration(seconds: 3),
+            onTimeout: () {},
+          )
+          .catchError((Object _) {});
       
       // If no module is selected and multiple modules exist, go DIRECTLY to multi-module screen
       // 🏗️ MODULE-FIRST ARCHITECTURE: No prefetch without module
@@ -270,6 +285,7 @@ class SplashScreenState extends State<SplashScreen> {
 
   /// Verify that controllers have data before proceeding to home screen
   /// 🔧 FIX: Check cache first before waiting for API calls
+  // ignore: unused_element
   Future<void> _verifyControllersHaveData() async {
     const int maxRetries = 10;
     int retryCount = 0;
@@ -444,7 +460,10 @@ class SplashScreenState extends State<SplashScreen> {
       if (cached.categories != null &&
           cached.categories!.isNotEmpty &&
           Get.isRegistered<CategoryController>()) {
-        Get.find<CategoryController>().setCategoryListFromCache(cached.categories!);
+        Get.find<CategoryController>().setCategoryListFromCache(
+          cached.categories!,
+          expectedModuleId: moduleId,
+        );
       }
     }
 

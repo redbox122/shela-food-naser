@@ -28,7 +28,17 @@ class AppDatabase extends _$AppDatabase {
   /// This avoids read-then-write races under concurrent cache saves.
   Future<int> upsertCacheResponse(CacheResponseCompanion entry) async {
     return transaction<int>(() async {
-      return into(cacheResponse).insertOnConflictUpdate(entry);
+      return into(cacheResponse).insert(
+        entry,
+        onConflict: DoUpdate(
+          (old) => CacheResponseCompanion(
+            endPoint: entry.endPoint,
+            header: entry.header,
+            response: entry.response,
+          ),
+          target: [cacheResponse.endPoint],
+        ),
+      );
     });
   }
 

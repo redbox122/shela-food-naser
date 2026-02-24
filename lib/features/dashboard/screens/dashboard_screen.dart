@@ -23,13 +23,12 @@ import 'package:sixam_mart/helper/taxi_helper.dart';
 import 'package:sixam_mart/util/app_constants.dart';
 import 'package:sixam_mart/util/dimensions.dart';
 import 'package:sixam_mart/common/widgets/cart_widget.dart';
-import 'package:sixam_mart/common/widgets/custom_dialog.dart';
-import 'package:sixam_mart/features/checkout/widgets/congratulation_dialogue.dart';
 import 'package:sixam_mart/features/dashboard/widgets/parcel_bottom_sheet_widget.dart';
 import 'package:sixam_mart/features/favourite/screens/favourite_screen.dart';
 import 'package:sixam_mart/features/favourite/controllers/favourite_controller.dart';
 import 'package:sixam_mart/features/home/screens/home_screen.dart';
 import 'package:sixam_mart/features/home/screens/multi_module/multi_module_home_screen.dart';
+import 'package:sixam_mart/features/home/screens/module_home_router_screen.dart';
 import 'package:sixam_mart/features/menu/screens/menu_screen.dart';
 import 'package:sixam_mart/features/order/screens/order_screen.dart';
 import 'package:sixam_mart/common/models/module_model.dart';
@@ -66,7 +65,6 @@ class DashboardScreenState extends State<DashboardScreen> {
   GlobalKey<ExpandableBottomSheetState> key = GlobalKey();
   late bool _isLogin;
   bool active = false;
-  ModuleModel? _previousModule;
 
   @override
   void initState() {
@@ -87,13 +85,9 @@ class DashboardScreenState extends State<DashboardScreen> {
     _applyModuleOverrideIfNeeded();
     _showRegistrationSuccessBottomSheet();
     if (_isLogin) {
-      if (Get.find<SplashController>().configModel!.loyaltyPointStatus == 1 &&
-          Get.find<AuthController>().getEarningPint().isNotEmpty &&
-          (Get.context == null || !ResponsiveHelper.isDesktop(Get.context!))) {
-        Future.delayed(
-            const Duration(seconds: 1),
-            () => showAnimatedDialog(
-                Get.context!, const CongratulationDialogue()));
+      // Disable loyalty congratulation popup after order completion.
+      if (Get.find<AuthController>().getEarningPint().isNotEmpty) {
+        Get.find<AuthController>().saveEarningPoint('');
       }
       // 🚫 REMOVED: getRunningOrders() call from DashboardScreen initState
       // OrderScreen now loads its own data in its own initState (Law of Isolation)
@@ -119,8 +113,6 @@ class DashboardScreenState extends State<DashboardScreen> {
     }
     final splashController = Get.find<SplashController>();
     final ModuleModel? targetModule = _findModuleById(widget.moduleId);
-    _previousModule = _findModuleById(widget.previousModuleId) ??
-        splashController.selectedModule.value;
 
     if (targetModule != null &&
         splashController.selectedModule.value?.id != targetModule.id) {
@@ -128,7 +120,8 @@ class DashboardScreenState extends State<DashboardScreen> {
         await splashController.setModule(targetModule);
         if (targetModule.id != null &&
             Get.isRegistered<HomeUnifiedController>()) {
-          await Get.find<HomeUnifiedController>().onModuleReady(targetModule.id!);
+          await Get.find<HomeUnifiedController>()
+              .onModuleReady(targetModule.id!);
         }
       });
     }
@@ -154,7 +147,8 @@ class DashboardScreenState extends State<DashboardScreen> {
     return Obx(() {
       final splashController = Get.find<SplashController>();
       final moduleListLength = splashController.moduleList?.length ?? 0;
-      final selectedModuleId = splashController.selectedModule.value?.id;
+      final selectedModuleId =
+          splashController.selectedModule.value?.id ?? widget.moduleId;
       final bool showMultiModuleScreen =
           splashController.selectedModule.value == null &&
               splashController.module == null &&
@@ -165,7 +159,12 @@ class DashboardScreenState extends State<DashboardScreen> {
               key: ValueKey('multi_$selectedModuleId'),
               showBottomNavigation: false,
             )
-          : const HomeScreen();
+          : selectedModuleId != null
+              ? ModuleHomeRouterScreen(
+                  key: ValueKey('module_home_$selectedModuleId'),
+                  moduleId: selectedModuleId,
+                )
+              : const HomeScreen();
     });
   }
 
@@ -202,13 +201,6 @@ class DashboardScreenState extends State<DashboardScreen> {
 
   @override
   void dispose() {
-    final splashController = Get.find<SplashController>();
-    if (_previousModule != null &&
-        splashController.selectedModule.value?.id != _previousModule!.id) {
-      Future.microtask(() async {
-        await splashController.setModule(_previousModule);
-      });
-    }
     _pageController?.dispose();
     super.dispose();
   }
@@ -388,8 +380,7 @@ class DashboardScreenState extends State<DashboardScreen> {
                                   (favController.wishStoreList?.length ?? 0);
                           final String favBadgeText =
                               favCount > 99 ? '99+' : favCount.toString();
-                          final bool showFavBadge =
-                              !isParcel && favCount > 0;
+                          final bool showFavBadge = !isParcel && favCount > 0;
                           return AnimatedBottomNavigationBar.builder(
                             itemCount: iconList.length,
                             tabBuilder: (index, isActive) {
@@ -425,12 +416,12 @@ class DashboardScreenState extends State<DashboardScreen> {
                                 ),
                               );
                             },
-                          activeIndex: navBarIndex,
-                          gapLocation: GapLocation.center,
-                          notchSmoothness: NotchSmoothness.softEdge,
-                          leftCornerRadius: 0,
-                          rightCornerRadius: 0,
-                          backgroundColor: Colors.white,
+                            activeIndex: navBarIndex,
+                            gapLocation: GapLocation.center,
+                            notchSmoothness: NotchSmoothness.softEdge,
+                            leftCornerRadius: 0,
+                            rightCornerRadius: 0,
+                            backgroundColor: Colors.white,
                             shadow: BoxShadow(
                               offset: const Offset(0, 1),
                               blurRadius: 12,
@@ -439,8 +430,7 @@ class DashboardScreenState extends State<DashboardScreen> {
                             ),
                             onTap: (index) {
                               if (index == 0) {
-                                Get.offAll<dynamic>(() =>
-                                    MultiModuleHomeScreen(
+                                Get.offAll<dynamic>(() => MultiModuleHomeScreen(
                                       key: ValueKey(
                                           'multi_${Get.find<SplashController>().selectedModule.value?.id}'),
                                       showBottomNavigation: false,

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:sixam_mart/features/location/controllers/location_controller.dart';
 import 'package:sixam_mart/features/notification/controllers/notification_controller.dart';
+import 'package:sixam_mart/features/notification/screens/notification_screen.dart';
 import 'package:sixam_mart/features/splash/controllers/splash_controller.dart';
 import 'package:sixam_mart/helper/address_helper.dart';
 import 'package:sixam_mart/helper/route_helper.dart';
@@ -113,7 +114,7 @@ class ParcelAppBarWidget extends StatelessWidget
               iconColor:
                   Theme.of(context).textTheme.bodyLarge?.color ?? Colors.black,
             ),
-            onTap: () => Get.toNamed(RouteHelper.getNotificationRoute()),
+            onTap: _openNotificationCenterFromParcel,
           ),
         ]);
       }),
@@ -123,6 +124,30 @@ class ParcelAppBarWidget extends StatelessWidget
   @override
   Size get preferredSize =>
       Size(Dimensions.webMaxWidth, GetPlatform.isDesktop ? 70 : 56);
+}
+
+Future<void> _openNotificationCenterFromParcel() async {
+  final String route = RouteHelper.getNotificationRoute();
+  debugPrint(
+      '[ParcelNotificationIcon] tap currentRoute=${Get.currentRoute} targetRoute=$route');
+
+  if (Get.currentRoute.startsWith(RouteHelper.notification)) {
+    debugPrint(
+        '[ParcelNotificationIcon] already on notification route - skip push');
+    return;
+  }
+
+  try {
+    await Get.toNamed<dynamic>(route);
+  } catch (error, stackTrace) {
+    debugPrint('[ParcelNotificationIcon] named route failed: $error');
+    debugPrintStack(
+        label: '[ParcelNotificationIcon] named route stack',
+        stackTrace: stackTrace);
+    await Get.to<dynamic>(
+      () => const NotificationScreen(fromNotification: false),
+    );
+  }
 }
 
 class _AnimatedNotificationIconParcel extends StatefulWidget {

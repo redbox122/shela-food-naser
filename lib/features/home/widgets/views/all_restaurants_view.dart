@@ -10,6 +10,7 @@ import 'package:sixam_mart/features/home/controllers/home_unified_controller.dar
 import 'package:sixam_mart/common/widgets/item_view.dart';
 import 'package:sixam_mart/util/dimensions.dart';
 import 'package:sixam_mart/util/app_constants.dart';
+import 'package:sixam_mart/common/utils/app_logger.dart';
 
 /// All Restaurants View Widget
 ///
@@ -46,23 +47,23 @@ class _AllRestaurantsViewState extends State<AllRestaurantsView> {
             _parentScrollController!.hasClients) {
           _parentScrollController!.addListener(_onScroll);
           if (kDebugMode && AppConstants.enableVerboseLogs) {
-            print(
+            appLogger.debug(
                 '✅ AllRestaurantsView: Attached scroll listener to parent ScrollController');
           }
         } else {
           if (kDebugMode && AppConstants.enableVerboseLogs) {
-            print(
+            appLogger.warning(
                 '⚠️ AllRestaurantsView: Parent Scrollable found but has no controller');
           }
         }
       } else {
         if (kDebugMode && AppConstants.enableVerboseLogs) {
-          print('⚠️ AllRestaurantsView: No parent Scrollable found');
+          appLogger.warning('⚠️ AllRestaurantsView: No parent Scrollable found');
         }
       }
     } catch (e) {
       if (kDebugMode && AppConstants.enableVerboseLogs) {
-        print('⚠️ AllRestaurantsView: Error attaching scroll listener: $e');
+        appLogger.error('⚠️ AllRestaurantsView: Error attaching scroll listener: $e', e);
       }
     }
   }
@@ -88,7 +89,7 @@ class _AllRestaurantsViewState extends State<AllRestaurantsView> {
       final scrollPercent = position.maxScrollExtent > 0
           ? (position.pixels / position.maxScrollExtent * 100)
           : 0;
-      print(
+      appLogger.debug(
           '🔍 AllRestaurantsView: Near/at bottom - pixels: ${position.pixels.toStringAsFixed(0)}, max: ${position.maxScrollExtent.toStringAsFixed(0)}, percent: ${scrollPercent.toStringAsFixed(1)}%');
     }
 
@@ -109,7 +110,7 @@ class _AllRestaurantsViewState extends State<AllRestaurantsView> {
         final loadedCount = storeController.allStoreModel!.stores?.length ?? 0;
 
         if (kDebugMode && AppConstants.enableVerboseLogs) {
-          print(
+          appLogger.debug(
               '🔍 AllRestaurantsView: Pagination check - totalSize: $totalSize, currentOffset: $currentOffset, totalPages: $totalPages, loadedCount: $loadedCount');
         }
 
@@ -120,7 +121,7 @@ class _AllRestaurantsViewState extends State<AllRestaurantsView> {
 
         if (hasMoreStores && hasMorePages) {
           if (kDebugMode && AppConstants.enableVerboseLogs) {
-            print(
+            appLogger.info(
                 '📄 AllRestaurantsView: ⚡ TRIGGERING PAGINATION - Loading page ${currentOffset + 1} of $totalPages (total: $totalSize stores, currently loaded: $loadedCount)');
           }
           setState(() {
@@ -136,13 +137,13 @@ class _AllRestaurantsViewState extends State<AllRestaurantsView> {
               if (kDebugMode && AppConstants.enableVerboseLogs) {
                 final newLoadedCount =
                     storeController.allStoreModel?.stores?.length ?? 0;
-                print(
+                appLogger.info(
                     '✅ AllRestaurantsView: Pagination complete - now loaded: $newLoadedCount stores (was $loadedCount)');
               }
             }
           }).catchError((Object error) {
             if (kDebugMode && AppConstants.enableVerboseLogs) {
-              print('❌ AllRestaurantsView: Error loading more stores: $error');
+              appLogger.error('❌ AllRestaurantsView: Error loading more stores: $error', error);
             }
             if (mounted) {
               setState(() {
@@ -152,20 +153,20 @@ class _AllRestaurantsViewState extends State<AllRestaurantsView> {
           });
         } else {
           if (kDebugMode && AppConstants.enableVerboseLogs) {
-            print(
+            appLogger.info(
                 'ℹ️ AllRestaurantsView: ⚠️ Cannot paginate - hasMoreStores: $hasMoreStores, hasMorePages: $hasMorePages | totalSize: $totalSize stores | loaded: $loadedCount stores | currentOffset: $currentOffset | totalPages: $totalPages');
           }
         }
       } else if (kDebugMode &&
           AppConstants.enableVerboseLogs &&
           (isNearBottom || isAtBottom)) {
-        print('⚠️ AllRestaurantsView: Pagination blocked:');
-        print(
+        appLogger.warning('⚠️ AllRestaurantsView: Pagination blocked:');
+        appLogger.warning(
             '   - supportsPagination: $supportsPagination (storeType: ${storeController.storeType})');
-        print(
+        appLogger.warning(
             '   - allStoreModel is null: ${storeController.allStoreModel == null}');
-        print('   - isLoading: ${storeController.isLoading}');
-        print('   - _isLoadingMore: $_isLoadingMore');
+        appLogger.warning('   - isLoading: ${storeController.isLoading}');
+        appLogger.warning('   - _isLoadingMore: $_isLoadingMore');
       }
     }
   }
@@ -203,12 +204,12 @@ class _AllRestaurantsViewState extends State<AllRestaurantsView> {
             v2DataReady =
                 unifiedController.hasCachedData || !unifiedController.isLoading;
             if (kDebugMode && AppConstants.enableVerboseLogs && !v2DataReady) {
-              print(
+              appLogger.debug(
                   '⏳ AllRestaurantsView: Waiting for V2 data distribution...');
             }
           } catch (e) {
             if (kDebugMode && AppConstants.enableVerboseLogs) {
-              print('⚠️ AllRestaurantsView: Error checking V2 status: $e');
+              appLogger.error('⚠️ AllRestaurantsView: Error checking V2 status: $e', e);
             }
             // If we can't check V2 status, proceed anyway (fallback)
             v2DataReady = true;
@@ -228,7 +229,7 @@ class _AllRestaurantsViewState extends State<AllRestaurantsView> {
               final wrongModuleStores =
                   stores.where((s) => s.moduleId != currentModuleId).length;
               if (wrongModuleStores > 0) {
-                print(
+                appLogger.warning(
                     '⚠️ AllRestaurantsView: Found $wrongModuleStores stores from wrong module (expected: $currentModuleId)');
               }
             }
@@ -248,7 +249,7 @@ class _AllRestaurantsViewState extends State<AllRestaurantsView> {
             // ⚡ PERFORMANCE: Small delay to ensure first frame is rendered
             Future.delayed(const Duration(milliseconds: 100), () {
               if (kDebugMode) {
-                print(
+                appLogger.debug(
                     '📡 AllRestaurantsView: Loading stores for "all" filter (post-frame, limit=7)');
               }
               // ⚡ PERFORMANCE: Load with small limit (7) for first frame
@@ -260,7 +261,7 @@ class _AllRestaurantsViewState extends State<AllRestaurantsView> {
             !storeController.isLoading &&
             v2DataReady) {
           if (kDebugMode) {
-            print(
+            appLogger.debug(
                 '⏭️ AllRestaurantsView: Skipping post-frame popular load to avoid duplicate call');
           }
         } else if (storeController.storeType == 'newly_joined' &&
@@ -284,7 +285,7 @@ class _AllRestaurantsViewState extends State<AllRestaurantsView> {
           WidgetsBinding.instance.addPostFrameCallback((_) {
             Future.delayed(const Duration(milliseconds: 100), () {
               if (kDebugMode) {
-                print(
+                appLogger.debug(
                     '📡 AllRestaurantsView: Loading stores for "top_rated" filter (post-frame, limit=7)');
               }
               // ⚡ PERFORMANCE: Load with small limit (7) for first frame
@@ -318,14 +319,14 @@ class _AllRestaurantsViewState extends State<AllRestaurantsView> {
             final matches =
                 store.moduleId == null || store.moduleId == currentModuleId;
             if (!matches && kDebugMode) {
-              print(
+              appLogger.warning(
                   '⚠️ AllRestaurantsView: Filtered out store ${store.id} (module_id: ${store.moduleId}, expected: $currentModuleId)');
             }
             return matches;
           }).toList();
 
           if (kDebugMode && originalCount != displayStores.length) {
-            print(
+            appLogger.info(
                 '✅ AllRestaurantsView: Filtered ${originalCount - displayStores.length} stores from wrong module (filter: ${storeController.storeType})');
           }
         }
@@ -338,13 +339,13 @@ class _AllRestaurantsViewState extends State<AllRestaurantsView> {
               selectedStoreType: storeController.storeType,
               onStoreTypeSelected: (String storeType) {
                 if (kDebugMode) {
-                  print('Store type chip selected: $storeType');
+                  appLogger.debug('Store type chip selected: $storeType');
                 }
                 storeController.setStoreType(storeType);
               },
               onFilterTap: () {
                 if (kDebugMode) {
-                  print('Filter button tapped');
+                  appLogger.debug('Filter button tapped');
                 }
                 showModalBottomSheet(
                   context: Get.context!,
@@ -354,7 +355,7 @@ class _AllRestaurantsViewState extends State<AllRestaurantsView> {
                   builder: (context) => FilterBottomSheet(
                     onApply: (filters) {
                       if (kDebugMode) {
-                        print('Filters applied: $filters');
+                        appLogger.debug('Filters applied: $filters');
                       }
                       // Apply filterType if provided
                       if (filters.containsKey('filterType') &&
@@ -367,7 +368,7 @@ class _AllRestaurantsViewState extends State<AllRestaurantsView> {
                     },
                     onClear: () {
                       if (kDebugMode) {
-                        print('Filters cleared');
+                        appLogger.debug('Filters cleared');
                       }
                       // Reset filterType to 'all'
                       storeController.setFilterType('all');

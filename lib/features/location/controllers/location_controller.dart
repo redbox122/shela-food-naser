@@ -1,5 +1,6 @@
 import 'dart:math';
 import 'package:flutter/foundation.dart';
+import 'package:sixam_mart/api/api_client.dart';
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:get/get.dart';
@@ -35,6 +36,7 @@ import 'package:sixam_mart/core/cache/hive_home_cache_service.dart';
 import 'package:sixam_mart/core/cache/hive_cache_config.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:sixam_mart/util/app_constants.dart';
 
 /// 🎯 Zone Status Enum - Single source of truth for zone validation
 enum ZoneStatus {
@@ -46,12 +48,12 @@ class LocationController extends GetxController implements GetxService {
   final LocationServiceInterface locationServiceInterface;
 
   LocationController({required this.locationServiceInterface});
-  
+
   // 🔥 DEFAULT LOCATION: Fixed point for users without location or outside zones
   // This is the fallback location that users are redirected to when outside service area
   static const LatLng DEFAULT_FALLBACK_LOCATION = LatLng(
-    24.581458227121935,  // Default latitude
-    46.60091131925583,   // Default longitude
+    24.581458227121935, // Default latitude
+    46.60091131925583, // Default longitude
   );
 
 //
@@ -110,35 +112,35 @@ class LocationController extends GetxController implements GetxService {
   // 🎯 Guard to prevent redirect loops
   bool _isRedirecting = false;
   bool get isRedirecting => _isRedirecting;
-  
+
   // 🔥 CRITICAL LOOP PREVENTION: Zone correction in progress flag
   // Prevents zone validation during auto-move correction to break the loop
   bool _isZoneCorrectionInProgress = false;
   bool get isZoneCorrectionInProgress => _isZoneCorrectionInProgress;
-  
+
   // 🔥 UX FIX: Dialog cooldown timer - allows dialog every 10 seconds
   // User can move outside zone multiple times, dialog shows with 10s cooldown
   DateTime? _lastDialogShownTime;
   static const Duration _dialogCooldown = Duration(seconds: 10);
-  
+
   bool get canShowZoneDialog {
     if (_lastDialogShownTime == null) return true;
     final now = DateTime.now();
     final timeSinceLastDialog = now.difference(_lastDialogShownTime!);
     return timeSinceLastDialog >= _dialogCooldown;
   }
-  
+
   // 🎯 UX Flags: Track user location state for smart notifications
   bool _wasInsideZoneInitially = false;
   bool get wasInsideZoneInitially => _wasInsideZoneInitially;
   bool _hasUserConfirmedLocation = false;
   bool get hasUserConfirmedLocation => _hasUserConfirmedLocation;
-  
+
   // 🔥 CRITICAL: Location confirmation flag - prevents premature zone validation
   // Zone validation should ONLY happen AFTER user explicitly confirms their location
   bool _isLocationConfirmed = false;
   bool get isLocationConfirmed => _isLocationConfirmed;
-  
+
   // 🎯 Nearest allowed point (inside any zone)
   LatLng? _nearestAllowedPoint;
   LatLng? get nearestAllowedPoint => _nearestAllowedPoint;
@@ -158,7 +160,8 @@ class LocationController extends GetxController implements GetxService {
   // Zone validation is now mandatory and handled by backend API
   // This flag may still be used in some legacy code paths but should be removed in future
   bool _skipZoneValidation = false;
-  bool _isInitialCameraIdle = true; // Track first camera idle to skip dialog on initial load
+  bool _isInitialCameraIdle =
+      true; // Track first camera idle to skip dialog on initial load
 
   int _addressTypeIndex = 0;
   int get addressTypeIndex => _addressTypeIndex;
@@ -188,7 +191,7 @@ class LocationController extends GetxController implements GetxService {
 
   // 🔥 GUARD: Prevent opening PickMap multiple times
   bool _pickMapOpened = false;
-  
+
   /// Reset PickMap guard (call when returning from PickMap or changing location)
   void resetPickMapGuard() {
     _pickMapOpened = false;
@@ -199,13 +202,13 @@ class LocationController extends GetxController implements GetxService {
   // Once user confirms location, no need to keep checking zones
   bool _shouldCheckZone = true;
   bool get shouldCheckZone => _shouldCheckZone;
-  
+
   /// Disable zone checks after location confirmation (call after saveAddressAndNavigate succeeds)
   void disableZoneChecks() {
     _shouldCheckZone = false;
     debugPrint('⏭️ Zone checks disabled after location confirmation');
   }
-  
+
   /// Re-enable zone checks (call when location changes or user explicitly requests)
   void enableZoneChecks() {
     _shouldCheckZone = true;
@@ -214,7 +217,7 @@ class LocationController extends GetxController implements GetxService {
 
   // 🔥 OPTIMIZATION: Prevent multiple home reloads after location change
   bool _homeReloadTriggered = false;
-  
+
   /// Trigger home reload once after location change
   void triggerHomeReloadOnce(BuildContext context) {
     if (_homeReloadTriggered) {
@@ -222,14 +225,16 @@ class LocationController extends GetxController implements GetxService {
       return;
     }
     _homeReloadTriggered = true;
-    debugPrint('🔄 LocationController: Location changed - triggering home data reload (once)');
+    debugPrint(
+        '🔄 LocationController: Location changed - triggering home data reload (once)');
     try {
       HomeScreen.loadData(context, true);
     } catch (e) {
-      debugPrint('⚠️ Error loading home data (location may be outside zone): $e');
+      debugPrint(
+          '⚠️ Error loading home data (location may be outside zone): $e');
     }
   }
-  
+
   /// Reset home reload flag (call when location changes significantly)
   void resetHomeReloadFlag() {
     _homeReloadTriggered = false;
@@ -247,7 +252,10 @@ class LocationController extends GetxController implements GetxService {
   // ⚡ OPTIMIZATION: Track last geocode call to prevent duplicate API calls
   LatLng? _lastGeocodeLatLng;
   DateTime? _lastGeocodeTime;
-  static const Duration _geocodeCacheTTL = Duration(minutes: 15); // Cache geocode for 15 minutes
+  static const Duration _geocodeCacheTTL =
+      Duration(minutes: 15); // Cache geocode for 15 minutes
+  String? _lastSavedZoneCacheKey;
+  String? _lastSavedZonePayloadSignature;
 
   void hideSuggestedLocation() {
     _showLocationSuggestion = !_showLocationSuggestion;
@@ -307,13 +315,17 @@ class LocationController extends GetxController implements GetxService {
       final double latDiff = (_pickPosition.latitude - latLng.latitude).abs();
       final double lngDiff = (_pickPosition.longitude - latLng.longitude).abs();
       const double tolerance = 0.00005; // ~5 meters
-      
-      if (latDiff < tolerance && lngDiff < tolerance && _pickAddress != null && _pickAddress!.isNotEmpty) {
+
+      if (latDiff < tolerance &&
+          lngDiff < tolerance &&
+          _pickAddress != null &&
+          _pickAddress!.isNotEmpty) {
         // Position hasn't changed significantly - skip update
-        debugPrint('⏭️ updatePickPositionFromLatLng: Position unchanged, skipping update');
+        debugPrint(
+            '⏭️ updatePickPositionFromLatLng: Position unchanged, skipping update');
         return;
       }
-      
+
       // Update pick position directly
       _pickPosition = Position(
         latitude: latLng.latitude,
@@ -327,9 +339,10 @@ class LocationController extends GetxController implements GetxService {
         altitudeAccuracy: 1,
         headingAccuracy: 1,
       );
-      
+
       // Get address from geocode (UI display only - no zone check)
-      _pickAddress = await locationServiceInterface.getAddressFromGeocode(latLng);
+      _pickAddress =
+          await locationServiceInterface.getAddressFromGeocode(latLng);
 
       // ✅ UI-ONLY RULE: Do NOT auto-redirect or show dialogs/snackbars here.
       // PickMapScreen is a selection UI; zone validation happens on confirm via API.
@@ -388,7 +401,8 @@ class LocationController extends GetxController implements GetxService {
       bool notify = true,
       bool skipZoneValidation = false,
       bool forceRefresh = false}) async {
-    debugPrint('📍 Starting getCurrentLocation - fromAddress: $fromAddress, forceRefresh: $forceRefresh');
+    debugPrint(
+        '📍 Starting getCurrentLocation - fromAddress: $fromAddress, forceRefresh: $forceRefresh');
     _loading = true;
     // ⚡ TASK 3: Wrap update() in microtask to avoid setState during build
     if (notify) {
@@ -427,15 +441,15 @@ class LocationController extends GetxController implements GetxService {
       fromAddress ? _position = myPosition : _pickPosition = myPosition;
 
       locationServiceInterface.handleMapAnimation(mapController, myPosition);
-      
+
       // ⚡ OPTIMIZATION: Check if geocode is needed (prevent duplicate API calls)
       final currentLatLng = LatLng(myPosition.latitude, myPosition.longitude);
       String addressFromGeocode;
-      
-      if (!forceRefresh && 
-          _lastGeocodeLatLng != null && 
+
+      if (!forceRefresh &&
+          _lastGeocodeLatLng != null &&
           _lastGeocodeTime != null &&
-          _address != null && 
+          _address != null &&
           _address!.isNotEmpty) {
         // Check if coordinates are the same (within 50 meters)
         final distance = Geolocator.distanceBetween(
@@ -444,16 +458,18 @@ class LocationController extends GetxController implements GetxService {
           currentLatLng.latitude,
           currentLatLng.longitude,
         );
-        
+
         final cacheAge = DateTime.now().difference(_lastGeocodeTime!);
-        
+
         if (distance < 50 && cacheAge < _geocodeCacheTTL) {
           // Use cached address - skip geocode API call
           addressFromGeocode = fromAddress ? _address! : _pickAddress!;
-          debugPrint('✅ Geocode cache HIT (distance: ${distance.toStringAsFixed(0)}m, age: ${cacheAge.inMinutes}min) - skipping API call');
+          debugPrint(
+              '✅ Geocode cache HIT (distance: ${distance.toStringAsFixed(0)}m, age: ${cacheAge.inMinutes}min) - skipping API call');
         } else {
           // Coordinates changed or cache expired - call geocode
-          debugPrint('📍 Getting address from geocode (cache miss: distance=${distance.toStringAsFixed(0)}m, age=${cacheAge.inMinutes}min)...');
+          debugPrint(
+              '📍 Getting address from geocode (cache miss: distance=${distance.toStringAsFixed(0)}m, age=${cacheAge.inMinutes}min)...');
           addressFromGeocode = await getAddressFromGeocode(currentLatLng);
           _lastGeocodeLatLng = currentLatLng;
           _lastGeocodeTime = DateTime.now();
@@ -542,7 +558,7 @@ class LocationController extends GetxController implements GetxService {
   Future<String> getAddressFromGeocode(LatLng latLng) async {
     return await locationServiceInterface.getAddressFromGeocode(latLng);
   }
-  
+
   /// Set pick address directly (used when we have a known address)
   void setPickAddress(String address) {
     _pickAddress = address;
@@ -563,40 +579,60 @@ class LocationController extends GetxController implements GetxService {
     }
     ZoneResponseModel responseModel;
     try {
-      responseModel = await locationServiceInterface
-          .getZone(lat, lng, handleError: handleError);
+      responseModel = await locationServiceInterface.getZone(lat, lng,
+          handleError: handleError);
       _inZone = responseModel.isSuccess;
       _zoneID = responseModel.zoneIds.isNotEmpty ? responseModel.zoneIds[0] : 0;
       if (updateInAddress && responseModel.isSuccess) {
         // 🎯 FIX: Null-safe address access
-        final AddressModel? address = AddressHelper.getUserAddressFromSharedPref();
+        final AddressModel? address =
+            AddressHelper.getUserAddressFromSharedPref();
         if (address != null) {
           address.zoneData = responseModel.zoneData;
           AddressHelper.saveUserAddressInSharedPref(address);
         } else {
-          debugPrint('⚠️ LocationController: No address found in SharedPreferences');
+          debugPrint(
+              '⚠️ LocationController: No address found in SharedPreferences');
         }
       }
-      
+
       // ⚡ TASK 1: Save zone data to Hive for instant loading on module switch
       if (responseModel.isSuccess && lat != null && lng != null) {
         try {
           final cacheKey = 'zone_${lat}_$lng';
-          final zoneDataJson = {
-            'isSuccess': responseModel.isSuccess,
-            'zoneIds': responseModel.zoneIds,
-            'zoneData': responseModel.zoneData.map((z) => z.toJson()).toList(),
-            'areaIds': responseModel.areaIds,
-            'message': responseModel.message,
-            'statusCode': responseModel.status,
-          };
-          await HiveHomeCacheService().saveZoneData(cacheKey, zoneDataJson);
-          if (kDebugMode) {
-            debugPrint('💾 LocationController: Saved zone data to Hive for key $cacheKey');
+          final payloadSignature = 'zoneIds:${responseModel.zoneIds.join(',')}|'
+              'areaIds:${responseModel.areaIds.join(',')}|'
+              'zoneCount:${responseModel.zoneData.length}|'
+              'status:${responseModel.status ?? ''}';
+
+          if (_lastSavedZoneCacheKey == cacheKey &&
+              _lastSavedZonePayloadSignature == payloadSignature) {
+            if (kDebugMode) {
+              debugPrint(
+                  '⏭️ LocationController: Duplicate zone cache payload skipped for key $cacheKey');
+            }
+          } else {
+            final zoneDataJson = {
+              'isSuccess': responseModel.isSuccess,
+              'zoneIds': responseModel.zoneIds,
+              'zoneData':
+                  responseModel.zoneData.map((z) => z.toJson()).toList(),
+              'areaIds': responseModel.areaIds,
+              'message': responseModel.message,
+              'statusCode': responseModel.status,
+            };
+            await HiveHomeCacheService().saveZoneData(cacheKey, zoneDataJson);
+            _lastSavedZoneCacheKey = cacheKey;
+            _lastSavedZonePayloadSignature = payloadSignature;
+            if (kDebugMode) {
+              debugPrint(
+                  '💾 LocationController: Saved zone data to Hive for key $cacheKey');
+            }
           }
         } catch (e) {
           if (kDebugMode) {
-            debugPrint('⚠️ LocationController: Error saving zone data to Hive - $e');
+            debugPrint(
+                '⚠️ LocationController: Error saving zone data to Hive - $e');
           }
           // Don't throw - continue even if cache save fails
         }
@@ -622,7 +658,8 @@ class LocationController extends GetxController implements GetxService {
       return;
     }
 
-    final AddressModel? savedAddress = AddressHelper.getUserAddressFromSharedPref();
+    final AddressModel? savedAddress =
+        AddressHelper.getUserAddressFromSharedPref();
 
     if (savedAddress == null) {
       // إذا لم يكن هناك عنوان محفوظ، قم بتوجيه المستخدم لاختيار العنوان
@@ -635,9 +672,9 @@ class LocationController extends GetxController implements GetxService {
     // Check if address was saved without zone validation (user explicitly chose current location)
     // If zoneId is 0 or zoneIds is empty, it means user saved address without zone validation
     // We should preserve these addresses even if zone API fails
-    final bool wasSavedWithoutZoneValidation = 
-        (savedAddress.zoneId == 0 || savedAddress.zoneId == null) && 
-        (savedAddress.zoneIds == null || savedAddress.zoneIds!.isEmpty);
+    final bool wasSavedWithoutZoneValidation =
+        (savedAddress.zoneId == 0 || savedAddress.zoneId == null) &&
+            (savedAddress.zoneIds == null || savedAddress.zoneIds!.isEmpty);
 
     final ZoneResponseModel response = await getZone(
         savedAddress.latitude, savedAddress.longitude, false,
@@ -646,20 +683,23 @@ class LocationController extends GetxController implements GetxService {
     if (!response.isSuccess || response.zoneIds.isEmpty) {
       // If API failed, don't clear address (could be temporary network issue)
       if (!response.isSuccess) {
-        debugPrint('⚠️ syncZoneData: Zone API call failed - preserving address');
+        debugPrint(
+            '⚠️ syncZoneData: Zone API call failed - preserving address');
         return;
       }
-      
+
       // If API succeeded but returned empty zones, only clear if address was previously validated
       // Don't clear addresses that were saved without zone validation by user choice
       if (!wasSavedWithoutZoneValidation) {
-        debugPrint('⚠️ syncZoneData: Zone validation returned empty zones for previously validated address - clearing');
+        debugPrint(
+            '⚠️ syncZoneData: Zone validation returned empty zones for previously validated address - clearing');
         AddressHelper.clearAddressFromSharedPref();
         if (shouldRedirect) {
           Get.toNamed(RouteHelper.getAccessLocationRoute(RouteHelper.splash));
         }
       } else {
-        debugPrint('✅ syncZoneData: Preserving user-saved address (was saved without zone validation)');
+        debugPrint(
+            '✅ syncZoneData: Preserving user-saved address (was saved without zone validation)');
       }
     } else {
       // Update address with zone data
@@ -822,12 +862,14 @@ class LocationController extends GetxController implements GetxService {
           position.target.longitude.toString(),
           false); // Don't show loading spinner for this check
 
-      final bool apiCheckInside = apiZoneResponse.isSuccess && apiZoneResponse.zoneIds.isNotEmpty;
+      final bool apiCheckInside =
+          apiZoneResponse.isSuccess && apiZoneResponse.zoneIds.isNotEmpty;
 
       // 🎯 POLYGONS ARE OPTIONAL (UX): Polygons are visual only - zone validation uses API
       // If zones exist but no polygons, it's okay - user can still proceed if API confirms location
       if (_zones.isNotEmpty && _zonePolygons.isEmpty) {
-        debugPrint('⚠️ Zones exist (${_zones.length}) but no polygons - polygons are optional (visual only)');
+        debugPrint(
+            '⚠️ Zones exist (${_zones.length}) but no polygons - polygons are optional (visual only)');
         debugPrint('ℹ️ Zone validation uses API (get-zone-id) - not polygons');
         debugPrint('   - API check: ${apiCheckInside ? 'INSIDE' : 'OUTSIDE'}');
         // Don't block - polygons are optional, API validation is what matters
@@ -840,19 +882,24 @@ class LocationController extends GetxController implements GetxService {
       if (_largestZonePoints != null && _largestZonePoints!.isNotEmpty) {
         // If we have polygon, trust polygon check (user sees green = INSIDE)
         isOutside = !polygonCheckInside;
-        debugPrint("📍 Using polygon check: ${polygonCheckInside ? 'INSIDE' : 'OUTSIDE'} (API: ${apiCheckInside ? 'INSIDE' : 'OUTSIDE'})");
+        debugPrint(
+            "📍 Using polygon check: ${polygonCheckInside ? 'INSIDE' : 'OUTSIDE'} (API: ${apiCheckInside ? 'INSIDE' : 'OUTSIDE'})");
       } else {
         // If no polygon, use API as fallback
         isOutside = !apiCheckInside;
-        debugPrint("📍 No polygon available - using API check: ${apiCheckInside ? 'INSIDE' : 'OUTSIDE'}");
+        debugPrint(
+            "📍 No polygon available - using API check: ${apiCheckInside ? 'INSIDE' : 'OUTSIDE'}");
       }
 
       // 🔥 CRITICAL FIX: Never show dialog or open PickMap if we're already inside PickMapScreen
       // PickMapScreen is a selection screen - it should NEVER reopen itself
-      final bool isInsidePickMapScreen = Get.currentRoute.contains('pick-map') || Get.currentRoute.contains('my-location');
-      
+      final bool isInsidePickMapScreen =
+          Get.currentRoute.contains('pick-map') ||
+              Get.currentRoute.contains('my-location');
+
       if (isInsidePickMapScreen) {
-        debugPrint('⏸️ Inside PickMapScreen - suppressing zone validation dialog');
+        debugPrint(
+            '⏸️ Inside PickMapScreen - suppressing zone validation dialog');
         // Just update button state - don't show dialog or navigate
         if (!isOutside) {
           _buttonDisabled = false;
@@ -865,13 +912,15 @@ class LocationController extends GetxController implements GetxService {
       // 🔧 CRITICAL FIX: Skip dialog on initial camera idle (map initialization)
       // Only show dialog when user actively moves map to outside location
       // AND never show dialog if PickMap is already opened
-      final bool shouldShowDialog = isOutside && !_isInitialCameraIdle && !_pickMapOpened;
-      
+      final bool shouldShowDialog =
+          isOutside && !_isInitialCameraIdle && !_pickMapOpened;
+
       // 🔧 Mark that initial camera idle has passed - future moves will trigger dialog
       // This must happen AFTER checking the flag, but BEFORE showing dialog
       if (_isInitialCameraIdle) {
         _isInitialCameraIdle = false;
-        debugPrint('📍 Initial camera idle complete - dialog will show on future outside moves');
+        debugPrint(
+            '📍 Initial camera idle complete - dialog will show on future outside moves');
       }
 
       if (shouldShowDialog) {
@@ -879,7 +928,8 @@ class LocationController extends GetxController implements GetxService {
             '🚫 Location is outside service zone: ${position.target.latitude}, ${position.target.longitude}');
         debugPrint("   - API check: ${apiCheckInside ? 'INSIDE' : 'OUTSIDE'}");
         if (_largestZonePoints != null && _largestZonePoints!.isNotEmpty) {
-          debugPrint("   - Polygon check: ${polygonCheckInside ? 'INSIDE' : 'OUTSIDE'}");
+          debugPrint(
+              "   - Polygon check: ${polygonCheckInside ? 'INSIDE' : 'OUTSIDE'}");
         }
 
         // Show dialog with Shella delivery image
@@ -900,8 +950,8 @@ class LocationController extends GetxController implements GetxService {
                     Container(
                       decoration: const BoxDecoration(
                         color: Colors.white,
-                        borderRadius: BorderRadius.vertical(
-                            top: Radius.circular(20)),
+                        borderRadius:
+                            BorderRadius.vertical(top: Radius.circular(20)),
                       ),
                       padding: const EdgeInsets.all(16),
                       child: ClipRRect(
@@ -1043,7 +1093,7 @@ class LocationController extends GetxController implements GetxService {
       if (_changeAddress) {
         final String addressFromGeocode = await getAddressFromGeocode(
             LatLng(position.target.latitude, position.target.longitude));
-        
+
         fromAddress
             ? _address = addressFromGeocode
             : _pickAddress = addressFromGeocode;
@@ -1058,13 +1108,14 @@ class LocationController extends GetxController implements GetxService {
   }
 
   /// 🔥 CRITICAL: Mark location as confirmed when saving address from PickMapScreen
-  void saveAddressAndNavigate(BuildContext context, AddressModel? address, bool fromSignUp,
-      String? route, bool canRoute, bool isDesktop,
+  void saveAddressAndNavigate(BuildContext context, AddressModel? address,
+      bool fromSignUp, String? route, bool canRoute, bool isDesktop,
       {bool skipZoneValidation = false}) {
     // 🔥 CRITICAL: Mark location as confirmed when user saves address from PickMapScreen
     _isLocationConfirmed = true;
-    debugPrint('✅ LocationController: Location confirmed via saveAddressAndNavigate (from PickMapScreen)');
-    
+    debugPrint(
+        '✅ LocationController: Location confirmed via saveAddressAndNavigate (from PickMapScreen)');
+
     if (skipZoneValidation) {
       debugPrint('📍 Skipping zone validation in saveAddressAndNavigate');
       // Skip zone validation and directly navigate
@@ -1075,8 +1126,8 @@ class LocationController extends GetxController implements GetxService {
     }
   }
 
-  void _prepareZoneData(BuildContext context, AddressModel address, bool fromSignUp,
-      String? route, bool canRoute, bool isDesktop) {
+  void _prepareZoneData(BuildContext context, AddressModel address,
+      bool fromSignUp, String? route, bool canRoute, bool isDesktop) {
     getZone(address.latitude, address.longitude, false).then((response) async {
       if (!context.mounted) {
         return;
@@ -1110,75 +1161,90 @@ class LocationController extends GetxController implements GetxService {
         // 🎯 POLYGONS ARE OPTIONAL (UX): Polygons are visual only - zone validation uses API
         // If zones exist but no polygons, it's okay - user can still proceed if API confirms location
         if (_zones.isNotEmpty && _zonePolygons.isEmpty) {
-          debugPrint('⚠️ Zones exist (${_zones.length}) but no polygons - polygons are optional (visual only)');
-          debugPrint('ℹ️ Zone validation uses API (get-zone-id) - not polygons');
+          debugPrint(
+              '⚠️ Zones exist (${_zones.length}) but no polygons - polygons are optional (visual only)');
+          debugPrint(
+              'ℹ️ Zone validation uses API (get-zone-id) - not polygons');
           // Don't block - polygons are optional, API validation is what matters
         }
-        
+
         // 🔥 CRITICAL GUARD: Respect Backend metadata before any redirect
         // Backend may tell us: "don't redirect yet, wait for zones to load"
         if (response.requiresZonesLoaded && !_zonesLoaded) {
-          debugPrint('⏸️ Backend metadata: requires_zones_loaded=true - skipping redirect');
-          debugPrint('   → Zones loaded: $_zonesLoaded, Zones count: ${_zones.length}');
+          debugPrint(
+              '⏸️ Backend metadata: requires_zones_loaded=true - skipping redirect');
+          debugPrint(
+              '   → Zones loaded: $_zonesLoaded, Zones count: ${_zones.length}');
           debugPrint('   → Waiting for zones to load before redirect');
           // Don't redirect - wait for zones to load
           disableZoneChecks();
-          autoNavigate(context, address, fromSignUp, route, canRoute, isDesktop);
+          autoNavigate(
+              context, address, fromSignUp, route, canRoute, isDesktop);
           return;
         }
-        
+
         // 🔥 CRITICAL GUARD: Respect Backend metadata should_redirect flag
         if (!response.shouldRedirect) {
-          debugPrint('⏸️ Backend metadata: should_redirect=false - skipping redirect');
+          debugPrint(
+              '⏸️ Backend metadata: should_redirect=false - skipping redirect');
           debugPrint('   → Backend explicitly says: do not redirect');
           // Don't redirect - Backend says no
           disableZoneChecks();
-          autoNavigate(context, address, fromSignUp, route, canRoute, isDesktop);
+          autoNavigate(
+              context, address, fromSignUp, route, canRoute, isDesktop);
           return;
         }
-        
+
         // 🔥 CRITICAL GUARD: Don't redirect before zones are loaded (even if metadata allows)
         if (!_zonesLoaded || _zones.isEmpty) {
           debugPrint('⏸️ Zones not loaded yet - skipping redirect');
-          debugPrint('   → Zones loaded: $_zonesLoaded, Zones count: ${_zones.length}');
+          debugPrint(
+              '   → Zones loaded: $_zonesLoaded, Zones count: ${_zones.length}');
           debugPrint('   → No redirect until zones are loaded');
           // Don't redirect - wait for zones
           disableZoneChecks();
-          autoNavigate(context, address, fromSignUp, route, canRoute, isDesktop);
+          autoNavigate(
+              context, address, fromSignUp, route, canRoute, isDesktop);
           return;
         }
-        
+
         // 🔥 CRITICAL FIX: Only open PickMap if location is truly OUTSIDE zone
         // Don't open PickMap for API errors or technical issues
         // Only open PickMap if:
         // 1. API explicitly says OUTSIDE (404 = no zone found for this location)
         // 2. AND PickMap hasn't been opened already
-        final bool shouldOpenPickMap = response.statusCode == 404 && !_pickMapOpened;
-        
+        final bool shouldOpenPickMap =
+            response.statusCode == 404 && !_pickMapOpened;
+
         if (shouldOpenPickMap) {
-          debugPrint('🚫 Location is outside service zone (404) - opening PickMap');
+          debugPrint(
+              '🚫 Location is outside service zone (404) - opening PickMap');
           _pickMapOpened = true;
           Get.toNamed(RouteHelper.getPickMapRoute(route, false));
         } else if (route == 'splash' && !_pickMapOpened) {
           // Special case: splash route always opens PickMap (first time setup)
-          debugPrint('📍 Splash route - opening PickMap for initial location selection');
+          debugPrint(
+              '📍 Splash route - opening PickMap for initial location selection');
           _pickMapOpened = true;
           Get.toNamed(RouteHelper.getPickMapRoute(route, false));
         } else if (_pickMapOpened) {
-          debugPrint('⏸️ PickMap already opened - skipping duplicate navigation');
+          debugPrint(
+              '⏸️ PickMap already opened - skipping duplicate navigation');
         } else {
-          debugPrint('⚠️ Zone check failed but not opening PickMap (may be API error)');
+          debugPrint(
+              '⚠️ Zone check failed but not opening PickMap (may be API error)');
           // Don't block user - allow proceed even if zone check failed
           // 🔥 OPTIMIZATION: Disable zone checks after location confirmation (even if zone check failed)
           disableZoneChecks();
-          autoNavigate(context, address, fromSignUp, route, canRoute, isDesktop);
+          autoNavigate(
+              context, address, fromSignUp, route, canRoute, isDesktop);
         }
       }
     });
   }
 
-  void autoNavigate(BuildContext context, AddressModel? address, bool fromSignUp,
-      String? route, bool canRoute, bool isDesktop) async {
+  void autoNavigate(BuildContext context, AddressModel? address,
+      bool fromSignUp, String? route, bool canRoute, bool isDesktop) async {
     if (isDesktop &&
         Get.find<SplashController>().module ==
             null /* && Get.find<SplashController>().configModel!.module == null*/) {
@@ -1229,7 +1295,7 @@ class LocationController extends GetxController implements GetxService {
     if (!context.mounted) {
       return;
     }
-    
+
     if (AuthHelper.isLoggedIn()) {
       try {
         if (Get.find<SplashController>().module != null) {
@@ -1245,7 +1311,49 @@ class LocationController extends GetxController implements GetxService {
         // Continue even if user data update fails
       }
     }
-    
+
+    // ROOT-CAUSE FIX: Sync ApiClient headers with the newly saved address
+    // BEFORE any home-data request fires. Without this, every API call that
+    // follows (triggerHomeReloadOnce, reloadOnZoneChange, etc.) goes out with
+    // zone-id=null and module-id=null, causing the backend to reject or
+    // misroute the request → blank home screen on fresh install.
+    if (Get.isRegistered<ApiClient>()) {
+      try {
+        final apiClient = Get.find<ApiClient>();
+        final splashCtrl = Get.find<SplashController>();
+        final int? selectedModuleId = splashCtrl.selectedModule.value?.id;
+        final int? currentModuleId = splashCtrl.module?.id;
+        final int? fallbackModuleId = splashCtrl.getDefaultModuleId();
+        final int? resolvedModuleId =
+            selectedModuleId ?? currentModuleId ?? fallbackModuleId;
+
+        apiClient.updateHeader(
+          apiClient.token,
+          address.zoneIds,   // real zone IDs from the chosen location
+          address.areaIds,   // real area IDs
+          null,              // keep current language
+          resolvedModuleId, // force module-id sync before any home reload
+          address.latitude,
+          address.longitude,
+        );
+
+        final headers = apiClient.getHeader();
+        if (kDebugMode) {
+          debugPrint(
+              '✅ LocationController: API headers synced after address save '
+              '(zoneIds=${address.zoneIds}, moduleId=$resolvedModuleId)');
+          debugPrint(
+              '[Diag] LocationController: Headers now => '
+              'module-id=${headers[AppConstants.moduleId]}, '
+              'zone-id=${headers[AppConstants.zoneId]}, '
+              'latitude=${headers[AppConstants.latitude]}, '
+              'longitude=${headers[AppConstants.longitude]}');
+        }
+      } catch (e) {
+        debugPrint('⚠️ LocationController: Failed to sync API headers: $e');
+      }
+    }
+
     // 🔥 OPTIMIZATION: Trigger home reload once after location change (prevent multiple reloads)
     // This is critical for Food module to show nearest restaurants correctly
     if (!context.mounted) {
@@ -1259,7 +1367,7 @@ class LocationController extends GetxController implements GetxService {
       final zoneId = address.zoneId ?? 0;
       Get.find<HomeController>().reloadOnZoneChange(zoneId);
     }
-      
+
     try {
       Get.find<CheckoutController>().clearPrevData();
     } catch (e) {
@@ -1267,7 +1375,8 @@ class LocationController extends GetxController implements GetxService {
       // Continue even if clearing checkout data fails
     }
 
-    if (Get.context != null && ResponsiveHelper.isDesktop(Get.context!) &&
+    if (Get.context != null &&
+        ResponsiveHelper.isDesktop(Get.context!) &&
         AuthHelper.isLoggedIn() &&
         Get.find<SplashController>().module != null) {
       if (Get.find<ProfileController>().userInfoModel == null) {
@@ -1433,7 +1542,8 @@ class LocationController extends GetxController implements GetxService {
     if (Get.isRegistered<LocationController>()) {
       final locationController = Get.find<LocationController>();
       if (!locationController.zonesLoaded && locationController.zones.isEmpty) {
-        debugPrint('⏸️ navigateToLocationScreen: Zones not loaded yet - allowing navigation anyway');
+        debugPrint(
+            '⏸️ navigateToLocationScreen: Zones not loaded yet - allowing navigation anyway');
         debugPrint('   → This is normal navigation (not zone-based redirect)');
         // Allow normal navigation (not zone-based redirect)
       }
@@ -1441,8 +1551,13 @@ class LocationController extends GetxController implements GetxService {
 
     if (!fromHome && AddressHelper.getUserAddressFromSharedPref() != null) {
       Get.dialog(const CustomLoaderWidget(), barrierDismissible: false);
-          autoNavigate(context, AddressHelper.getUserAddressFromSharedPref(),
-          fromSignup, null, false, Get.context != null && ResponsiveHelper.isDesktop(Get.context!));
+      autoNavigate(
+          context,
+          AddressHelper.getUserAddressFromSharedPref(),
+          fromSignup,
+          null,
+          false,
+          Get.context != null && ResponsiveHelper.isDesktop(Get.context!));
     } else if (AuthHelper.isLoggedIn()) {
       // For logged in users, always show AccessLocationScreen first when coming from home
       // This allows users to see saved addresses, add new ones, or use current location
@@ -1571,20 +1686,23 @@ class LocationController extends GetxController implements GetxService {
   /// 🔧 DATA PRESERVATION: Keeps existing zones if API fails (404)
   /// 🎯 PERFORMANCE FIX: Prevents duplicate API calls within 5 seconds
   /// 🔥 RETRY FIX: Smart retry on 304 if cache missing coordinates
-  Future<void> fetchZonePolygons({bool forceRefresh = false, bool isRetry = false}) async {
+  Future<void> fetchZonePolygons(
+      {bool forceRefresh = false, bool isRetry = false}) async {
     try {
       // 🔥 FIX: Clear cache if forceRefresh is true (to force fresh API call)
       if (forceRefresh) {
-        debugPrint('🔄 fetchZonePolygons: forceRefresh=true - clearing cache to force fresh API call');
+        debugPrint(
+            '🔄 fetchZonePolygons: forceRefresh=true - clearing cache to force fresh API call');
         await clearZoneCache();
       }
-      
+
       // 🎯 PERFORMANCE FIX: Skip if zones already loaded recently (within 5 seconds)
       if (!forceRefresh && _zonesLoaded && _zones.isNotEmpty) {
         final now = DateTime.now();
         if (_lastZonesLoadTime != null &&
             now.difference(_lastZonesLoadTime!).inSeconds < 5) {
-          debugPrint('⏭️ fetchZonePolygons: Skipping - zones loaded ${now.difference(_lastZonesLoadTime!).inSeconds}s ago');
+          debugPrint(
+              '⏭️ fetchZonePolygons: Skipping - zones loaded ${now.difference(_lastZonesLoadTime!).inSeconds}s ago');
           // Rebuild polygons from existing zones (lightweight operation)
           if (_zonePolygons.isEmpty && _zones.isNotEmpty) {
             _zonePolygons = await _buildZonePolygonsInIsolate(_zones);
@@ -1604,33 +1722,39 @@ class LocationController extends GetxController implements GetxService {
       // 🔥 FIX: Zones MUST come from /api/v1/zone/list with formated_coordinates
       // ❌ app-init cache does NOT have formated_coordinates - skip it
       // ✅ Always call API to get zones with formated_coordinates
-      debugPrint('🗺️ Fetching zones from /api/v1/zone/list (required for formated_coordinates)');
-      
+      debugPrint(
+          '🗺️ Fetching zones from /api/v1/zone/list (required for formated_coordinates)');
+
       // ⚡ TASK 1: Always call API to get zones with formated_coordinates
       // ⚡ TASK 2: If API fails, preserve existing _zones (don't clear)
       List<ZoneDataModel> apiZones = [];
       try {
         apiZones = await locationServiceInterface.getAllZones();
         debugPrint('🗺️ API returned ${apiZones.length} zones');
-        
+
         // 🔥 FIX 3: Verify zones have formated_coordinates
-        final zonesWithCoords = apiZones.where((z) => 
-          z.formatedCoordinates != null && 
-          z.formatedCoordinates!.isNotEmpty
-        ).toList();
-        
+        final zonesWithCoords = apiZones
+            .where((z) =>
+                z.formatedCoordinates != null &&
+                z.formatedCoordinates!.isNotEmpty)
+            .toList();
+
         if (apiZones.isNotEmpty && zonesWithCoords.isEmpty) {
-          debugPrint('\x1B[33m  ⚠️ WARNING: API returned ${apiZones.length} zones but NONE have formated_coordinates  \x1B[0m');
-          debugPrint('   → This means backend is not returning formated_coordinates in response');
+          debugPrint(
+              '\x1B[33m  ⚠️ WARNING: API returned ${apiZones.length} zones but NONE have formated_coordinates  \x1B[0m');
+          debugPrint(
+              '   → This means backend is not returning formated_coordinates in response');
           debugPrint('   → Green polygons will NOT render');
         } else if (zonesWithCoords.isNotEmpty) {
-          debugPrint('\x1B[32m  ✅ API returned ${zonesWithCoords.length} zone(s) with formated_coordinates - polygons will render  \x1B[0m');
+          debugPrint(
+              '\x1B[32m  ✅ API returned ${zonesWithCoords.length} zone(s) with formated_coordinates - polygons will render  \x1B[0m');
         }
       } catch (e) {
         debugPrint('❌ API call failed: $e');
         // ⚡ TASK 2: Don't clear existing zones - keep what we have
         if (_zones.isNotEmpty) {
-          debugPrint('✅ Preserving existing ${_zones.length} zones (API failed)');
+          debugPrint(
+              '✅ Preserving existing ${_zones.length} zones (API failed)');
           _loadingZones = false;
           // 🎯 CRITICAL: Update only zones-related widgets (not entire map)
           update(['zones']);
@@ -1643,81 +1767,100 @@ class LocationController extends GetxController implements GetxService {
         _zones = apiZones;
         // 🎯 PERFORMANCE FIX: Build polygons in isolate to prevent blocking UI thread
         _zonePolygons = await _buildZonePolygonsInIsolate(_zones);
-        
+
         // 🔥 CRITICAL FIX: zonesLoaded = true ONLY if we have polygons (visual zones)
         // If zones exist but no polygons, zonesLoaded stays false (no UI validation)
         final hasPolygons = _zonePolygons.isNotEmpty;
         _zonesLoaded = hasPolygons;
         _lastZonesLoadTime = DateTime.now();
-        
+
         if (hasPolygons) {
-          debugPrint('🗺️ Built ${_zonePolygons.length} zone polygons from ${_zones.length} zones - zonesLoaded = true');
+          debugPrint(
+              '🗺️ Built ${_zonePolygons.length} zone polygons from ${_zones.length} zones - zonesLoaded = true');
         } else {
-          debugPrint('⚠️ Zones exist (${_zones.length}) but NO polygons built - zonesLoaded = false (no UI validation)');
-          debugPrint('   → Backend must return formated_coordinates in /api/v1/zone/list response');
+          debugPrint(
+              '⚠️ Zones exist (${_zones.length}) but NO polygons built - zonesLoaded = false (no UI validation)');
+          debugPrint(
+              '   → Backend must return formated_coordinates in /api/v1/zone/list response');
         }
-        
+
         // 🔥 CRITICAL DIAGNOSTIC: Report coordinate status
-        final zonesWithCoordinates = _zones.where((z) => 
-          z.status == 1 && 
-          z.formatedCoordinates != null && 
-          z.formatedCoordinates!.isNotEmpty
-        ).toList();
-        
+        final zonesWithCoordinates = _zones
+            .where((z) =>
+                z.status == 1 &&
+                z.formatedCoordinates != null &&
+                z.formatedCoordinates!.isNotEmpty)
+            .toList();
+
         if (zonesWithCoordinates.isEmpty) {
-          debugPrint('\x1B[33m  ⚠️ WARNING: ${_zones.length} zone(s) loaded but NONE have coordinates  \x1B[0m');
-          debugPrint('   → Backend must return formated_coordinates in /api/v1/zone/list response');
-          debugPrint('   → See: lib/features/location/documentation/ZONE_API_CONTRACT.md');
-          debugPrint('   → Zone validation will use API (get-zone-id) only - no local validation');
-          debugPrint('   → No redirects will occur until coordinates are available');
+          debugPrint(
+              '\x1B[33m  ⚠️ WARNING: ${_zones.length} zone(s) loaded but NONE have coordinates  \x1B[0m');
+          debugPrint(
+              '   → Backend must return formated_coordinates in /api/v1/zone/list response');
+          debugPrint(
+              '   → See: lib/features/location/documentation/ZONE_API_CONTRACT.md');
+          debugPrint(
+              '   → Zone validation will use API (get-zone-id) only - no local validation');
+          debugPrint(
+              '   → No redirects will occur until coordinates are available');
         } else {
-          debugPrint('\x1B[32m  ✅ ${zonesWithCoordinates.length} zone(s) have coordinates - local validation enabled  \x1B[0m');
+          debugPrint(
+              '\x1B[32m  ✅ ${zonesWithCoordinates.length} zone(s) have coordinates - local validation enabled  \x1B[0m');
         }
-        
+
         // 🎯 CRITICAL: Update only polygons (not entire map)
         update(['zones']);
-        
+
         // 🎯 POLYGONS ARE OPTIONAL (UX): Polygons are visual only - zone validation uses API
         // If zones exist but no polygons, it's okay - user can still proceed if API confirms location
         if (_zones.isNotEmpty && _zonePolygons.isEmpty) {
-          debugPrint('\x1B[33m  ⚠️ Zones exist (${_zones.length}) but no polygons built - zones have no coordinates  \x1B[0m');
-          debugPrint('ℹ️ Polygons are optional (visual only) - zone validation uses API (get-zone-id)');
-          debugPrint('   → Backend must return formated_coordinates in /api/v1/zone/list response');
-          debugPrint('   → See: lib/features/location/documentation/ZONE_API_CONTRACT.md');
+          debugPrint(
+              '\x1B[33m  ⚠️ Zones exist (${_zones.length}) but no polygons built - zones have no coordinates  \x1B[0m');
+          debugPrint(
+              'ℹ️ Polygons are optional (visual only) - zone validation uses API (get-zone-id)');
+          debugPrint(
+              '   → Backend must return formated_coordinates in /api/v1/zone/list response');
+          debugPrint(
+              '   → See: lib/features/location/documentation/ZONE_API_CONTRACT.md');
           // 🔥 DEBUG: Print zone details to diagnose
           for (final zone in _zones) {
             final coordCount = zone.formatedCoordinates?.length ?? 0;
             final status = zone.status == 1 ? 'active' : 'inactive';
             if (coordCount == 0) {
-              debugPrint('   ❌ Zone ${zone.id} (${zone.name ?? "unnamed"}): NO coordinates, status=$status');
+              debugPrint(
+                  '   ❌ Zone ${zone.id} (${zone.name ?? "unnamed"}): NO coordinates, status=$status');
             } else {
-              debugPrint('   ✅ Zone ${zone.id} (${zone.name ?? "unnamed"}): $coordCount coordinates, status=$status');
+              debugPrint(
+                  '   ✅ Zone ${zone.id} (${zone.name ?? "unnamed"}): $coordCount coordinates, status=$status');
             }
           }
         }
       } else {
         // ⚡ TASK 2: If API returned empty but we have existing zones, keep them
         if (_zones.isNotEmpty) {
-          debugPrint('⚠️ API returned empty, but preserving existing ${_zones.length} zones');
+          debugPrint(
+              '⚠️ API returned empty, but preserving existing ${_zones.length} zones');
           // Rebuild polygons from existing zones (in isolate)
           _zonePolygons = await _buildZonePolygonsInIsolate(_zones);
-          
+
           // 🔥 CRITICAL FIX: zonesLoaded = true ONLY if we have polygons
           final hasPolygons = _zonePolygons.isNotEmpty;
           _zonesLoaded = hasPolygons;
-          
+
           // 🎯 CRITICAL: Update only polygons (not entire map)
           update(['zones']);
-          
+
           // 🔥 RETRY FIX: If zones exist but no coordinates, and this is not a retry, try once more with forceRefresh
-          final zonesWithCoordinates = _zones.where((z) => 
-            z.status == 1 && 
-            z.formatedCoordinates != null && 
-            z.formatedCoordinates!.isNotEmpty
-          ).toList();
-          
+          final zonesWithCoordinates = _zones
+              .where((z) =>
+                  z.status == 1 &&
+                  z.formatedCoordinates != null &&
+                  z.formatedCoordinates!.isNotEmpty)
+              .toList();
+
           if (zonesWithCoordinates.isEmpty && !isRetry) {
-            debugPrint('🔄 fetchZonePolygons: Zones exist but no coordinates - retrying once with forceRefresh=true');
+            debugPrint(
+                '🔄 fetchZonePolygons: Zones exist but no coordinates - retrying once with forceRefresh=true');
             _loadingZones = false;
             update(['zones']);
             // Retry once with forceRefresh
@@ -1725,13 +1868,17 @@ class LocationController extends GetxController implements GetxService {
             await fetchZonePolygons(forceRefresh: true, isRetry: true);
             return;
           }
-          
+
           // 🎯 POLYGONS ARE OPTIONAL (UX): Polygons are visual only - zone validation uses API
           if (_zonePolygons.isEmpty) {
-            debugPrint('\x1B[33m  ⚠️ Preserved zones (${_zones.length}) but no polygons - polygons are optional (visual only)  \x1B[0m');
-            debugPrint('ℹ️ Zone validation uses API (get-zone-id) - not polygons');
-            debugPrint('   → Backend must return formated_coordinates in /api/v1/zone/list response');
-            debugPrint('   → See: lib/features/location/documentation/ZONE_API_CONTRACT.md');
+            debugPrint(
+                '\x1B[33m  ⚠️ Preserved zones (${_zones.length}) but no polygons - polygons are optional (visual only)  \x1B[0m');
+            debugPrint(
+                'ℹ️ Zone validation uses API (get-zone-id) - not polygons');
+            debugPrint(
+                '   → Backend must return formated_coordinates in /api/v1/zone/list response');
+            debugPrint(
+                '   → See: lib/features/location/documentation/ZONE_API_CONTRACT.md');
           }
         } else {
           // 🔥 UX FALLBACK: If no zones but location is verified, allow proceed
@@ -1740,10 +1887,12 @@ class LocationController extends GetxController implements GetxService {
           // - Temporary API failures
           // - Zone data sync delays
           // User should be able to proceed if they have a verified location
-          final hasVerifiedLocation = _position.latitude != 0.0 && _position.longitude != 0.0;
-          
+          final hasVerifiedLocation =
+              _position.latitude != 0.0 && _position.longitude != 0.0;
+
           if (hasVerifiedLocation) {
-            debugPrint('⚠️ No zones available but location verified (${_position.latitude}, ${_position.longitude})');
+            debugPrint(
+                '⚠️ No zones available but location verified (${_position.latitude}, ${_position.longitude})');
             debugPrint('   - Allowing proceed without zones (UX fallback)');
             debugPrint('   - Zone validation will be handled later if needed');
             // Don't block user - allow proceed without zones
@@ -1768,28 +1917,33 @@ class LocationController extends GetxController implements GetxService {
       if (_zones.isEmpty) {
         _zonePolygons = {};
         // 🔥 UX FALLBACK: If location is verified but no zones, allow proceed
-        final hasVerifiedLocation = _position.latitude != 0.0 && _position.longitude != 0.0;
+        final hasVerifiedLocation =
+            _position.latitude != 0.0 && _position.longitude != 0.0;
         if (hasVerifiedLocation) {
           debugPrint('⚠️ No zones available but location verified');
-          debugPrint('   - This is acceptable if backend truly has no zones configured');
+          debugPrint(
+              '   - This is acceptable if backend truly has no zones configured');
           // Allow proceed only if truly no zones (not zones without coordinates)
         }
       } else {
-        debugPrint('✅ Preserving existing ${_zones.length} zones despite error');
+        debugPrint(
+            '✅ Preserving existing ${_zones.length} zones despite error');
         // Rebuild polygons from existing zones (in isolate)
         _zonePolygons = await _buildZonePolygonsInIsolate(_zones);
-        
+
         // 🔥 CRITICAL FIX: zonesLoaded = true ONLY if we have polygons
         final hasPolygons = _zonePolygons.isNotEmpty;
         _zonesLoaded = hasPolygons;
-        
+
         // 🎯 CRITICAL: Update only polygons (not entire map)
         update(['zones']);
-        
+
         // 🎯 POLYGONS ARE OPTIONAL (UX): Polygons are visual only - zone validation uses API
         if (_zonePolygons.isEmpty && _zones.isNotEmpty) {
-          debugPrint('⚠️ Preserved zones (${_zones.length}) but no polygons after error recovery - polygons are optional (visual only)');
-          debugPrint('ℹ️ Zone validation uses API (get-zone-id) - not polygons');
+          debugPrint(
+              '⚠️ Preserved zones (${_zones.length}) but no polygons after error recovery - polygons are optional (visual only)');
+          debugPrint(
+              'ℹ️ Zone validation uses API (get-zone-id) - not polygons');
         }
       }
       // 🎯 CRITICAL: Update only zones-related widgets (not entire map)
@@ -1800,11 +1954,12 @@ class LocationController extends GetxController implements GetxService {
   /// 🗑️ Clear zone cache from SharedPreferences (call once to clear old cached zones without polygons)
   Future<void> clearZoneCache() async {
     try {
-      final box = await Hive.openLazyBox<String>(HiveCacheConfig.zoneCacheBoxName);
+      final box =
+          await Hive.openLazyBox<String>(HiveCacheConfig.zoneCacheBoxName);
       await box.clear();
       await box.close();
       debugPrint('🗑️ Cleared zone cache from Hive');
-      
+
       // Also clear SharedPreferences zone cache
       final prefs = Get.find<SharedPreferences>();
       await prefs.remove('cached_all_zones_data');
@@ -1817,26 +1972,31 @@ class LocationController extends GetxController implements GetxService {
 
   /// 🎯 PERFORMANCE FIX: Build polygons in isolate to prevent blocking UI thread
   /// 🎯 Zone-agnostic: Builds individual zone polygons (supports 1 or 100 zones)
-  Future<Set<Polygon>> _buildZonePolygonsInIsolate(List<ZoneDataModel> zonesList) async {
+  Future<Set<Polygon>> _buildZonePolygonsInIsolate(
+      List<ZoneDataModel> zonesList) async {
     try {
       // Prepare data for isolate (must be serializable)
-      final zoneData = zonesList.map((zone) => {
-        'id': zone.id,
-        'status': zone.status,
-        'name': zone.name,
-        'coordinates': zone.formatedCoordinates?.map((c) => {
-          'lat': c.lat,
-          'lng': c.lng,
-        }).toList(),
-      }).toList();
+      final zoneData = zonesList
+          .map((zone) => {
+                'id': zone.id,
+                'status': zone.status,
+                'name': zone.name,
+                'coordinates': zone.formatedCoordinates
+                    ?.map((c) => {
+                          'lat': c.lat,
+                          'lng': c.lng,
+                        })
+                    .toList(),
+              })
+          .toList();
 
       // Run polygon building in isolate
       final result = await compute(_buildPolygonsInIsolate, zoneData);
-      final Map<String, dynamic> typedResult = result as Map<String, dynamic>;
-      
+      final Map<String, dynamic> typedResult = result;
+
       // Convert result back to Polygon objects
       final Set<Polygon> polygons = {};
-      
+
       // 🎯 Build individual zone polygons
       final zonePolygonsList = typedResult['zonePolygons'] as List<dynamic>?;
       if (zonePolygonsList != null) {
@@ -1848,7 +2008,7 @@ class LocationController extends GetxController implements GetxService {
                 .cast<Map<String, double>>()
                 .map((p) => LatLng(p['lat']!, p['lng']!))
                 .toList();
-            
+
             polygons.add(
               Polygon(
                 polygonId: PolygonId('zone_$zoneId'),
@@ -1861,7 +2021,7 @@ class LocationController extends GetxController implements GetxService {
           }
         }
       }
-      
+
       // Also store convex hull for backward compatibility
       final hullPointsList = typedResult['hullPoints'] as List<dynamic>?;
       if (hullPointsList != null && hullPointsList.length >= 3) {
@@ -1869,27 +2029,32 @@ class LocationController extends GetxController implements GetxService {
             .cast<Map<String, double>>()
             .map((p) => LatLng(p['lat']!, p['lng']!))
             .toList();
-        
+
         _largestZonePoints = hullPoints;
-        
+
         // Calculate center from all zones
         final List<LatLng> allPoints = [];
         if (zonePolygonsList != null) {
-          for (final zonePoly in zonePolygonsList.cast<Map<String, dynamic>>()) {
+          for (final zonePoly
+              in zonePolygonsList.cast<Map<String, dynamic>>()) {
             final pointsList = zonePoly['points'] as List<dynamic>;
             allPoints.addAll(pointsList
                 .cast<Map<String, double>>()
                 .map((p) => LatLng(p['lat']!, p['lng']!)));
           }
         }
-        
+
         if (allPoints.isNotEmpty) {
-          final double centerLat = allPoints.map((p) => p.latitude).reduce((a, b) => a + b) / allPoints.length;
-          final double centerLng = allPoints.map((p) => p.longitude).reduce((a, b) => a + b) / allPoints.length;
-        _largestZoneCenter = LatLng(centerLat, centerLng);
+          final double centerLat =
+              allPoints.map((p) => p.latitude).reduce((a, b) => a + b) /
+                  allPoints.length;
+          final double centerLng =
+              allPoints.map((p) => p.longitude).reduce((a, b) => a + b) /
+                  allPoints.length;
+          _largestZoneCenter = LatLng(centerLat, centerLng);
         }
       }
-      
+
       return polygons;
     } catch (e) {
       debugPrint('❌ Error building polygons in isolate: $e');
@@ -1903,7 +2068,7 @@ class LocationController extends GetxController implements GetxService {
   static Map<String, dynamic> _buildPolygonsInIsolate(List<dynamic> zoneData) {
     final List<Map<String, dynamic>> zonePolygons = [];
     final List<Map<String, double>> allActivePoints = [];
-    
+
     for (final zone in zoneData.cast<Map<String, dynamic>>()) {
       // 🔥 CRITICAL FIX: Check status AND coordinates exist AND not empty
       if (zone['status'] == 1 && zone['coordinates'] != null) {
@@ -1912,7 +2077,7 @@ class LocationController extends GetxController implements GetxService {
         if (coords.isEmpty) {
           continue;
         }
-        
+
         final List<Map<String, double>> zonePoints = [];
         for (final coord in coords.cast<Map<String, dynamic>>()) {
           // Validate coordinate has valid lat/lng
@@ -1925,23 +2090,23 @@ class LocationController extends GetxController implements GetxService {
             allActivePoints.add(point);
           }
         }
-        
+
         // Add individual zone polygon if valid
         if (zonePoints.length >= 3) {
           zonePolygons.add({
             'id': zone['id'],
             'points': zonePoints,
-            });
-          }
+          });
         }
       }
-    
+    }
+
     // Also compute convex hull for backward compatibility
     List<Map<String, double>> hullPoints = [];
     if (allActivePoints.length >= 3) {
       hullPoints = _computeConvexHullInIsolate(allActivePoints);
     }
-    
+
     return {
       'zonePolygons': zonePolygons,
       'hullPoints': hullPoints,
@@ -1949,42 +2114,47 @@ class LocationController extends GetxController implements GetxService {
   }
 
   /// Compute convex hull in isolate (simplified version)
-  static List<Map<String, double>> _computeConvexHullInIsolate(List<Map<String, double>> points) {
+  static List<Map<String, double>> _computeConvexHullInIsolate(
+      List<Map<String, double>> points) {
     if (points.length < 3) return points;
-    
+
     // Sort points by x-coordinate, then by y-coordinate
     points.sort((a, b) {
       final xCompare = a['lng']!.compareTo(b['lng']!);
       if (xCompare != 0) return xCompare;
       return a['lat']!.compareTo(b['lat']!);
     });
-    
+
     // Graham scan algorithm (simplified)
     final List<Map<String, double>> hull = [];
-    
+
     for (final point in points) {
-      while (hull.length >= 2 && _crossProductInIsolate(
-        hull[hull.length - 2],
-        hull[hull.length - 1],
-        point,
-      ) <= 0) {
+      while (hull.length >= 2 &&
+          _crossProductInIsolate(
+                hull[hull.length - 2],
+                hull[hull.length - 1],
+                point,
+              ) <=
+              0) {
         hull.removeLast();
       }
       hull.add(point);
     }
-    
+
     final int lowerHullSize = hull.length;
     for (int i = points.length - 2; i >= 0; i--) {
-      while (hull.length > lowerHullSize && _crossProductInIsolate(
-        hull[hull.length - 2],
-        hull[hull.length - 1],
-        points[i],
-      ) <= 0) {
+      while (hull.length > lowerHullSize &&
+          _crossProductInIsolate(
+                hull[hull.length - 2],
+                hull[hull.length - 1],
+                points[i],
+              ) <=
+              0) {
         hull.removeLast();
       }
       hull.add(points[i]);
     }
-    
+
     hull.removeLast(); // Remove duplicate point
     return hull;
   }
@@ -1995,7 +2165,7 @@ class LocationController extends GetxController implements GetxService {
     Map<String, double> b,
   ) {
     return (a['lng']! - o['lng']!) * (b['lat']! - o['lat']!) -
-           (a['lat']! - o['lat']!) * (b['lng']! - o['lng']!);
+        (a['lat']! - o['lat']!) * (b['lng']! - o['lng']!);
   }
 
   /// Builds Google Maps Polygon objects from zone data (fallback to main thread)
@@ -2004,15 +2174,15 @@ class LocationController extends GetxController implements GetxService {
   Set<Polygon> buildZonePolygons(List<ZoneDataModel> zonesList) {
     // 🔥 FIX 4: Guard to prevent rebuild if polygons already exist
     if (_zonePolygons.isNotEmpty && zonesList.length == _zones.length) {
-      final bool allZonesMatch = zonesList.every((zone) => 
-        _zones.any((existingZone) => existingZone.id == zone.id)
-      );
+      final bool allZonesMatch = zonesList.every(
+          (zone) => _zones.any((existingZone) => existingZone.id == zone.id));
       if (allZonesMatch) {
-        debugPrint('⏭️ buildZonePolygons: Polygons already built for ${zonesList.length} zones - skipping rebuild');
+        debugPrint(
+            '⏭️ buildZonePolygons: Polygons already built for ${zonesList.length} zones - skipping rebuild');
         return _zonePolygons;
       }
     }
-    
+
     final Set<Polygon> polygons = {};
     final List<LatLng> allActivePoints = [];
     int activeZoneCount = 0;
@@ -2029,24 +2199,26 @@ class LocationController extends GetxController implements GetxService {
       // 🔥 FIX 1: Confirm reading formated_coordinates
       if (zone.formatedCoordinates == null ||
           zone.formatedCoordinates!.isEmpty) {
-        debugPrint('❌ Zone ${zone.id} (${zone.name ?? "unnamed"}) has no formated_coordinates');
+        debugPrint(
+            '❌ Zone ${zone.id} (${zone.name ?? "unnamed"}) has no formated_coordinates');
         debugPrint('   → Backend must return formated_coordinates array');
         continue;
       }
 
       // 🔥 FIX 2: Convert formated_coordinates to LatLng
       // Ensure lat and lng are doubles (not strings)
-        final List<LatLng> points = zone.formatedCoordinates!
+      final List<LatLng> points = zone.formatedCoordinates!
           .map((coord) {
             final lat = coord.lat ?? 0.0;
             final lng = coord.lng ?? 0.0;
             if (lat == 0.0 || lng == 0.0) {
-              debugPrint('⚠️ Zone ${zone.id}: Invalid coordinate (lat: $lat, lng: $lng)');
+              debugPrint(
+                  '⚠️ Zone ${zone.id}: Invalid coordinate (lat: $lat, lng: $lng)');
             }
             return LatLng(lat, lng);
           })
           .where((point) => point.latitude != 0.0 && point.longitude != 0.0)
-            .toList();
+          .toList();
 
       if (points.length < 3) {
         debugPrint(
@@ -2060,18 +2232,20 @@ class LocationController extends GetxController implements GetxService {
         points: points,
         strokeWidth: 3,
         strokeColor: Colors.green.shade700, // 🟢 Premium green border
-        fillColor: Colors.green.withValues(alpha: 0.12), // Light green fill (premium opacity)
+        fillColor: Colors.green
+            .withValues(alpha: 0.12), // Light green fill (premium opacity)
         consumeTapEvents: false, // Allow map interactions through polygon
       );
-      
-      polygons.add(polygon);
-      debugPrint('✅ Built polygon for zone ${zone.id} (${zone.name ?? "unnamed"}) with ${points.length} points');
 
-          allActivePoints.addAll(points);
-          activeZoneCount++;
-          debugPrint(
+      polygons.add(polygon);
+      debugPrint(
+          '✅ Built polygon for zone ${zone.id} (${zone.name ?? "unnamed"}) with ${points.length} points');
+
+      allActivePoints.addAll(points);
+      activeZoneCount++;
+      debugPrint(
           '✅ Added polygon for zone ${zone.id} (${zone.name}) with ${points.length} points');
-        }
+    }
 
     // 🎯 Also create convex hull for backward compatibility (used by isPointInsideZone)
     if (allActivePoints.length >= 3) {
@@ -2131,8 +2305,10 @@ class LocationController extends GetxController implements GetxService {
     // This prevents false positives and redirect loops
     if (_zones.isEmpty || !_zonesLoaded) {
       debugPrint('⚠️ Zones not loaded yet - skipping local polygon check');
-      debugPrint('   → Zones loaded: $_zonesLoaded, Zones count: ${_zones.length}');
-      debugPrint('   → Use API validation (get-zone-id) until zones are loaded');
+      debugPrint(
+          '   → Zones loaded: $_zonesLoaded, Zones count: ${_zones.length}');
+      debugPrint(
+          '   → Use API validation (get-zone-id) until zones are loaded');
       // Return false to force API validation (more reliable)
       return false;
     }
@@ -2140,8 +2316,9 @@ class LocationController extends GetxController implements GetxService {
     // Check each active zone individually
     for (final zone in _zones) {
       if (zone.status != 1) continue; // Skip inactive zones
-      
-      if (zone.formatedCoordinates == null || zone.formatedCoordinates!.isEmpty) {
+
+      if (zone.formatedCoordinates == null ||
+          zone.formatedCoordinates!.isEmpty) {
         continue; // Skip zones without coordinates
       }
 
@@ -2172,7 +2349,8 @@ class LocationController extends GetxController implements GetxService {
       final LatLng vi = polygon[i];
       final LatLng vj = polygon[j];
 
-      if ((vi.longitude > point.longitude) != (vj.longitude > point.longitude) &&
+      if ((vi.longitude > point.longitude) !=
+              (vj.longitude > point.longitude) &&
           (point.latitude <
               (vj.latitude - vi.latitude) *
                       (point.longitude - vi.longitude) /
@@ -2193,21 +2371,26 @@ class LocationController extends GetxController implements GetxService {
     // 🔥 CRITICAL FIX: Don't calculate nearest point before zones are loaded
     if (_zones.isEmpty || !_zonesLoaded) {
       debugPrint('⚠️ Zones not loaded yet - using default fallback location');
-      debugPrint('   → Returning DEFAULT_FALLBACK_LOCATION: ${DEFAULT_FALLBACK_LOCATION.latitude}, ${DEFAULT_FALLBACK_LOCATION.longitude}');
+      debugPrint(
+          '   → Returning DEFAULT_FALLBACK_LOCATION: ${DEFAULT_FALLBACK_LOCATION.latitude}, ${DEFAULT_FALLBACK_LOCATION.longitude}');
       return DEFAULT_FALLBACK_LOCATION; // Return default fallback location
     }
-    
+
     // 🔥 CRITICAL: Check if any zone has coordinates
-    final zonesWithCoordinates = _zones.where((z) => 
-      z.status == 1 && 
-      z.formatedCoordinates != null && 
-      z.formatedCoordinates!.isNotEmpty
-    ).toList();
-    
+    final zonesWithCoordinates = _zones
+        .where((z) =>
+            z.status == 1 &&
+            z.formatedCoordinates != null &&
+            z.formatedCoordinates!.isNotEmpty)
+        .toList();
+
     if (zonesWithCoordinates.isEmpty) {
-      debugPrint('⚠️ No zones with coordinates available - using default fallback location');
-      debugPrint('   → Backend must return formated_coordinates in /api/v1/zone/list');
-      debugPrint('   → Returning DEFAULT_FALLBACK_LOCATION: ${DEFAULT_FALLBACK_LOCATION.latitude}, ${DEFAULT_FALLBACK_LOCATION.longitude}');
+      debugPrint(
+          '⚠️ No zones with coordinates available - using default fallback location');
+      debugPrint(
+          '   → Backend must return formated_coordinates in /api/v1/zone/list');
+      debugPrint(
+          '   → Returning DEFAULT_FALLBACK_LOCATION: ${DEFAULT_FALLBACK_LOCATION.latitude}, ${DEFAULT_FALLBACK_LOCATION.longitude}');
       return DEFAULT_FALLBACK_LOCATION; // Return default fallback location
     }
 
@@ -2217,8 +2400,9 @@ class LocationController extends GetxController implements GetxService {
     // Check all active zones
     for (final zone in _zones) {
       if (zone.status != 1) continue; // Skip inactive zones
-      
-      if (zone.formatedCoordinates == null || zone.formatedCoordinates!.isEmpty) {
+
+      if (zone.formatedCoordinates == null ||
+          zone.formatedCoordinates!.isEmpty) {
         continue; // Skip zones without coordinates
       }
 
@@ -2257,11 +2441,13 @@ class LocationController extends GetxController implements GetxService {
 
     if (nearest == null) {
       // 🔥 FIX: If no nearest point found in zones, use DEFAULT_FALLBACK_LOCATION
-      debugPrint('⚠️ No nearest point found in zones - using DEFAULT_FALLBACK_LOCATION');
-      debugPrint('   → Returning DEFAULT_FALLBACK_LOCATION: ${DEFAULT_FALLBACK_LOCATION.latitude}, ${DEFAULT_FALLBACK_LOCATION.longitude}');
+      debugPrint(
+          '⚠️ No nearest point found in zones - using DEFAULT_FALLBACK_LOCATION');
+      debugPrint(
+          '   → Returning DEFAULT_FALLBACK_LOCATION: ${DEFAULT_FALLBACK_LOCATION.latitude}, ${DEFAULT_FALLBACK_LOCATION.longitude}');
       return DEFAULT_FALLBACK_LOCATION;
     }
-    
+
     // 🔥 FIX: If nearest point is too far (outside all zones), use DEFAULT_FALLBACK_LOCATION
     // Check if nearest point is actually inside any zone
     bool isNearestInsideAnyZone = false;
@@ -2274,19 +2460,23 @@ class LocationController extends GetxController implements GetxService {
         break;
       }
     }
-    
+
     if (!isNearestInsideAnyZone) {
-      debugPrint('⚠️ Nearest point is outside all zones - using DEFAULT_FALLBACK_LOCATION');
-      debugPrint('   → Returning DEFAULT_FALLBACK_LOCATION: ${DEFAULT_FALLBACK_LOCATION.latitude}, ${DEFAULT_FALLBACK_LOCATION.longitude}');
+      debugPrint(
+          '⚠️ Nearest point is outside all zones - using DEFAULT_FALLBACK_LOCATION');
+      debugPrint(
+          '   → Returning DEFAULT_FALLBACK_LOCATION: ${DEFAULT_FALLBACK_LOCATION.latitude}, ${DEFAULT_FALLBACK_LOCATION.longitude}');
       return DEFAULT_FALLBACK_LOCATION;
     }
 
-    debugPrint('📍 Nearest allowed point found: ${nearest.latitude}, ${nearest.longitude} (distance: ${minDistance.toStringAsFixed(0)}m)');
+    debugPrint(
+        '📍 Nearest allowed point found: ${nearest.latitude}, ${nearest.longitude} (distance: ${minDistance.toStringAsFixed(0)}m)');
     return nearest;
   }
 
   /// Find closest point on line segment from point to segment
-  LatLng _closestPointOnSegment(LatLng point, LatLng segmentStart, LatLng segmentEnd) {
+  LatLng _closestPointOnSegment(
+      LatLng point, LatLng segmentStart, LatLng segmentEnd) {
     final double dx = segmentEnd.longitude - segmentStart.longitude;
     final double dy = segmentEnd.latitude - segmentStart.latitude;
     final double lengthSquared = dx * dx + dy * dy;
@@ -2308,33 +2498,39 @@ class LocationController extends GetxController implements GetxService {
 
   /// 🎯 Validate zone status for a point and update state
   /// Returns ZoneStatus and updates _zoneStatus, _nearestAllowedPoint
-  /// 
+  ///
   /// 🔥 CRITICAL: This method should NOT be called before zones are loaded
   /// Use API validation (get-zone-id) until zones are available
   ZoneStatus validateZone(LatLng point) {
     // 🔥 CRITICAL LOOP PREVENTION: Don't validate during zone correction
     if (_isZoneCorrectionInProgress) {
-      debugPrint('⏸️ validateZone: Zone correction in progress - skipping validation to prevent loop');
+      debugPrint(
+          '⏸️ validateZone: Zone correction in progress - skipping validation to prevent loop');
       return _zoneStatus; // Return current status, don't change
     }
-    
+
     // 🔥 CRITICAL GUARD 1: Don't validate before user confirms location
     if (!_isLocationConfirmed) {
-      debugPrint('⏭️ validateZone: Location not confirmed by user yet - skipping validation');
-      debugPrint('   → Zone validation will happen after user confirms location');
-      debugPrint('   → This prevents premature notifications before user chooses location');
+      debugPrint(
+          '⏭️ validateZone: Location not confirmed by user yet - skipping validation');
+      debugPrint(
+          '   → Zone validation will happen after user confirms location');
+      debugPrint(
+          '   → This prevents premature notifications before user chooses location');
       // Return inside to prevent blocking user (but no validation should happen)
       _zoneStatus = ZoneStatus.inside;
       _inZone = true;
       _nearestAllowedPoint = null;
       return _zoneStatus;
     }
-    
+
     // 🔥 CRITICAL GUARD 2: Don't validate before zones are loaded
     if (!_zonesLoaded || _zones.isEmpty) {
       debugPrint('⚠️ validateZone: Zones not loaded yet - skipping validation');
-      debugPrint('   → Zones loaded: $_zonesLoaded, Zones count: ${_zones.length}');
-      debugPrint('   → Use API validation (get-zone-id) until zones are loaded');
+      debugPrint(
+          '   → Zones loaded: $_zonesLoaded, Zones count: ${_zones.length}');
+      debugPrint(
+          '   → Use API validation (get-zone-id) until zones are loaded');
       debugPrint('   → No redirect should occur before zones are loaded');
       // Return inside to prevent blocking user (but no redirect should happen)
       _zoneStatus = ZoneStatus.inside;
@@ -2342,30 +2538,33 @@ class LocationController extends GetxController implements GetxService {
       _nearestAllowedPoint = null;
       return _zoneStatus;
     }
-    
+
     // Check if any zone has coordinates for local validation
-    final zonesWithCoordinates = _zones.where((z) => 
-      z.status == 1 && 
-      z.formatedCoordinates != null && 
-      z.formatedCoordinates!.isNotEmpty
-    ).toList();
-    
+    final zonesWithCoordinates = _zones
+        .where((z) =>
+            z.status == 1 &&
+            z.formatedCoordinates != null &&
+            z.formatedCoordinates!.isNotEmpty)
+        .toList();
+
     if (zonesWithCoordinates.isEmpty) {
-      debugPrint('⚠️ validateZone: Zones exist but no coordinates - using API validation only');
-      debugPrint('   → Backend must return formated_coordinates in /api/v1/zone/list');
+      debugPrint(
+          '⚠️ validateZone: Zones exist but no coordinates - using API validation only');
+      debugPrint(
+          '   → Backend must return formated_coordinates in /api/v1/zone/list');
       // Return inside to prevent blocking (but no redirect should happen)
       _zoneStatus = ZoneStatus.inside;
       _inZone = true;
       _nearestAllowedPoint = null;
       return _zoneStatus;
     }
-    
+
     // ✅ Zones loaded and have coordinates - proceed with local validation
     final bool isInside = isInsideAnyZone(point);
-    
+
     _zoneStatus = isInside ? ZoneStatus.inside : ZoneStatus.outside;
     _inZone = isInside; // Keep backward compatibility
-    
+
     if (!isInside) {
       _nearestAllowedPoint = findNearestAllowedPoint(point);
     } else {
@@ -2381,34 +2580,36 @@ class LocationController extends GetxController implements GetxService {
   /// 2. User confirms location from PickMapScreen
   void confirmLocation() {
     _isLocationConfirmed = true;
-    debugPrint('✅ LocationController: Location confirmed by user - zone validation enabled');
+    debugPrint(
+        '✅ LocationController: Location confirmed by user - zone validation enabled');
   }
-  
+
   /// 🔥 CRITICAL: Reset location confirmation (when user changes location)
   void resetLocationConfirmation() {
     _isLocationConfirmed = false;
     debugPrint('🔄 LocationController: Location confirmation reset');
   }
-  
+
   /// 🎯 UX: Mark that user was inside zone initially (no need to notify)
   void markWasInsideZoneInitially() {
     _wasInsideZoneInitially = true;
     _hasUserConfirmedLocation = true;
-    debugPrint('✅ LocationController: User was inside zone initially - no notifications needed');
+    debugPrint(
+        '✅ LocationController: User was inside zone initially - no notifications needed');
   }
-  
+
   /// 🎯 UX: Mark that user has confirmed their location
   void markUserConfirmedLocation() {
     _hasUserConfirmedLocation = true;
   }
-  
+
   /// 🎯 UX: Reset initial state flags (when location changes significantly)
   void resetInitialStateFlags() {
     _wasInsideZoneInitially = false;
     _hasUserConfirmedLocation = false;
     debugPrint('🔄 LocationController: Initial state flags reset');
   }
-  
+
   /// Reset redirect guard (call after redirect completes)
   void resetRedirectGuard() {
     _isRedirecting = false;
@@ -2420,18 +2621,18 @@ class LocationController extends GetxController implements GetxService {
     _isRedirecting = redirecting;
     debugPrint('🔄 Redirect guard set to: $redirecting');
   }
-  
+
   // 🔥 CRITICAL LOOP PREVENTION: Zone correction methods
   void setZoneCorrectionInProgress(bool inProgress) {
     _isZoneCorrectionInProgress = inProgress;
     debugPrint('🔐 Zone correction in progress: $inProgress');
   }
-  
+
   void markZoneDialogShown() {
     _lastDialogShownTime = DateTime.now();
     debugPrint('🔐 Zone dialog shown - cooldown started (10 seconds)');
   }
-  
+
   void resetZoneDialogFlag() {
     _lastDialogShownTime = null;
     debugPrint('🔄 Zone dialog cooldown reset');

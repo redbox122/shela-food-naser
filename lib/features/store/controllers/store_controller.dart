@@ -213,11 +213,14 @@ class StoreController extends GetxController implements GetxService {
 
   // 🔒 REQUEST LOCKING: Prevent duplicate API calls
   bool _isFetchingStores = false;
-  final bool _isFetchingLatestStores = false;
+  DateTime? _lastStoreListRequestAt;
+  String? _lastStoreListRequestSignature;
+  static const Duration _storeListDebounce = Duration(milliseconds: 500);
 
   // ⚡ CONTENT POP: Prevent duplicate getStoreDetails calls
   int? _loadingStoreDetailsId;
   bool _isLoadingStoreDetails = false;
+  Completer<Store?>? _storeDetailsCompleter;
 
   // 🔧 FIX: Request cancellation and debouncing for category switching
   CancelToken? _itemsRequestCancelToken;
@@ -644,15 +647,34 @@ class StoreController extends GetxController implements GetxService {
     if (!_canFetchStores()) {
       return _allStoreModel;
     }
-    // 🔒 REQUEST LOCKING: Prevent duplicate API calls
-    if (_isFetchingStores && _allStoreModel != null) {
+    final String requestSignature =
+        'offset=$offset|reload=$reload|source=$source|limit=${limit ?? -1}|'
+        'filter=$_filterType|storeType=$_storeType|recent=$_recentlyAdded|'
+        'rating=$_highestRated|fast=$_fastestDelivery|min=$_minPrice|'
+        'max=$_maxPrice|sort=$_sortBy';
+    final DateTime now = DateTime.now();
+
+    // 🔒 REQUEST DEBOUNCE: Drop rapid duplicate calls with identical params.
+    if (_lastStoreListRequestSignature == requestSignature &&
+        _lastStoreListRequestAt != null &&
+        now.difference(_lastStoreListRequestAt!) < _storeListDebounce) {
       if (kDebugMode) {
-        print(
-            '[API] stores already loading → skip duplicate (cache available)');
+        print('🚫 StoreController.getStoreList: Debounced duplicate request '
+            '(within ${_storeListDebounce.inMilliseconds}ms)');
       }
       return _allStoreModel;
     }
 
+    // 🔒 REQUEST LOCKING: Prevent overlapping calls while one is already in-flight.
+    if (_isFetchingStores) {
+      if (kDebugMode) {
+        print('[API] stores already loading → skip duplicate');
+      }
+      return _allStoreModel;
+    }
+
+    _lastStoreListRequestAt = now;
+    _lastStoreListRequestSignature = requestSignature;
     _isFetchingStores = true;
 
     // ⚡ Cache-First: Preserve cache during background refresh
@@ -2410,6 +2432,12 @@ class StoreController extends GetxController implements GetxService {
         debugPrint(
             '🚫 [StoreController] getStoreDetails already in progress for store $newStoreId - skipping duplicate call');
       }
+      if (_store != null) {
+        return _store;
+      }
+      if (_storeDetailsCompleter != null) {
+        return await _storeDetailsCompleter!.future;
+      }
       return _store;
     }
 
@@ -2421,6 +2449,7 @@ class StoreController extends GetxController implements GetxService {
     // Set loading state to prevent duplicate calls
     _isLoadingStoreDetails = true;
     _loadingStoreDetailsId = newStoreId;
+    _storeDetailsCompleter = Completer<Store?>();
 
     if (store.name != null && store.categoryDetails != null) {
       // Full store data already available - no need to fetch
@@ -2428,6 +2457,10 @@ class StoreController extends GetxController implements GetxService {
       _isLoading = false;
       _isLoadingStoreDetails = false;
       _loadingStoreDetailsId = null;
+      if (!(_storeDetailsCompleter?.isCompleted ?? true)) {
+        _storeDetailsCompleter?.complete(_store);
+      }
+      _storeDetailsCompleter = null;
       // ✅ FIX: Skip update() here - will be handled by loadAllStoreDetails final update
       return store;
     } else {
@@ -2485,6 +2518,11 @@ class StoreController extends GetxController implements GetxService {
           _isLoading = false;
           _isLoadingStoreDetails = false;
           _loadingStoreDetailsId = null;
+
+          if (!(_storeDetailsCompleter?.isCompleted ?? true)) {
+            _storeDetailsCompleter?.complete(_store);
+          }
+          _storeDetailsCompleter = null;
 
           // 🛡️ PHASE 4: Error Fallback - Keep existing data visible
           // Don't clear _store - preserve it so user sees old data instead of white screen
@@ -2796,17 +2834,33 @@ class StoreController extends GetxController implements GetxService {
         _isLoading = false;
         _isLoadingStoreDetails = false;
         _loadingStoreDetailsId = null;
+        if (!(_storeDetailsCompleter?.isCompleted ?? true)) {
+          _storeDetailsCompleter?.complete(_store);
+        }
+        _storeDetailsCompleter = null;
         // ✅ FIX: Skip update() here - error will be shown by loadAllStoreDetails final update
       }
 
-      Get.find<CheckoutController>().setOrderType(
-        _store != null
-            ? _store!.delivery!
-                ? 'delivery'
-                : 'take_away'
-            : 'delivery',
-        notify: false,
-      );
+      final CheckoutController checkoutController = Get.find<CheckoutController>();
+      final bool supportsDelivery = _store?.delivery ?? true;
+      final bool supportsTakeAway = _store?.takeAway ?? true;
+
+      final String fallbackOrderType =
+          supportsDelivery ? 'delivery' : 'take_away';
+      final String? currentOrderType = checkoutController.orderType;
+
+      final bool shouldSetInitialOrderType = currentOrderType == null;
+      final bool currentSelectionInvalid =
+          (currentOrderType == 'delivery' && !supportsDelivery) ||
+              (currentOrderType == 'take_away' && !supportsTakeAway);
+
+      // Preserve user's explicit checkout choice unless it's invalid for this store.
+      if (shouldSetInitialOrderType || currentSelectionInvalid) {
+        checkoutController.setOrderType(
+          fallbackOrderType,
+          notify: false,
+        );
+      }
       _isLoading = false;
       // ✅ FIX: Skip update() here - will be handled by loadAllStoreDetails final update
       // No need for individual update() calls in getStoreDetails - all updates happen once at end of loadAllStoreDetails
@@ -2815,6 +2869,11 @@ class StoreController extends GetxController implements GetxService {
     // ⚡ TASK 2: Reset loading flags after completion
     _isLoadingStoreDetails = false;
     _loadingStoreDetailsId = null;
+
+    if (!(_storeDetailsCompleter?.isCompleted ?? true)) {
+      _storeDetailsCompleter?.complete(_store);
+    }
+    _storeDetailsCompleter = null;
 
     // 🛡️ PHASE 4: Always return existing _store (preserved on errors)
     return _store;
@@ -3167,7 +3226,6 @@ class StoreController extends GetxController implements GetxService {
       }
 
       final itemCount = slimMenuResponse.totalItems;
-      final categoryCount = slimMenuResponse.totalCategories;
 
       // 🚀 SLIM MENU: Store response for screen access
       _slimMenuResponse = slimMenuResponse;
@@ -3501,7 +3559,7 @@ class StoreController extends GetxController implements GetxService {
     }
 
     final String cacheKey =
-        'store_items_v2_${storeID}_${effectiveCategoryId}_${offset}_${effectiveLimit}_${type}_$moduleId';
+        'store_items_v3_${storeID}_${effectiveCategoryId}_${offset}_${effectiveLimit}_${type}_$moduleId';
 
     // STEP 1: Load from cache immediately
     ItemModel? cachedModel;

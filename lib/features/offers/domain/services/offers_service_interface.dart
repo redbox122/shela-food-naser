@@ -6,7 +6,12 @@ import '../../../item/domain/models/item_model.dart';
 
 abstract class Offers_ServiceInterface {
   Future<OffersModel> getOffers();
-  Future<ItemModel?> getOffersItem({int? offset, int? limit, String? id});
+  Future<ItemModel?> getOffersItem({
+    int? offset,
+    int? limit,
+    String? id,
+    bool forceRefresh,
+  });
   Future<ItemModel?> getOffersSearchItemList(String searchText, String? offerId,
       int offset, String type, int categoryId);
   Future<ItemModel?> getOffersItemWithFilters({

@@ -29,18 +29,9 @@ class CartItemWidget extends StatelessWidget {
   Widget build(BuildContext context) {
     final double? startingPrice = _calculatePriceWithVariation(item: cart.item);
     final double? endingPrice = _calculatePriceWithVariation(item: cart.item, isStartingPrice: false);
-    final String? variationText = _setupVariationText(cart: cart);
-    final String addOnText = _setupAddonsText(cart: cart) ?? '';
 
     final double? discount = cart.item!.storeDiscount == 0 ? cart.item!.discount : cart.item!.storeDiscount;
     final String? discountType = cart.item!.storeDiscount == 0 ? cart.item!.discountType : 'percent';
-    String genericName = '';
-
-    if (cart.item!.genericName != null && cart.item!.genericName!.isNotEmpty) {
-      for (final String name in cart.item!.genericName!) {
-        genericName += name;
-      }
-    }
 
     return Padding(
       padding: const EdgeInsets.only(bottom: Dimensions.paddingSizeDefault),
@@ -309,6 +300,7 @@ class CartItemWidget extends StatelessWidget {
     }
   }
 
+  // ignore: unused_element
   String? _setupVariationText({required CartModel cart}) {
     String? variationText = '';
 
@@ -344,6 +336,7 @@ class CartItemWidget extends StatelessWidget {
     return variationText;
   }
 
+  // ignore: unused_element
   String? _setupAddonsText({required CartModel cart}) {
     String addOnText = '';
     int index0 = 0;

@@ -35,7 +35,7 @@ import 'package:flutter/foundation.dart';
 import 'helper/get_di.dart';
 
 final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
-FlutterLocalNotificationsPlugin();
+    FlutterLocalNotificationsPlugin();
 
 /// Override debugPrint to filter EGL logs and use our logger
 void _setupLogging() {
@@ -43,7 +43,8 @@ void _setupLogging() {
   debugPrint = (String? message, {int? wrapWidth}) {
     if (message != null) {
       // Filter EGL_emulation logs - throttle them to once every 20 seconds
-      if (message.contains('EGL_emulation') || message.contains('app_time_stats')) {
+      if (message.contains('EGL_emulation') ||
+          message.contains('app_time_stats')) {
         // Use logger to handle throttling - only show if not throttled
         if (!appLogger.shouldThrottleLog('EGL_emulation')) {
           // Log throttled message summary instead of individual logs
@@ -74,7 +75,8 @@ Future<void> main() async {
 
   // ⚡ PERFORMANCE: Start timing from main function
   final mainStartTime = DateTime.now();
-  appLogger.info('⏱️ PERFORMANCE: main() started at ${mainStartTime.millisecondsSinceEpoch}ms');
+  appLogger.info(
+      '⏱️ PERFORMANCE: main() started at ${mainStartTime.millisecondsSinceEpoch}ms');
 
   // 🔴 Global error handler - catches all Flutter errors
   FlutterError.onError = (FlutterErrorDetails details) {
@@ -101,7 +103,8 @@ Future<void> main() async {
 
   // ⚡ PERFORMANCE: Log runApp timing
   final runAppStartTime = DateTime.now();
-  appLogger.info('⏱️ PERFORMANCE: runApp() called at ${runAppStartTime.millisecondsSinceEpoch}ms');
+  appLogger.info(
+      '⏱️ PERFORMANCE: runApp() called at ${runAppStartTime.millisecondsSinceEpoch}ms');
 
   // 🔍 MEMORY LEAK TRACKING: Wrap app in debug mode to monitor controller disposal
   final app = MyApp(languages: languages);
@@ -115,8 +118,10 @@ Future<void> main() async {
   // Note: runApp() is synchronous but rendering happens asynchronously
   // First frame timing is logged in MultiModuleHomeScreen.initState
   final runAppEndTime = DateTime.now();
-  final runAppDuration = runAppEndTime.difference(runAppStartTime).inMilliseconds;
-  appLogger.info('⏱️ PERFORMANCE: runApp() call completed in ${runAppDuration}ms (rendering happens asynchronously)');
+  final runAppDuration =
+      runAppEndTime.difference(runAppStartTime).inMilliseconds;
+  appLogger.info(
+      '⏱️ PERFORMANCE: runApp() call completed in ${runAppDuration}ms (rendering happens asynchronously)');
 
   // ⚡ CRITICAL: Initialize heavy services AFTER first frame renders
   WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -148,7 +153,8 @@ Future<void> _initializeHeavyServices() async {
 
   _heavyServicesInitialized = true;
   final heavyInitStartTime = DateTime.now();
-  appLogger.info('⏱️ PERFORMANCE: Heavy initializations started at ${heavyInitStartTime.millisecondsSinceEpoch}ms (after first frame)');
+  appLogger.info(
+      '⏱️ PERFORMANCE: Heavy initializations started at ${heavyInitStartTime.millisecondsSinceEpoch}ms (after first frame)');
 
   try {
     // ⚡ STAGE 1: Critical services (Firebase must be first)
@@ -169,8 +175,10 @@ Future<void> _initializeHeavyServices() async {
     _initializeNonCriticalServices();
 
     final heavyInitEndTime = DateTime.now();
-    final heavyInitDuration = heavyInitEndTime.difference(heavyInitStartTime).inMilliseconds;
-    appLogger.info('⏱️ PERFORMANCE: Heavy initializations completed in ${heavyInitDuration}ms');
+    final heavyInitDuration =
+        heavyInitEndTime.difference(heavyInitStartTime).inMilliseconds;
+    appLogger.info(
+        '⏱️ PERFORMANCE: Heavy initializations completed in ${heavyInitDuration}ms');
   } catch (e, stackTrace) {
     if (kDebugMode) {
       debugPrint('❌ Initialization error (after first frame): $e');
@@ -179,8 +187,12 @@ Future<void> _initializeHeavyServices() async {
     appLogger.error('❌ Heavy initialization error', e, stackTrace);
 
     // Continue app launch even if some services fail
-    if (e.toString().contains('Firebase') || e.toString().contains('core/no-app')) {
-      if (kDebugMode) debugPrint('⚠️ Firebase initialization failed - some features may not work');
+    if (e.toString().contains('Firebase') ||
+        e.toString().contains('core/no-app')) {
+      if (kDebugMode) {
+        debugPrint(
+            '⚠️ Firebase initialization failed - some features may not work');
+      }
     }
   }
 }
@@ -265,6 +277,7 @@ class MyApp extends StatefulWidget {
 class _MyAppState extends State<MyApp> {
   String? _lastLoggedRoute;
   DateTime? _lastRouteLoggedAt;
+  BuildContext? _appContext; // 🔧 FIX: Store context from build method
 
   @override
   void initState() {
@@ -307,21 +320,17 @@ class _MyAppState extends State<MyApp> {
           }
         }
 
-        // ⚡ Load config data in background after first frame
-        WidgetsBinding.instance.addPostFrameCallback((_) async {
-          final context = Get.context;
-          if (context != null) {
-            await Get.find<SplashController>().getConfigData(
-              context,
-              loadLandingData: (GetPlatform.isWeb && address == null),
-              fromMainFunction: true,
-            );
-          }
-        });
+        // ⚡ Load config data will be called from routingCallback when GetMaterialApp is ready
+        // This ensures context is available and GetMaterialApp is fully initialized
+        if (kDebugMode) {
+          debugPrint(
+              '🌐 Web: getConfigData will be called from routingCallback when app is ready');
+        }
       } else {
         // For mobile platforms (Android/iOS) - check for updates
         if (kDebugMode) {
-          debugPrint('📱 Platform detected: ${GetPlatform.isAndroid ? 'Android' : 'iOS'}');
+          debugPrint(
+              '📱 Platform detected: ${GetPlatform.isAndroid ? 'Android' : 'iOS'}');
           debugPrint('🔄 Update checking handled by splash route helper');
         }
       }
@@ -377,6 +386,29 @@ class _MyAppState extends State<MyApp> {
     return GetMaterialApp(
       enableLog: false, // Disable GetX verbose logging
       routingCallback: (routing) {
+        // 🔧 FIX: On web, call getConfigData when first route is ready
+        if (GetPlatform.isWeb &&
+            routing?.current != null &&
+            _appContext != null) {
+          final context = _appContext;
+          if (context != null && context.mounted) {
+            // Only call once when app first loads
+            if (splashController.configModel == null) {
+              if (kDebugMode) {
+                debugPrint(
+                    '🌐 Web: Calling getConfigData from routingCallback');
+              }
+              Get.find<SplashController>().getConfigData(
+                context,
+                loadLandingData: (GetPlatform.isWeb &&
+                    AddressHelper.getUserAddressFromSharedPref() == null),
+                fromMainFunction: true,
+                shouldRoute: true,
+              );
+            }
+          }
+        }
+
         // ✅ PROFESSIONAL ROUTE LOGGING: Track all route changes for debugging
         final routeName = routing?.current;
         final previousRoute = routing?.previous;
@@ -388,10 +420,9 @@ class _MyAppState extends State<MyApp> {
           }
 
           final DateTime now = DateTime.now();
-          final bool shouldLog =
-              _lastLoggedRoute != routeName ||
-                  _lastRouteLoggedAt == null ||
-                  now.difference(_lastRouteLoggedAt!).inMilliseconds > 300;
+          final bool shouldLog = _lastLoggedRoute != routeName ||
+              _lastRouteLoggedAt == null ||
+              now.difference(_lastRouteLoggedAt!).inMilliseconds > 300;
 
           _lastLoggedRoute = routeName;
           _lastRouteLoggedAt = now;
@@ -415,7 +446,8 @@ class _MyAppState extends State<MyApp> {
           if (kDebugMode) {
             Future.delayed(const Duration(seconds: 5), () {
               // Check if controllers from previous route are still alive
-              debugPrint('🔍 LeakTracker: Checking for leaked controllers after route: $routeName');
+              debugPrint(
+                  '🔍 LeakTracker: Checking for leaked controllers after route: $routeName');
             });
           }
         }

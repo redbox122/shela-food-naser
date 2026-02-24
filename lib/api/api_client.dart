@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:get/get_connect/http/src/request/request.dart';
@@ -22,6 +23,7 @@ import 'package:dio/dio.dart' hide Response, FormData, MultipartFile;
 import 'package:sixam_mart/util/environment_config.dart';
 import 'package:sixam_mart/common/utils/app_logger.dart';
 import 'package:sixam_mart/core/cache/hive_home_cache_service.dart';
+import 'package:sixam_mart/core/cache/etag_scope_key_builder.dart';
 import 'package:sixam_mart/features/splash/controllers/splash_controller.dart';
 import 'package:sixam_mart/helper/date_converter.dart';
 
@@ -41,6 +43,7 @@ class ApiClient extends GetxService {
 
   // ETag storage for conditional requests
   static const String _etagPrefix = 'etag_';
+  Completer<void>? _contextSyncCompleter;
 
   ApiClient({required this.appBaseUrl, required this.sharedPreferences}) {
     _initializeSecureServices();
@@ -51,9 +54,11 @@ class ApiClient extends GetxService {
           jsonDecode(sharedPreferences.getString(AppConstants.userAddress)!)
               as Map<String, dynamic>);
     } catch (_) {}
+    // MOBILE-MODULE-ID FIX: Read saved moduleId on ALL platforms (not just web).
+    // Without this, every cold start on Android/iOS fires API calls with
+    // module-id=null until resolveInitialModule or _ensureApiHeadersUpdated runs.
     int? moduleID;
-    if (GetPlatform.isWeb &&
-        sharedPreferences.containsKey(AppConstants.moduleId)) {
+    if (sharedPreferences.containsKey(AppConstants.moduleId)) {
       try {
         moduleID = ModuleModel.fromJson(
                 jsonDecode(sharedPreferences.getString(AppConstants.moduleId)!)
@@ -95,9 +100,9 @@ class ApiClient extends GetxService {
               jsonDecode(sharedPreferences.getString(AppConstants.userAddress)!)
                   as Map<String, dynamic>);
         } catch (_) {}
+        // MOBILE-MODULE-ID FIX: Read saved moduleId on ALL platforms.
         int? moduleID;
-        if (GetPlatform.isWeb &&
-            sharedPreferences.containsKey(AppConstants.moduleId)) {
+        if (sharedPreferences.containsKey(AppConstants.moduleId)) {
           try {
             moduleID = ModuleModel.fromJson(jsonDecode(
                         sharedPreferences.getString(AppConstants.moduleId)!)
@@ -133,9 +138,9 @@ class ApiClient extends GetxService {
               jsonDecode(sharedPreferences.getString(AppConstants.userAddress)!)
                   as Map<String, dynamic>);
         } catch (_) {}
+        // MOBILE-MODULE-ID FIX: Read saved moduleId on ALL platforms.
         int? moduleID;
-        if (GetPlatform.isWeb &&
-            sharedPreferences.containsKey(AppConstants.moduleId)) {
+        if (sharedPreferences.containsKey(AppConstants.moduleId)) {
           try {
             moduleID = ModuleModel.fromJson(jsonDecode(
                         sharedPreferences.getString(AppConstants.moduleId)!)
@@ -180,6 +185,16 @@ class ApiClient extends GetxService {
 
   /// Initialize secure services
   Future<void> _initializeSecureServices() async {
+    // ⚠️ WEB FIX: تعطيل Secure Client على الويب
+    // Certificate pinning لا يعمل على الويب، والـ headers تسبب مشاكل CORS
+    if (kIsWeb) {
+      if (kDebugMode) {
+        debugPrint('⚠️ Secure HTTP Client disabled on web platform (CORS and certificate pinning issues)');
+      }
+      _useSecureClient = false;
+      return;
+    }
+
     // Only initialize secure services for production environment
     if (!EnvironmentConfig.useSecureHttpClient) {
       return;
@@ -249,6 +264,7 @@ class ApiClient extends GetxService {
       {bool setHeader = true,
       String? responseMode}) {
     final Map<String, String> header = {};
+    String? resolvedModuleId;
 
     // Ensure we have valid zone IDs - no defaults (backend is source of truth)
     List<int> validZoneIDs = zoneIDs ?? <int>[];
@@ -270,9 +286,10 @@ class ApiClient extends GetxService {
 
     if (moduleID != null ||
         sharedPreferences.getString(AppConstants.cacheModuleId) != null) {
+      resolvedModuleId =
+          '${moduleID ?? ModuleModel.fromJson(jsonDecode(sharedPreferences.getString(AppConstants.cacheModuleId)!) as Map<String, dynamic>).id}';
       header.addAll({
-        AppConstants.moduleId:
-            '${moduleID ?? ModuleModel.fromJson(jsonDecode(sharedPreferences.getString(AppConstants.cacheModuleId)!) as Map<String, dynamic>).id}'
+        AppConstants.moduleId: resolvedModuleId
       });
     }
 
@@ -305,9 +322,29 @@ class ApiClient extends GetxService {
     }
 
     if (setHeader) {
+      _addHeaderAliases(header, resolvedModuleId: resolvedModuleId);
       _mainHeaders = header;
+    } else {
+      _addHeaderAliases(header, resolvedModuleId: resolvedModuleId);
     }
     return header;
+  }
+
+  void _addHeaderAliases(Map<String, String> header,
+      {String? resolvedModuleId}) {
+    final String? moduleValue = resolvedModuleId ??
+        header[AppConstants.moduleId] ??
+        header['module-id'];
+    if (_isValidHeaderValue(moduleValue)) {
+      header[AppConstants.moduleId] = moduleValue!;
+      header['module-id'] = moduleValue;
+    }
+
+    final String? zoneValue = header[AppConstants.zoneId] ?? header['zone-id'];
+    if (_isValidZoneHeaderValue(zoneValue)) {
+      header[AppConstants.zoneId] = zoneValue!;
+      header['zone-id'] = zoneValue;
+    }
   }
 
   Map<String, String> getHeader() => _mainHeaders;
@@ -345,6 +382,163 @@ class ApiClient extends GetxService {
       '/api/v1/popular-stores',
     ];
     return homeStorePaths.any((path) => uri.contains(path));
+  }
+
+  bool _isValidHeaderValue(String? value) {
+    if (value == null) return false;
+    final normalized = value.trim().toLowerCase();
+    return normalized.isNotEmpty && normalized != 'null';
+  }
+
+  bool _isValidZoneHeaderValue(String? zoneHeaderValue) {
+    if (!_isValidHeaderValue(zoneHeaderValue)) {
+      return false;
+    }
+
+    final normalized = zoneHeaderValue!.trim();
+    if (normalized == '[]') {
+      return false;
+    }
+
+    try {
+      final decoded = jsonDecode(normalized);
+      if (decoded is List) {
+        return decoded.isNotEmpty;
+      }
+    } catch (_) {
+      // If backend/client sent non-JSON zone-id, keep old behavior and accept non-empty value.
+    }
+    return true;
+  }
+
+  /// Public guard: can be used by controllers before triggering Home/Store load.
+  bool hasValidHomeHeaders({Map<String, String>? headers}) {
+    final Map<String, String> effectiveHeaders = headers ?? _mainHeaders;
+    return _isValidHeaderValue(effectiveHeaders[AppConstants.moduleId]) &&
+        _isValidZoneHeaderValue(effectiveHeaders[AppConstants.zoneId]);
+  }
+
+  void _hydrateHomeHeadersFromAppContext(
+      String uri, Map<String, String> headers) {
+    if (!_isHomeOrStoreApi(uri)) return;
+
+    if (!_isValidHeaderValue(headers[AppConstants.moduleId])) {
+      int? moduleId;
+      try {
+        if (Get.isRegistered<SplashController>()) {
+          final splashController = Get.find<SplashController>();
+          moduleId = splashController.selectedModule.value?.id ??
+              splashController.module?.id ??
+              splashController.getDefaultModuleId();
+        }
+      } catch (_) {}
+
+      if (moduleId == null) {
+        try {
+          final cachedModuleId =
+              sharedPreferences.getString(AppConstants.cacheModuleId);
+          if (cachedModuleId != null) {
+            final moduleModel = ModuleModel.fromJson(
+                jsonDecode(cachedModuleId) as Map<String, dynamic>);
+            moduleId = moduleModel.id;
+          }
+        } catch (_) {}
+      }
+
+      if (moduleId != null) {
+        headers[AppConstants.moduleId] = moduleId.toString();
+      }
+    }
+
+    if (!_isValidZoneHeaderValue(headers[AppConstants.zoneId])) {
+      try {
+        final addressModel = AddressHelper.getUserAddressFromSharedPref();
+        final zoneIds = addressModel?.zoneIds;
+        if (zoneIds != null && zoneIds.isNotEmpty) {
+          headers[AppConstants.zoneId] = jsonEncode(zoneIds);
+        }
+      } catch (_) {}
+    }
+  }
+
+  Future<void> _awaitContextSyncOnce(
+      String uri, Map<String, String> headers) async {
+    if (!_isHomeOrStoreApi(uri)) return;
+
+    if (_contextSyncCompleter != null) {
+      await _contextSyncCompleter!.future;
+      return;
+    }
+
+    _contextSyncCompleter = Completer<void>();
+    try {
+      if (Get.isRegistered<SplashController>()) {
+        try {
+          await Get.find<SplashController>()
+              .ensureModuleReady()
+              .timeout(const Duration(seconds: 2));
+        } catch (_) {}
+      }
+
+      // Give a small window for address/module writes racing from other controllers.
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+      _hydrateHomeHeadersFromAppContext(uri, headers);
+    } finally {
+      _contextSyncCompleter?.complete();
+      _contextSyncCompleter = null;
+    }
+  }
+
+  Future<Response<dynamic>?> _ensureHomeHeadersOrBlock(
+      String uri, Map<String, String> headers,
+      {required String method}) async {
+    if (!_isHomeOrStoreApi(uri)) return null;
+    bool syncAttempted = false;
+
+    _hydrateHomeHeadersFromAppContext(uri, headers);
+    if (hasValidHomeHeaders(headers: headers)) {
+      return null;
+    }
+
+    syncAttempted = true;
+    await _awaitContextSyncOnce(uri, headers);
+    if (hasValidHomeHeaders(headers: headers)) {
+      return null;
+    }
+
+    return _blockIfInvalidHomeHeaders(
+      uri,
+      headers,
+      method: method,
+      syncAttempted: syncAttempted,
+    );
+  }
+
+  Response<dynamic>? _blockIfInvalidHomeHeaders(
+      String uri, Map<String, String> headers,
+      {required String method, required bool syncAttempted}) {
+    if (!_isHomeOrStoreApi(uri)) return null;
+
+    final String? moduleId = headers[AppConstants.moduleId];
+    final String? zoneId = headers[AppConstants.zoneId];
+    if (kDebugMode) {
+      debugPrint(
+          '[HeaderGuard] blocked | syncAttempted=$syncAttempted | module=$moduleId | zone=$zoneId | path=$uri');
+    }
+    appLogger.warning(
+        'ApiClient: $method $uri blocked - invalid home headers '
+        '(module-id=$moduleId, zone-id=$zoneId)');
+
+    return Response(
+      statusCode: 428,
+      statusText: 'home_headers_invalid',
+      body: <String, dynamic>{
+        'message': 'Home request blocked - missing module-id or zone-id',
+        'code': 'home_headers_invalid',
+        'module-id': moduleId,
+        'zone-id': zoneId,
+      },
+    );
   }
 
   /// Check if an API is public (no auth required)
@@ -409,6 +603,7 @@ class ApiClient extends GetxService {
       if (headers != null) {
         finalHeaders.addAll(headers); // Custom headers override defaults
       }
+      _addHeaderAliases(finalHeaders);
       if (!useEtag) {
         // Signal SecureHttpClient to skip ETag for this request
         finalHeaders['X-Disable-ETag'] = 'true';
@@ -492,6 +687,12 @@ class ApiClient extends GetxService {
         }
       }
 
+      final blockedResponse = await _ensureHomeHeadersOrBlock(uri, finalHeaders,
+          method: 'GET');
+      if (blockedResponse != null) {
+        return blockedResponse;
+      }
+
       // Attach requestId to headers for tracing across layers & backend
       finalHeaders['X-Request-ID'] = effectiveRequestId;
 
@@ -524,7 +725,7 @@ class ApiClient extends GetxService {
       if (useEtag &&
           !finalHeaders.containsKey('If-None-Match') &&
           !canUseSecureClient) {
-        final storedEtag = await _getStoredEtag(uri);
+        final storedEtag = await _getStoredEtag(uri, headers: finalHeaders);
         if (storedEtag != null) {
           finalHeaders['If-None-Match'] = storedEtag;
         }
@@ -567,7 +768,7 @@ class ApiClient extends GetxService {
                 response.headers.value('ETag');
             if (etag != null) {
               // Interceptor already stored it, but double-check won't hurt
-              await _storeEtag(uri, etag);
+              await _storeEtag(uri, etag, headers: finalHeaders);
             }
           }
 
@@ -653,6 +854,18 @@ class ApiClient extends GetxService {
         }
       }
 
+      // ⚠️ WEB FIX: إزالة الـ headers التي تسبب مشاكل CORS على الويب
+      if (kIsWeb) {
+        // على الويب، نزيل الـ headers التي قد تسبب مشاكل CORS
+        finalHeaders.remove('X-Requested-With');
+        finalHeaders.remove('X-Frame-Options');
+        finalHeaders.remove('Strict-Transport-Security');
+        // نحتفظ فقط بالـ headers الأساسية
+        if (!finalHeaders.containsKey('Content-Type')) {
+          finalHeaders['Content-Type'] = 'application/json; charset=UTF-8';
+        }
+      }
+
       if (kDebugMode) {
         final String fallbackMode =
             itemsFallbackOnlyMode ? 'fallback-only' : 'fallback';
@@ -661,7 +874,7 @@ class ApiClient extends GetxService {
                 ? 120
                 : timeoutInSeconds;
         appLogger.debug(
-            '[ApiClient] FALLBACK START | requestId=$effectiveRequestId | uri=$fullUri | mode=$fallbackMode | timeout=${previewTimeoutSeconds}s | hasAuth=${finalHeaders.containsKey('Authorization')} | public=$isPublicApi');
+            '[ApiClient] FALLBACK START | requestId=$effectiveRequestId | uri=$fullUri | mode=$fallbackMode | timeout=${previewTimeoutSeconds}s | hasAuth=${finalHeaders.containsKey('Authorization')} | public=$isPublicApi | isWeb=$kIsWeb');
       }
 
       final int effectiveTimeoutSeconds =
@@ -680,7 +893,7 @@ class ApiClient extends GetxService {
       if (useEtag && response.statusCode == 200) {
         final etag = response.headers['etag'] ?? response.headers['ETag'];
         if (etag != null) {
-          await _storeEtag(uri, etag);
+          await _storeEtag(uri, etag, headers: finalHeaders);
         }
       }
 
@@ -735,6 +948,16 @@ class ApiClient extends GetxService {
       if (kDebugMode) {
         appLogger.error(
             '[ApiClient] FALLBACK ERROR | requestId=${requestId ?? 'n/a'} | uri=$fullUriOnError | error=$e');
+        
+        // ⚠️ WEB FIX: معلومات إضافية للأخطاء على الويب
+        if (kIsWeb) {
+          appLogger.error(
+              '[ApiClient] WEB ERROR DETAILS | This might be a CORS issue. Check:');
+          appLogger.error('   1. Server CORS configuration');
+          appLogger.error('   2. SSL Certificate validity');
+          appLogger.error('   3. Base URL: $appBaseUrl');
+          appLogger.error('   4. Full URI: $fullUriOnError');
+        }
       }
 
       return Response(
@@ -755,6 +978,12 @@ class ApiClient extends GetxService {
           Map<String, String>.from(_mainHeaders);
       if (headers != null) {
         finalHeaders.addAll(headers); // Custom headers override defaults
+      }
+
+      final blockedResponse = await _ensureHomeHeadersOrBlock(uri, finalHeaders,
+          method: 'POST');
+      if (blockedResponse != null) {
+        return blockedResponse;
       }
 
       // Log API call start with full details
@@ -859,6 +1088,12 @@ class ApiClient extends GetxService {
         finalHeaders.addAll(headers);
       }
 
+      final blockedResponse = await _ensureHomeHeadersOrBlock(uri, finalHeaders,
+          method: 'POST_MULTIPART');
+      if (blockedResponse != null) {
+        return blockedResponse;
+      }
+
       // Use secure client if available, otherwise fallback to standard HTTP
       if (_useSecureClient) {
         try {
@@ -933,6 +1168,15 @@ class ApiClient extends GetxService {
       }
       
       // 🔥 مهم: إزالة Content-Type header للسماح لـ dio بضبطه تلقائياً
+      final Map<String, String> guardHeaders =
+          finalHeaders.map((key, value) => MapEntry(key, value.toString()));
+      final blockedResponse = await _ensureHomeHeadersOrBlock(uri, guardHeaders,
+          method: 'POST_FORM_DATA');
+      if (blockedResponse != null) {
+        return blockedResponse;
+      }
+      finalHeaders.addAll(guardHeaders);
+
       finalHeaders.remove('Content-Type');
       debugPrint('\x1B[35m - Content-Type removed (will be set by dio)\x1B[0m');
       
@@ -1139,6 +1383,12 @@ class ApiClient extends GetxService {
         finalHeaders.addAll(headers);
       }
 
+      final blockedResponse = await _ensureHomeHeadersOrBlock(uri, finalHeaders,
+          method: 'PUT');
+      if (blockedResponse != null) {
+        return blockedResponse;
+      }
+
       // Log API call start
       appLogger.logApiCallStart('PUT', uri, headers: finalHeaders);
       if (body != null) {
@@ -1235,6 +1485,12 @@ class ApiClient extends GetxService {
           Map<String, String>.from(_mainHeaders);
       if (headers != null) {
         finalHeaders.addAll(headers);
+      }
+
+      final blockedResponse = await _ensureHomeHeadersOrBlock(uri, finalHeaders,
+          method: 'DELETE');
+      if (blockedResponse != null) {
+        return blockedResponse;
       }
 
       // Log API call start
@@ -1411,11 +1667,14 @@ class ApiClient extends GetxService {
 
   /// Get stored ETag for an endpoint
   /// ⚡ TASK 3: Migrated from SharedPreferences to Hive app_config box
-  Future<String?> _getStoredEtag(String uri) async {
+  Future<String?> _getStoredEtag(String uri,
+      {Map<String, String>? headers}) async {
     try {
       // ⚡ TASK 3: Use Hive app_config box for ETag storage
       final cacheService = HiveHomeCacheService();
-      return await cacheService.getEtag(uri);
+      final scopedUri =
+          EtagScopeKeyBuilder.buildScopedUri(uri, headers: headers);
+      return await cacheService.getEtag(scopedUri);
     } catch (e) {
       if (kDebugMode) {
         debugPrint('❌ ApiClient: Error getting stored ETag: $e');
@@ -1426,11 +1685,14 @@ class ApiClient extends GetxService {
 
   /// Store ETag for an endpoint
   /// ⚡ TASK 3: Migrated from SharedPreferences to Hive app_config box
-  Future<void> _storeEtag(String uri, String etag) async {
+  Future<void> _storeEtag(String uri, String etag,
+      {Map<String, String>? headers}) async {
     try {
       // ⚡ TASK 3: Use Hive app_config box for ETag storage
       final cacheService = HiveHomeCacheService();
-      await cacheService.saveEtag(uri, etag);
+      final scopedUri =
+          EtagScopeKeyBuilder.buildScopedUri(uri, headers: headers);
+      await cacheService.saveEtag(scopedUri, etag);
     } catch (e) {
       if (kDebugMode) {
         debugPrint('❌ ApiClient: Error storing ETag: $e');

@@ -9,6 +9,8 @@ import 'package:sixam_mart/features/splash/controllers/splash_controller.dart';
 import 'package:sixam_mart/features/auth/controllers/auth_controller.dart';
 import 'package:sixam_mart/features/verification/controllers/verification_controller.dart';
 import 'package:sixam_mart/features/verification/screens/new_pass_screen.dart';
+import 'package:sixam_mart/features/checkout/widgets/checkout_loading_dialog.dart';
+import 'package:sixam_mart/helper/admin_otp_bypass_helper.dart';
 import 'package:sixam_mart/helper/responsive_helper.dart';
 import 'package:sixam_mart/helper/route_helper.dart';
 import 'package:sixam_mart/util/dimensions.dart';
@@ -30,7 +32,9 @@ class VerificationScreen extends StatefulWidget {
   final String loginType;
   final String? firebaseSession;
   final bool fromForgetPassword;
+  final bool fromLogin2fa;
   final UpdateUserModel? userModel;
+  final String? nextPage;
   const VerificationScreen(
       {super.key,
       required this.number,
@@ -41,7 +45,9 @@ class VerificationScreen extends StatefulWidget {
       required this.loginType,
       this.firebaseSession,
       required this.fromForgetPassword,
-      this.userModel});
+      this.fromLogin2fa = false,
+      this.userModel,
+      this.nextPage});
 
   @override
   VerificationScreenState createState() => VerificationScreenState();
@@ -58,9 +64,16 @@ class VerificationScreenState extends State<VerificationScreen> {
   void initState() {
     super.initState();
 
-    Get.find<VerificationController>().updateVerificationCode('', canUpdate: false);
+    Get.find<VerificationController>()
+        .updateVerificationCode('', canUpdate: false);
     if (widget.number != null) {
-      _number = widget.number!.startsWith('+') ? widget.number : '+${widget.number!.substring(1, widget.number!.length)}';
+      _number = widget.number!.startsWith('+')
+          ? widget.number
+          : '+${widget.number!.substring(1, widget.number!.length)}';
+    }
+    if (widget.fromLogin2fa && AdminOtpBypassHelper.isBypassPhone(_number)) {
+      Get.find<VerificationController>()
+          .updateVerificationCode(AdminOtpBypassHelper.fixedOtp);
     }
     _email = widget.email;
     _startTimer();
@@ -78,6 +91,29 @@ class VerificationScreenState extends State<VerificationScreen> {
     });
   }
 
+  void _navigateAfterLoginOtpSuccess() {
+    dismissCheckoutLoadingDialogSafely();
+    if (Get.isDialogOpen ?? false) {
+      Get.back<void>(closeOverlays: true);
+    }
+
+    String? next = widget.nextPage;
+    if (next == null || next.isEmpty) {
+      final Uri? previousUri = Uri.tryParse(Get.previousRoute);
+      final String? previousPage = previousUri?.queryParameters['page'];
+      if (previousPage != null && previousPage.isNotEmpty) {
+        next = previousPage;
+      }
+    }
+
+    if (next != null && next.isNotEmpty) {
+      Get.offAllNamed(next);
+      return;
+    }
+
+    Get.offAllNamed(RouteHelper.getMainRoute('home'));
+  }
+
   @override
   void dispose() {
     super.dispose();
@@ -90,9 +126,14 @@ class VerificationScreenState extends State<VerificationScreen> {
     final bool isDesktop = ResponsiveHelper.isDesktop(context);
     const double borderWidth = 0.7;
     return Directionality(
-      textDirection: TextDirection.ltr, // هنا نحدد أن كل الصفحة من اليمين لليسار
+      textDirection: TextDirection.ltr, // Force LTR for OTP input layout
       child: Scaffold(
-        appBar: isDesktop ? null : CustomAppBar(title: _email != null ? 'email_verification'.tr : 'phone_verification'.tr),
+        appBar: isDesktop
+            ? null
+            : CustomAppBar(
+                title: _email != null
+                    ? 'email_verification'.tr
+                    : 'phone_verification'.tr),
         backgroundColor: isDesktop ? Colors.transparent : null,
         body: SafeArea(
             child: Center(
@@ -103,24 +144,30 @@ class VerificationScreenState extends State<VerificationScreen> {
           child: Center(
               child: Container(
             width: context.width > 700 ? 500 : context.width,
-            padding: context.width > 700 ? const EdgeInsets.all(Dimensions.paddingSizeDefault) : null,
+            padding: context.width > 700
+                ? const EdgeInsets.all(Dimensions.paddingSizeDefault)
+                : null,
             decoration: context.width > 700
                 ? BoxDecoration(
                     color: Theme.of(context).cardColor,
                     borderRadius: BorderRadius.circular(Dimensions.radiusSmall),
                   )
                 : null,
-            child: GetBuilder<VerificationController>(builder: (verificationController) {
+            child: GetBuilder<VerificationController>(
+                builder: (verificationController) {
               return Column(children: [
                 isDesktop
                     ? Align(
                         alignment: Alignment.topRight,
-                        child: IconButton(onPressed: () => Get.back(), icon: const Icon(Icons.clear)),
+                        child: IconButton(
+                            onPressed: () => Get.back(),
+                            icon: const Icon(Icons.clear)),
                       )
                     : const SizedBox(),
                 isDesktop
                     ? Padding(
-                        padding: const EdgeInsets.only(bottom: Dimensions.paddingSizeLarge),
+                        padding: const EdgeInsets.only(
+                            bottom: Dimensions.paddingSizeLarge),
                         child: Text(
                           'otp_verification'.tr,
                           style: robotoRegular,
@@ -147,10 +194,16 @@ class VerificationScreenState extends State<VerificationScreen> {
                               text: TextSpan(children: [
                                 TextSpan(
                                     text: 'we_have_a_verification_code'.tr,
-                                    style: robotoRegular.copyWith(color: Theme.of(context).disabledColor)),
+                                    style: robotoRegular.copyWith(
+                                        color:
+                                            Theme.of(context).disabledColor)),
                                 TextSpan(
                                     text: ' ${_email ?? _number}',
-                                    style: robotoMedium.copyWith(color: Theme.of(context).textTheme.bodyLarge!.color)),
+                                    style: robotoMedium.copyWith(
+                                        color: Theme.of(context)
+                                            .textTheme
+                                            .bodyLarge!
+                                            .color)),
                               ]),
                               textAlign: TextAlign.center,
                             ),
@@ -158,7 +211,11 @@ class VerificationScreenState extends State<VerificationScreen> {
                         ),
                       ),
                 Padding(
-                  padding: EdgeInsets.symmetric(horizontal: context.width > 850 ? 50 : Dimensions.paddingSizeDefault, vertical: 35),
+                  padding: EdgeInsets.symmetric(
+                      horizontal: context.width > 850
+                          ? 50
+                          : Dimensions.paddingSizeDefault,
+                      vertical: 35),
                   child: PinCodeTextField(
                     length: 6,
                     appContext: context,
@@ -168,11 +225,14 @@ class VerificationScreenState extends State<VerificationScreen> {
                       fieldHeight: 60,
                       fieldWidth: 50,
                       borderWidth: borderWidth,
-                      borderRadius: BorderRadius.circular(Dimensions.radiusDefault),
+                      borderRadius:
+                          BorderRadius.circular(Dimensions.radiusDefault),
                       selectedColor: Theme.of(context).primaryColor,
                       selectedFillColor: Colors.white,
                       inactiveFillColor: Theme.of(context).cardColor,
-                      inactiveColor: Theme.of(context).disabledColor.withValues(alpha: 0.6),
+                      inactiveColor: Theme.of(context)
+                          .disabledColor
+                          .withValues(alpha: 0.6),
                       activeColor: Theme.of(context).disabledColor,
                       activeFillColor: Theme.of(context).cardColor,
                       inactiveBorderWidth: borderWidth,
@@ -191,14 +251,20 @@ class VerificationScreenState extends State<VerificationScreen> {
                 const SizedBox(height: Dimensions.paddingSizeExtraLarge),
                 GetBuilder<ProfileController>(builder: (profileController) {
                   return Padding(
-                    padding: EdgeInsets.symmetric(horizontal: isDesktop ? 32 : Dimensions.paddingSizeSmall),
+                    padding: EdgeInsets.symmetric(
+                        horizontal:
+                            isDesktop ? 32 : Dimensions.paddingSizeSmall),
                     child: CustomButton(
                       buttonText: 'verify'.tr,
-                      isLoading: verificationController.isLoading || profileController.isLoading,
-                      onPressed: verificationController.verificationCode.length < 6
+                      isLoading: verificationController.isLoading ||
+                          profileController.isLoading,
+                      onPressed: verificationController
+                                  .verificationCode.length <
+                              6
                           ? null
                           : () {
-                              if (widget.firebaseSession != null && widget.userModel == null) {
+                              if (widget.firebaseSession != null &&
+                                  widget.userModel == null) {
                                 verificationController
                                     .verifyFirebaseOtp(
                                   phoneNumber: _number!,
@@ -207,47 +273,109 @@ class VerificationScreenState extends State<VerificationScreen> {
                                   otp: verificationController.verificationCode,
                                   token: widget.token,
                                   isForgetPassPage: widget.fromForgetPassword,
-                                  isSignUpPage: widget.loginType == CentralizeLoginType.otp.name ? false : true,
+                                  isSignUpPage: widget.loginType ==
+                                          CentralizeLoginType.otp.name
+                                      ? false
+                                      : true,
                                 )
                                     .then((value) {
                                   if (value.isSuccess) {
-                                    _handleVerifyResponse(value, _number, _email);
+                                    _handleVerifyResponse(
+                                        value, _number, _email);
                                   } else {
                                     showCustomSnackBar(value.message);
                                   }
                                 });
                               } else if (widget.userModel != null) {
-                                widget.userModel!.otp = verificationController.verificationCode;
-                                Get.find<ProfileController>()
-                                    .updateUserInfo(widget.userModel!, Get.find<AuthController>().getUserToken(), fromButton: true);
+                                widget.userModel!.otp =
+                                    verificationController.verificationCode;
+                                Get.find<ProfileController>().updateUserInfo(
+                                    widget.userModel!,
+                                    Get.find<AuthController>().getUserToken(),
+                                    fromButton: true);
                               } else if (widget.fromSignUp) {
-                                //
-
-                                verificationController.verifyPhone(_number!, verificationController.verificationCode).then((value) {
-                                  if (value.isSuccess) {
-                                    _handleVerifyResponse(value, _number, _email);
+                                if (widget.loginType ==
+                                    CentralizeLoginType.otp.name) {
+                                  Get.find<AuthController>()
+                                      .otpLogin(
+                                    phone: _number!,
+                                    otp:
+                                        verificationController.verificationCode,
+                                    loginType: widget.loginType,
+                                    verified: '',
+                                  )
+                                      .then((value) {
+                                    if (value.isSuccess) {
+                                      _navigateAfterLoginOtpSuccess();
+                                    } else {
+                                      showCustomSnackBar('Invalid code');
+                                    }
+                                  });
+                                } else {
+                                  verificationController
+                                      .verifyPhone(
+                                          _number!,
+                                          verificationController
+                                              .verificationCode)
+                                      .then((value) {
+                                    if (value.isSuccess) {
+                                      _handleVerifyResponse(
+                                          value, _number, _email);
+                                    } else {
+                                      showCustomSnackBar('Invalid code');
+                                    }
+                                  });
+                                }
+                              } else if (widget.fromLogin2fa) {
+                                if (AdminOtpBypassHelper.isBypassPhone(
+                                        _number) &&
+                                    verificationController.verificationCode !=
+                                        AdminOtpBypassHelper.fixedOtp) {
+                                  showCustomSnackBar(
+                                      'Admin number uses fixed code: ${AdminOtpBypassHelper.fixedOtp}');
+                                  return;
+                                }
+                                Get.find<AuthController>()
+                                    .verifyLoginOtp(
+                                  phone: _number!,
+                                  otp: verificationController.verificationCode,
+                                )
+                                    .then((value) {
+                                  final token =
+                                      value.authResponseModel?.token ?? '';
+                                  if (value.isSuccess && token.isNotEmpty) {
+                                    _navigateAfterLoginOtpSuccess();
                                   } else {
-                                    showCustomSnackBar('تحقق من الرمز المرسل');
+                                    showCustomSnackBar('Login not completed');
                                   }
                                 });
                               } else {
-                                verificationController.verifyToken(_number).then((value) {
+                                verificationController
+                                    .verifyToken(_number)
+                                    .then((value) {
                                   if (value.isSuccess) {
-                                    if (ResponsiveHelper.isDesktop(Get.context!)) {
+                                    if (ResponsiveHelper.isDesktop(
+                                        Get.context!)) {
                                       Get.dialog(Center(
                                           child: NewPassScreen(
-                                              resetToken: verificationController.verificationCode,
+                                              resetToken: verificationController
+                                                  .verificationCode,
                                               number: _number,
                                               fromPasswordChange: false,
                                               fromDialog: true)));
                                     } else {
-                                      debugPrint('\x1B[32m  /777777777  \x1B[0m');
+                                      debugPrint(
+                                          '\x1B[32m  /777777777  \x1B[0m');
 
-                                      Get.toNamed(RouteHelper.getResetPasswordRoute(
-                                          _number, verificationController.verificationCode, 'reset-password'));
+                                      Get.toNamed(
+                                          RouteHelper.getResetPasswordRoute(
+                                              _number,
+                                              verificationController
+                                                  .verificationCode,
+                                              'reset-password'));
                                     }
                                   } else {
-                                    showCustomSnackBar('قم بارسال رمز جديد');
+                                    showCustomSnackBar('Send a new code');
                                   }
                                 });
                               }
@@ -257,30 +385,39 @@ class VerificationScreenState extends State<VerificationScreen> {
                 }),
                 const SizedBox(height: Dimensions.paddingSizeDefault),
                 Padding(
-                  padding: EdgeInsets.symmetric(horizontal: isDesktop ? 29 : Dimensions.paddingSizeDefault),
-                  child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-                    Text(
-                      'did_not_receive_the_code'.tr,
-                      style: robotoRegular.copyWith(color: Theme.of(context).disabledColor),
-                    ),
-                    TextButton(
-                      onPressed: _seconds < 1
-                          ? () async {
-                              if (widget.firebaseSession != null) {
-                                await Get.find<AuthController>().firebaseVerifyPhoneNumber(_number!, widget.token, widget.loginType,
-                                    fromSignUp: widget.fromSignUp, canRoute: false);
-                                _startTimer();
-                              } else {
-                                _resendOtp();
-                              }
-                            }
-                          : null,
-                      child: Text(
-                        '${'resent_it'.tr}${_seconds > 0 ? ' (${_seconds}s)' : ''}',
-                        style: TextStyle(color: Theme.of(context).primaryColor),
-                      ),
-                    ),
-                  ]),
+                  padding: EdgeInsets.symmetric(
+                      horizontal:
+                          isDesktop ? 29 : Dimensions.paddingSizeDefault),
+                  child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'did_not_receive_the_code'.tr,
+                          style: robotoRegular.copyWith(
+                              color: Theme.of(context).disabledColor),
+                        ),
+                        TextButton(
+                          onPressed: _seconds < 1 && !widget.fromLogin2fa
+                              ? () async {
+                                  if (widget.firebaseSession != null) {
+                                    await Get.find<AuthController>()
+                                        .firebaseVerifyPhoneNumber(_number!,
+                                            widget.token, widget.loginType,
+                                            fromSignUp: widget.fromSignUp,
+                                            canRoute: false);
+                                    _startTimer();
+                                  } else {
+                                    _resendOtp();
+                                  }
+                                }
+                              : null,
+                          child: Text(
+                            '${'resent_it'.tr}${_seconds > 0 ? ' (${_seconds}s)' : ''}',
+                            style: TextStyle(
+                                color: Theme.of(context).primaryColor),
+                          ),
+                        ),
+                      ]),
                 ),
                 const SizedBox(height: Dimensions.paddingSizeLarge),
               ]);
@@ -291,10 +428,12 @@ class VerificationScreenState extends State<VerificationScreen> {
     );
   }
 
-  void _handleVerifyResponse(ResponseModel response, String? number, String? email) {
+  void _handleVerifyResponse(
+      ResponseModel response, String? number, String? email) {
     debugPrint('\x1B[32m  /${response.message}  \x1B[0m');
 
-    if (response.authResponseModel != null && response.authResponseModel!.isExistUser != null) {
+    if (response.authResponseModel != null &&
+        response.authResponseModel!.isExistUser != null) {
       if (ResponsiveHelper.isDesktop(context)) {
         Get.back();
         Get.dialog(Center(
@@ -315,10 +454,15 @@ class VerificationScreenState extends State<VerificationScreen> {
           otp: Get.find<VerificationController>().verificationCode,
         ));
       }
-    } else if (response.authResponseModel != null && !response.authResponseModel!.isPersonalInfo!) {
+    } else if (response.authResponseModel != null &&
+        !response.authResponseModel!.isPersonalInfo!) {
       if (ResponsiveHelper.isDesktop(context)) {
         Get.back();
-        Get.dialog(NewUserSetupScreen(name: '', loginType: widget.loginType, phone: number, email: email));
+        Get.dialog(NewUserSetupScreen(
+            name: '',
+            loginType: widget.loginType,
+            phone: number,
+            email: email));
       } else {
         // Get.offAllNamed(RouteHelper.getNewUserSetupScreen(name: '', loginType: widget.loginType, phone: number, email: email));
         // Get.offAllNamed(RouteHelper.getSuccsessfly_createdRoute());
@@ -338,29 +482,29 @@ class VerificationScreenState extends State<VerificationScreen> {
   }
 
   void _resendOtp() {
+    if (AdminOtpBypassHelper.isBypassPhone(_number)) {
+      showCustomSnackBar(
+          'Admin number: OTP sending is disabled, use ${AdminOtpBypassHelper.fixedOtp}',
+          isError: false);
+      return;
+    }
+    if (widget.fromLogin2fa) {
+      showCustomSnackBar('Resend is not available — please login again');
+      return;
+    }
     if (widget.userModel != null) {
-      Get.find<ProfileController>()
-          .updateUserInfo(widget.userModel!, Get.find<AuthController>().getUserToken(), fromVerification: true);
+      Get.find<ProfileController>().updateUserInfo(
+          widget.userModel!, Get.find<AuthController>().getUserToken(),
+          fromVerification: true);
     } else if (widget.fromSignUp) {
-      if (widget.loginType == CentralizeLoginType.otp.name) {
-        Get.find<AuthController>().otpLogin(phone: _number!, otp: '', loginType: widget.loginType, verified: '').then((response) {
-          if (response.isSuccess) {
-            _startTimer();
-            showCustomSnackBar('resend_code_successful'.tr, isError: false);
-          } else {
-            showCustomSnackBar(response.message);
-          }
-        });
-      } else {
-        Get.find<AuthController>().resend_Otp(phone: _number!).then((value) {
-          if (value.isSuccess) {
-            _startTimer();
-            showCustomSnackBar('resend_code_successful'.tr, isError: false);
-          } else {
-            showCustomSnackBar(value.message);
-          }
-        });
-      }
+      Get.find<AuthController>().resend_Otp(phone: _number!).then((value) {
+        if (value.isSuccess) {
+          _startTimer();
+          showCustomSnackBar('resend_code_successful'.tr, isError: false);
+        } else {
+          showCustomSnackBar(value.message);
+        }
+      });
     } else {
       Get.find<VerificationController>().forgetPassword(_number).then((value) {
         if (value.isSuccess) {

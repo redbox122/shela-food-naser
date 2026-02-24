@@ -21,7 +21,6 @@ class StoreFilterIntegrationExample extends StatelessWidget {
   void _showFilterBottomSheet(BuildContext context, StoreController controller) {
     // Get current filter state (you'll need to add this to StoreController)
     // TODO: Add activeFilters getter to StoreController
-    final currentFilters = StoreFilterHelper.getDefaultFilters();
 
     if (ResponsiveHelper.isDesktop(context)) {
       Get.dialog(
@@ -83,7 +82,7 @@ class StoreFilterIntegrationExample extends StatelessWidget {
     if (currentStores == null || (currentStores as List).isEmpty) return;
 
     // Apply filters using helper
-    final filteredStores = StoreFilterHelper.applyFilters(
+    StoreFilterHelper.applyFilters(
       stores: currentStores as List<Store>,
       sortBy: filters['sort'] as String?,
       minRating: filters['minRating'] is num ? (filters['minRating'] as num).toInt() : null,
@@ -142,7 +141,6 @@ class StoreFilterIntegrationExample extends StatelessWidget {
                 },
                 onClearAll: () {
                   // Clear all filters
-                  final defaultFilters = StoreFilterHelper.getDefaultFilters();
                   // TODO: Add updateFilters method to StoreController
                   // controller.updateFilters(defaultFilters);
                   

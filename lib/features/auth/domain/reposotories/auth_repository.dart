@@ -66,20 +66,38 @@ class AuthRepository implements AuthRepositoryInterface {
     final String guestId = getSharedPrefGuestId();
 
     final Map<String, String> data = {
-      'email_or_phone': emailOrPhone,
       'password': password,
       'login_type': loginType,
       'field_type': fieldType,
     };
+    if (fieldType == 'phone') {
+      data['phone'] = emailOrPhone;
+    } else {
+      data['email'] = emailOrPhone;
+    }
 
     if (_shouldAttachGuestId(guestId)) {
       data.addAll({'guest_id': guestId});
     }
-    print('$data data');
-    final Response response = await apiClient.postData(AppConstants.loginUri, data,
-        handleError: false);
+    return await apiClient.postData(
+      AppConstants.loginUri,
+      data,
+      handleError: false,
+    );
+  }
 
-    return response;
+  @override
+  Future<Response> verifyLoginOtp(
+      {required String phone, required String otp}) async {
+    final Map<String, String> data = {
+      'phone': phone,
+      'otp': otp,
+    };
+    return await apiClient.postData(
+      AppConstants.verifyLoginOtpUri,
+      data,
+      handleError: false,
+    );
   }
 
   @override
@@ -88,21 +106,13 @@ class AuthRepository implements AuthRepositoryInterface {
       required String otp,
       required String loginType,
       required String verified}) async {
-    final String guestId = getSharedPrefGuestId();
-    final Map<String, String> data = {
-      'phone': phone,
-      'login_type': loginType,
-    };
-    if (_shouldAttachGuestId(guestId)) {
-      data.addAll({'guest_id': guestId});
-    }
+    final Map<String, String> data = {'phone': phone};
     if (otp.isNotEmpty) {
       data.addAll({'otp': otp});
+      return await apiClient.postData(AppConstants.verifyPhoneUri, data,
+          handleError: false);
     }
-    if (verified.isNotEmpty) {
-      data.addAll({'verified': verified});
-    }
-    return await apiClient.postData(AppConstants.loginUri, data,
+    return await apiClient.postData(AppConstants.resendOtpUri, data,
         handleError: false);
   }
 
@@ -212,8 +222,8 @@ class AuthRepository implements AuthRepositoryInterface {
 
     if (kDebugMode) {
       final isJWT = token.contains('.');
-      print('🔐 Token and headers updated IMMEDIATELY: ${isJWT ? "JWT" : "Passport"} token');
-      print('✅ Headers updated before async storage operations');
+      debugPrint('🔐 Token and headers updated IMMEDIATELY: ${isJWT ? "JWT" : "Passport"} token');
+      debugPrint('✅ Headers updated before async storage operations');
     }
 
     // Now save token securely (async operation - can happen in background)
@@ -221,7 +231,7 @@ class AuthRepository implements AuthRepositoryInterface {
 
     if (!secureSaveSuccess) {
       if (kDebugMode) {
-        print(
+        debugPrint(
             '❌ Failed to save token securely, falling back to legacy storage');
       }
       // Fallback to legacy storage for backward compatibility
@@ -233,7 +243,7 @@ class AuthRepository implements AuthRepositoryInterface {
     await sharedPreferences.setString(AppConstants.token, token);
 
     if (kDebugMode) {
-      print('🔐 Token saved securely with encryption');
+      debugPrint('🔐 Token saved securely with encryption');
     }
 
     return secureSaveSuccess;
@@ -283,7 +293,7 @@ class AuthRepository implements AuthRepositoryInterface {
         deviceToken = await FirebaseMessaging.instance.getToken();
         if (deviceToken == null) {
           if (kDebugMode) {
-            print('⚠️ AuthRepository: Firebase token is null - Firebase may not be initialized or permissions not granted');
+            debugPrint('⚠️ AuthRepository: Firebase token is null - Firebase may not be initialized or permissions not granted');
           }
         }
       } catch (e) {
@@ -293,11 +303,11 @@ class AuthRepository implements AuthRepositoryInterface {
           if (errorString.contains('TOKEN_NOT_FOUND') || 
               errorString.contains('FirebaseApp') ||
               errorString.contains('not initialized')) {
-            print('⚠️ AuthRepository: Firebase token loading failed - Firebase may not be initialized yet');
-            print('   - This is expected during app startup if Firebase initializes after first frame');
-            print('   - Token will be retried when Firebase is ready');
+            debugPrint('⚠️ AuthRepository: Firebase token loading failed - Firebase may not be initialized yet');
+            debugPrint('   - This is expected during app startup if Firebase initializes after first frame');
+            debugPrint('   - Token will be retried when Firebase is ready');
           } else {
-            print('❌ AuthRepository: Firebase token loading error: $e');
+            debugPrint('❌ AuthRepository: Firebase token loading error: $e');
           }
         }
         // Return default token to prevent null errors
@@ -306,7 +316,7 @@ class AuthRepository implements AuthRepositoryInterface {
     }
     if (deviceToken != null && deviceToken != '@') {
       if (kDebugMode) {
-        print('✅ AuthRepository: Device Token loaded: ${deviceToken.substring(0, 20)}...');
+        debugPrint('✅ AuthRepository: Device Token loaded: ${deviceToken.substring(0, 20)}...');
       }
     }
     return deviceToken;
@@ -333,12 +343,12 @@ class AuthRepository implements AuthRepositoryInterface {
       final hasSecureToken = await SecureTokenStorage.hasValidToken();
       // Only log once per session to avoid spam
       if (!hasSecureToken && kDebugMode && !_hasLoggedTokenWarning) {
-        print('⚠️ Legacy token exists but secure token is invalid/expired');
+        debugPrint('⚠️ Legacy token exists but secure token is invalid/expired');
         _hasLoggedTokenWarning = true;
       }
     } catch (e) {
       if (kDebugMode && !_hasLoggedTokenError) {
-        print('❌ Error checking secure token status: $e');
+        debugPrint('❌ Error checking secure token status: $e');
         _hasLoggedTokenError = true;
       }
     }
@@ -392,11 +402,11 @@ class AuthRepository implements AuthRepositoryInterface {
       try {
         await SecureTokenStorage.clearToken();
         if (kDebugMode) {
-          print('🔐 Secure tokens cleared successfully');
+          debugPrint('🔐 Secure tokens cleared successfully');
         }
       } catch (e) {
         if (kDebugMode) {
-          print('❌ Error clearing secure tokens: $e');
+          debugPrint('❌ Error clearing secure tokens: $e');
         }
       }
     }
@@ -480,7 +490,7 @@ class AuthRepository implements AuthRepositoryInterface {
       return legacyToken;
     } catch (e) {
       if (kDebugMode) {
-        print('❌ Error getting user token: $e');
+        debugPrint('❌ Error getting user token: $e');
       }
       return '';
     }
@@ -502,11 +512,11 @@ class AuthRepository implements AuthRepositoryInterface {
       apiClient.updateHeader(null, null, null, null, null, null, null);
 
       if (kDebugMode) {
-        print('🧹 All tokens cleared successfully');
+        debugPrint('🧹 All tokens cleared successfully');
       }
     } catch (e) {
       if (kDebugMode) {
-        print('❌ Error clearing tokens: $e');
+        debugPrint('❌ Error clearing tokens: $e');
       }
     }
   }
@@ -517,12 +527,12 @@ class AuthRepository implements AuthRepositoryInterface {
       if (token.isNotEmpty) {
         await SecureTokenStorage.saveToken(token);
         if (kDebugMode) {
-          print('🔄 Legacy token migrated to secure storage');
+          debugPrint('🔄 Legacy token migrated to secure storage');
         }
       }
     } catch (e) {
       if (kDebugMode) {
-        print('❌ Failed to migrate token to secure storage: $e');
+        debugPrint('❌ Failed to migrate token to secure storage: $e');
       }
     }
   }

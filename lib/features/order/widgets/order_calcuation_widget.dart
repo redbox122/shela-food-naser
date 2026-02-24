@@ -1,4 +1,5 @@
 import 'package:dotted_border/dotted_border.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:sixam_mart/common/widgets/custom_asset_image_widget.dart';
@@ -35,8 +36,8 @@ class OrderCalculationWidget extends StatelessWidget {
   final double extraPackagingAmount;
   final double referrerBonusAmount;
   final double additionalCharge;
-  final Function timerCancel;
-  final Function startApiCall;
+  final VoidCallback timerCancel;
+  final VoidCallback startApiCall;
   const OrderCalculationWidget({
     super.key,
     required this.orderController,
@@ -62,8 +63,43 @@ class OrderCalculationWidget extends StatelessWidget {
     required this.startApiCall,
   });
 
+  String? _deliveryFeeReasonText() {
+    if (deliveryCharge > 0) {
+      return null;
+    }
+
+    final String? chargePayer = order.chargePayer?.toLowerCase().trim();
+    final double originalDelivery = order.originalDeliveryCharge ?? 0;
+
+    if (order.orderType == 'take_away') {
+      return 'الطلب استلام من الفرع، لذلك لا توجد رسوم توصيل';
+    }
+
+    if (originalDelivery > 0) {
+      return 'تم إعفاء رسوم التوصيل لهذا الطلب';
+    }
+
+    if (chargePayer != null && chargePayer.isNotEmpty && chargePayer != 'customer') {
+      if (chargePayer.contains('store') || chargePayer.contains('vendor')) {
+        return 'المتجر متحمل رسوم التوصيل';
+      }
+      if (chargePayer.contains('admin')) {
+        return 'المنصة متحملة رسوم التوصيل';
+      }
+      return 'رسوم التوصيل على الجهة المزودة للخدمة';
+    }
+
+    return 'لا توجد رسوم توصيل على هذا الطلب';
+  }
+
   @override
   Widget build(BuildContext context) {
+    final String supportLabel =
+        (Get.find<SplashController>().configModel?.businessName?.trim().isNotEmpty ??
+                false)
+            ? Get.find<SplashController>().configModel!.businessName!.trim()
+            : 'الدعم الفني';
+
     return Padding(
       padding: EdgeInsets.only(
           top: ResponsiveHelper.isDesktop(context)
@@ -449,6 +485,20 @@ class OrderCalculationWidget extends StatelessWidget {
                                                 color: Theme.of(context)
                                                     .primaryColor)),
                                   ]),
+                              if (_deliveryFeeReasonText() != null) ...[
+                                const SizedBox(height: 6),
+                                Align(
+                                  alignment: Alignment.centerRight,
+                                  child: Text(
+                                    _deliveryFeeReasonText()!,
+                                    textAlign: TextAlign.right,
+                                    style: robotoRegular.copyWith(
+                                      fontSize: Dimensions.fontSizeExtraSmall,
+                                      color: Theme.of(context).hintColor,
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ]),
                 ],
               ),
@@ -565,15 +615,26 @@ class OrderCalculationWidget extends StatelessWidget {
             AuthHelper.isLoggedIn()
                 ? TextButton(
                     onPressed: () async {
+                      if (kDebugMode) {
+                        debugPrint('[SupportFlow] CTA tapped from OrderCalculationWidget');
+                        debugPrint('   - orderId: ${order.id}');
+                        debugPrint('   - currentRoute: ${Get.currentRoute}');
+                        debugPrint('   - isDesktop: ${ResponsiveHelper.isDesktop(context)}');
+                      }
                       if (ResponsiveHelper.isDesktop(context)) {
-                        await Get.dialog(Dialog(
+                        final result = await Get.dialog(Dialog(
                             child: SupportReasonBottomSheet(
                           orderId: order.id!,
                           timerCancel: timerCancel,
                           startApiCall: startApiCall,
                         )));
+                        if (kDebugMode) {
+                          debugPrint('[SupportFlow] Desktop dialog closed');
+                          debugPrint('   - result: $result');
+                          debugPrint('   - currentRoute(after): ${Get.currentRoute}');
+                        }
                       } else {
-                        await Get.bottomSheet(
+                        final result = await Get.bottomSheet(
                           SupportReasonBottomSheet(
                             orderId: order.id!,
                             timerCancel: timerCancel,
@@ -582,6 +643,11 @@ class OrderCalculationWidget extends StatelessWidget {
                           backgroundColor: Colors.transparent,
                           isScrollControlled: true,
                         );
+                        if (kDebugMode) {
+                          debugPrint('[SupportFlow] Mobile bottomSheet closed');
+                          debugPrint('   - result: $result');
+                          debugPrint('   - currentRoute(after): ${Get.currentRoute}');
+                        }
                       }
                     },
                     child: Row(
@@ -603,7 +669,7 @@ class OrderCalculationWidget extends StatelessWidget {
                                           .color),
                                 ),
                                 TextSpan(
-                                  text: '${'shell_support'.tr} ',
+                                  text: '$supportLabel ',
                                   style: robotoMedium.copyWith(
                                       color: Colors.blue,
                                       fontSize: Dimensions.fontSizeDefault,

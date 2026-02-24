@@ -295,8 +295,6 @@ class _SelectLocationViewWidgetState extends State<SelectLocationViewWidget> {
 
     setState(() => _isLoading = true);
 
-    final String fullAddress = '${_cityController.text}, ${_areaController.text}, ${_streetController.text}';
-
     try {
       // هنا يجب استبدال هذا الجزء بطلب API حقيقي للجيو كودنج
       // هذا مثال فقط للتوضيح

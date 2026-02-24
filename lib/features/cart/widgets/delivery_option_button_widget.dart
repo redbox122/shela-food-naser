@@ -34,16 +34,6 @@ class DeliveryOptionButtonWidget extends StatefulWidget {
 
 class _DeliveryOptionButtonWidgetState extends State<DeliveryOptionButtonWidget> {
   @override
-  void initState() {
-    super.initState();
-
-    Future.delayed(const Duration(milliseconds: 200), () {
-      // Force delivery type - takeaway is disabled
-      Get.find<CheckoutController>().setOrderType('delivery');
-    });
-  }
-
-  @override
   Widget build(BuildContext context) {
     return GetBuilder<CheckoutController>(
       id: 'checkout',
@@ -51,28 +41,26 @@ class _DeliveryOptionButtonWidgetState extends State<DeliveryOptionButtonWidget>
         final bool select = checkoutController.orderType == widget.value;
 
         return InkWell(
-          onTap: widget.value == 'take_away' 
-              ? null // Disable takeaway option
-              : () {
-                  checkoutController.setOrderType(widget.value);
-                  checkoutController.setInstruction(-1);
+          onTap: () {
+            checkoutController.setOrderType(widget.value);
+            checkoutController.setInstruction(-1);
 
-                  if (checkoutController.orderType == 'take_away') {
-                    if (checkoutController.isPartialPay) {
-                      double tips = 0;
-                      try {
-                        tips = double.parse(checkoutController.tipController.text);
-                      } catch (_) {}
-                      checkoutController.checkBalanceStatus(widget.total, (widget.charge ?? 0) + tips);
-                    }
-                  } else {
-                    if (checkoutController.isPartialPay) {
-                      checkoutController.changePartialPayment();
-                    } else {
-                      checkoutController.setPaymentMethod(-1);
-                    }
-                  }
-                },
+            if (checkoutController.orderType == 'take_away') {
+              if (checkoutController.isPartialPay) {
+                double tips = 0;
+                try {
+                  tips = double.parse(checkoutController.tipController.text);
+                } catch (_) {}
+                checkoutController.checkBalanceStatus(widget.total, (widget.charge ?? 0) + tips);
+              }
+            } else {
+              if (checkoutController.isPartialPay) {
+                checkoutController.changePartialPayment();
+              } else {
+                checkoutController.setPaymentMethod(-1);
+              }
+            }
+          },
           child: Container(
             decoration: BoxDecoration(
               color: select
@@ -92,11 +80,9 @@ class _DeliveryOptionButtonWidgetState extends State<DeliveryOptionButtonWidget>
                   // ignore: deprecated_member_use
                   groupValue: checkoutController.orderType,
                   // ignore: deprecated_member_use
-                  onChanged: widget.value == 'take_away'
-                      ? null // Disabled for takeaway
-                      : (String? value) {
-                          checkoutController.setOrderType(value);
-                        },
+                  onChanged: (String? value) {
+                    checkoutController.setOrderType(value);
+                  },
                   materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                   fillColor: WidgetStateProperty.resolveWith<Color>((states) {
                     if (states.contains(WidgetState.selected)) {
@@ -115,8 +101,9 @@ class _DeliveryOptionButtonWidgetState extends State<DeliveryOptionButtonWidget>
                             color: select ? Theme.of(context).primaryColor : Theme.of(context).textTheme.bodyMedium!.color)),
                     Row(
                       children: [
-                      if (checkoutController.isDeliveryChargeReady ||
-                        widget.value != 'delivery') ...[
+                      if (select &&
+                          (checkoutController.isDeliveryChargeReady ||
+                              widget.value != 'delivery')) ...[
                         // ✅ Use controller's calculatedDeliveryCharge for reactive updates
                         checkoutController.distance == null
                           ? Text(

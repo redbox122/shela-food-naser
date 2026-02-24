@@ -43,6 +43,7 @@ class MultiModuleHomeScreen extends StatefulWidget {
 
 class _MultiModuleHomeScreenState extends State<MultiModuleHomeScreen> {
   bool _isPromotionalRetryScheduled = false;
+  bool _hasTriggeredPromotionalRecovery = false;
   @override
   void initState() {
     super.initState();
@@ -65,7 +66,13 @@ class _MultiModuleHomeScreenState extends State<MultiModuleHomeScreen> {
       final bool hasBanners =
           (bannerController.featuredBannerList?.isNotEmpty ?? false) ||
               (bannerController.bannerImageList?.isNotEmpty ?? false);
-      if (!hasBanners && !bannerController.isLoading) {
+      final bool hasPromotionalBanner = bannerController
+              .promotionalBanner?.bottomSectionBannerFullUrl?.isNotEmpty ??
+          false;
+      if ((!hasBanners || !hasPromotionalBanner) &&
+          !bannerController.isLoading &&
+          !_hasTriggeredPromotionalRecovery) {
+        _hasTriggeredPromotionalRecovery = true;
         final SplashController splashController = Get.find<SplashController>();
         splashController.loadAndCachePromotionalContent();
       }
@@ -168,15 +175,19 @@ class _MultiModuleHomeScreenState extends State<MultiModuleHomeScreen> {
                                         .bannerImageList!.isNotEmpty;
                             final hasData =
                                 hasFeaturedBanners || hasRegularBanners;
-                            final hasPromotionalBanner =
-                                bannerController.promotionalBanner != null &&
-                                    bannerController.promotionalBanner!
-                                            .bottomSectionBannerFullUrl !=
-                                        null;
+                            final hasPromotionalBanner = bannerController
+                                    .promotionalBanner
+                                    ?.bottomSectionBannerFullUrl
+                                    ?.isNotEmpty ??
+                                false;
+                            // Retry in-build only when top banner data is missing.
+                            // Do not loop forever when promotional banner endpoint has no URL.
                             if (!hasData &&
                                 !bannerController.isLoading &&
-                                !_isPromotionalRetryScheduled) {
+                                !_isPromotionalRetryScheduled &&
+                                !_hasTriggeredPromotionalRecovery) {
                               _isPromotionalRetryScheduled = true;
+                              _hasTriggeredPromotionalRecovery = true;
                               Future.microtask(() async {
                                 if (!mounted) {
                                   return;
@@ -241,6 +252,25 @@ class _MultiModuleHomeScreenState extends State<MultiModuleHomeScreen> {
                       builder: (offersController) {
                         return const _SectionCard(
                           child: OffersView(),
+                        );
+                      },
+                    ),
+                  ),
+                  // 5. Bottom promotional banner (independent from featured banner availability)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 0),
+                    child: GetBuilder<BannerController>(
+                      builder: (bannerController) {
+                        final hasPromotionalBanner = bannerController
+                                .promotionalBanner
+                                ?.bottomSectionBannerFullUrl
+                                ?.isNotEmpty ??
+                            false;
+                        if (!hasPromotionalBanner) {
+                          return const SizedBox.shrink();
+                        }
+                        return const _SectionCard(
+                          child: PromotionalBannerView(),
                         );
                       },
                     ),

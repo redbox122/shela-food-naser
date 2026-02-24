@@ -8,6 +8,8 @@ class Search_FilterModel {
   String? discount = '';
   String? min = '';
   String? max = '';
+  String? offset = '1';
+  String? limit = '10';
 
   Search_FilterModel({
     this.research_Name,
@@ -17,5 +19,7 @@ class Search_FilterModel {
     this.discount,
     this.min,
     this.max,
+    this.offset,
+    this.limit,
   });
 }

@@ -1,7 +1,11 @@
 {
   "permissions": {
     "allow": [
-      "Bash(flutter analyze:*)"
+      "Bash(flutter analyze:*)",
+      "Read(//c/Users/jaber/Desktop/analiz/shella_Source_code/app-test-main/**)",
+      "Bash(python3:*)",
+      "Bash(python -c:*)",
+      "Bash(python:*)"
     ]
   }
 }

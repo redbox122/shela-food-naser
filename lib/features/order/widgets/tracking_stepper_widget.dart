@@ -5,17 +5,21 @@ import 'package:get/get.dart';
 class TrackingStepperWidget extends StatelessWidget {
   final String? status;
   final bool takeAway;
-  const TrackingStepperWidget({super.key, required this.status, required this.takeAway});
+  const TrackingStepperWidget(
+      {super.key, required this.status, required this.takeAway});
 
   @override
   Widget build(BuildContext context) {
     final int state = _statusIndex(status, takeAway);
+    final bool isArabic = Get.locale?.languageCode == 'ar';
+    final String takeAwayDoneLabel =
+        isArabic ? 'تم الاستلام' : 'Order received';
     final List<String> steps = [
       'order_placed'.tr,
       'order_confirmed'.tr,
       'preparing_item'.tr,
       takeAway ? 'ready_for_handover'.tr : 'delivery_on_the_way'.tr,
-      'delivered'.tr,
+      takeAway ? takeAwayDoneLabel : 'delivered'.tr,
     ];
 
     return Column(
@@ -35,7 +39,8 @@ class TrackingStepperWidget extends StatelessWidget {
         final Color lineColor = isCompleted ? activeColor : pendingColor;
 
         return Padding(
-          padding: EdgeInsets.only(bottom: isLast ? 0 : Dimensions.paddingSizeSmall),
+          padding:
+              EdgeInsets.only(bottom: isLast ? 0 : Dimensions.paddingSizeSmall),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -46,14 +51,17 @@ class TrackingStepperWidget extends StatelessWidget {
                     height: 28,
                     alignment: Alignment.center,
                     decoration: BoxDecoration(
-                      color: circleColor.withValues(alpha: isCompleted || isCurrent ? 1 : 0.3),
+                      color: circleColor.withValues(
+                          alpha: isCompleted || isCurrent ? 1 : 0.3),
                       shape: BoxShape.circle,
                       border: Border.all(color: circleColor, width: 2),
                     ),
                     child: Text(
                       '${index + 1}',
                       style: TextStyle(
-                        color: isCompleted || isCurrent ? Colors.white : circleColor,
+                        color: isCompleted || isCurrent
+                            ? Colors.white
+                            : circleColor,
                         fontSize: 12,
                         fontWeight: FontWeight.bold,
                       ),
@@ -81,7 +89,8 @@ class TrackingStepperWidget extends StatelessWidget {
                                 ? currentColor
                                 : pendingColor,
                         fontSize: Dimensions.fontSizeDefault,
-                        fontWeight: isCurrent ? FontWeight.bold : FontWeight.w500,
+                        fontWeight:
+                            isCurrent ? FontWeight.bold : FontWeight.w500,
                       ),
                     ),
                   ],

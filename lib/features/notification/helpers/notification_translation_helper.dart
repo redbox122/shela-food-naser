@@ -6,7 +6,7 @@ class NotificationTranslationHelper {
   static String translateNotificationTitle(String? originalTitle) {
     if (originalTitle == null || originalTitle.isEmpty) return '';
 
-    String translated = originalTitle;
+    String translated = originalTitle.trim();
 
     // Map static English text to translation keys
     translated =
@@ -20,13 +20,46 @@ class NotificationTranslationHelper {
     translated =
         translated.replaceAll('Update Available', 'update_available'.tr);
 
+    // Normalize ambiguous wallet-box title to clearer Arabic wording
+    if (translated.contains('وأضاف الصندوق') ||
+        translated.contains('اضاف الصندوق') ||
+        translated.toLowerCase().contains('added box')) {
+      translated = 'إضافة إلى المحفظة';
+    }
+
     return translated;
   }
 
   static String translateNotificationDescription(String? originalDescription) {
     if (originalDescription == null || originalDescription.isEmpty) return '';
 
-    String translated = originalDescription;
+    String translated = originalDescription.trim().replaceAll(RegExp(r'\s+'), ' ');
+
+    // Dynamic patterns (order id/name) that old static replaceAll cannot handle reliably.
+    // Example: "Order 232 is canceled by your request"
+    final RegExp canceledOrderPattern =
+        RegExp(r'Order\s+(\d+)\s+is\s+canceled\s+by\s+your\s+request', caseSensitive: false);
+    translated = translated.replaceAllMapped(canceledOrderPattern, (m) {
+      return 'تم إلغاء طلبك رقم ${m.group(1)} بناءً على طلبك';
+    });
+
+    // Example: "Your order 232 is successfully placed"
+    final RegExp placedOrderPattern =
+        RegExp(r'Your\s+order\s+(\d+)\s+is\s+successfully\s+placed', caseSensitive: false);
+    translated = translated.replaceAllMapped(placedOrderPattern, (m) {
+      return 'تم تقديم طلبك رقم ${m.group(1)} بنجاح';
+    });
+
+    // Example: "Gaber , Your order 232 is successfully placed"
+    final RegExp placedOrderWithNamePattern = RegExp(
+      r'([^,]+)\s*,\s*Your\s+order\s+(\d+)\s+is\s+successfully\s+placed',
+      caseSensitive: false,
+    );
+    translated = translated.replaceAllMapped(placedOrderWithNamePattern, (m) {
+      final String userName = (m.group(1) ?? '').trim();
+      final String orderId = m.group(2) ?? '';
+      return '$userName، تم تقديم طلبك رقم $orderId بنجاح';
+    });
 
     // Map static English text to translation keys while preserving dynamic content
     translated = translated.replaceAll('Your order', 'your_order'.tr);
@@ -50,6 +83,12 @@ class NotificationTranslationHelper {
     translated =
         translated.replaceAll('Update Available', 'update_available'.tr);
     translated = translated.replaceAll('Bug fixes', 'bug_fixes'.tr);
+
+    // Keep wallet message clear and fully Arabic
+    if (translated.contains('تمت إضافة الصندوق إلى محفظتك') ||
+        translated.toLowerCase().contains('box added to your wallet')) {
+      translated = 'تمت إضافة الصندوق إلى محفظتك';
+    }
 
     return translated;
   }

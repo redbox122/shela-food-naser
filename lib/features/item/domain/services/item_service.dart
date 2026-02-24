@@ -206,7 +206,10 @@ class ItemService implements ItemServiceInterface {
   @override
   List<bool> initializeAddonActiveList(List<AddOns>? addOns) {
     final List<bool> addOnActiveList = [];
-    for (int i = 0; i < addOns!.length; i++) {
+    if (addOns == null || addOns.isEmpty) {
+      return addOnActiveList;
+    }
+    for (int i = 0; i < addOns.length; i++) {
       addOnActiveList.add(false);
     }
     return addOnActiveList;
@@ -215,7 +218,10 @@ class ItemService implements ItemServiceInterface {
   @override
   List<int> initializeAddonQtyList(List<AddOns>? addOns) {
     final List<int> addOnQtyList = [];
-    for (int i = 0; i < addOns!.length; i++) {
+    if (addOns == null || addOns.isEmpty) {
+      return addOnQtyList;
+    }
+    for (int i = 0; i < addOns.length; i++) {
       addOnQtyList.add(1);
     }
     return addOnQtyList;

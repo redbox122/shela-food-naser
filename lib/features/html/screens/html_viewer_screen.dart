@@ -45,8 +45,10 @@ class _HtmlViewerScreenState extends State<HtmlViewerScreen> {
                                   : 'no_data_found'.tr),
       body: GetBuilder<HtmlController>(builder: (htmlController) {
         return Center(
-          child: htmlController.htmlText != null
-              ? SingleChildScrollView(
+          child: htmlController.isLoading
+              ? const CircularProgressIndicator()
+              : (htmlController.htmlText ?? '').isNotEmpty
+                  ? SingleChildScrollView(
                   physics: const BouncingScrollPhysics(),
                   child: Column(
                     children: [
@@ -103,7 +105,7 @@ class _HtmlViewerScreenState extends State<HtmlViewerScreen> {
                     ],
                   ),
                 )
-              : const CircularProgressIndicator(),
+                  : Text('no_data_found'.tr),
         );
       }),
     );

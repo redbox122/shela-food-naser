@@ -17,6 +17,8 @@ abstract class AuthServiceInterface {
   Future<ResponseModel> otpLogin(
       {required String phone, required String otp, required String loginType, required String verified, bool alreadyInApp = false});
 
+  Future<ResponseModel> verifyLoginOtp({required String phone, required String otp, bool alreadyInApp = false});
+
   Future<ResponseModel> resendOtp({required String phone});
 
   Future<ResponseModel> updatePersonalInfo(

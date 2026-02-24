@@ -25,6 +25,15 @@ import '../models/home_unified_model.dart' show HomeUnifiedModel;
 /// - Reduces home screen load time by 80%
 class HomeUnifiedService {
   final ApiClient apiClient;
+  static final Map<String, Future<HomeUnifiedModel?>> _inFlightRequests = {};
+  int? _lastRequestStatusCode;
+  String? _lastRequestErrorCode;
+
+  int? get lastRequestStatusCode => _lastRequestStatusCode;
+  String? get lastRequestErrorCode => _lastRequestErrorCode;
+  bool get wasLastFailureHeaderBlocked =>
+      _lastRequestStatusCode == 428 ||
+      _lastRequestErrorCode == 'home_headers_invalid';
 
   HomeUnifiedService({required this.apiClient});
 
@@ -57,6 +66,66 @@ class HomeUnifiedService {
     int? featured,
     String? include, // 🔧 FIX: Lazy loading parameter for splash pre-fetch
   }) async {
+    final effectiveModuleId = moduleId ?? ModuleHelper.getModule()?.id;
+    final dedupKey = [
+      'module=$effectiveModuleId',
+      'zones=${zoneIds?.join(",") ?? ""}',
+      'lat=${latitude ?? ""}',
+      'lng=${longitude ?? ""}',
+      'lang=${languageCode ?? ""}',
+      'limit=${limit ?? ""}',
+      'offset=${offset ?? ""}',
+      'type=${type ?? ""}',
+      'featured=${featured ?? ""}',
+      'include=${include ?? ""}',
+    ].join('|');
+
+    final inFlight = _inFlightRequests[dedupKey];
+    if (inFlight != null) {
+      if (kDebugMode) {
+        print(
+            '🔄 HomeUnifiedService: Reusing in-flight request for module $effectiveModuleId');
+      }
+      return inFlight;
+    }
+
+    final request = _getHomeUnifiedDataInternal(
+      zoneIds: zoneIds,
+      moduleId: moduleId,
+      latitude: latitude,
+      longitude: longitude,
+      languageCode: languageCode,
+      limit: limit,
+      offset: offset,
+      type: type,
+      featured: featured,
+      include: include,
+    );
+
+    _inFlightRequests[dedupKey] = request;
+    try {
+      return await request;
+    } finally {
+      if (identical(_inFlightRequests[dedupKey], request)) {
+        _inFlightRequests.remove(dedupKey);
+      }
+    }
+  }
+
+  Future<HomeUnifiedModel?> _getHomeUnifiedDataInternal({
+    List<int>? zoneIds,
+    int? moduleId,
+    double? latitude,
+    double? longitude,
+    String? languageCode,
+    int? limit,
+    int? offset,
+    String? type,
+    int? featured,
+    String? include, // 🔧 FIX: Lazy loading parameter for splash pre-fetch
+  }) async {
+    _lastRequestStatusCode = null;
+    _lastRequestErrorCode = null;
     try {
       final stopwatch = Stopwatch()..start();
       
@@ -71,6 +140,8 @@ class HomeUnifiedService {
       
       // Validate headers before making request
       if (!ApiV2Headers.validateHeaders(headers)) {
+        _lastRequestStatusCode = 428;
+        _lastRequestErrorCode = 'home_headers_invalid';
         if (kDebugMode) {
           print('❌ HomeUnifiedService: Invalid headers, cannot make request');
         }
@@ -143,8 +214,29 @@ class HomeUnifiedService {
         headers: headers,
         handleError: false,
       );
+      _lastRequestStatusCode = response.statusCode;
+      if (response.statusCode == 428) {
+        _lastRequestErrorCode = 'home_headers_invalid';
+      }
       
       stopwatch.stop();
+      if (kDebugMode) {
+        bool? successFlag;
+        List<String>? dataKeys;
+        final body = response.body;
+        if (body is Map<String, dynamic>) {
+          final rawSuccess = body['success'];
+          if (rawSuccess is bool) {
+            successFlag = rawSuccess;
+          }
+          final rawData = body['data'];
+          if (rawData is Map<String, dynamic>) {
+            dataKeys = rawData.keys.toList();
+          }
+        }
+        print(
+            '[Diag] HomeUnifiedService: status=${response.statusCode}, bodyType=${response.body.runtimeType}, success=$successFlag, dataKeys=$dataKeys');
+      }
       
       // ⚡ ZERO-LATENCY CDN: Handle 304 Not Modified immediately
       // Cloudflare serves 304 in <20ms - use local Hive cache for zero-lag transition
@@ -175,7 +267,30 @@ class HomeUnifiedService {
           }
         }
         
-        // If cache load failed, return null to trigger fallback
+        // Bug#3 FIX: 304 received but local Hive cache is empty.
+        // A stale ETag caused the server to think the client has valid data,
+        // but locally there is nothing to show. Clear the ETag so the next
+        // request sends a full GET (no If-None-Match) and gets a fresh 200.
+        try {
+          final cacheService = HiveHomeCacheService();
+          final moduleIdForClear = moduleId ?? ModuleHelper.getModule()?.id;
+          if (moduleIdForClear != null) {
+            // Invalidate both the Hive payload AND the ETag for this module.
+            await cacheService.invalidateHomeUnifiedCache(
+              moduleIdForClear,
+              clearEtag: true,
+            );
+          }
+          if (kDebugMode) {
+            print(
+                '⚠️ HomeUnifiedService: 304 but Hive cache empty — ETag cleared. '
+                'Next request will fetch fresh data.');
+          }
+        } catch (e) {
+          if (kDebugMode) {
+            print('⚠️ HomeUnifiedService: Error clearing stale ETag: $e');
+          }
+        }
         return null;
       }
       
@@ -216,6 +331,7 @@ class HomeUnifiedService {
         
         // Check for success flag
         if (data['success'] != true) {
+          _lastRequestErrorCode = 'api_success_false';
           if (kDebugMode) {
             print('❌ HomeUnifiedService: API returned success=false');
             print('   Error: ${data['error']}');
@@ -282,10 +398,21 @@ class HomeUnifiedService {
             print('   Server Execution Time: ${model.meta!.executionTimeMs}ms');
             print('   Cache Hit: ${model.meta!.cacheHit}');
           }
+          final isEffectivelyEmpty = (model.banners?.isEmpty ?? true) &&
+              (model.campaigns?.isEmpty ?? true) &&
+              (model.categories?.isEmpty ?? true) &&
+              (model.popularStores?.isEmpty ?? true) &&
+              (model.brands?.isEmpty ?? true) &&
+              (model.offers?.isEmpty ?? true);
+          if (isEffectivelyEmpty) {
+            print(
+                '[Diag] HomeUnifiedService: Parsed model is effectively empty for module=${headers[AppConstants.moduleId]}');
+          }
         }
         
         return model;
       } else {
+        _lastRequestErrorCode = 'api_http_${response.statusCode ?? 0}';
         if (kDebugMode) {
           print('❌ HomeUnifiedService: API error');
           print('   Status Code: ${response.statusCode}');
@@ -294,6 +421,8 @@ class HomeUnifiedService {
         return null;
       }
     } catch (e, stackTrace) {
+      _lastRequestStatusCode ??= 1;
+      _lastRequestErrorCode ??= 'exception';
       if (kDebugMode) {
         print('❌ HomeUnifiedService: Exception occurred');
         print('   Error: $e');
@@ -340,4 +469,3 @@ class HomeUnifiedServiceSingleton {
     _instance = null;
   }
 }
-

@@ -43,7 +43,7 @@ class buildCouponList extends StatelessWidget {
               children: [
                 Expanded(
                   child: Container(
-                    height: ResponsiveHelper.isWeb()? 200 : 160,
+                    height: ResponsiveHelper.isDesktop(context)? 200 : 160,
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(6),
                       color: AppColors.gryColor_7

@@ -75,6 +75,8 @@ class BackendMessageTranslator {
     'Customer not found': 'backend_customer_not_found',
     'Amount not found': 'backend_amount_not_found',
     'Payment not found': 'backend_payment_not_found',
+    'Add your paymen ref first': 'add_payment_ref_first',
+    'Add your payment ref first': 'add_payment_ref_first',
   };
 
   /// Translates a backend English message to the current locale.

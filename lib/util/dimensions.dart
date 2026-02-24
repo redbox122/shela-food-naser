@@ -62,8 +62,11 @@ double size_22(BuildContext context) => sp(context, 22);
 double size_24(BuildContext context) => sp(context, 24);
 
 double sp(BuildContext context, double fontSize) {
-  final double scaleFactor = ResponsiveHelper.isWeb() ? MediaQuery.of(context).size.width / 1420 : MediaQuery.of(context).size.width / 375;
-  final double heightFactor = ResponsiveHelper.isWeb() ? MediaQuery.of(context).size.width / 700 : MediaQuery.of(context).size.height / 812;
+  // ⚙️ إذا كان الويب واستخدام تصميم الموبايل مفعّل، استخدم أحجام الموبايل
+  final bool useWebScaling = ResponsiveHelper.isWeb() && !ResponsiveHelper.useMobileDesignOnWeb;
+  
+  final double scaleFactor = useWebScaling ? MediaQuery.of(context).size.width / 1420 : MediaQuery.of(context).size.width / 375;
+  final double heightFactor = useWebScaling ? MediaQuery.of(context).size.width / 700 : MediaQuery.of(context).size.height / 812;
 
   final double responsiveFactor = (scaleFactor + heightFactor) / 2;
 

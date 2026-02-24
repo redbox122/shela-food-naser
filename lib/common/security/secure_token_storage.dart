@@ -18,6 +18,7 @@ import 'dart:typed_data';
 import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:encrypt/encrypt.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:sixam_mart/common/utils/app_logger.dart';
 
 /// Secure Token Storage System with AES-256 encryption
 /// Provides enterprise-grade security for storing sensitive authentication tokens
@@ -68,7 +69,7 @@ class SecureTokenStorage {
       _isInitialized = true;
       
       if (kDebugMode) {
-        print('🔐 Secure Token Storage initialized successfully');
+        appLogger.info('🔐 Secure Token Storage initialized successfully');
       }
       _initCompleter?.complete();
     } catch (e) {
@@ -151,14 +152,14 @@ class SecureTokenStorage {
         await _updateRotationTracking();
         
         if (kDebugMode) {
-          print('🔐 Token saved securely with expiry: ${expiryTime.toIso8601String()} (cached)');
+          appLogger.info('🔐 Token saved securely with expiry: ${expiryTime.toIso8601String()} (cached)');
         }
       }
       
       return success;
     } catch (e) {
       if (kDebugMode) {
-        print('❌ Error saving token: $e');
+        appLogger.error('❌ Error saving token: $e', e);
       }
       return false;
     }
@@ -230,13 +231,13 @@ class SecureTokenStorage {
       _cachedTokenTimestamp = DateTime.now();
       
       if (kDebugMode) {
-        print('🔐 Token retrieved and decrypted successfully (cached for ${_cacheValidityDuration.inMinutes}min)');
+        appLogger.info('🔐 Token retrieved and decrypted successfully (cached for ${_cacheValidityDuration.inMinutes}min)');
       }
       
       return decrypted;
     } catch (e) {
       if (kDebugMode) {
-        print('❌ Error retrieving token: $e');
+        appLogger.error('❌ Error retrieving token: $e', e);
       }
       // Clear corrupted token and cache
       await clearToken();
@@ -265,7 +266,7 @@ class SecureTokenStorage {
       return await prefs.setString(_refreshTokenKey, encrypted.base64);
     } catch (e) {
       if (kDebugMode) {
-        print('❌ Error saving refresh token: $e');
+        appLogger.error('❌ Error saving refresh token: $e', e);
       }
       return false;
     }
@@ -287,7 +288,7 @@ class SecureTokenStorage {
       return encrypter.decrypt64(encrypted, iv: _initializationVector!);
     } catch (e) {
       if (kDebugMode) {
-        print('❌ Error retrieving refresh token: $e');
+        appLogger.error('❌ Error retrieving refresh token: $e', e);
       }
       return null;
     }
@@ -342,14 +343,14 @@ class SecureTokenStorage {
         await prefs.setInt(_rotationCountKey, rotationCount + 1);
         
         if (kDebugMode) {
-          print('🔄 Token rotated successfully (rotation #${rotationCount + 1}, cache updated)');
+          appLogger.info('🔄 Token rotated successfully (rotation #${rotationCount + 1}, cache updated)');
         }
       }
       
       return success;
     } catch (e) {
       if (kDebugMode) {
-        print('❌ Error rotating token: $e');
+        appLogger.error('❌ Error rotating token: $e', e);
       }
       return false;
     }
@@ -376,13 +377,13 @@ class SecureTokenStorage {
       _cachedTokenTimestamp = null;
       
       if (success && kDebugMode) {
-        print('🧹 All tokens cleared securely (cache cleared)');
+        appLogger.info('🧹 All tokens cleared securely (cache cleared)');
       }
       
       return success;
     } catch (e) {
       if (kDebugMode) {
-        print('❌ Error clearing tokens: $e');
+        appLogger.error('❌ Error clearing tokens: $e', e);
       }
       return false;
     }

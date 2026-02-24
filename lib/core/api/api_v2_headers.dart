@@ -4,6 +4,7 @@ import 'package:sixam_mart/features/address/domain/models/address_model.dart';
 import 'package:sixam_mart/helper/address_helper.dart';
 import 'package:sixam_mart/helper/module_helper.dart';
 import 'package:sixam_mart/util/app_constants.dart';
+import 'package:sixam_mart/common/utils/app_logger.dart';
 
 /// API v2 Headers Utility
 /// 
@@ -39,7 +40,7 @@ class ApiV2Headers {
     // Resolve zone IDs
     List<int> resolvedZoneIds = zoneIds ?? addressModel?.zoneIds ?? <int>[];
     if (resolvedZoneIds.isEmpty && kDebugMode) {
-      print('⚠️ ApiV2Headers: No zone IDs found - backend will reject');
+      appLogger.warning('⚠️ ApiV2Headers: No zone IDs found - backend will reject');
     }
     
     // Resolve module ID
@@ -73,12 +74,12 @@ class ApiV2Headers {
       headers['X-Store-Version-Hash'] = storeVersionHash;
     }
     
-    if (kDebugMode) {
-      print('🔧 ApiV2Headers: Generated headers');
-      print('   zoneId: ${headers[AppConstants.zoneId]}');
-      print('   moduleId: ${headers[AppConstants.moduleId]}');
-      print('   latitude: ${headers[AppConstants.latitude]}');
-      print('   longitude: ${headers[AppConstants.longitude]}');
+    if (kDebugMode && AppConstants.enableVerboseLogs) {
+      appLogger.debug('🔧 ApiV2Headers: Generated headers');
+      appLogger.debug('   zoneId: ${headers[AppConstants.zoneId]}');
+      appLogger.debug('   moduleId: ${headers[AppConstants.moduleId]}');
+      appLogger.debug('   latitude: ${headers[AppConstants.latitude]}');
+      appLogger.debug('   longitude: ${headers[AppConstants.longitude]}');
     }
     
     return headers;
@@ -128,14 +129,14 @@ class ApiV2Headers {
     // Check required headers
     if (!headers.containsKey(AppConstants.zoneId)) {
       if (kDebugMode) {
-        print('❌ ApiV2Headers: Missing zoneId header');
+        appLogger.error('❌ ApiV2Headers: Missing zoneId header');
       }
       return false;
     }
     
     if (!headers.containsKey(AppConstants.moduleId)) {
       if (kDebugMode) {
-        print('❌ ApiV2Headers: Missing moduleId header');
+        appLogger.error('❌ ApiV2Headers: Missing moduleId header');
       }
       return false;
     }
@@ -146,13 +147,13 @@ class ApiV2Headers {
       final decoded = jsonDecode(zoneId);
       if (decoded is! List || decoded.isEmpty) {
         if (kDebugMode) {
-          print('❌ ApiV2Headers: Invalid zoneId format: $zoneId');
+          appLogger.error('❌ ApiV2Headers: Invalid zoneId format: $zoneId');
         }
         return false;
       }
     } catch (e) {
       if (kDebugMode) {
-        print('❌ ApiV2Headers: Failed to parse zoneId: $e');
+        appLogger.error('❌ ApiV2Headers: Failed to parse zoneId: $e', e);
       }
       return false;
     }

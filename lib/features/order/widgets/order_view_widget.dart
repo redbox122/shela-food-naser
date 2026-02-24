@@ -12,6 +12,8 @@ import 'package:sixam_mart/theme/light_theme.dart';
 import 'package:sixam_mart/util/images.dart';
 import 'package:sixam_mart/common/widgets/custom_image.dart';
 import '../../../common/widgets/loading/loading.dart';
+import 'package:flutter/foundation.dart';
+import 'package:sixam_mart/common/utils/app_logger.dart';
 
 class OrderViewWidget extends StatelessWidget {
   final int isRunning;
@@ -20,7 +22,10 @@ class OrderViewWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    print('$isRunning isRunning');
+    debugPrint('[OrderView] build tab=$isRunning');
+    if (kDebugMode) {
+      appLogger.debug('$isRunning isRunning');
+    }
     return Scaffold(
       backgroundColor: Theme.of(context).colorScheme.surface,
       body: GetBuilder<OrderController>(builder: (orderController) {
@@ -33,18 +38,27 @@ class OrderViewWidget extends StatelessWidget {
         } else {
           paginatedOrderModel = orderController.historyOrderModel;
         }
+        debugPrint(
+          '[OrderView] tab=$isRunning '
+          'loading=${orderController.Order_isLoading} '
+          'modelNull=${paginatedOrderModel == null} '
+          'ordersCount=${paginatedOrderModel?.orders?.length ?? -1}',
+        );
 
         if (orderController.Order_isLoading == true) {
+          debugPrint('[OrderView] tab=$isRunning showing loader');
           return const Center(child: LoadingWidget());
         }
 
         if (orderController.Order_isLoading) {
+          debugPrint('[OrderView] tab=$isRunning showing loader (duplicate guard)');
           return const Center(child: LoadingWidget());
         }
 
         if (paginatedOrderModel == null ||
             paginatedOrderModel.orders == null ||
             paginatedOrderModel.orders!.isEmpty) {
+          debugPrint('[OrderView] tab=$isRunning empty: model/orders null or empty');
           return Center(child: Text('no_order_found'.tr));
         }
 
@@ -52,14 +66,20 @@ class OrderViewWidget extends StatelessWidget {
         final List<OrderModel> filteredOrders = paginatedOrderModel.orders!
             .where((order) => order.paymentStatus != 'unpaid')
             .toList();
+        debugPrint(
+          '[OrderView] tab=$isRunning raw=${paginatedOrderModel.orders!.length} '
+          'filtered=${filteredOrders.length}',
+        );
 
         if (filteredOrders.isEmpty) {
+          debugPrint('[OrderView] tab=$isRunning empty after paymentStatus filtering');
           return Center(child: Text('no_order_found'.tr));
         }
 
         return RefreshIndicator(
           onRefresh: () async {
-            if (isRunning == 0) {
+            debugPrint('[OrderView] tab=$isRunning pull-to-refresh');
+            if (isRunning == 0 || isRunning == 1) {
               await orderController.getRunningOrders(1, isUpdate: true);
             } else {
               await orderController.getHistoryOrders(1, isUpdate: true);
@@ -93,7 +113,9 @@ class OrderViewWidget extends StatelessWidget {
                         : (order.store?.logoFullUrl ?? ''),
                     'name': isParcel ? 'parcel'.tr : (order.store?.name ?? ''),
                     'date': DateConverter.dateTimeStringToDateTime(
-                        order.createdAt ?? ''),
+                        isRunning == 1
+                            ? (order.scheduleAt ?? order.createdAt ?? '')
+                            : (order.createdAt ?? '')),
                     'status': order.orderStatus?.tr ?? '',
                     'itemsCount': order.detailsCount ?? 0,
                     'isParcel': isParcel,

@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
 import 'package:sixam_mart/features/item/domain/models/item_model.dart';
 import 'package:sixam_mart/util/styles.dart';
 import 'package:sixam_mart/helper/price_converter.dart';
+import 'package:sixam_mart/common/utils/app_logger.dart';
 
 /// Presets section widget displaying horizontal scrollable preset cards
 class ItemPresetsSection extends StatelessWidget {
@@ -104,16 +106,20 @@ class _PresetCard extends StatelessWidget {
     // Get current language from locale
     final isArabic = Get.locale?.languageCode == 'ar';
 
-    print('🔍 [Preset Description] Building for: ${preset.name}');
-    print('   - Language: ${isArabic ? "Arabic" : "English"}');
-    print('   - Choice groups: ${preset.presetData!.choiceGroups!.length}');
+    if (kDebugMode) {
+      appLogger.debug('🔍 [Preset Description] Building for: ${preset.name}');
+      appLogger.debug('   - Language: ${isArabic ? "Arabic" : "English"}');
+      appLogger.debug('   - Choice groups: ${preset.presetData!.choiceGroups!.length}');
+    }
 
     final List<String> selections = [];
     for (final group in preset.presetData!.choiceGroups!) {
       for (final choice in group.choices) {
         // Debug what we're getting
-        print(
-            '   - Choice: name="${choice.name}", name_ar="${choice.nameAr}", name_en="${choice.nameEn}"');
+        if (kDebugMode) {
+          appLogger.debug(
+              '   - Choice: name="${choice.name}", name_ar="${choice.nameAr}", name_en="${choice.nameEn}"');
+        }
 
         // Use localized name
         final String? choiceName = isArabic
@@ -126,8 +132,10 @@ class _PresetCard extends StatelessWidget {
       }
     }
 
-    print('   - Total selections: ${selections.length}');
-    print('   - Selections: $selections');
+    if (kDebugMode) {
+      appLogger.debug('   - Total selections: ${selections.length}');
+      appLogger.debug('   - Selections: $selections');
+    }
 
     if (selections.isEmpty) return '';
 

@@ -992,6 +992,7 @@ class ComprehensiveHomeCacheManager {
           cachedData.containsKey('categories')) {
         final categoryController = Get.find<CategoryController>();
         final categoryData = cachedData['categories'] as Map<String, dynamic>;
+        final currentModuleId = _getCurrentModuleId();
 
         if (categoryData['categoryList'] != null) {
           try {
@@ -1005,7 +1006,10 @@ class ComprehensiveHomeCacheManager {
                   '📦 Comprehensive Cache: Restoring ${categoryList.length} categories (already filtered by module)');
             }
 
-            categoryController.setCategoryDataFromCache(categoryList);
+            categoryController.setCategoryDataFromCache(
+              categoryList,
+              expectedModuleId: currentModuleId,
+            );
 
             // Debug: Verify data was actually set
             await Future<void>.delayed(const Duration(milliseconds: 100));

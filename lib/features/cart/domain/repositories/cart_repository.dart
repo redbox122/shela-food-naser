@@ -100,6 +100,10 @@ class CartRepository implements CartRepositoryInterface<OnlineCart> {
               .add(OnlineCartModel.fromJson(cart as Map<String, dynamic>));
         }
       }
+    } else {
+      debugPrint('❌ addToCartOnline failed: status=${response.statusCode}');
+      debugPrint('   - requestBody: $requestBody');
+      debugPrint('   - responseBody: ${response.body}');
     }
     return onlineCartList;
   }
@@ -301,6 +305,11 @@ class CartRepository implements CartRepositoryInterface<OnlineCart> {
             debugPrint(
                 '⚠️ store_id not in response, extracted from first item: $_lastStoreId');
           }
+        } else {
+          // API explicitly returned empty cart and no store_id -> clear stale store context.
+          _lastStoreId = null;
+          debugPrint(
+              'ℹ️ Empty cart response with null store_id - cleared cached store_id in repository');
         }
       }
     }

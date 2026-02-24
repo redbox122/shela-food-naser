@@ -17,6 +17,7 @@ import 'package:sixam_mart/features/cart/controllers/cart_controller.dart';
 import 'package:sixam_mart/features/favourite/controllers/favourite_controller.dart';
 import 'package:sixam_mart/features/location/controllers/location_controller.dart';
 import 'package:sixam_mart/features/splash/controllers/splash_controller.dart';
+import 'package:sixam_mart/features/checkout/widgets/checkout_loading_dialog.dart';
 import 'package:sixam_mart/features/verification/domein/enum/verification_type_enum.dart';
 import 'package:sixam_mart/features/verification/screens/verification_screen.dart';
 import 'package:sixam_mart/helper/centralize_login_helper.dart';
@@ -131,9 +132,14 @@ class _SignInViewState extends State<SignInView> {
 
   Widget activeCentralizeLogin(AuthController authController,
       CentralizeLoginSetup centralizeLoginSetup) {
+    final CentralizeLoginSetup uiLoginSetup = CentralizeLoginSetup(
+      manualLoginStatus: true,
+      otpLoginStatus: false,
+      socialLoginStatus: centralizeLoginSetup.socialLoginStatus,
+    );
     final CentralizeLoginType centralizeLogin =
         CentralizeLoginHelper.getPreferredLoginMethod(
-                centralizeLoginSetup, _isOtpViewEnable)
+                uiLoginSetup, _isOtpViewEnable)
             .type;
     switch (centralizeLogin) {
       case CentralizeLoginType.otp:
@@ -243,6 +249,7 @@ class _SignInViewState extends State<SignInView> {
 
   void _otpLogin(AuthController authController, String countryDialCode,
       CentralizeLoginType loginType) async {
+    debugPrint('🔥 OTP LOGIN PATH');
     final String phone = phoneController.text.trim();
     String numberWithCountryCode = countryDialCode + phone;
     final PhoneValid phoneValid =
@@ -254,12 +261,7 @@ class _SignInViewState extends State<SignInView> {
         showCustomSnackBar('invalid_phone_number'.tr);
       } else {
         authController
-            .otpLogin(
-                phone: numberWithCountryCode,
-                otp: '',
-                loginType: loginType.name,
-                verified: '',
-                alreadyInApp: widget.backFromThis)
+            .resend_Otp(phone: numberWithCountryCode)
             .then((response) {
           if (response.isSuccess) {
             _processOtpSuccessSetup(
@@ -301,9 +303,22 @@ class _SignInViewState extends State<SignInView> {
         )
             .then((status) async {
           if (status.isSuccess) {
+            if (status.otpRequired) {
+              final String otpPhone = status.otpPhone ?? numberWithCountryCode;
+              String? nextPage = Get.parameters['page'];
+              if (nextPage == null || nextPage.isEmpty) {
+                final Uri? currentUri = Uri.tryParse(Get.currentRoute);
+                nextPage = currentUri?.queryParameters['page'];
+              }
+              Get.toNamed(RouteHelper.getLoginOtpRoute(
+                  otpPhone, CentralizeLoginType.manual.name,
+                  nextPage: nextPage));
+              return;
+            }
             if (status.isSuccess &&
                 !status.authResponseModel!.isPersonalInfo!) {
-              if (Get.context != null && ResponsiveHelper.isDesktop(Get.context!)) {
+              if (Get.context != null &&
+                  ResponsiveHelper.isDesktop(Get.context!)) {
                 Get.back();
                 Get.dialog(NewUserSetupScreen(
                     name: '',
@@ -384,26 +399,37 @@ class _SignInViewState extends State<SignInView> {
           RouteHelper.signUp, data, CentralizeLoginType.manual.name));
     } else {
       debugPrint('\x1B[32m  88888888  \x1B[0m');
-      debugPrint('🚀 SignInView: Login successful - starting optimistic navigation...');
+      debugPrint(
+          '🚀 SignInView: Login successful - starting optimistic navigation...');
 
       // ⚡ PERFORMANCE: Optimistic navigation - navigate immediately after login
       // User data and wallet state are already set from login response in AuthService
       // Menu screen can render immediately with data from login response
-      
+
       // Check current state before navigation
       final profileController = Get.find<ProfileController>();
       final kaidhaController = Get.find<KaidhaSubscription_Controller>();
       debugPrint('🔍 SignInView: Pre-navigation state check:');
-      debugPrint('   - User Info: ${profileController.userInfoModel != null ? 'SET (${profileController.userInfoModel?.fName} ${profileController.userInfoModel?.lName})' : 'NULL'}');
-      debugPrint('   - Wallet State: ${kaidhaController.walletKaidhaModel != null ? 'SET (${kaidhaController.walletKaidhaModel?.wallet?.status})' : 'NULL'}');
-      
+      debugPrint(
+          '   - User Info: ${profileController.userInfoModel != null ? 'SET (${profileController.userInfoModel?.fName} ${profileController.userInfoModel?.lName})' : 'NULL'}');
+      debugPrint(
+          '   - Wallet State: ${kaidhaController.walletKaidhaModel != null ? 'SET (${kaidhaController.walletKaidhaModel?.wallet?.status})' : 'NULL'}');
+
       // Navigate IMMEDIATELY (don't wait for API calls)
-      debugPrint('⚡ SignInView: Navigating immediately (optimistic navigation)...');
+      debugPrint(
+          '⚡ SignInView: Navigating immediately (optimistic navigation)...');
+      // Close stale modal overlays from previous checkout/login steps.
+      dismissCheckoutLoadingDialogSafely();
+      if (Get.isDialogOpen ?? false) {
+        Get.back<void>(closeOverlays: true);
+      }
       if (widget.backFromThis) {
-        if (Get.context != null && (ResponsiveHelper.isDesktop(Get.context!) ||
-            widget.fromResetPassword)) {
+        if (Get.context != null &&
+            (ResponsiveHelper.isDesktop(Get.context!) ||
+                widget.fromResetPassword)) {
           debugPrint('\x1B[32m  56666565656565  \x1B[0m');
-          debugPrint('📱 SignInView: Navigating to initial route (desktop/reset password)');
+          debugPrint(
+              '📱 SignInView: Navigating to initial route (desktop/reset password)');
           Get.offAllNamed(RouteHelper.getInitialRoute());
         } else {
           debugPrint('📱 SignInView: Navigating back');
@@ -411,7 +437,8 @@ class _SignInViewState extends State<SignInView> {
         }
       } else {
         debugPrint('\x1B[32m  99999999  \x1B[0m');
-        debugPrint('📱 SignInView: Navigating to location screen (or home if address exists)');
+        debugPrint(
+            '📱 SignInView: Navigating to location screen (or home if address exists)');
         // Navigate to location screen (or home if address already exists)
         // navigateToLocationScreen handles navigation - no need for redundant Get.offAllNamed
         // If user has address, it navigates directly to home
@@ -419,11 +446,13 @@ class _SignInViewState extends State<SignInView> {
         Get.find<LocationController>()
             .navigateToLocationScreen(context, 'sign-in', offNamed: true);
       }
-      debugPrint('✅ SignInView: Navigation completed - menu screen should render immediately');
+      debugPrint(
+          '✅ SignInView: Navigation completed - menu screen should render immediately');
 
       // Load remaining data in background (non-blocking)
       // User info and wallet state are already set from login response
-      debugPrint('🔄 SignInView: Starting background data loading (non-blocking)...');
+      debugPrint(
+          '🔄 SignInView: Starting background data loading (non-blocking)...');
       unawaited(_loadBackgroundDataAfterLogin());
     }
   }
@@ -447,44 +476,26 @@ class _SignInViewState extends State<SignInView> {
         return;
       }
     }
-    if (response.authResponseModel != null &&
-        !response.authResponseModel!.isPhoneVerified!) {
-      if (Get.find<SplashController>().configModel!.firebaseOtpVerification!) {
-        Get.find<AuthController>().firebaseVerifyPhoneNumber(
-            countryDialCode + phone, '', CentralizeLoginType.otp.name);
-      } else {
-        if (Get.context != null && ResponsiveHelper.isDesktop(Get.context!)) {
-          Get.back();
-          Get.dialog(VerificationScreen(
-            number: countryDialCode + phone,
-            token: '',
-            fromSignUp: true,
-            fromForgetPassword: false,
-            loginType: CentralizeLoginType.otp.name,
-            password: '',
-          ));
-        } else {
-          Get.toNamed(RouteHelper.getVerificationRoute(
-            countryDialCode + phone,
-            null,
-            '',
-            RouteHelper.signUp,
-            null,
-            CentralizeLoginType.otp.name,
-          ));
-        }
-      }
+
+    if (Get.context != null && ResponsiveHelper.isDesktop(Get.context!)) {
+      Get.back();
+      Get.dialog(VerificationScreen(
+        number: countryDialCode + phone,
+        token: '',
+        fromSignUp: true,
+        fromForgetPassword: false,
+        loginType: CentralizeLoginType.otp.name,
+        password: '',
+      ));
     } else {
-      if (widget.backFromThis) {
-        if (Get.context != null && ResponsiveHelper.isDesktop(Get.context!)) {
-          Get.offAllNamed(RouteHelper.getInitialRoute());
-        } else {
-          Get.back();
-        }
-      } else {
-        Get.find<LocationController>()
-            .navigateToLocationScreen(context, 'sign-in', offNamed: true);
-      }
+      Get.toNamed(RouteHelper.getVerificationRoute(
+        countryDialCode + phone,
+        null,
+        '',
+        RouteHelper.signUp,
+        null,
+        CentralizeLoginType.otp.name,
+      ));
     }
   }
 
@@ -528,19 +539,23 @@ class _SignInViewState extends State<SignInView> {
 
           // Only load full user info if not already set from login response
           if (profileController.userInfoModel == null) {
-            debugPrint('🔄 SignInView: User info not set from login - loading from API...');
+            debugPrint(
+                '🔄 SignInView: User info not set from login - loading from API...');
             futures.add(profileController.getUserInfo());
           } else {
-            debugPrint('⏭️ SignInView: User info already set from login - skipping API call');
+            debugPrint(
+                '⏭️ SignInView: User info already set from login - skipping API call');
           }
 
           // Only load wallet if not already set from login response (inactive/unsigned wallets)
           // Active wallets already have state set from login - no API call needed!
           if (kaidhaController.walletKaidhaModel == null) {
-            debugPrint('🔄 SignInView: Wallet state not set from login - loading from API...');
+            debugPrint(
+                '🔄 SignInView: Wallet state not set from login - loading from API...');
             futures.add(kaidhaController.get_Wallet_Kaidh());
           } else {
-            debugPrint('⏭️ SignInView: Wallet state already set from login - skipping API call');
+            debugPrint(
+                '⏭️ SignInView: Wallet state already set from login - skipping API call');
           }
 
           // Load module-specific cart (non-blocking)
@@ -551,11 +566,13 @@ class _SignInViewState extends State<SignInView> {
           debugPrint('🔄 SignInView: Loading wishlist data...');
           futures.add(favouriteController.getFavouriteList());
 
-          debugPrint('🔄 SignInView: Waiting for ${futures.length} background API calls...');
+          debugPrint(
+              '🔄 SignInView: Waiting for ${futures.length} background API calls...');
           await Future.wait(futures);
 
           final duration = DateTime.now().difference(startTime);
-          debugPrint('✅ SignInView: Background data loaded successfully in ${duration.inMilliseconds}ms');
+          debugPrint(
+              '✅ SignInView: Background data loaded successfully in ${duration.inMilliseconds}ms');
         } catch (e) {
           debugPrint('⚠️ SignInView: Error loading background data - $e');
           // Don't block - data will load when user navigates to those screens

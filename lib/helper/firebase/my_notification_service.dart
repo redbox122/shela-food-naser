@@ -1,5 +1,6 @@
 // ignore_for_file: avoid_print
 
+import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/foundation.dart'; // تأكد أنها مضافة
 
@@ -7,8 +8,10 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:get/get.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sixam_mart/features/notification/domain/models/notification_model.dart';
 import 'package:sixam_mart/features/notification/controllers/notification_controller.dart';
+import 'package:sixam_mart/util/app_constants.dart';
 import 'package:sixam_mart/util/backend_message_translator.dart';
 
 /// 🔧 BACKGROUND MESSAGE HANDLER (must be top-level)
@@ -175,6 +178,49 @@ class NotificationService {
       platformDetails,
       payload: message.data.toString(),
     );
+
+    await _persistRemoteMessageToLocalLog(message);
+  }
+
+  static NotificationModel _toNotificationModel(RemoteMessage message) {
+    return NotificationModel(
+      id: DateTime.now().millisecondsSinceEpoch,
+      data: Data(
+        title: message.notification?.title ?? 'Notification',
+        description:
+            message.notification?.body ?? 'You have a new notification',
+        imageFullUrl: message.notification?.android?.imageUrl ??
+            message.notification?.apple?.imageUrl,
+        type: (message.data['type'] as String?) ?? 'general',
+      ),
+      createdAt: DateTime.now().toIso8601String(),
+      updatedAt: DateTime.now().toIso8601String(),
+      imageFullUrl: message.notification?.android?.imageUrl ??
+          message.notification?.apple?.imageUrl,
+      status: 0,
+    );
+  }
+
+  static Future<void> _persistRemoteMessageToLocalLog(
+      RemoteMessage message) async {
+    try {
+      final NotificationModel notificationModel = _toNotificationModel(message);
+      final SharedPreferences prefs = await SharedPreferences.getInstance();
+      final List<String> existing = prefs
+              .getStringList(AppConstants.localNotificationLogList)
+              ?.toList() ??
+          <String>[];
+
+      existing.insert(0, jsonEncode(notificationModel.toJson()));
+      if (existing.length > 100) {
+        existing.removeRange(100, existing.length);
+      }
+      await prefs.setStringList(AppConstants.localNotificationLogList, existing);
+    } catch (e) {
+      if (kDebugMode) {
+        print('🔔 NotificationService: Failed to persist local log: $e');
+      }
+    }
   }
 
   Future<void> _getDeviceToken() async {
@@ -193,22 +239,7 @@ class NotificationService {
       if (Get.isRegistered<NotificationController>()) {
         final notificationController = Get.find<NotificationController>();
 
-        // Create NotificationModel from RemoteMessage
-        final notificationModel = NotificationModel(
-          id: DateTime.now().millisecondsSinceEpoch, // Use timestamp as ID
-          data: Data(
-            title: message.notification?.title ?? 'Notification',
-            description:
-                message.notification?.body ?? 'You have a new notification',
-            imageFullUrl: message.notification?.android?.imageUrl ??
-                message.notification?.apple?.imageUrl,
-            type: (message.data['type'] as String?) ?? 'general',
-          ),
-          createdAt: DateTime.now().toIso8601String(),
-          updatedAt: DateTime.now().toIso8601String(),
-          imageFullUrl: message.notification?.android?.imageUrl ??
-              message.notification?.apple?.imageUrl,
-        );
+        final notificationModel = _toNotificationModel(message);
 
         // Save for popup display
         notificationController

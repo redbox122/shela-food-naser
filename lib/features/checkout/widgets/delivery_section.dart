@@ -44,6 +44,9 @@ class DeliverySection extends StatelessWidget {
             checkoutController.addressIndex! < address.length)
         ? checkoutController.addressIndex!
         : 0;
+    debugPrint(
+      '📍 [DeliverySection] addresses=${address.length}, selectedIndex=$selectedIndex, selectedId=${address.isNotEmpty ? address[selectedIndex].id : null}, ids=${address.map((e) => e.id).toList()}',
+    );
     return Column(children: [
       isGuestLoggedIn
           ? GuestDeliveryAddress(
@@ -299,11 +302,10 @@ class DeliverySection extends StatelessWidget {
                                 ),
                               ])
                             : Container(
-                                height: 110,
                                 constraints: BoxConstraints(
                                   minHeight: ResponsiveHelper.isDesktop(context)
                                       ? 100
-                                      : 80,
+                                      : 96,
                                 ),
                                 decoration: BoxDecoration(
                                   borderRadius: BorderRadius.circular(
@@ -360,7 +362,7 @@ class DeliverySection extends StatelessWidget {
                                         }
                                       },
                                       dropdownButtonStyle: DropdownButtonStyle(
-                                        height: 90,
+                                        height: 96,
                                         padding: const EdgeInsets.symmetric(
                                           vertical:
                                               Dimensions.paddingSizeExtraSmall,

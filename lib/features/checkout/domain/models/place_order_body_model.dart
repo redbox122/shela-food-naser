@@ -474,8 +474,15 @@ class OnlineCart {
   Map<String, dynamic> toJson() {
     const bool logEnabled = kDebugMode && AppConstants.enableVerboseLogs;
     final Map<String, dynamic> data = <String, dynamic>{};
+    // Required by update-cart endpoint
+    if (_cartId != null && _cartId! > 0) {
+      data['cart_id'] = _cartId;
+    }
     data['item_id'] = _itemId;
-    data['model'] = _model ?? 'Item';  // Required field - default to "Item" if not set
+    final String rawModel = (_model ?? 'Item').trim();
+    // Backend cart endpoints validate against short model names (e.g. "Item"),
+    // not fully-qualified class names.
+    data['model'] = rawModel.contains('\\') ? rawModel.split('\\').last : rawModel;
     data['price'] = _price;
     // Add variant field as string "none" to prevent backend error - backend expects this field
     data['variant'] = 'none';

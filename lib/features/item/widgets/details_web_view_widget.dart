@@ -707,9 +707,7 @@ class DetailsWebViewWidget extends StatelessWidget {
                                                         .availableDateStarts !=
                                                     null
                                                 ? 'order_now'.tr
-                                                : itemController.cartIndex != -1
-                                                    ? 'update_in_cart'.tr
-                                                    : 'add_to_cart'.tr,
+                                                : 'add_to_cart'.tr,
                                             onPressed: () async {
                                               if (itemController.item!
                                                       .availableDateStarts !=

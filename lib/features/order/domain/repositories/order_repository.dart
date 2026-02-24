@@ -1,6 +1,6 @@
 // ignore_for_file: avoid_print
 
-import 'package:get/get_connect/connect.dart';
+import 'package:get/get.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:sixam_mart/api/api_client.dart';
 import 'package:sixam_mart/features/order/domain/models/order_cancellation_body.dart';
@@ -34,7 +34,10 @@ class OrderRepository implements OrderRepositoryInterface {
     String uri = '${AppConstants.trackUri}$orderID';
     if (guestId != null) uri += '&guest_id=$guestId';
     if (contactNumber != null) uri += '&contact_number=$contactNumber';
-    return await apiClient.getData(uri);
+    print('[OrderTrack] GET uri=$uri baseUrl=${apiClient.appBaseUrl} useEtag=false');
+    final Response response = await apiClient.getData(uri, useEtag: false);
+    print('[OrderTrack] status=${response.statusCode} bodyType=${response.body.runtimeType}');
+    return response;
   }
 
   @override
@@ -53,10 +56,55 @@ class OrderRepository implements OrderRepositoryInterface {
     if (AuthHelper.isGuestLoggedIn() || guestId != null) {
       data.addAll({'guest_id': guestId ?? AuthHelper.getGuestId()});
     }
+    print('[OrderCancel] cancel request uri=${AppConstants.orderCancelUri} body=$data');
     final Response response = await apiClient.postData(AppConstants.orderCancelUri, data);
-    if (response.statusCode == 200) {
-      success = true;
-      showCustomSnackBar((response.body as Map<String, dynamic>)['message'] as String?, isError: false);
+    print('[OrderCancel] cancel response status=${response.statusCode} bodyType=${response.body.runtimeType}');
+    if (response.body is Map<String, dynamic>) {
+      final Map<String, dynamic> map = response.body as Map<String, dynamic>;
+      final dynamic message = map['message'];
+      final bool apiSuccess =
+          map['success'] == true || map['success'] == 1 || map['success'] == '1';
+      final bool refundProcessed = map['refund_processed'] == true ||
+          map['refund_processed'] == 1 ||
+          map['refund_processed'] == '1';
+      final String refundTarget =
+          (map['refund_target']?.toString().toLowerCase() ?? '').trim();
+      final dynamic refundAmount = map['refund_amount'];
+      final dynamic walletBalanceAfterRefund = map['wallet_balance_after_refund'];
+      final dynamic refundTransactionId = map['refund_transaction_id'];
+
+      print('[OrderCancel] cancel response keys=${map.keys.toList()}');
+      print('[OrderCancel] cancel response message=$message');
+      print(
+          '[OrderCancel] refund_processed=$refundProcessed refund_target=$refundTarget refund_amount=$refundAmount wallet_balance_after_refund=$walletBalanceAfterRefund refund_transaction_id=$refundTransactionId');
+
+      if (response.statusCode == 200 && apiSuccess) {
+        success = true;
+        String successMessage = message?.toString() ?? 'order_cancelled'.tr;
+        if (refundProcessed) {
+          if (refundTarget == 'wallet_qidha') {
+            successMessage = 'refund_to_qidha_wallet_processing'.tr;
+          } else if (refundTarget == 'wallet') {
+            successMessage = 'refund_to_wallet_processing'.tr;
+          } else if (refundTarget == 'card') {
+            successMessage = 'refund_to_original_payment_processing'.tr;
+          } else {
+            successMessage = 'order_refund_completed'.tr;
+          }
+        }
+        showCustomSnackBar(
+          successMessage,
+          isError: false,
+        );
+      } else {
+        showCustomSnackBar(
+            message?.toString() ?? 'Failed to cancel order');
+      }
+    } else {
+      print('[OrderCancel] cancel response raw=${response.body}');
+      if (response.statusCode == 200) {
+        success = true;
+      }
     }
     return success;
   }
@@ -68,15 +116,22 @@ class OrderRepository implements OrderRepositoryInterface {
 
   Future<List<OrderDetailsModel>?> _getOrderDetails(String orderID, String? guestId) async {
     List<OrderDetailsModel>? orderDetails;
-    final Response response =
-        await apiClient.getData('${AppConstants.orderDetailsUri}$orderID${guestId != null ? '&guest_id=$guestId' : ''}');
-    if (response.statusCode == 200) {
+    final String uri =
+        '${AppConstants.orderDetailsUri}$orderID${guestId != null ? '&guest_id=$guestId' : ''}';
+    print('[OrderDetails] GET uri=$uri baseUrl=${apiClient.appBaseUrl} useEtag=false');
+    final Response response = await apiClient.getData(uri, useEtag: false);
+    print('[OrderDetails] status=${response.statusCode} bodyType=${response.body.runtimeType}');
+    if (response.statusCode == 200 && response.body is List) {
       orderDetails = [];
       for (var orderDetail in (response.body as List)) {
-        orderDetails.add(OrderDetailsModel.fromJson(orderDetail as Map<String, dynamic>));
+        orderDetails.add(
+            OrderDetailsModel.fromJson(orderDetail as Map<String, dynamic>));
       }
+      print('[OrderDetails] parsedCount=${orderDetails.length}');
+      return orderDetails;
     }
-    return orderDetails;
+    print('[OrderDetails] no valid list payload; keeping previous details in controller');
+    return null;
   }
 
   @override
@@ -104,34 +159,56 @@ class OrderRepository implements OrderRepositoryInterface {
 
   Future<PaginatedOrderModel?> _getRunningOrderList(int offset, bool fromDashboard) async {
     PaginatedOrderModel? runningOrderModel;
+    final String uri =
+        '${AppConstants.runningOrderListUri}?offset=$offset&limit=${fromDashboard ? 50 : 10}';
+    print('[OrderRepo] GET running uri=$uri baseUrl=${apiClient.appBaseUrl}');
     final Response response = await apiClient.getData(
-      '${AppConstants.runningOrderListUri}?offset=$offset&limit=${fromDashboard ? 50 : 10}',
+      uri,
       useEtag: false,
     );
+    print('[OrderRepo] running status=${response.statusCode} bodyType=${response.body.runtimeType}');
     if (response.statusCode == 200) {
       runningOrderModel = PaginatedOrderModel.fromJson(response.body as Map<String, dynamic>);
+      print('[OrderRepo] running parsedCount=${runningOrderModel.orders?.length ?? 0}');
     }
     return runningOrderModel;
   }
 
   Future<PaginatedOrderModel?> _getHistoryOrderList(int offset) async {
     PaginatedOrderModel? historyOrderModel;
+    final String uri = '${AppConstants.historyOrderListUri}?offset=$offset&limit=10';
+    print('[OrderRepo] GET history uri=$uri baseUrl=${apiClient.appBaseUrl}');
     final Response response = await apiClient.getData(
-      '${AppConstants.historyOrderListUri}?offset=$offset&limit=10',
+      uri,
       useEtag: false,
     );
+    print('[OrderRepo] history status=${response.statusCode} bodyType=${response.body.runtimeType}');
     if (response.statusCode == 200) {
       historyOrderModel = PaginatedOrderModel.fromJson(response.body as Map<String, dynamic>);
+      print('[OrderRepo] history parsedCount=${historyOrderModel.orders?.length ?? 0}');
     }
     return historyOrderModel;
   }
 
   Future<List<CancellationData>?> _getCancelReasons() async {
     List<CancellationData>? orderCancelReasons;
-    final Response response = await apiClient.getData('${AppConstants.orderCancellationUri}?offset=1&limit=30&type=customer');
-    if (response.statusCode == 200) {
+    const String uri = '${AppConstants.orderCancellationUri}?offset=1&limit=30&type=customer';
+    print('[OrderCancel] get reasons request uri=$uri useEtag=false');
+    final Response response = await apiClient.getData(
+      uri,
+      useEtag: false,
+    );
+    print('[OrderCancel] get reasons status=${response.statusCode}');
+    print('[OrderCancel] get reasons bodyType=${response.body.runtimeType}');
+    if ((response.statusCode == 200 || response.statusCode == 304) && response.body is Map<String, dynamic>) {
       final OrderCancellationBody orderCancellationBody = OrderCancellationBody.fromJson(response.body as Map<String, dynamic>);
       orderCancelReasons = orderCancellationBody.reasons ?? [];
+      print('[OrderCancel] get reasons parsedCount=${orderCancelReasons.length}');
+    } else if (response.body is List) {
+      final List body = response.body as List;
+      print('[OrderCancel] get reasons unexpected list body length=${body.length}');
+    } else {
+      print('[OrderCancel] get reasons unexpected body=${response.body}');
     }
     return orderCancelReasons;
   }

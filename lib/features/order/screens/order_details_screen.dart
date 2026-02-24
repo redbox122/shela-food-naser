@@ -1,6 +1,7 @@
 // ignore_for_file: deprecated_member_use
 
 import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:photo_view/photo_view.dart';
 import 'package:sixam_mart/features/auth/controllers/auth_controller.dart';
 import 'package:sixam_mart/features/order/widgets/order_calcuation_widget.dart';
@@ -148,7 +149,7 @@ class OrderDetailsScreenState extends State<OrderDetailsScreen> {
           bool showChatPermission = true;
           double subTotal = 0;
           double taxFromDetails = 0;
-          final double total = order?.orderAmount ?? 0;
+          double total = order?.orderAmount ?? 0;
 
           if (orderDetailsList != null && order != null) {
             parcel = order.orderType == 'parcel';
@@ -169,6 +170,22 @@ class OrderDetailsScreenState extends State<OrderDetailsScreen> {
             additionalCharge = order.additionalCharge ?? 0;
             extraPackagingCharge = order.extraPackagingAmount ?? 0;
             referrerBonusAmount = order.referrerBonusAmount ?? 0;
+
+            // Some APIs return order_amount as 0 for old/legacy orders.
+            // Fallback to successful payment rows when available.
+            if (total <= 0 && order.payments != null && order.payments!.isNotEmpty) {
+              double paymentsTotal = 0;
+              for (final payment in order.payments!) {
+                paymentsTotal += payment.amount ?? 0;
+              }
+              if (paymentsTotal > 0) {
+                total = PriceConverter.toFixed(paymentsTotal);
+                if (kDebugMode) {
+                  debugPrint('[FEES FALLBACK] using payments sum as total');
+                  debugPrint('   - paymentsTotal: $total');
+                }
+              }
+            }
 
             // Align delivery fee and app fee with checkout logic when backend
             // collapses them into deliveryfee_tax / original_delivery_charge.
@@ -235,6 +252,101 @@ class OrderDetailsScreenState extends State<OrderDetailsScreen> {
               taxPercent: taxPercent,
             );
 
+            // Rebuild expected total from visible breakdown to keep summary consistent.
+            final double reconstructedTotal = PriceConverter.toFixed(
+              subTotal -
+                  discount -
+                  couponDiscount -
+                  referrerBonusAmount +
+                  deliveryCharge +
+                  additionalCharge +
+                  extraPackagingCharge +
+                  dmTips +
+                  ((order.taxStatus ?? false) ? 0 : tax),
+            );
+
+            // If total is missing, use reconstructed value.
+            if (total <= 0 && reconstructedTotal > 0) {
+              total = reconstructedTotal;
+              if (kDebugMode) {
+                debugPrint('[FEES FALLBACK] reconstructed total from breakdown');
+                debugPrint('   - reconstructedTotal: $total');
+              }
+            }
+
+            // If backend total differs from breakdown, prefer reconstructed value
+            // so tax/additional lines match the displayed total.
+            if (total > 0 && reconstructedTotal > 0) {
+              final double signedDelta =
+                  PriceConverter.toFixed(total - reconstructedTotal);
+              final double delta = signedDelta.abs();
+              if (delta >= 0.05) {
+                if (kDebugMode) {
+                  debugPrint('[FEES ADJUST] Backend total differs from breakdown');
+                  debugPrint('   - backendTotal: $total');
+                  debugPrint('   - reconstructedTotal: $reconstructedTotal');
+                  debugPrint('   - delta: $delta');
+                }
+
+                // If backend total is higher and delivery charge is zero, infer missing delivery fee
+                // from the difference instead of forcing total down to reconstructed value.
+                final bool missingDeliveryLikely =
+                    signedDelta > 0 && deliveryCharge == 0;
+                if (missingDeliveryLikely) {
+                  deliveryCharge = PriceConverter.toFixed(signedDelta);
+                  if (kDebugMode) {
+                    debugPrint(
+                        '[FEES ADJUST] Inferred missing delivery charge from delta');
+                    debugPrint('   - inferredDeliveryCharge: $deliveryCharge');
+                    debugPrint('   - keeping backend total: $total');
+                  }
+                } else {
+                  total = reconstructedTotal;
+                }
+              }
+            }
+
+            final bool hasZeroBreakdown = itemsPrice == 0 &&
+                addOns == 0 &&
+                subTotal == 0 &&
+                total > 0;
+            if (hasZeroBreakdown) {
+              final double orderLevelTax = PriceConverter.toFixed(
+                order.totalTaxAmount ?? taxFromDetails,
+              );
+              final double taxForEquation =
+                  (order.taxStatus ?? false) ? 0 : orderLevelTax;
+
+              final double derivedSubTotal = PriceConverter.toFixed(
+                total +
+                    discount +
+                    couponDiscount +
+                    referrerBonusAmount -
+                    deliveryCharge -
+                    additionalCharge -
+                    extraPackagingCharge -
+                    dmTips -
+                    taxForEquation,
+              );
+
+              if (derivedSubTotal > 0) {
+                subTotal = derivedSubTotal;
+                itemsPrice = derivedSubTotal;
+              } else {
+                subTotal = total;
+                itemsPrice = total;
+              }
+              addOns = 0;
+              tax = orderLevelTax;
+
+              if (kDebugMode) {
+                debugPrint(
+                    '[FEES FALLBACK] derived subtotal from backend total because details breakdown was empty');
+                debugPrint('   - derivedSubTotal: $subTotal');
+                debugPrint('   - orderLevelTax: $tax');
+              }
+            }
+
             debugPrint('🔍 [FEES DEBUG] Final values before widget:');
             debugPrint('   - itemsPrice: $itemsPrice');
             debugPrint('   - addOns: $addOns');
@@ -246,7 +358,7 @@ class OrderDetailsScreenState extends State<OrderDetailsScreen> {
             debugPrint('   - dmTips: $dmTips');
             debugPrint('   - tax: $tax');
             debugPrint('   - subTotal: $subTotal');
-            debugPrint('   - total (from backend): $total');
+            debugPrint('   - total (resolved): $total');
 
             // #region debug - tax calculation
             debugPrint('🔍 [TAX DEBUG] Before tax resolution:');

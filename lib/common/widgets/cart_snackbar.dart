@@ -12,5 +12,6 @@ import 'package:sixam_mart/common/utils/app_snackbar.dart';
 void showCartSnackBar([BuildContext? context]) {
   // 🔥 PRODUCTION FIX: Use ScaffoldMessenger instead of GetX snackbar
   // This prevents crashes during route changes, rebuilds, and async operations
-  AppSnackBar.showCartSuccess(context, showViewCartButton: true);
+  AppSnackBar.showCartSuccess(context, showViewCartButton: false);
 }
+

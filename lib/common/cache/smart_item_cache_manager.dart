@@ -12,7 +12,6 @@ import 'package:sixam_mart/features/splash/controllers/splash_controller.dart';
 /// Provides unified caching for all item lists with intelligent preloading
 /// and cache management strategies.
 class SmartItemCacheManager {
-  static const Duration _defaultCacheDuration = Duration(minutes: 10);
 
   /// Cache key patterns for different item types
   static const Map<String, String> _cacheKeyPatterns = {

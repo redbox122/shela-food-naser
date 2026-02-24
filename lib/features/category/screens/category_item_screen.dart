@@ -14,6 +14,7 @@ import 'package:sixam_mart/helper/route_helper.dart';
 import 'package:sixam_mart/util/dimensions.dart';
 import 'package:sixam_mart/util/styles.dart';
 import 'package:sixam_mart/util/images.dart';
+import 'package:sixam_mart/util/app_constants.dart';
 import 'package:sixam_mart/common/widgets/custom_image.dart';
 import 'package:sixam_mart/common/widgets/cart_widget.dart';
 import 'package:sixam_mart/common/widgets/item_view.dart';
@@ -85,27 +86,28 @@ class CategoryItemScreenState extends State<CategoryItemScreen>
       final hasPosition = category.position != null;
       final catSiteId = category.catSiteId;
       final hasCatSiteId = catSiteId != null && catSiteId.isNotEmpty;
+      final bool isFoodModule = currentModuleId == 6;
+      final bool missingCuisineMetadata = !hasPosition && !hasCatSiteId;
+      final bool isModuleLevelCategory = category.storeId == null;
+      final bool hasChildren = (category.childesCount ?? 0) > 0;
       final isCuisineCategory = hasPosition
           ? (category.position == 0 && (!hasCatSiteId || catSiteId.length <= 3))
           : (hasCatSiteId &&
               catSiteId.length <= 3); // Fallback if position not available
-      // Fallback for Food module when backend does not send position/cat_site_id
-      // If module 6 and category is module-level (store_id == null) with missing metadata, treat as cuisine -> show stores
-      final bool isFoodModule = currentModuleId == 6;
-      final bool missingCuisineMetadata = !hasPosition && !hasCatSiteId;
-      final bool isModuleLevelCategory = category.storeId == null;
-      final bool fallbackCuisineByModule =
-          isFoodModule && isModuleLevelCategory && missingCuisineMetadata;
+      final bool fallbackCuisineByModule = isFoodModule &&
+          isModuleLevelCategory &&
+          missingCuisineMetadata &&
+          hasChildren;
 
       if (isCuisineCategory || fallbackCuisineByModule) {
         initialIndex = 1; // Stores tab
         isStore = true;
         if (kDebugMode) {
           debugPrint(
-              '✅ CategoryItemScreen: Module $currentModuleId - Detected Cuisine Category (id: ${category.id}, position: ${category.position}, cat_site_id: ${category.catSiteId}, store_id: ${category.storeId}) - Showing Stores');
+              'CategoryItemScreen: Module $currentModuleId - Detected cuisine category (id: ${category.id}, position: ${category.position}, cat_site_id: ${category.catSiteId}, store_id: ${category.storeId}) - showing stores');
           if (fallbackCuisineByModule) {
             debugPrint(
-                '   ↳ Fallback applied: Missing position/cat_site_id for food module category');
+                '   Fallback cuisine detection: missing metadata + childesCount=${category.childesCount}');
           }
         }
       } else {
@@ -187,47 +189,74 @@ class CategoryItemScreenState extends State<CategoryItemScreen>
         categoryController.getSubCategoryList(
           widget.categoryID,
           forceRefreshItems: true,
+          fetchItems: !isStore,
         );
       } else if (kDebugMode) {
         debugPrint(
             '⚠️ CategoryItemScreen: categoryID is null or empty, skipping getSubCategoryList');
       }
 
-      // OPTIMIZATION: Only fetch store list if showing stores tab initially
-      // Otherwise, defer to lazy loading when user switches to stores tab
+      // Preload stores count/list on first open so the stores tab count
+      // is accurate before the user taps it.
       if (isStore) {
+        categoryController.getCategoryStoreList(
+            widget.categoryID, 1, categoryController.type, false);
+        // Preload item data for Tab 2 so both tabs have counts/content ready.
+        categoryController.getCategoryItemList(
+          widget.categoryID,
+          1,
+          categoryController.type,
+          false,
+          includeChildren: true,
+          forceRefresh: true,
+          allowWhenStore: true,
+        );
+      } else {
+        // For all modules, preload stores in background so the stores count
+        // appears immediately instead of showing 0 until tab click.
+        if (kDebugMode) {
+          debugPrint(
+              'CategoryItemScreen: Preloading stores in background (categoryId: ${widget.categoryID}, moduleId: $currentModuleId)');
+        }
         categoryController.getCategoryStoreList(
             widget.categoryID, 1, categoryController.type, false);
       }
     });
 
     scrollController.addListener(() {
+      final categoryController = Get.find<CategoryController>();
+      if (categoryController.isSearching) {
+        if (scrollController.position.pixels ==
+                scrollController.position.maxScrollExtent &&
+            !categoryController.isLoading &&
+            categoryController.hasMoreSearchResults) {
+          categoryController.loadMoreSearchResults();
+        }
+        return;
+      }
       if (scrollController.position.pixels ==
               scrollController.position.maxScrollExtent &&
-          Get.find<CategoryController>().categoryItemList != null &&
-          !Get.find<CategoryController>().isLoading) {
+          categoryController.categoryItemList != null &&
+          !categoryController.isLoading) {
         final int pageSize =
-            (Get.find<CategoryController>().pageSize! / 10).ceil();
-        if (Get.find<CategoryController>().offset < pageSize) {
+            (categoryController.pageSize! / 10).ceil();
+        if (categoryController.offset < pageSize) {
           if (kDebugMode) {
             print('end of the page');
           }
-          Get.find<CategoryController>().showBottomLoader();
-          Get.find<CategoryController>().getCategoryItemList(
-            Get.find<CategoryController>().subCategoryIndex == 0
+          categoryController.showBottomLoader();
+          categoryController.getCategoryItemList(
+            categoryController.subCategoryIndex == 0
                 ? widget.categoryID
-                : Get.find<CategoryController>()
-                    .subCategoryList![
-                        Get.find<CategoryController>().subCategoryIndex]
+                : categoryController
+                    .subCategoryList![categoryController.subCategoryIndex]
                     .id
                     .toString(),
-            Get.find<CategoryController>().offset + 1,
-            Get.find<CategoryController>().type,
+            categoryController.offset + 1,
+            categoryController.type,
             false,
             includeChildren:
-                Get.find<CategoryController>().subCategoryIndex == 0
-                    ? true
-                    : false,
+                categoryController.subCategoryIndex == 0 ? true : false,
           );
         }
       }
@@ -264,6 +293,9 @@ class CategoryItemScreenState extends State<CategoryItemScreen>
 
   @override
   void dispose() {
+    if (Get.isRegistered<CategoryController>()) {
+      Get.find<CategoryController>().resetFilterState(notify: false);
+    }
     scrollController.dispose();
     storeScrollController.dispose();
     _tabController?.dispose();
@@ -283,8 +315,16 @@ class CategoryItemScreenState extends State<CategoryItemScreen>
 
   List<Item> _applyLocalItemFilters(
       CategoryController controller, List<Item> items) {
-    final List<Item> filtered =
-        items.where((e) => (e.stock ?? 0) != 0).toList();
+    final splashController = Get.find<SplashController>();
+    final bool isEcommerceModule =
+        splashController.module?.moduleType == AppConstants.ecommerce ||
+            splashController.module?.id == 3;
+
+    // Hyper module search should mirror global search breadth.
+    // Do not trim search results by local stock filter.
+    final List<Item> filtered = (controller.isSearching && isEcommerceModule)
+        ? List<Item>.from(items)
+        : items.where((e) => (e.stock ?? 0) != 0).toList();
 
     final double? minPrice = controller.currentMinPrice.isNotEmpty
         ? double.tryParse(controller.currentMinPrice)
@@ -334,6 +374,33 @@ class CategoryItemScreenState extends State<CategoryItemScreen>
   }
 
   // ✅ دالة البحث - للبحث فقط (بدون فلاتر)
+  String _buildNoItemFoundText(CategoryController controller) {
+    final String query = controller.currentSearchName.trim();
+    if (query.isNotEmpty) {
+      return 'لا يوجد اسم منتج مثل "$query"\n'
+          'الرجاء اختيار اسم منتج آخر أو إعادة ضبط الفلتر';
+    }
+    return 'no_category_item_found'.tr;
+  }
+
+  void _resetCategoryFilters(CategoryController catController) {
+    final String categoryId = catController.subCategoryIndex == 0
+        ? (widget.categoryID ?? '')
+        : catController.subCategoryList![catController.subCategoryIndex].id
+            .toString();
+
+    catController.applyFilters(
+      research_Name: ' ',
+      product_arrangement: 'popular',
+      id_category: categoryId,
+      id_stores: '',
+      min: '',
+      max: '',
+      discount: false,
+      fromHome: true,
+    );
+  }
+
   void _showSearchDialog(
       BuildContext context, CategoryController catController) {
     final TextEditingController searchController = TextEditingController();
@@ -440,11 +507,18 @@ class CategoryItemScreenState extends State<CategoryItemScreen>
   ) async {
     onStart();
 
-    // تطبيق البحث
-    final categoryId = catController.subCategoryIndex == 0
-        ? widget.categoryID!
-        : catController.subCategoryList![catController.subCategoryIndex].id
-            .toString();
+    final splashController = Get.find<SplashController>();
+    final bool isEcommerceModule =
+        splashController.module?.moduleType == AppConstants.ecommerce ||
+            splashController.module?.id == 3;
+
+    // For Hyper (module 3), search across whole module (no category restriction).
+    final categoryId = isEcommerceModule
+        ? ''
+        : (catController.subCategoryIndex == 0
+            ? widget.categoryID!
+            : catController.subCategoryList![catController.subCategoryIndex].id
+                .toString());
 
     catController.applyFilters(
       research_Name: query,
@@ -454,7 +528,7 @@ class CategoryItemScreenState extends State<CategoryItemScreen>
       min: '',
       max: '',
       discount: false,
-      fromHome: true,
+      fromHome: !isEcommerceModule,
     );
 
     // انتظار قليل لإظهار رسالة التحميل
@@ -796,6 +870,16 @@ class CategoryItemScreenState extends State<CategoryItemScreen>
         categories: catController.categoryList,
         categoryId: widget.categoryID,
       );
+      final bool navigateItemToStoreOnTap =
+          Get.find<SplashController>().module?.moduleType.toString() ==
+              AppConstants.food;
+      final SplashController splashController = Get.find<SplashController>();
+      final bool isFoodModule =
+          splashController.module?.moduleType.toString() == AppConstants.food;
+      final bool showRestaurantText = isFoodModule &&
+          (splashController
+                  .configModel?.moduleConfig?.module?.showRestaurantText ??
+              false);
       return PopScope(
         onPopInvokedWithResult: (didPop, result) async {
           if (catController.isSearching) {
@@ -1010,13 +1094,10 @@ class CategoryItemScreenState extends State<CategoryItemScreen>
                             tabs: [
                               Tab(text: 'item'.tr),
                               Tab(
-                                  text: Get.find<SplashController>()
-                                          .configModel!
-                                          .moduleConfig!
-                                          .module!
-                                          .showRestaurantText!
-                                      ? 'restaurants'.tr
-                                      : 'stores'.tr),
+                                text: showRestaurantText
+                                    ? 'restaurants'.tr
+                                    : 'stores'.tr,
+                              ),
                             ],
                           ),
                         )),
@@ -1031,7 +1112,13 @@ class CategoryItemScreenState extends State<CategoryItemScreen>
                                   isStore: false,
                                   items: item,
                                   stores: null,
-                                  noDataText: 'no_category_item_found'.tr,
+                                  navigateItemToStoreOnTap:
+                                      navigateItemToStoreOnTap,
+                                  noDataText:
+                                      _buildNoItemFoundText(catController),
+                                  noDataActionText: 'reset'.tr,
+                                  onNoDataActionTap: () =>
+                                      _resetCategoryFilters(catController),
                                 ),
                               ),
                               SingleChildScrollView(
@@ -1040,11 +1127,7 @@ class CategoryItemScreenState extends State<CategoryItemScreen>
                                   isStore: true,
                                   items: null,
                                   stores: stores,
-                                  noDataText: Get.find<SplashController>()
-                                          .configModel!
-                                          .moduleConfig!
-                                          .module!
-                                          .showRestaurantText!
+                                  noDataText: showRestaurantText
                                       ? 'no_category_restaurant_found'.tr
                                       : 'no_category_store_found'.tr,
                                 ),
@@ -1087,7 +1170,7 @@ class CategoryItemScreenState extends State<CategoryItemScreen>
 
                     // ✅ DATA-DRIVEN: Recursive subcategory rendering from backend metadata
                     // ⚡ PERFORMANCE: Reactive update only for subcategories section
-                    if (!catController.isSearching && widget.categoryID != null)
+                    if (widget.categoryID != null)
                       GetBuilder<CategoryController>(
                         id: 'sub_categories',
                         builder: (controller) => _buildRecursiveCategoryTiles(
@@ -1102,7 +1185,7 @@ class CategoryItemScreenState extends State<CategoryItemScreen>
                     const SizedBox(height: 10),
 
                     // ✅ شريط الفلاتر الجديد
-                    if (!catController.isSearching && widget.categoryID != null)
+                    if (widget.categoryID != null)
                       CategoryFilterBar(
                         categoryID: catController.subCategoryIndex == 0
                             ? widget.categoryID!
@@ -1121,59 +1204,69 @@ class CategoryItemScreenState extends State<CategoryItemScreen>
                         child: Container(
                       width: Dimensions.webMaxWidth,
                       color: Theme.of(context).cardColor,
-                      child: TabBar(
-                        controller: _tabController,
-                        indicatorColor: Theme.of(context).primaryColor,
-                        indicatorWeight: 3,
-                        labelColor: Theme.of(context).primaryColor,
-                        unselectedLabelColor: Theme.of(context).disabledColor,
-                        unselectedLabelStyle: robotoRegular.copyWith(
-                            color: Theme.of(context).disabledColor,
-                            fontSize: Dimensions.fontSizeSmall),
-                        labelStyle: robotoBold.copyWith(
-                            fontSize: Dimensions.fontSizeSmall,
-                            color: Theme.of(context).primaryColor),
-                        tabs: [
-                          SizedBox(
-                            width: 100,
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Tab(text: 'item'.tr),
-                                SizedBox(width: Dimensions.fontSizeSmall),
-                                Text(
-                                  '${catController.pageSize ?? 0}',
-                                  style: robotoMedium.copyWith(
-                                      fontSize: Dimensions.fontSizeSmall),
-                                ),
-                              ],
+                      child: Builder(builder: (_) {
+                        final bool itemsCountLoading = !catController.isStore &&
+                            catController.isLoading &&
+                            item == null;
+                        final bool storesCountLoading = catController.isStore &&
+                            catController.isLoading &&
+                            stores == null;
+                        final String itemsCountText = itemsCountLoading
+                            ? '...'
+                            : '${catController.pageSize ?? (item?.length ?? 0)}';
+                        final String storesCountText = storesCountLoading
+                            ? '...'
+                            : '${catController.restPageSize ?? (stores?.length ?? 0)}';
+                        return TabBar(
+                          controller: _tabController,
+                          indicatorColor: Theme.of(context).primaryColor,
+                          indicatorWeight: 3,
+                          labelColor: Theme.of(context).primaryColor,
+                          unselectedLabelColor: Theme.of(context).disabledColor,
+                          unselectedLabelStyle: robotoRegular.copyWith(
+                              color: Theme.of(context).disabledColor,
+                              fontSize: Dimensions.fontSizeSmall),
+                          labelStyle: robotoBold.copyWith(
+                              fontSize: Dimensions.fontSizeSmall,
+                              color: Theme.of(context).primaryColor),
+                          tabs: [
+                            SizedBox(
+                              width: 100,
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Tab(text: 'item'.tr),
+                                  SizedBox(width: Dimensions.fontSizeSmall),
+                                  Text(
+                                    itemsCountText,
+                                    style: robotoMedium.copyWith(
+                                        fontSize: Dimensions.fontSizeSmall),
+                                  ),
+                                ],
+                              ),
                             ),
-                          ),
-                          SizedBox(
-                            width: 100,
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Tab(
-                                  text: Get.find<SplashController>()
-                                          .configModel!
-                                          .moduleConfig!
-                                          .module!
-                                          .showRestaurantText!
-                                      ? 'restaurants'.tr
-                                      : 'stores'.tr,
-                                ),
-                                SizedBox(width: Dimensions.fontSizeSmall),
-                                Text(
-                                  '${catController.restPageSize ?? 0}',
-                                  style: robotoMedium.copyWith(
-                                      fontSize: Dimensions.fontSizeSmall),
-                                ),
-                              ],
+                            SizedBox(
+                              width: 100,
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Tab(
+                                    text: showRestaurantText
+                                        ? 'restaurants'.tr
+                                        : 'stores'.tr,
+                                  ),
+                                  SizedBox(width: Dimensions.fontSizeSmall),
+                                  Text(
+                                    storesCountText,
+                                    style: robotoMedium.copyWith(
+                                        fontSize: Dimensions.fontSizeSmall),
+                                  ),
+                                ],
+                              ),
                             ),
-                          ),
-                        ],
-                      ),
+                          ],
+                        );
+                      }),
                     )),
 
                     // ===================================
@@ -1211,7 +1304,13 @@ class CategoryItemScreenState extends State<CategoryItemScreen>
                                     ),
                                     stores: null,
                                     verticalItem: catController.isVertical,
-                                    noDataText: 'no_category_item_found'.tr,
+                                    navigateItemToStoreOnTap:
+                                        navigateItemToStoreOnTap,
+                                    noDataText:
+                                        _buildNoItemFoundText(catController),
+                                    noDataActionText: 'reset'.tr,
+                                    onNoDataActionTap: () =>
+                                        _resetCategoryFilters(catController),
                                   ),
                                 ),
                                 SingleChildScrollView(
@@ -1221,11 +1320,7 @@ class CategoryItemScreenState extends State<CategoryItemScreen>
                                     items: null,
                                     stores: stores,
                                     verticalItem: catController.isVertical,
-                                    noDataText: Get.find<SplashController>()
-                                            .configModel!
-                                            .moduleConfig!
-                                            .module!
-                                            .showRestaurantText!
+                                    noDataText: showRestaurantText
                                         ? 'no_category_restaurant_found'.tr
                                         : 'no_category_store_found'.tr,
                                   ),
@@ -1260,3 +1355,4 @@ class CategoryItemScreenState extends State<CategoryItemScreen>
     });
   }
 }
+

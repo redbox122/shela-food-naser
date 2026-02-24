@@ -5,8 +5,10 @@ import 'package:sixam_mart/util/styles.dart';
 import 'package:sixam_mart/common/widgets/custom_button.dart';
 import 'package:sixam_mart/common/widgets/custom_snackbar.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
 import 'package:url_launcher/url_launcher_string.dart';
+import 'package:sixam_mart/common/utils/app_logger.dart';
 
 class UpdateScreen extends StatefulWidget {
   final bool isUpdate;
@@ -60,13 +62,19 @@ class _UpdateScreenState extends State<UpdateScreen> {
                         appUrl = Get.find<SplashController>()
                             .configModel!
                             .appUrlAndroid;
-                        print('🔍 DEBUG - Android URL from backend: $appUrl');
+                        if (kDebugMode) {
+                          appLogger.debug('🔍 DEBUG - Android URL from backend: $appUrl');
+                        }
                       } else if (GetPlatform.isIOS) {
                         appUrl =
                             Get.find<SplashController>().configModel!.appUrlIos;
-                        print('🔍 DEBUG - iOS URL from backend: $appUrl');
+                        if (kDebugMode) {
+                          appLogger.debug('🔍 DEBUG - iOS URL from backend: $appUrl');
+                        }
                       }
-                      print('🔍 DEBUG - Final URL to launch: $appUrl');
+                      if (kDebugMode) {
+                        appLogger.debug('🔍 DEBUG - Final URL to launch: $appUrl');
+                      }
                       if (appUrl != null && await canLaunchUrlString(appUrl)) {
                         launchUrlString(appUrl,
                             mode: LaunchMode.externalApplication);

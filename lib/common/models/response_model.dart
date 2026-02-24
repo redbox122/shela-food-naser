@@ -7,8 +7,19 @@ class ResponseModel {
   List<int>? zoneIds;
   AuthResponseModel? authResponseModel;
   UpdateProfileResponseModel? updateProfileResponseModel;
-  ResponseModel(this._isSuccess, this._message, {this.zoneIds, this.authResponseModel, this.updateProfileResponseModel});
+  final bool? _otpRequired;
+  final String? _otpPhone;
+  ResponseModel(this._isSuccess, this._message,
+      {this.zoneIds,
+      this.authResponseModel,
+      this.updateProfileResponseModel,
+      bool? otpRequired,
+      String? otpPhone})
+      : _otpRequired = otpRequired,
+        _otpPhone = otpPhone;
 
   String? get message => _message;
   bool get isSuccess => _isSuccess;
+  bool get otpRequired => _otpRequired == true;
+  String? get otpPhone => _otpPhone;
 }

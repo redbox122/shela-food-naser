@@ -437,6 +437,7 @@ class _ChatScreenState extends State<ChatScreen> {
                                                                           notificationBody: widget.notificationBody,
                                                                           conversationID: widget.conversationID,
                                                                           index: widget.index,
+                                                                          orderId: widget.orderChatModel?.orderId,
                                                                         );
                                                                         _inputMessageController.clear();
                                                                       } else {
@@ -716,6 +717,7 @@ class _ChatScreenState extends State<ChatScreen> {
                                                             notificationBody: widget.notificationBody,
                                                             conversationID: widget.conversationID,
                                                             index: widget.index,
+                                                            orderId: widget.orderChatModel?.orderId,
                                                           );
                                                           _inputMessageController.clear();
                                                         } else {

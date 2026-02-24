@@ -68,7 +68,7 @@ class _FileUploadWithNameWidgetState extends State<FileUploadWithNameWidget> {
                 return Card(
                   child: ListTile(
                     leading: Image.file(File(item.file.path!), width: 50, height: 50, fit: BoxFit.cover),
-                    title: Text(item.name ?? ''),
+                    title: Text(item.name),
                     trailing: IconButton(
                       icon: const Icon(Icons.delete, color: Colors.red),
                       onPressed: () => KaidhaSubController.removeFile(index),

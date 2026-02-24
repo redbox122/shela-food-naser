@@ -116,7 +116,7 @@ class _FooterViewState extends State<FooterView> {
                       itemCount: splashController.configModel!.socialMedia!.length,
                       itemBuilder: (context, index) {
                         final String? name = splashController.configModel!.socialMedia![index].name;
-                        late String icon;
+                        String icon = Images.facebook;
                         if(name == 'facebook'){
                           icon = Images.facebook;
                         }else if(name == 'linkedin'){
@@ -128,7 +128,7 @@ class _FooterViewState extends State<FooterView> {
                         }else if(name == 'instagram'){
                           icon = Images.instagram;
                         }else if(name == 'pinterest'){
-                          icon = Images.pinterest;
+                          icon = Images.instagram;
                         }
                         return  Padding(
                           padding: const EdgeInsets.symmetric(horizontal: Dimensions.paddingSizeExtraSmall),

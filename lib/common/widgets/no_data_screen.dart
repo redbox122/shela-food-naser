@@ -73,8 +73,9 @@ class NoDataScreen extends StatelessWidget {
                   ),
                   SizedBox(height: MediaQuery.of(context).size.height * 0.03),
                   InkWell(
-                    onTap: () =>
-                        Get.toNamed(RouteHelper.getAllStoreRoute('all')),
+                    onTap: () => Get.offAllNamed(
+                      RouteHelper.getMainRoute('home'),
+                    ),
                     child: Container(
                       decoration: BoxDecoration(
                         borderRadius:

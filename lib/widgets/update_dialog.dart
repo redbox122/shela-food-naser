@@ -1,10 +1,12 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
 // import 'package:in_app_update/in_app_update.dart'; // DISABLED - causes crashes
 import 'package:sixam_mart/services/app_version_service.dart';
 import 'package:sixam_mart/util/dimensions.dart';
 import 'package:sixam_mart/util/styles.dart';
+import 'package:sixam_mart/common/utils/app_logger.dart';
 
 class UpdateDialog extends StatefulWidget {
   final VersionCheckResult versionResult;
@@ -36,7 +38,9 @@ class _UpdateDialogState extends State<UpdateDialog> {
     setState(() {
       _autoUpdateAvailable = false;
     });
-    print('Auto update check disabled to prevent crashes');
+    if (kDebugMode) {
+      appLogger.info('Auto update check disabled to prevent crashes');
+    }
   }
 
   @override

@@ -1,4 +1,7 @@
 import 'package:sixam_mart/common/utils/json_parser.dart';
+import 'package:flutter/foundation.dart';
+import 'package:sixam_mart/common/utils/app_logger.dart';
+import 'package:sixam_mart/util/app_constants.dart';
 
 class AdvertisementModel {
   int? id;
@@ -58,7 +61,9 @@ class AdvertisementModel {
   });
 
   AdvertisementModel.fromJson(Map<String, dynamic> json) {
-    print("${json['description']} json['description']");
+    if (kDebugMode && AppConstants.enableVerboseLogs) {
+      appLogger.debug("${json['description']} json['description']");
+    }
     id = json.parseInt('id');
     storeId = json.parseInt('store_id');
     addType = json['add_type']?.toString();

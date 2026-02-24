@@ -77,7 +77,7 @@ class _OrderSuccessfulScreenState extends State<OrderSuccessfulScreen> {
             
             // Clear cart when payment is confirmed as paid
             if (success && orderController.trackModel!.paymentStatus == 'paid') {
-              Get.find<CheckoutController>().clearCartOnPaymentConfirmed(widget.orderID.toString());
+              Get.find<CheckoutController>().clearCartOnPaymentConfirmed();
             }
             for (final ZoneData zData in AddressHelper.getUserAddressFromSharedPref()!.zoneData!) {
               for (final Modules m in zData.modules!) {

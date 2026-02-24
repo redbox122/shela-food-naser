@@ -13,6 +13,7 @@ abstract class AuthRepositoryInterface extends RepositoryInterface {
   Future<Response> login(
       {required String emailOrPhone, required String password, required String loginType, required String fieldType});
   Future<Response> otpLogin({required String phone, required String otp, required String loginType, required String verified});
+  Future<Response> verifyLoginOtp({required String phone, required String otp});
 
   Future<Response> resend_Otp({required String phone});
 

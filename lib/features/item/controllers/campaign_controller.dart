@@ -5,6 +5,8 @@ import 'package:sixam_mart/features/item/domain/models/basic_campaign_model.dart
 import 'package:sixam_mart/features/item/domain/models/item_model.dart';
 import 'package:get/get.dart';
 import 'package:sixam_mart/features/item/domain/services/campaign_service_interface.dart';
+import 'package:flutter/foundation.dart';
+import 'package:sixam_mart/common/utils/app_logger.dart';
 
 class CampaignController extends GetxController implements GetxService {
   final CampaignServiceInterface campaignServiceInterface;
@@ -124,13 +126,19 @@ class CampaignController extends GetxController implements GetxService {
         // Raw JSON list from disk cache - deserialize it
         _basicCampaignList = data.map((item) => BasicCampaignModel.fromJson(item as Map<String, dynamic>)).toList();
       } else {
-        print('⚠️ CampaignController: Unexpected data type for basic campaigns: ${data.runtimeType}');
+        if (kDebugMode) {
+          appLogger.warning('⚠️ CampaignController: Unexpected data type for basic campaigns: ${data.runtimeType}');
+        }
         return;
       }
       update();
-      print('✅ CampaignController: Loaded ${_basicCampaignList!.length} basic campaigns from cache');
+      if (kDebugMode) {
+        appLogger.info('✅ CampaignController: Loaded ${_basicCampaignList!.length} basic campaigns from cache');
+      }
     } catch (e) {
-      print('❌ CampaignController: Error setting basic campaigns from cache: $e');
+      if (kDebugMode) {
+        appLogger.error('❌ CampaignController: Error setting basic campaigns from cache: $e', e);
+      }
     }
   }
 
@@ -146,13 +154,19 @@ class CampaignController extends GetxController implements GetxService {
         // Raw JSON list from disk cache - deserialize it
         _itemCampaignList = data.map((item) => Item.fromJson(item as Map<String, dynamic>)).toList();
       } else {
-        print('⚠️ CampaignController: Unexpected data type for item campaigns: ${data.runtimeType}');
+        if (kDebugMode) {
+          appLogger.warning('⚠️ CampaignController: Unexpected data type for item campaigns: ${data.runtimeType}');
+        }
         return;
       }
       update();
-      print('✅ CampaignController: Loaded ${_itemCampaignList?.length ?? 0} item campaigns from cache');
+      if (kDebugMode) {
+        appLogger.info('✅ CampaignController: Loaded ${_itemCampaignList?.length ?? 0} item campaigns from cache');
+      }
     } catch (e) {
-      print('❌ CampaignController: Error setting item campaigns from cache: $e');
+      if (kDebugMode) {
+        appLogger.error('❌ CampaignController: Error setting item campaigns from cache: $e', e);
+      }
     }
   }
 }

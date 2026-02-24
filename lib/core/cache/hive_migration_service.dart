@@ -172,7 +172,6 @@ class HiveMigrationService {
       final key = 'comprehensive_banner_cache_module_$moduleId';
       final cachedData = prefs.getString(key);
       if (cachedData != null && cachedData != 'cached') {
-        final bannerData = jsonDecode(cachedData) as Map<String, dynamic>;
         // Extract banner model from cached data structure
         // The cached data has bannerImageList, bannerDataList, etc.
         // We need to reconstruct BannerModel if possible, or skip if structure is different

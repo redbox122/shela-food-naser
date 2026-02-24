@@ -11,6 +11,8 @@ import 'package:sixam_mart/common/models/module_model.dart';
 import 'package:sixam_mart/util/app_constants.dart';
 import 'package:get/get.dart';
 import 'package:sixam_mart/features/splash/domain/repositories/splash_repository_interface.dart';
+import 'package:flutter/foundation.dart';
+import 'package:sixam_mart/common/utils/app_logger.dart';
 
 class SplashRepository implements SplashRepositoryInterface {
   final ApiClient apiClient;
@@ -31,6 +33,28 @@ class SplashRepository implements SplashRepositoryInterface {
               statusCode: 200, body: response.body as Map<String, dynamic>);
           LocalClient.organize(source, cacheId, jsonEncode(response.body),
               apiClient.getHeader());
+        } else if (response.statusCode == 304 || response.body == null) {
+          final String? cacheResponseData = await LocalClient.organize(
+              DataSourceEnum.local, cacheId, null, null);
+          if (cacheResponseData != null) {
+            responseData = Response(
+                statusCode: 200,
+                body: jsonDecode(cacheResponseData) as Map<String, dynamic>);
+          } else {
+            debugPrint(
+                '\x1B[33m⚠️ Config API 304/NULL with cache miss - forcing non-ETag fetch\x1B[0m');
+            final Response forcedResponse = await apiClient.getData(
+              AppConstants.configUri,
+              useEtag: false,
+            );
+            if (forcedResponse.statusCode == 200 && forcedResponse.body != null) {
+              responseData = Response(
+                  statusCode: 200,
+                  body: forcedResponse.body as Map<String, dynamic>);
+              LocalClient.organize(source, cacheId, jsonEncode(forcedResponse.body),
+                  apiClient.getHeader());
+            }
+          }
         }
 
       case DataSourceEnum.local:
@@ -164,7 +188,7 @@ class SplashRepository implements SplashRepositoryInterface {
     );
   }
 
-  @override
+    @override
   Future<List<ModuleModel>?> getModules(
       {Map<String, String>? headers, required DataSourceEnum source}) async {
     List<ModuleModel>? moduleList;
@@ -174,27 +198,38 @@ class SplashRepository implements SplashRepositoryInterface {
       case DataSourceEnum.client:
         final Response response =
             await apiClient.getData(AppConstants.moduleUri, headers: headers);
-        debugPrint(
-            '\x1B[32m📡 Modules API status: ${response.statusCode}\x1B[0m');
-        if (response.statusCode == 200) {
+        debugPrint('\x1B[32mModules API status: ${response.statusCode}\x1B[0m');
+
+        if (response.statusCode == 200 && response.body is List) {
           moduleList = [];
-          print(
-              '\x1B[32m📋 Modules API Response: ${response.body.length} modules returned\x1B[0m');
+          if (kDebugMode && AppConstants.enableVerboseLogs) {
+            appLogger.debug(
+                'Modules API response: ${(response.body as List).length} modules returned');
+          }
+
           for (var storeCategory in (response.body as List)) {
             final module =
                 ModuleModel.fromJson(storeCategory as Map<String, dynamic>);
             moduleList.add(module);
-            print(
-                '\x1B[32m  ✅ Module ${module.id}: ${module.moduleName} (${module.moduleType}) - ${module.storesCount} stores\x1B[0m');
+            if (kDebugMode && AppConstants.enableVerboseLogs) {
+              appLogger.debug(
+                  'Module ${module.id}: ${module.moduleName} (${module.moduleType}) - ${module.storesCount} stores');
+            }
           }
-          print('\x1B[32m📋 Total modules loaded: ${moduleList.length}\x1B[0m');
+
+          if (kDebugMode && AppConstants.enableVerboseLogs) {
+            appLogger.debug('Total modules loaded: ${moduleList.length}');
+          }
+
           LocalClient.organize(source, cacheId, jsonEncode(response.body),
               apiClient.getHeader());
         } else if (response.statusCode == 304 || response.body == null) {
           debugPrint(
-              '\x1B[33m⚠️ Modules API 304/NULL body - loading module list from cache\x1B[0m');
+              '\x1B[33mModules API 304/NULL body - loading module list from cache\x1B[0m');
+
           final String? cacheResponseData = await LocalClient.organize(
               DataSourceEnum.local, cacheId, null, null);
+
           if (cacheResponseData != null) {
             moduleList = [];
             for (var storeCategory in (jsonDecode(cacheResponseData) as List)) {
@@ -202,14 +237,35 @@ class SplashRepository implements SplashRepositoryInterface {
                   ModuleModel.fromJson(storeCategory as Map<String, dynamic>));
             }
             debugPrint(
-                '\x1B[32m✅ Modules cache hydration success: ${moduleList.length} modules\x1B[0m');
+                '\x1B[32mModules cache hydration success: ${moduleList.length} modules\x1B[0m');
           } else {
-            debugPrint(
-                '\x1B[31m❌ Modules cache miss after 304/NULL body\x1B[0m');
+            debugPrint('\x1B[31mModules cache miss after 304/NULL body\x1B[0m');
+            debugPrint('\x1B[33mRetrying modules API with ETag disabled\x1B[0m');
+
+            final Response forcedResponse = await apiClient.getData(
+              AppConstants.moduleUri,
+              headers: headers,
+              useEtag: false,
+            );
+
+            if (forcedResponse.statusCode == 200 && forcedResponse.body is List) {
+              moduleList = [];
+              for (var storeCategory in (forcedResponse.body as List)) {
+                moduleList.add(
+                    ModuleModel.fromJson(storeCategory as Map<String, dynamic>));
+              }
+              LocalClient.organize(source, cacheId, jsonEncode(forcedResponse.body),
+                  apiClient.getHeader());
+              debugPrint(
+                  '\x1B[32mModules force-fetch success: ${moduleList.length} modules\x1B[0m');
+            } else {
+              debugPrint(
+                  '\x1B[31mModules force-fetch failed: status=${forcedResponse.statusCode}\x1B[0m');
+            }
           }
         } else {
           debugPrint(
-              '\x1B[32m❌ Modules API error: status=${response.statusCode} body=${response.body}\x1B[0m');
+              '\x1B[31mModules API error: status=${response.statusCode} body=${response.body}\x1B[0m');
         }
 
       case DataSourceEnum.local:
@@ -218,8 +274,8 @@ class SplashRepository implements SplashRepositoryInterface {
         if (cacheResponseData != null) {
           moduleList = [];
           for (var storeCategory in (jsonDecode(cacheResponseData) as List)) {
-            moduleList.add(
-                ModuleModel.fromJson(storeCategory as Map<String, dynamic>));
+            moduleList
+                .add(ModuleModel.fromJson(storeCategory as Map<String, dynamic>));
           }
         }
     }
@@ -391,3 +447,4 @@ class SplashRepository implements SplashRepositoryInterface {
     throw UnimplementedError();
   }
 }
+

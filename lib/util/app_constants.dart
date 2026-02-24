@@ -110,6 +110,7 @@ class AppConstants {
   static const String registerUri = '/api/v1/auth/sign-up';
   static const String resendOtpUri = '/api/v1/auth/send-otp-again';
   static const String loginUri = '/api/v1/auth/customer-login';
+  static const String verifyLoginOtpUri = '/api/v1/auth/verify-login-otp';
   static const String tokenUri = '/api/v1/customer/cm-firebase-token';
   static const String placeOrderUri = '/api/v1/customer/order/place';
   static const String processPaymentUri =
@@ -416,6 +417,8 @@ class AppConstants {
       '6ammart_latest_notification_popup';
   static const String hasUnshownNotificationPopup =
       '6ammart_has_unshown_notification_popup';
+  static const String localNotificationLogList =
+      '6ammart_local_notification_log_list';
   static const String dmTipIndex = '6ammart_dm_tip_index';
   static const String earnPoint = '6ammart_earn_point';
   static const String acceptCookies = '6ammart_accept_cookies';

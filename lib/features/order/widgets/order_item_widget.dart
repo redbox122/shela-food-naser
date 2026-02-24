@@ -9,7 +9,9 @@ import 'package:sixam_mart/util/images.dart';
 import 'package:sixam_mart/util/styles.dart';
 import 'package:sixam_mart/common/widgets/custom_image.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
+import 'package:sixam_mart/common/utils/app_logger.dart';
 
 class OrderItemWidget extends StatelessWidget {
   final OrderModel order;
@@ -30,11 +32,13 @@ class OrderItemWidget extends StatelessWidget {
     String variationText = '';
 
     // 🔍 DEBUG: Log variation data
-    print('🔍 [OrderItemWidget] Building variation text');
-    print(
-        '🔍 [OrderItemWidget] variation isNotEmpty: ${orderDetails.variation?.isNotEmpty ?? false}');
-    print(
-        '🔍 [OrderItemWidget] foodVariation isNotEmpty: ${orderDetails.foodVariation?.isNotEmpty ?? false}');
+    if (kDebugMode) {
+      appLogger.debug('🔍 [OrderItemWidget] Building variation text');
+      appLogger.debug(
+          '🔍 [OrderItemWidget] variation isNotEmpty: ${orderDetails.variation?.isNotEmpty ?? false}');
+      appLogger.debug(
+          '🔍 [OrderItemWidget] foodVariation isNotEmpty: ${orderDetails.foodVariation?.isNotEmpty ?? false}');
+    }
 
     // Handle old variation format
     if (orderDetails.variation != null && orderDetails.variation!.isNotEmpty) {
@@ -58,14 +62,18 @@ class OrderItemWidget extends StatelessWidget {
           variationText = orderDetails.variation![0].type ?? '';
         }
       } catch (e) {
-        print('❌ [OrderItemWidget] Error parsing old variation: $e');
+        if (kDebugMode) {
+          appLogger.error('❌ [OrderItemWidget] Error parsing old variation: $e', e);
+        }
       }
     }
     // Handle new food variation format
     else if (orderDetails.foodVariation != null &&
         orderDetails.foodVariation!.isNotEmpty) {
-      print(
-          '🔍 [OrderItemWidget] Processing ${orderDetails.foodVariation!.length} food variations');
+      if (kDebugMode) {
+        appLogger.debug(
+            '🔍 [OrderItemWidget] Processing ${orderDetails.foodVariation!.length} food variations');
+      }
       for (final FoodVariation variation in orderDetails.foodVariation!) {
         if (variation.name != null && variation.name!.isNotEmpty) {
           variationText =
@@ -87,15 +95,19 @@ class OrderItemWidget extends StatelessWidget {
           }
         }
       }
-      print('✅ [OrderItemWidget] Built variation text: $variationText');
+      if (kDebugMode) {
+        appLogger.debug('✅ [OrderItemWidget] Built variation text: $variationText');
+      }
     }
 
     // If still empty, check if itemDetails has foodVariations (fallback)
     if (variationText.isEmpty &&
         orderDetails.itemDetails?.foodVariations != null &&
         orderDetails.itemDetails!.foodVariations!.isNotEmpty) {
-      print(
-          '🔍 [OrderItemWidget] Using itemDetails.foodVariations as fallback');
+      if (kDebugMode) {
+        appLogger.debug(
+            '🔍 [OrderItemWidget] Using itemDetails.foodVariations as fallback');
+      }
       // Note: This shows available variations, not selected ones
       // This is a fallback if order variation data is missing
     }

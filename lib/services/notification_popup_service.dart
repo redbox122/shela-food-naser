@@ -10,10 +10,21 @@ import 'package:sixam_mart/util/backend_message_translator.dart';
 class NotificationPopupService {
   static final NotificationRepositoryInterface _notificationRepository =
       Get.find();
+  static const bool _popupEnabled = false;
 
   /// Check if there's an unshown notification popup and display it
   static Future<void> checkAndShowNotificationPopup() async {
     try {
+      // Global kill switch: keep notifications in list only, never show popup.
+      if (!_popupEnabled) {
+        if (_notificationRepository.hasUnshownNotificationPopup()) {
+          print(
+              '🔕 NotificationPopupService: Popup disabled - marking pending popup as handled');
+          _notificationRepository.markNotificationPopupAsShown();
+        }
+        return;
+      }
+
       // Check if there's an unshown notification popup
       if (!_notificationRepository.hasUnshownNotificationPopup()) {
         print(

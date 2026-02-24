@@ -302,6 +302,19 @@ class BottomSection extends StatelessWidget {
                     : GetBuilder<CheckoutController>(
                         id: 'delivery_charge', // Use specific ID for delivery charge updates
                         builder: (controller) {
+                          if (controller.orderType == 'take_away') {
+                            return Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text('delivery_fee'.tr, style: robotoRegular),
+                                PriceConverter.convertPrice2(
+                                  0,
+                                  textStyle: robotoRegular,
+                                ),
+                              ],
+                            );
+                          }
+
                           // Show loader while calculating
                           if (!controller.isDeliveryChargeReady) {
                             return Row(

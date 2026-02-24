@@ -88,7 +88,13 @@ class PriceConverter {
             ),
           ),
           const SizedBox(width: 5),
-          Image.asset(Images.sar, width: 15, height: 15),
+          Image.asset(
+            Images.sar,
+            width: 15,
+            height: 15,
+            cacheWidth: 48,
+            cacheHeight: 48,
+          ),
           const SizedBox(width: 5),
         ],
 
@@ -96,7 +102,13 @@ class PriceConverter {
         Text(formattedPrice, style: textStyle),
 
         const SizedBox(width: 5),
-        Image.asset(Images.sar, width: 15, height: 15),
+        Image.asset(
+          Images.sar,
+          width: 15,
+          height: 15,
+          cacheWidth: 48,
+          cacheHeight: 48,
+        ),
       ],
     );
   }

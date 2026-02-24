@@ -16,6 +16,7 @@ import 'package:sixam_mart/features/location/screens/pick_map_screen.dart';
 import 'package:sixam_mart/features/location/widgets/permission_dialog_widget.dart';
 import 'package:sixam_mart/features/parcel/domain/models/place_details_model.dart';
 import 'package:sixam_mart/features/splash/controllers/splash_controller.dart';
+import 'package:sixam_mart/features/home/screens/multi_module/multi_module_home_screen.dart';
 import 'package:sixam_mart/helper/address_helper.dart';
 import 'package:sixam_mart/helper/responsive_helper.dart';
 import 'package:sixam_mart/helper/route_helper.dart';
@@ -205,6 +206,17 @@ class LocationService implements LocationServiceInterface {
 
   @override
   void handleRoute(bool fromSignUp, String? route, bool canRoute) {
+    // Keep onboarding flow intact:
+    // Welcome screens -> Pick Map -> MultiModuleHomeScreen.
+    if (route == 'onboarding' || route == RouteHelper.onBoarding) {
+      Get.offAll<dynamic>(
+        () => const MultiModuleHomeScreen(),
+        transition: Transition.fadeIn,
+        duration: const Duration(milliseconds: 250),
+      );
+      return;
+    }
+
     if (route != null && canRoute) {
       Get.offAllNamed(route);
     } else {

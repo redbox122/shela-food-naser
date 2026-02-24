@@ -1,4 +1,7 @@
 import 'package:sixam_mart/features/splash/controllers/splash_controller.dart';
+import 'package:sixam_mart/features/auth/controllers/auth_controller.dart';
+import 'package:sixam_mart/helper/auth_helper.dart';
+import 'package:sixam_mart/helper/route_helper.dart';
 import 'package:sixam_mart/features/support/widgets/web_help_support_widget.dart';
 import 'package:sixam_mart/helper/responsive_helper.dart';
 import 'package:sixam_mart/util/dimensions.dart';
@@ -19,6 +22,30 @@ class SupportScreen extends StatefulWidget {
 }
 
 class _SupportScreenState extends State<SupportScreen> {
+  bool _hasChatAccess() {
+    return AuthHelper.isLoggedIn() &&
+        !Get.find<AuthController>().isGuestLoggedIn();
+  }
+
+  Future<void> _openLiveChat() async {
+    if (_hasChatAccess()) {
+      await Get.toNamed(RouteHelper.getConversationRoute());
+      return;
+    }
+
+    showCustomSnackBar(
+      'هذه الخدمة تتطلب تسجيل الدخول. سيتم تحويلك لصفحة تسجيل الدخول.',
+      isError: false,
+      showDuration: 1,
+    );
+
+    await Future.delayed(const Duration(milliseconds: 1100));
+    if (!mounted) {
+      return;
+    }
+    await Get.toNamed(RouteHelper.getSignInRoute(RouteHelper.getSupportRoute()));
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -42,6 +69,14 @@ class _SupportScreenState extends State<SupportScreen> {
                     const SizedBox(height: 30),
                     Image.asset(Images.logo, width: 200),
                     const SizedBox(height: 40),
+                    SupportButtonWidget(
+                      icon: Icons.chat_bubble_outline,
+                      title: 'live_chat'.tr,
+                      color: Colors.orange,
+                      info: 'help_and_support'.tr,
+                      onTap: _openLiveChat,
+                    ),
+                    const SizedBox(height: Dimensions.paddingSizeSmall),
                     SupportButtonWidget(
                       icon: Icons.location_on,
                       title: 'address'.tr,

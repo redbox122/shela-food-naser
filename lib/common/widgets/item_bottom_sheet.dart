@@ -332,6 +332,7 @@ class _ItemBottomSheetState extends State<ItemBottomSheet> {
         }
         // Initialize with fresh data
         itemController.initData(_freshItem, widget.cart);
+        itemController.resetQuantityForIncrementalAdd(notify: false);
       } else {
         // Fallback to existing item data if API fails
         _freshItem = widget.item;
@@ -341,12 +342,15 @@ class _ItemBottomSheetState extends State<ItemBottomSheet> {
           _newVariation = true;
         }
         itemController.initData(widget.item, widget.cart);
+        itemController.resetQuantityForIncrementalAdd(notify: false);
       }
     } catch (e) {
       debugPrint('Error loading item details: $e');
       // Fallback to existing item data
       _freshItem = widget.item;
       Get.find<ItemController>().initData(widget.item, widget.cart);
+      Get.find<ItemController>()
+          .resetQuantityForIncrementalAdd(notify: false);
     } finally {
       if (mounted) {
         setState(() {
@@ -420,6 +424,25 @@ class _ItemBottomSheetState extends State<ItemBottomSheet> {
       ),
       child: GetBuilder<ItemController>(builder: (itemController) {
         final isArabic = Get.locale?.languageCode == 'ar';
+        final String resolvedModuleType =
+            (item.moduleType ??
+                    Get.find<SplashController>()
+                        .selectedModule
+                        .value
+                        ?.moduleType ??
+                    '')
+                .toLowerCase();
+        final String selectedModuleName = (Get.find<SplashController>()
+                    .selectedModule
+                    .value
+                    ?.moduleName ??
+                '')
+            .toLowerCase();
+        final bool isCafeModule = selectedModuleName.contains('مقاه') ||
+            selectedModuleName.contains('cafe');
+        final bool showAdditionalNoteSection = resolvedModuleType == 'food';
+        final String additionalNoteHint =
+            isCafeModule ? 'cafe_notes_hint'.tr : 'restaurant_notes_hint'.tr;
         // Variables for potential price range display (future use)
 
         // Decide base price strategy
@@ -653,7 +676,7 @@ class _ItemBottomSheetState extends State<ItemBottomSheet> {
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
                                     Text(
-                                      'الأكثر مبيعا',
+                                      'most_popular_items'.tr,
                                       style: robotoRegular.copyWith(
                                         fontSize: 14.8,
                                         color: const Color(0xFF69B585),
@@ -723,7 +746,7 @@ class _ItemBottomSheetState extends State<ItemBottomSheet> {
                                       ),
                                       const SizedBox(width: 8),
                                       Text(
-                                        '${item.nutrition!.calories} سعرة حرارية',
+                                        '${item.nutrition!.calories} ${'calories'.tr}',
                                         style: robotoMedium.copyWith(
                                           fontSize: 18.6,
                                           color: const Color(0xFF4A4A4B),
@@ -749,7 +772,7 @@ class _ItemBottomSheetState extends State<ItemBottomSheet> {
                                         ),
                                         const SizedBox(width: 8),
                                         Text(
-                                          'تنبيهات',
+                                          'nutrition_notes'.tr,
                                           style: robotoMedium.copyWith(
                                             fontSize: 17.1,
                                             color: const Color(0xFF4A4A4B),
@@ -779,7 +802,7 @@ class _ItemBottomSheetState extends State<ItemBottomSheet> {
                                         ),
                                         const SizedBox(width: 8),
                                         Text(
-                                          'تنبيهات',
+                                          'nutrition_notes'.tr,
                                           style: robotoMedium.copyWith(
                                             fontSize: 17.1,
                                             color: const Color(0xFF4A4A4B),
@@ -805,7 +828,7 @@ class _ItemBottomSheetState extends State<ItemBottomSheet> {
                                       ),
                                       const SizedBox(width: 8),
                                       Text(
-                                        '${item.nutrition!.calories} سعرة حرارية',
+                                        '${item.nutrition!.calories} ${'calories'.tr}',
                                         style: robotoMedium.copyWith(
                                           fontSize: 18.6,
                                           color: const Color(0xFF4A4A4B),
@@ -880,7 +903,7 @@ class _ItemBottomSheetState extends State<ItemBottomSheet> {
                           itemBuilder: (context, index) {
                             return FoodOrderVariationSection(
                               title: item.choiceOptions![index].title!,
-                              subtitle: 'اختيار واحد',
+                              subtitle: 'choose_one'.tr,
                               child: ListView.builder(
                                 shrinkWrap: true,
                                 physics: const NeverScrollableScrollPhysics(),
@@ -912,8 +935,8 @@ class _ItemBottomSheetState extends State<ItemBottomSheet> {
                               .addOn! &&
                           (item.addOns?.isNotEmpty ?? false))
                         FoodOrderVariationSection(
-                          title: 'الإضافات',
-                          subtitle: 'اختياري',
+                          title: 'addons'.tr,
+                          subtitle: 'optional'.tr,
                           child: ListView.builder(
                             shrinkWrap: true,
                             physics: const NeverScrollableScrollPhysics(),
@@ -996,6 +1019,50 @@ class _ItemBottomSheetState extends State<ItemBottomSheet> {
                         ),
 
                       const SizedBox(height: 8),
+
+                      // Customer Notes (food modules only)
+                      if (showAdditionalNoteSection) ...[
+                        FoodOrderVariationSection(
+                          title: 'additional_note'.tr,
+                          subtitle: 'optional'.tr,
+                          child: TextField(
+                            controller: _notesController,
+                            minLines: 2,
+                            maxLines: 4,
+                            textInputAction: TextInputAction.newline,
+                            decoration: InputDecoration(
+                              hintText: additionalNoteHint,
+                              filled: true,
+                              fillColor: const Color(0xFFF7F9F8),
+                              contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 14,
+                                vertical: 12,
+                              ),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide:
+                                    const BorderSide(color: Color(0xFFE4E8E6)),
+                              ),
+                              enabledBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide:
+                                    const BorderSide(color: Color(0xFFE4E8E6)),
+                              ),
+                              focusedBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: const BorderSide(
+                                    color: Color(0xFF00A651), width: 1.2),
+                              ),
+                            ),
+                            onChanged: (value) {
+                              appLogger.debug(
+                                '📝 [ItemBottomSheet] note_updated itemId=${item.id} length=${value.trim().length}',
+                              );
+                            },
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                      ],
 
                       // Recommended Items Section
                       if (_freshItem?.recommendedItems != null &&
@@ -1131,7 +1198,7 @@ class _ItemBottomSheetState extends State<ItemBottomSheet> {
               ),
 
               // Fixed Bottom Bar
-              if (!item.scheduleOrder! && isAvailable)
+              if (!(item.scheduleOrder ?? false) && isAvailable)
                 Positioned(
                   bottom: 0,
                   left: 0,
@@ -1172,33 +1239,55 @@ class _ItemBottomSheetState extends State<ItemBottomSheet> {
                         }
                       }
                       
+                      final bool moduleStockEnabled = Get.find<SplashController>()
+                              .configModel
+                              ?.moduleConfig
+                              ?.module
+                              ?.stock ==
+                          true;
+                      final int effectiveStock = stock ?? 0;
+                      final bool isOutOfStock =
+                          moduleStockEnabled && effectiveStock <= 0;
+                      final bool isUpdatingExisting =
+                          widget.cart != null || itemController.cartIndex != -1;
+                      final int selectedQuantity = itemController.quantity ?? 1;
+                      int existingCartQuantity = widget.cart?.quantity ?? 0;
+                      if (existingCartQuantity <= 0 &&
+                          itemController.cartIndex >= 0 &&
+                          itemController.cartIndex <
+                              cartController.cartList.length) {
+                        existingCartQuantity = cartController
+                                .cartList[itemController.cartIndex].quantity ??
+                            0;
+                      }
+                      String helperText;
+                      if (!canOrder) {
+                        helperText = 'store_closed'.tr;
+                      } else if (isOutOfStock) {
+                        helperText = 'out_of_stock'.tr;
+                      } else if (isUpdatingExisting && existingCartQuantity > 0) {
+                        helperText =
+                            'In cart: $existingCartQuantity  |  +$selectedQuantity';
+                      } else {
+                        helperText = '${'quantity'.tr}: $selectedQuantity';
+                      }
+
                       final double totalPrice = priceWithDiscountAndAddons *
                           (itemController.quantity ?? 1);
                       return _UnifiedBottomBar(
                         quantity: itemController.quantity!,
                         price: totalPrice,
+                        helperText: helperText,
+                        helperIsWarning: !canOrder || isOutOfStock,
                         buttonText: (!canOrder)
-                            ? 'المتجر مغلق'
-                            : (Get.find<SplashController>()
-                                        .configModel!
-                                        .moduleConfig!
-                                        .module!
-                                        .stock! &&
-                                    stock! <= 0)
+                            ? 'store_closed'.tr
+                            : isOutOfStock
                                 ? 'out_of_stock'.tr
                                 : widget.isCampaign
                                     ? 'order_now'.tr
-                                    : (widget.cart != null ||
-                                            itemController.cartIndex != -1)
-                                        ? 'update_in_cart'.tr
-                                        : 'أضف إلى السلة',
+                                    : 'add_to_cart'.tr,
                         isLoading: cartController.isLoading,
-                        isEnabled: canOrder && !(Get.find<SplashController>()
-                                .configModel!
-                                .moduleConfig!
-                                .module!
-                                .stock! &&
-                            stock! <= 0),
+                        isEnabled: canOrder && !isOutOfStock,
                         onDecrease: () {
                           if (itemController.quantity! > 1) {
                             itemController.setQuantity(
@@ -1211,13 +1300,7 @@ class _ItemBottomSheetState extends State<ItemBottomSheet> {
                               true, stock, item.quantityLimit,
                               getxSnackBar: true);
                         },
-                        onPressed: (!canOrder ||
-                                (Get.find<SplashController>()
-                                        .configModel!
-                                        .moduleConfig!
-                                        .module!
-                                        .stock! &&
-                                    stock! <= 0))
+                        onPressed: (!canOrder || isOutOfStock)
                             ? null
                             : () async {
                                 String? invalid;
@@ -1307,7 +1390,12 @@ class _ItemBottomSheetState extends State<ItemBottomSheet> {
 
                                   // 🔧 FIX: Get storeId from multiple sources to ensure it's never null
                                   // Priority: item.storeId > StoreController.store.id > null
-                                  int? effectiveStoreId = widget.item?.storeId;
+                                  int? effectiveStoreId =
+                                      widget.inStorePage &&
+                                              Get.isRegistered<StoreController>()
+                                          ? Get.find<StoreController>().store?.id
+                                          : widget.item?.storeId;
+                                  effectiveStoreId ??= widget.item?.storeId;
                                   if (effectiveStoreId == null &&
                                       Get.isRegistered<StoreController>()) {
                                     effectiveStoreId =
@@ -1380,14 +1468,7 @@ class _ItemBottomSheetState extends State<ItemBottomSheet> {
                                       '   - variationsToPass length: ${variationsToPass?.length ?? 0}');
 
                                   final OnlineCart onlineCart = OnlineCart(
-                                    (widget.cart != null ||
-                                            itemController.cartIndex != -1)
-                                        ? widget.cart?.id ??
-                                            cartController
-                                                .cartList[
-                                                    itemController.cartIndex]
-                                                .id
-                                        : null,
+                                    null,
                                     widget.isCampaign ? null : item.id,
                                     widget.isCampaign ? item.id : null,
                                     priceWithDiscountAndAddons.toString(),
@@ -1414,7 +1495,7 @@ class _ItemBottomSheetState extends State<ItemBottomSheet> {
                                   } else {
                                     if (Get.find<CartController>()
                                         .existAnotherStoreItem(
-                                      cartModel.item!.storeId,
+                                      effectiveStoreId,
                                       Get.find<SplashController>().module !=
                                               null
                                           ? Get.find<SplashController>()
@@ -1454,24 +1535,17 @@ class _ItemBottomSheetState extends State<ItemBottomSheet> {
                                           ),
                                           barrierDismissible: false);
                                     } else {
-                                      if (widget.cart != null ||
-                                          itemController.cartIndex != -1) {
-                                        await Get.find<CartController>()
-                                            .updateCartOnline(onlineCart)
-                                            .then((success) {
-                                          if (success) {
-                                            Get.back<void>();
-                                          }
-                                        });
-                                      } else {
-                                        await Get.find<CartController>()
-                                            .addToCartOnline(onlineCart)
-                                            .then((success) {
-                                          if (success) {
-                                            Get.back<void>();
-                                          }
-                                        });
-                                      }
+                                      await Get.find<CartController>()
+                                          .addToCartOnline(onlineCart)
+                                          .then((success) {
+                                        if (success) {
+                                          Get.back<void>();
+                                        } else {
+                                          showCustomSnackBar(
+                                              'Failed to add item to cart.',
+                                              getXSnackBar: true);
+                                        }
+                                      });
                                     }
                                   }
                                 }
@@ -1546,6 +1620,8 @@ class _UnifiedBottomBar extends StatelessWidget {
   final int quantity;
   final double price;
   final String buttonText;
+  final String helperText;
+  final bool helperIsWarning;
   final bool isLoading;
   final bool isEnabled;
   final VoidCallback onDecrease;
@@ -1556,6 +1632,8 @@ class _UnifiedBottomBar extends StatelessWidget {
     required this.quantity,
     required this.price,
     required this.buttonText,
+    required this.helperText,
+    required this.helperIsWarning,
     required this.isLoading,
     required this.isEnabled,
     required this.onDecrease,
@@ -1603,6 +1681,19 @@ class _UnifiedBottomBar extends StatelessWidget {
               isOutlined: false,
             ),
           ],
+        ),
+        Text(
+          helperText,
+          textAlign: TextAlign.center,
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+          style: robotoRegular.copyWith(
+            fontSize: 12,
+            color: helperIsWarning
+                ? const Color(0xFFC62828)
+                : const Color(0xFF6E7A76),
+            fontWeight: FontWeight.w500,
+          ),
         ),
 
         // Main Green Button with Price
@@ -1662,15 +1753,6 @@ class _UnifiedBottomBar extends StatelessWidget {
                                 PriceConverter.convertPrice(price),
                                 style: robotoBold.copyWith(
                                   fontSize: 16,
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                              const SizedBox(width: 4),
-                              Text(
-                                'ريال',
-                                style: robotoBold.copyWith(
-                                  fontSize: 14,
                                   color: Colors.white,
                                   fontWeight: FontWeight.w600,
                                 ),
@@ -1748,3 +1830,7 @@ class _MinimalQuantityButton extends StatelessWidget {
     );
   }
 }
+
+
+
+

@@ -19,6 +19,7 @@ import 'package:sixam_mart/features/verification/screens/verification_screen.dar
 import 'package:sixam_mart/helper/auth_helper.dart';
 import 'package:sixam_mart/helper/responsive_helper.dart';
 import 'package:sixam_mart/helper/route_helper.dart';
+import 'package:sixam_mart/common/utils/app_logger.dart';
 
 class AuthController extends GetxController implements GetxService {
   final AuthServiceInterface authServiceInterface;
@@ -71,14 +72,17 @@ class AuthController extends GetxController implements GetxService {
       bool alreadyInApp = false}) async {
     _isLoading = true;
     update();
-    print('$password password');
-    print('$emailOrPhone emailOrPhone');
     final ResponseModel responseModel = await authServiceInterface.login(
         emailOrPhone: emailOrPhone,
         password: password,
         loginType: loginType,
         fieldType: fieldType,
         alreadyInApp: alreadyInApp);
+    if (responseModel.otpRequired) {
+      _isLoading = false;
+      update();
+      return responseModel;
+    }
     _getUserAndCartData(responseModel);
     // Don't set _isLoading = false here - let _transferGuestCartToUser handle it
     return responseModel;
@@ -113,6 +117,18 @@ class AuthController extends GetxController implements GetxService {
         await authServiceInterface.resendOtp(phone: phone);
     _isLoading = false;
     update();
+    return responseModel;
+  }
+
+  Future<ResponseModel> verifyLoginOtp(
+      {required String phone,
+      required String otp,
+      bool alreadyInApp = false}) async {
+    _isLoading = true;
+    update();
+    final ResponseModel responseModel = await authServiceInterface.verifyLoginOtp(
+        phone: phone, otp: otp, alreadyInApp: alreadyInApp);
+    _getUserAndCartData(responseModel);
     return responseModel;
   }
 
@@ -208,14 +224,20 @@ class AuthController extends GetxController implements GetxService {
       // ⚡ PERFORMANCE: User info is already set from login response in AuthService
       // Only call getUserInfo if it wasn't set (fallback for backward compatibility)
       final profileController = Get.find<ProfileController>();
-      print('🔍 AuthController: Checking if user info needs to be loaded...');
-      print('   - userInfoModel: ${profileController.userInfoModel != null ? 'SET (${profileController.userInfoModel?.fName} ${profileController.userInfoModel?.lName})' : 'NULL'}');
+      if (kDebugMode) {
+        appLogger.debug('🔍 AuthController: Checking if user info needs to be loaded...');
+        appLogger.debug('   - userInfoModel: ${profileController.userInfoModel != null ? 'SET (${profileController.userInfoModel?.fName} ${profileController.userInfoModel?.lName})' : 'NULL'}');
+      }
       
       if (profileController.userInfoModel == null) {
-        print('🔄 AuthController: User info not set from login - calling getUserInfo()...');
+        if (kDebugMode) {
+          appLogger.debug('🔄 AuthController: User info not set from login - calling getUserInfo()...');
+        }
         profileController.getUserInfo();
       } else {
-        print('⏭️ AuthController: User info already set from login - skipping getUserInfo()');
+        if (kDebugMode) {
+          appLogger.debug('⏭️ AuthController: User info already set from login - skipping getUserInfo()');
+        }
       }
     } else {
       debugPrint('❌ Login failed or incomplete - skipping guest cart transfer');
@@ -236,23 +258,29 @@ class AuthController extends GetxController implements GetxService {
     }
 
     try {
-      if (guestId.isEmpty) {
-        debugPrint('⚠️ Guest cart transfer skipped - guestId is empty');
-        return;
-      }
-
       _isTransferringGuestCart = true;
+      final CartController cartController = Get.find<CartController>();
       // Also set the cart controller's transfer flag
-      Get.find<CartController>().setTransferringGuestCart(true);
+      cartController.setTransferringGuestCart(true);
       debugPrint('🔄 Starting guest cart merge after login (background)...');
       showCustomSnackBar('restoring_cart'.tr, isError: false, showDuration: 2);
 
-      final bool mergeSuccess =
-          await Get.find<CartController>().mergeGuestCart(guestId);
+      bool mergeSuccess = false;
+
+      if (guestId.isNotEmpty) {
+        mergeSuccess = await cartController.mergeGuestCart(guestId);
+      } else {
+        // Fallback path: if guest_id is missing, transfer local cart directly.
+        // This prevents cart loss after login when backend did not return/store guest_id.
+        debugPrint(
+            '⚠️ guestId is empty - using local cart transfer fallback after login');
+        await cartController.transferLocalCartToOnline();
+        mergeSuccess = true;
+      }
 
       if (mergeSuccess) {
         // Clear local cache after successful merge
-        await Get.find<CartController>().clearLocalCacheOnly();
+        await cartController.clearLocalCacheOnly();
         debugPrint('🧹 Cleared local cart cache after merge');
       } else {
         showCustomSnackBar('cart_restore_failed'.tr, isError: true);
