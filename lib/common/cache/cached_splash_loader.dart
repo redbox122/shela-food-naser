@@ -177,10 +177,10 @@ class CachedSplashLoader {
       // 🔧 FIX: Non-blocking await with timeout
       // This doesn't block the main thread like the old polling loop
       final success = await _configCompleter!.future.timeout(
-        const Duration(seconds: 30), // Generous timeout for slow networks
+        const Duration(seconds: 8), // Reduced from 30s for faster fallback
         onTimeout: () {
           if (kDebugMode) {
-            print('⚠️ CachedSplashLoader: Config load timed out after 30s');
+            print('⚠️ CachedSplashLoader: Config load timed out after 8s - routing with cached/default data');
           }
           return splashController.configModel != null;
         },

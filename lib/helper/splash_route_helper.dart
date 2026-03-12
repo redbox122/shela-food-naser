@@ -380,9 +380,17 @@ Future<void> _handleUserRouting(
   } else {
     appLogger.info('No user state, performing guest login');
     await authController.guestLogin();
-    if (!context.mounted) {
+    if (!context.mounted) return;
+
+    // تأكد إن المستخدم عنده موقع قبل ما يروح للـ Dashboard
+    final hasAddress = AddressHelper.getUserAddressFromSharedPref() != null;
+    if (!hasAddress) {
+      appLogger.info('No address found - routing to location screen');
+      Get.find<LocationController>()
+          .navigateToLocationScreen(context, 'splash', offNamed: true);
       return;
     }
+
     await _forGuestUserRouteProcess(context, forceDashboard: forceDashboard);
   }
 }

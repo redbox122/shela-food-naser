@@ -1205,8 +1205,11 @@ class _StoreRegistrationScreenState extends State<StoreRegistrationScreen>
               child: Column(children: [
                 const SizedBox(height: Dimensions.paddingSizeSmall),
                 storeRegController.zoneList != null
-                    ? const SelectLocationViewWidget(
-                        fromView: true, mapView: true)
+                    ? SelectLocationViewWidget(
+                        fromView: true,
+                        mapView: true,
+                        addressController: _addressController[0],
+                      )
                     : const Center(child: CircularProgressIndicator()),
               ]),
             ),
@@ -1757,6 +1760,7 @@ class _StoreRegistrationScreenState extends State<StoreRegistrationScreen>
                 ],
               ),
         child: CustomButton(
+          isLoading: storeRegController.isLoading,
           fontSize: ResponsiveHelper.isDesktop(context)
               ? Dimensions.fontSizeSmall
               : Dimensions.fontSizeDefault,
@@ -1774,6 +1778,7 @@ class _StoreRegistrationScreenState extends State<StoreRegistrationScreen>
           color: /*ResponsiveHelper.isDesktop(context) ? Theme.of(context).disabledColor.withValues(alpha: 0.9) :*/
               Theme.of(context).primaryColor,
           onPressed: () {
+            if (storeRegController.isLoading) return;
             // Debug logging for button state
             debugPrint('🔘 Button Debug:');
             debugPrint('  - storeStatus: ${storeRegController.storeStatus}');
@@ -1833,8 +1838,6 @@ class _StoreRegistrationScreenState extends State<StoreRegistrationScreen>
                   showCustomSnackBar('select_store_cover_photo'.tr);
                 } else if (storeRegController.selectedZoneIndex == -1) {
                   showCustomSnackBar('please_select_zone'.tr);
-                  // } else if (storeRegController.selectedModuleIndex == -1) {
-                  //   showCustomSnackBar('please_select_module_first'.tr);
                 } else if (storeRegController.restaurantLocation == null) {
                   showCustomSnackBar('set_store_location'.tr);
                 } else if (vat.isEmpty) {
@@ -1866,8 +1869,6 @@ class _StoreRegistrationScreenState extends State<StoreRegistrationScreen>
                   showCustomSnackBar('set_store_location'.tr);
                 } else if (storeRegController.selectedZoneIndex == -1) {
                   showCustomSnackBar('please_select_zone'.tr);
-                } else if (storeRegController.selectedModuleIndex == -1) {
-                  showCustomSnackBar('please_select_module_first'.tr);
                 } else if (vat.isEmpty) {
                   showCustomSnackBar('enter_vat_amount'.tr);
                 } else if (minTime.isEmpty) {
@@ -1931,7 +1932,33 @@ class _StoreRegistrationScreenState extends State<StoreRegistrationScreen>
                           : _addressController[0].text.trim(),
                     ));
                   }
-                  // debugPrint("\x1B[32m  /${jsonEncode(translation)}  \x1B[0m");
+                  final int? selectedZoneIndex =
+                      storeRegController.selectedZoneIndex;
+                  final int? selectedModuleIndex =
+                      storeRegController.selectedModuleIndex;
+                  final moduleList = storeRegController.moduleList;
+                  final bool hasValidZoneSelection = selectedZoneIndex != null &&
+                      selectedZoneIndex >= 0 &&
+                      selectedZoneIndex <
+                          (storeRegController.zoneList?.length ?? 0);
+                  final int? resolvedModuleIndex = moduleList == null ||
+                          moduleList.isEmpty
+                      ? null
+                      : (selectedModuleIndex != null &&
+                              selectedModuleIndex >= 0 &&
+                              selectedModuleIndex < moduleList.length
+                          ? selectedModuleIndex
+                          : 0);
+
+                  if (!hasValidZoneSelection) {
+                    showCustomSnackBar('please_select_zone'.tr);
+                    return;
+                  }
+
+                  if (resolvedModuleIndex == null) {
+                    showCustomSnackBar('please_select_module_first'.tr);
+                    return;
+                  }
 
                   storeRegController.registerStore(StoreBodyModel(
                     translation: jsonEncode(translation),
@@ -1948,10 +1975,10 @@ class _StoreRegistrationScreenState extends State<StoreRegistrationScreen>
                     lName: lName,
                     phone: _countryDialCode! + phone,
                     password: password,
-                    // zoneId: storeRegController.zoneList![storeRegController.selectedZoneIndex!].id.toString(),
-                    zoneId: '1',
-                    moduleId: '2',
-                    // moduleId: storeRegController.moduleList![storeRegController.selectedModuleIndex!].id.toString(),
+                    zoneId: storeRegController
+                        .zoneList![selectedZoneIndex].id
+                        .toString(),
+                    moduleId: moduleList![resolvedModuleIndex].id.toString(),
                     deliveryTimeType: storeRegController.storeTimeUnit,
                   ));
                 }

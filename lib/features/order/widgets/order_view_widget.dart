@@ -34,7 +34,7 @@ class OrderViewWidget extends StatelessWidget {
         if (isRunning == 0) {
           paginatedOrderModel = orderController.runningOrderModel;
         } else if (isRunning == 1) {
-          paginatedOrderModel = orderController.scheduleOrderModel;
+          paginatedOrderModel = orderController.canceledOrderModel;
         } else {
           paginatedOrderModel = orderController.historyOrderModel;
         }
@@ -51,14 +51,16 @@ class OrderViewWidget extends StatelessWidget {
         }
 
         if (orderController.Order_isLoading) {
-          debugPrint('[OrderView] tab=$isRunning showing loader (duplicate guard)');
+          debugPrint(
+              '[OrderView] tab=$isRunning showing loader (duplicate guard)');
           return const Center(child: LoadingWidget());
         }
 
         if (paginatedOrderModel == null ||
             paginatedOrderModel.orders == null ||
             paginatedOrderModel.orders!.isEmpty) {
-          debugPrint('[OrderView] tab=$isRunning empty: model/orders null or empty');
+          debugPrint(
+              '[OrderView] tab=$isRunning empty: model/orders null or empty');
           return Center(child: Text('no_order_found'.tr));
         }
 
@@ -72,21 +74,22 @@ class OrderViewWidget extends StatelessWidget {
         );
 
         if (filteredOrders.isEmpty) {
-          debugPrint('[OrderView] tab=$isRunning empty after paymentStatus filtering');
+          debugPrint(
+              '[OrderView] tab=$isRunning empty after paymentStatus filtering');
           return Center(child: Text('no_order_found'.tr));
         }
 
         return RefreshIndicator(
           onRefresh: () async {
             debugPrint('[OrderView] tab=$isRunning pull-to-refresh');
-            if (isRunning == 0 || isRunning == 1) {
+            if (isRunning == 0) {
               await orderController.getRunningOrders(1, isUpdate: true);
             } else {
               await orderController.getHistoryOrders(1, isUpdate: true);
             }
           },
           child: ListView.builder(
-            padding: const EdgeInsets.symmetric(vertical: 15),
+            padding: const EdgeInsets.only(top: 15, bottom: 100),
             itemCount: filteredOrders.length,
             itemBuilder: (context, index) {
               final order = filteredOrders[index];
@@ -113,9 +116,7 @@ class OrderViewWidget extends StatelessWidget {
                         : (order.store?.logoFullUrl ?? ''),
                     'name': isParcel ? 'parcel'.tr : (order.store?.name ?? ''),
                     'date': DateConverter.dateTimeStringToDateTime(
-                        isRunning == 1
-                            ? (order.scheduleAt ?? order.createdAt ?? '')
-                            : (order.createdAt ?? '')),
+                        (order.createdAt ?? '')),
                     'status': order.orderStatus?.tr ?? '',
                     'itemsCount': order.detailsCount ?? 0,
                     'isParcel': isParcel,
@@ -209,7 +210,7 @@ class OrderViewWidget extends StatelessWidget {
             style: Theme.of(context).textTheme.bodySmall,
           ),
         ),
-        if (isRunning != 2)
+        if (isRunning == 0)
           InkWell(
             onTap: () {
               Get.toNamed(
@@ -233,7 +234,9 @@ class OrderViewWidget extends StatelessWidget {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
-                    (order['isParcel'] as bool?) == true ? 'track_delivery'.tr : 'track_order'.tr,
+                    (order['isParcel'] as bool?) == true
+                        ? 'track_delivery'.tr
+                        : 'track_order'.tr,
                     style: Theme.of(context).textTheme.bodySmall,
                   ),
                   const SizedBox(width: 10),

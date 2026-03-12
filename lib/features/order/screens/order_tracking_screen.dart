@@ -174,15 +174,13 @@ class OrderTrackingScreenState extends State<OrderTrackingScreen> {
                                 _timer?.cancel();
                                 await Get.toNamed(RouteHelper.getChatRoute(
                                   notificationBody: NotificationBodyModel(
-                                    deliverymanId: track!.deliveryMan!.id,
+                                    adminId: 0,
                                     orderId: int.parse(widget.orderID!),
                                   ),
                                   user: User(
-                                    id: track.deliveryMan!.id,
-                                    fName: track.deliveryMan!.fName,
-                                    lName: track.deliveryMan!.lName,
-                                    imageFullUrl:
-                                        track.deliveryMan!.imageFullUrl,
+                                    id: 0,
+                                    fName: 'المسئول',
+                                    lName: '',
                                   ),
                                 ));
                                 _startApiCall();

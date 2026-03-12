@@ -147,7 +147,7 @@ class _Store_Search_Filter_WidgetState
                         const SizedBox(height: 10),
 
                         CustomTextField(
-                            controller: nameController, hint: 'مثال: شامبو'),
+                            controller: nameController, hint: 'example'.tr),
 
                         const SizedBox(height: 10),
 

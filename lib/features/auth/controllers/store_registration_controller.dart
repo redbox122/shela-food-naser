@@ -418,9 +418,20 @@ class StoreRegistrationController extends GetxController
   Future<void> getModules(int? zoneId) async {
     final List<ModuleModel>? modules =
         await storeRegistrationServiceInterface.getModules(zoneId);
-    if (modules != null) {
+    if (modules != null && modules.isNotEmpty) {
       _moduleList = [];
       _moduleList!.addAll(modules);
+
+      final int firstNonParcelIndex =
+          _moduleList!.indexWhere((module) => module.moduleType != 'parcel');
+      _selectedModuleIndex = firstNonParcelIndex != -1 ? firstNonParcelIndex : 0;
+      await getPackageList(
+        isUpdate: false,
+        moduleId: _moduleList![_selectedModuleIndex!].id,
+      );
+    } else {
+      _moduleList = [];
+      _selectedModuleIndex = -1;
     }
     update();
   }

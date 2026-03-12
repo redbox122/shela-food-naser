@@ -107,8 +107,16 @@ class VerificationScreenState extends State<VerificationScreen> {
     }
 
     if (next != null && next.isNotEmpty) {
-      Get.offAllNamed(next);
-      return;
+      final String normalized = next.toLowerCase();
+      final bool isLoopRoute =
+          normalized.contains(RouteHelper.succsessflycreated) ||
+              normalized.contains(RouteHelper.signIn) ||
+              normalized.contains(RouteHelper.verification) ||
+              normalized.contains(RouteHelper.loginOtp);
+      if (!isLoopRoute) {
+        Get.offAllNamed(next);
+        return;
+      }
     }
 
     Get.offAllNamed(RouteHelper.getMainRoute('home'));

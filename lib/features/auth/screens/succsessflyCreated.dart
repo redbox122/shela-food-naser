@@ -52,12 +52,15 @@ class Succsessflycreated extends StatelessWidget {
                 ),
                 onPressed: () async {
                   if (!ResponsiveHelper.isDesktop(context)) {
-                    await Get.offAllNamed(RouteHelper.getSignInRoute(Get.currentRoute));
+                    await Get.offAllNamed(
+                      RouteHelper.getSignInRoute(RouteHelper.initial),
+                    );
                   } else {
                     // Get.dialog(const Center(child: AuthDialogWidget(exitFromApp: true, backFromThis: true)));
                   }
                 },
-                child: Text('قم بتسجيل الدخول', style: font14White600W(context)),
+                child:
+                    Text('قم بتسجيل الدخول', style: font14White600W(context)),
               ),
             ),
             SizedBox(height: size_18(context)),

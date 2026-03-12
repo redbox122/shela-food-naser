@@ -11,28 +11,36 @@ class ModuleViewWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-
     final bool isDesktop = ResponsiveHelper.isDesktop(context);
 
     return GetBuilder<StoreRegistrationController>(builder: (storeRegController) {
+      final modules = storeRegController.moduleList;
+      if (modules == null) {
+        return const SizedBox.shrink();
+      }
 
-      final List<int> moduleIndexList = [];
-      final List<DropdownItem<int>> moduleList = [];
-      if(storeRegController.moduleList != null && storeRegController.moduleList!.isNotEmpty) {
-        for(int index=0; index < storeRegController.moduleList!.length; index++) {
-          if(storeRegController.moduleList![index].moduleType != 'parcel') {
-            moduleIndexList.add(index);
-            moduleList.add(DropdownItem<int>(value: index, child: SizedBox(
+      final List<DropdownItem<int>> moduleItems = [];
+      for (int index = 0; index < modules.length; index++) {
+        if (modules[index].moduleType != 'parcel') {
+          moduleItems.add(
+            DropdownItem<int>(
+              value: index,
               child: Padding(
                 padding: const EdgeInsets.all(8.0),
-                child: Text('${storeRegController.moduleList![index].moduleName}'),
+                child: Text('${modules[index].moduleName}'),
               ),
-            )));
-          }
+            ),
+          );
         }
       }
 
-      return storeRegController.moduleList != null ? Stack(clipBehavior: Clip.none, children: [
+      final int? selectedIndex = storeRegController.selectedModuleIndex;
+      final bool hasValidSelected = selectedIndex != null &&
+          selectedIndex >= 0 &&
+          selectedIndex < modules.length &&
+          modules[selectedIndex].moduleType != 'parcel';
+
+      return Stack(clipBehavior: Clip.none, children: [
 
         Container(
           decoration: BoxDecoration(
@@ -40,28 +48,44 @@ class ModuleViewWidget extends StatelessWidget {
             color: Theme.of(context).cardColor,
             border: Border.all(color: Theme.of(context).disabledColor, width: 0.3),
           ),
-          child: CustomDropdown<int>(
-            onChange: (int? value, int index) {
-              storeRegController.selectModuleIndex(value);
-              Get.find<StoreRegistrationController>().getPackageList(moduleId: storeRegController.moduleList![value!].id);
-            },
-            dropdownButtonStyle: DropdownButtonStyle(
-              height: 50,
-              padding: const EdgeInsets.symmetric(vertical: Dimensions.paddingSizeExtraSmall, horizontal: Dimensions.paddingSizeExtraSmall),
-              primaryColor: Theme.of(context).textTheme.bodyLarge!.color,
-            ),
-            iconColor: Theme.of(context).disabledColor,
-            dropdownStyle: DropdownStyle(
-              elevation: 10,
-              borderRadius: BorderRadius.circular(Dimensions.radiusDefault),
-              padding: const EdgeInsets.all(Dimensions.paddingSizeExtraSmall),
-            ),
-            items: moduleList,
-            child: Padding(
-              padding: const EdgeInsets.only(left: 8),
-              child: Text(storeRegController.selectedModuleIndex == -1 ? 'select_module_type'.tr : storeRegController.moduleList![storeRegController.selectedModuleIndex!].moduleName.toString()),
-            ),
-          ),
+          child: moduleItems.isEmpty
+              ? SizedBox(
+                  height: 50,
+                  child: Center(
+                    child: Text('not_available_module'.tr),
+                  ),
+                )
+              : CustomDropdown<int>(
+                  onChange: (int? value, int index) {
+                    if (value == null) return;
+                    storeRegController.selectModuleIndex(value);
+                    Get.find<StoreRegistrationController>()
+                        .getPackageList(moduleId: modules[value].id);
+                  },
+                  dropdownButtonStyle: DropdownButtonStyle(
+                    height: 50,
+                    padding: const EdgeInsets.symmetric(
+                      vertical: Dimensions.paddingSizeExtraSmall,
+                      horizontal: Dimensions.paddingSizeExtraSmall,
+                    ),
+                    primaryColor: Theme.of(context).textTheme.bodyLarge!.color,
+                  ),
+                  iconColor: Theme.of(context).disabledColor,
+                  dropdownStyle: DropdownStyle(
+                    elevation: 10,
+                    borderRadius: BorderRadius.circular(Dimensions.radiusDefault),
+                    padding: const EdgeInsets.all(Dimensions.paddingSizeExtraSmall),
+                  ),
+                  items: moduleItems,
+                  child: Padding(
+                    padding: const EdgeInsets.only(left: 8),
+                    child: Text(
+                      hasValidSelected
+                          ? modules[selectedIndex].moduleName.toString()
+                          : 'select_module_type'.tr,
+                    ),
+                  ),
+                ),
         ),
 
         Positioned(
@@ -75,7 +99,7 @@ class ModuleViewWidget extends StatelessWidget {
           ),
         ),
 
-      ]) : Center(child: Text('not_available_module'.tr));
+      ]);
 
     });
   }

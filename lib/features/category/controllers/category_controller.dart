@@ -411,11 +411,13 @@ class CategoryController extends GetxController implements GetxService {
   String _currentMaxPrice = '';
   bool _currentHasDiscount = false;
   String _currentSearchName = '';
+  int _filterResetVersion = 0;
   String get currentProductArrangement => _currentProductArrangement;
   String get currentMinPrice => _currentMinPrice;
   String get currentMaxPrice => _currentMaxPrice;
   bool get currentHasDiscount => _currentHasDiscount;
   String get currentSearchName => _currentSearchName;
+  int get filterResetVersion => _filterResetVersion;
   static const int _searchPageSize = 10;
   int _searchOffset = 1;
   bool _hasMoreSearchResults = true;
@@ -1901,6 +1903,7 @@ class CategoryController extends GetxController implements GetxService {
     _currentMaxPrice = '';
     _currentHasDiscount = false;
     _currentSearchName = '';
+    _filterResetVersion += 1;
     _isSearching = false;
     _searchItemList = [];
     _searchStoreList = [];

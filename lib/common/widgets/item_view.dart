@@ -153,17 +153,13 @@ class _ItemsViewState extends State<ItemsView> {
                                   ? 'no_restaurant_available'.tr
                                   : 'no_store_available'.tr
                               : 'no_item_available'.tr),
+                      actionWidget: widget.onNoDataActionTap != null
+                          ? OutlinedButton(
+                              onPressed: widget.onNoDataActionTap,
+                              child: Text(widget.noDataActionText ?? 'reset'.tr),
+                            )
+                          : null,
                     ),
-                    if (widget.onNoDataActionTap != null)
-                      Padding(
-                        padding: const EdgeInsets.only(
-                            top: Dimensions.paddingSizeSmall),
-                        child: OutlinedButton(
-                          onPressed: widget.onNoDataActionTap,
-                          child:
-                              Text(widget.noDataActionText ?? 'reset'.tr),
-                        ),
-                      ),
                   ],
                 )
           : widget.isStore

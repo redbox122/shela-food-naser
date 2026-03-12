@@ -477,25 +477,32 @@ class _SignInViewState extends State<SignInView> {
       }
     }
 
+    String? nextPage = Get.parameters['page'];
+    if (nextPage == null || nextPage.isEmpty) {
+      final Uri? currentUri = Uri.tryParse(Get.currentRoute);
+      nextPage = currentUri?.queryParameters['page'];
+    }
+
     if (Get.context != null && ResponsiveHelper.isDesktop(Get.context!)) {
       Get.back();
       Get.dialog(VerificationScreen(
         number: countryDialCode + phone,
         token: '',
-        fromSignUp: true,
+        fromSignUp: false,
         fromForgetPassword: false,
+        fromLogin2fa: true,
+        nextPage: nextPage,
         loginType: CentralizeLoginType.otp.name,
         password: '',
       ));
     } else {
-      Get.toNamed(RouteHelper.getVerificationRoute(
-        countryDialCode + phone,
-        null,
-        '',
-        RouteHelper.signUp,
-        null,
-        CentralizeLoginType.otp.name,
-      ));
+      Get.toNamed(
+        RouteHelper.getLoginOtpRoute(
+          countryDialCode + phone,
+          CentralizeLoginType.otp.name,
+          nextPage: nextPage,
+        ),
+      );
     }
   }
 

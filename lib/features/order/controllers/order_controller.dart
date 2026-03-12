@@ -27,8 +27,8 @@ class OrderController extends GetxController implements GetxService {
   PaginatedOrderModel? _runningOrderModel;
   PaginatedOrderModel? get runningOrderModel => _runningOrderModel;
 
-  PaginatedOrderModel? _scheduleOrderModel;
-  PaginatedOrderModel? get scheduleOrderModel => _scheduleOrderModel;
+  PaginatedOrderModel? _canceledOrderModel;
+  PaginatedOrderModel? get canceledOrderModel => _canceledOrderModel;
 
   PaginatedOrderModel? _historyOrderModel;
   PaginatedOrderModel? get historyOrderModel => _historyOrderModel;
@@ -110,25 +110,32 @@ class OrderController extends GetxController implements GetxService {
     'ongoing',
   ];
 
-  static const List<String> _historyStatuses = <String>[
+  static const List<String> _completedStatuses = <String>[
     AppConstants.delivered,
+  ];
+
+  static const List<String> _canceledStatuses = <String>[
     'canceled',
-    'failed',
-    'refund_requested',
-    'refunded',
-    'refund_request_canceled',
   ];
 
   bool _isRunningStatus(String? status) {
     if (status == null) return false;
     if (_runningStatuses.contains(status)) return true;
-    if (_historyStatuses.contains(status)) return false;
+    if (_completedStatuses.contains(status) ||
+        _canceledStatuses.contains(status)) {
+      return false;
+    }
     return true;
   }
 
-  bool _isHistoryStatus(String? status) {
+  bool _isCompletedStatus(String? status) {
     if (status == null) return false;
-    return _historyStatuses.contains(status);
+    return _completedStatuses.contains(status);
+  }
+
+  bool _isCanceledStatus(String? status) {
+    if (status == null) return false;
+    return _canceledStatuses.contains(status);
   }
 
   Future<void> connect(String userId) async {
@@ -247,10 +254,12 @@ class OrderController extends GetxController implements GetxService {
       if (reasons == null) {
         _orderCancelReasons = <CancellationData>[];
         _cancelReasonsLoadFailed = true;
-        debugPrint('[OrderCancel] controller reasons=null => mark loadFailed=true');
+        debugPrint(
+            '[OrderCancel] controller reasons=null => mark loadFailed=true');
       } else {
         _orderCancelReasons = reasons;
-        debugPrint('[OrderCancel] controller reasons loaded count=${reasons.length}');
+        debugPrint(
+            '[OrderCancel] controller reasons loaded count=${reasons.length}');
       }
     } catch (e) {
       debugPrint('[OrderCancel] getOrderCancelReasons failed: $e');
@@ -285,12 +294,12 @@ class OrderController extends GetxController implements GetxService {
 
   Future<void> getRunningOrders(int offset,
       {bool isUpdate = false, bool fromDashboard = false}) async {
-    debugPrint('[OrderCtrl] getRunningOrders start offset=$offset isUpdate=$isUpdate fromDashboard=$fromDashboard');
+    debugPrint(
+        '[OrderCtrl] getRunningOrders start offset=$offset isUpdate=$isUpdate fromDashboard=$fromDashboard');
     _Order_isLoading = true;
 
     if (offset == 1) {
       _runningOrderModel = null;
-      _scheduleOrderModel = null;
       if (isUpdate) {
         update();
       }
@@ -298,7 +307,8 @@ class OrderController extends GetxController implements GetxService {
 
     final PaginatedOrderModel? orderModel =
         await orderServiceInterface.getRunningOrderList(offset, fromDashboard);
-    debugPrint('[OrderCtrl] getRunningOrders apiResult null=${orderModel == null} rawCount=${orderModel?.orders?.length ?? -1}');
+    debugPrint(
+        '[OrderCtrl] getRunningOrders apiResult null=${orderModel == null} rawCount=${orderModel?.orders?.length ?? -1}');
     if (orderModel?.orders != null && orderModel!.orders!.isNotEmpty) {
       final List<int?> sampleIds =
           orderModel.orders!.take(5).map((e) => e.id).toList();
@@ -307,7 +317,6 @@ class OrderController extends GetxController implements GetxService {
 
     if (orderModel != null) {
       if (offset == 1) {
-        _scheduleOrderModel = PaginatedOrderModel();
         _runningOrderModel = PaginatedOrderModel();
 
         // التأكد من أن orders ليست null وتصفية الطلبات غير المدفوعة
@@ -316,23 +325,13 @@ class OrderController extends GetxController implements GetxService {
                 order.paymentStatus != 'unpaid' &&
                 _isRunningStatus(order.orderStatus))
             .toList();
-        debugPrint('[OrderCtrl] getRunningOrders filtered running statuses count=${orders.length}');
+        debugPrint(
+            '[OrderCtrl] getRunningOrders filtered running statuses count=${orders.length}');
 
         for (final item in orders) {
-          // Scheduled tab should include only explicitly scheduled orders.
-          if (item.scheduled == 1) {
-            _scheduleOrderModel!.orders ??= [];
-            _scheduleOrderModel!.orders!.add(item);
-          } else {
-            _runningOrderModel!.orders ??= [];
-            _runningOrderModel!.orders!.add(item);
-          }
+          _runningOrderModel!.orders ??= [];
+          _runningOrderModel!.orders!.add(item);
         }
-
-        // نسخ البيانات المشتركة
-        _scheduleOrderModel!.offset = orderModel.offset;
-        _scheduleOrderModel!.limit = orderModel.limit;
-        _scheduleOrderModel!.totalSize = orderModel.totalSize;
 
         _runningOrderModel!.offset = orderModel.offset;
         _runningOrderModel!.limit = orderModel.limit;
@@ -349,7 +348,8 @@ class OrderController extends GetxController implements GetxService {
         _runningOrderModel!.orders!.addAll(filteredOrders);
         _runningOrderModel!.offset = orderModel.offset;
         _runningOrderModel!.totalSize = _runningOrderModel!.orders!.length;
-        debugPrint('[OrderCtrl] getRunningOrders append result runningCount=${_runningOrderModel!.orders!.length}');
+        debugPrint(
+            '[OrderCtrl] getRunningOrders append result runningCount=${_runningOrderModel!.orders!.length}');
       }
 
       update();
@@ -358,50 +358,72 @@ class OrderController extends GetxController implements GetxService {
     _Order_isLoading = false;
     debugPrint(
       '[OrderCtrl] getRunningOrders done running=${_runningOrderModel?.orders?.length ?? -1} '
-      'scheduled=${_scheduleOrderModel?.orders?.length ?? -1}',
+      'canceled=${_canceledOrderModel?.orders?.length ?? -1}',
     );
     update();
   }
 
   Future<void> getHistoryOrders(int offset, {bool isUpdate = false}) async {
-    debugPrint('[OrderCtrl] getHistoryOrders start offset=$offset isUpdate=$isUpdate');
+    debugPrint(
+        '[OrderCtrl] getHistoryOrders start offset=$offset isUpdate=$isUpdate');
     if (offset == 1) {
       _historyOrderModel = null;
+      _canceledOrderModel = null;
       if (isUpdate) {
         update();
       }
     }
     final PaginatedOrderModel? orderModel =
         await orderServiceInterface.getHistoryOrderList(offset);
-    debugPrint('[OrderCtrl] getHistoryOrders apiResult null=${orderModel == null} rawCount=${orderModel?.orders?.length ?? -1}');
+    debugPrint(
+        '[OrderCtrl] getHistoryOrders apiResult null=${orderModel == null} rawCount=${orderModel?.orders?.length ?? -1}');
     if (orderModel?.orders != null && orderModel!.orders!.isNotEmpty) {
       final List<int?> sampleIds =
           orderModel.orders!.take(5).map((e) => e.id).toList();
       debugPrint('[OrderCtrl] getHistoryOrders sampleIds=$sampleIds');
     }
     if (orderModel != null) {
-      // Filter out orders with unpaid payment status
-      final List<OrderModel> filteredOrders = (orderModel.orders ?? [])
-          .where((order) =>
-              order.paymentStatus != 'unpaid' &&
-              _isHistoryStatus(order.orderStatus))
+      final List<OrderModel> paidOrders = (orderModel.orders ?? [])
+          .where((order) => order.paymentStatus != 'unpaid')
           .toList();
-      debugPrint('[OrderCtrl] getHistoryOrders filtered count=${filteredOrders.length}');
+      final List<OrderModel> completedOrders = paidOrders
+          .where((order) => _isCompletedStatus(order.orderStatus))
+          .toList();
+      final List<OrderModel> canceledOrders = paidOrders
+          .where((order) => _isCanceledStatus(order.orderStatus))
+          .toList();
+      debugPrint(
+          '[OrderCtrl] getHistoryOrders completed=${completedOrders.length} canceled=${canceledOrders.length}');
 
       if (offset == 1) {
         _historyOrderModel = PaginatedOrderModel();
-        _historyOrderModel!.orders = filteredOrders;
+        _historyOrderModel!.orders = completedOrders;
         _historyOrderModel!.offset = orderModel.offset;
         _historyOrderModel!.limit = orderModel.limit;
-        _historyOrderModel!.totalSize = filteredOrders.length;
+        _historyOrderModel!.totalSize = completedOrders.length;
+
+        _canceledOrderModel = PaginatedOrderModel();
+        _canceledOrderModel!.orders = canceledOrders;
+        _canceledOrderModel!.offset = orderModel.offset;
+        _canceledOrderModel!.limit = orderModel.limit;
+        _canceledOrderModel!.totalSize = canceledOrders.length;
       } else {
-        _historyOrderModel!.orders!.addAll(filteredOrders);
+        _historyOrderModel!.orders ??= [];
+        _historyOrderModel!.orders!.addAll(completedOrders);
         _historyOrderModel!.offset = orderModel.offset;
         _historyOrderModel!.totalSize = _historyOrderModel!.orders!.length;
+
+        _canceledOrderModel!.orders ??= [];
+        _canceledOrderModel!.orders!.addAll(canceledOrders);
+        _canceledOrderModel!.offset = orderModel.offset;
+        _canceledOrderModel!.totalSize = _canceledOrderModel!.orders!.length;
       }
       update();
     }
-    debugPrint('[OrderCtrl] getHistoryOrders done history=${_historyOrderModel?.orders?.length ?? -1}');
+    debugPrint(
+      '[OrderCtrl] getHistoryOrders done history=${_historyOrderModel?.orders?.length ?? -1} '
+      'canceled=${_canceledOrderModel?.orders?.length ?? -1}',
+    );
   }
 
   Future<void> getSupportReasons() async {
@@ -409,7 +431,9 @@ class OrderController extends GetxController implements GetxService {
     _supportReasons = null;
     _updateSafely();
     try {
-      _supportReasons = await orderServiceInterface.getSupportReasonsList().timeout(const Duration(seconds: 15));
+      _supportReasons = await orderServiceInterface
+          .getSupportReasonsList()
+          .timeout(const Duration(seconds: 15));
       _supportReasons ??= <String?>[];
     } catch (e) {
       debugPrint('[SupportFlow] getSupportReasons failed: $e');
@@ -422,7 +446,8 @@ class OrderController extends GetxController implements GetxService {
 
   void _updateSafely() {
     final SchedulerPhase phase = SchedulerBinding.instance.schedulerPhase;
-    if (phase == SchedulerPhase.idle || phase == SchedulerPhase.postFrameCallbacks) {
+    if (phase == SchedulerPhase.idle ||
+        phase == SchedulerPhase.postFrameCallbacks) {
       update();
       return;
     }
@@ -527,15 +552,15 @@ class OrderController extends GetxController implements GetxService {
       final Response response = await orderServiceInterface.trackOrder(
           orderID, AuthHelper.isLoggedIn() ? null : AuthHelper.getGuestId(),
           contactNumber: contactNumber);
-        if (response.statusCode == 200 || response.statusCode == 304) {
-          if (response.body is Map<String, dynamic>) {
-            _trackModel =
-                OrderModel.fromJson(response.body as Map<String, dynamic>);
-          }
-          _responseModel = ResponseModel(true, response.body.toString());
-        } else {
-          _responseModel = ResponseModel(false, response.statusText);
+      if (response.statusCode == 200 || response.statusCode == 304) {
+        if (response.body is Map<String, dynamic>) {
+          _trackModel =
+              OrderModel.fromJson(response.body as Map<String, dynamic>);
         }
+        _responseModel = ResponseModel(true, response.body.toString());
+      } else {
+        _responseModel = ResponseModel(false, response.statusText);
+      }
       update();
       return _responseModel;
     } finally {
@@ -545,39 +570,39 @@ class OrderController extends GetxController implements GetxService {
 
   Future<bool> cancelOrder(int? orderID, String? cancelReason,
       {String? guestId}) async {
-    debugPrint('[OrderCancel] controller cancelOrder start orderId=$orderID reason=$cancelReason');
+    debugPrint(
+        '[OrderCancel] controller cancelOrder start orderId=$orderID reason=$cancelReason');
     _isLoading = true;
     update();
     bool success = false;
     try {
       success = await orderServiceInterface
           .cancelOrder(orderID.toString(), cancelReason, guestId: guestId);
-      debugPrint('[OrderCancel] controller cancelOrder service result=$success');
+      debugPrint(
+          '[OrderCancel] controller cancelOrder service result=$success');
       if (success) {
         if (Get.isDialogOpen ?? false) {
           Get.back();
         }
-        final OrderModel? runningOrderModelItem =
-            orderServiceInterface.prepareOrderModel(_runningOrderModel, orderID);
-        if (_runningOrderModel?.orders != null && runningOrderModelItem != null) {
+        final OrderModel? runningOrderModelItem = orderServiceInterface
+            .prepareOrderModel(_runningOrderModel, orderID);
+        if (_runningOrderModel?.orders != null &&
+            runningOrderModelItem != null) {
           _runningOrderModel!.orders!.remove(runningOrderModelItem);
-        }
-        final OrderModel? scheduledOrderModelItem =
-            orderServiceInterface.prepareOrderModel(_scheduleOrderModel, orderID);
-        if (_scheduleOrderModel?.orders != null && scheduledOrderModelItem != null) {
-          _scheduleOrderModel!.orders!.remove(scheduledOrderModelItem);
         }
         _showCancelled = true;
 
         // Refresh profile + wallet state so refunded balance appears quickly.
         await _refreshWalletAfterCancellation();
+        await getHistoryOrders(1, isUpdate: true);
       }
     } catch (e) {
       debugPrint('[OrderCancel] cancelOrder failed: $e');
       showCustomSnackBar('failed_to_cancel_order'.tr);
     } finally {
       _isLoading = false;
-      debugPrint('[OrderCancel] controller cancelOrder end loading=$_isLoading');
+      debugPrint(
+          '[OrderCancel] controller cancelOrder end loading=$_isLoading');
       update();
     }
     return success;

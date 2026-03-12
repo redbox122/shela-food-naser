@@ -378,6 +378,9 @@ class _CustomImageState extends State<CustomImage> {
 
     final candidates = _buildCandidates();
     if (candidates.isEmpty) {
+      if (widget.errorWidget != null) {
+        return widget.errorWidget!;
+      }
       if (widget.imageStatus == 'invalid') {
         return _buildErrorMessageUI('الصورة غير متوفرة');
       }

@@ -50,6 +50,62 @@ class _OffersItemScreen extends State<OffersItemScreen> {
     {'label': '700 - 1000', 'min': '700', 'max': '1000'},
   ];
 
+  bool _hasActiveOffersFilters(Offers_Controller controller) {
+    return _selectedSort != 'popular' ||
+        (_minPrice.isNotEmpty && _minPrice != '0') ||
+        (_maxPrice.isNotEmpty && _maxPrice != '0') ||
+        controller.selectedCategoryIds.isNotEmpty ||
+        _searchController.text.trim().isNotEmpty ||
+        controller.searchText.trim().isNotEmpty;
+  }
+
+  void _resetOffersFiltersAndReload(Offers_Controller controller) {
+    setState(() {
+      _selectedSort = 'popular';
+      _selectedPriceLabel = 'all';
+      _minPrice = '';
+      _maxPrice = '';
+      _searchController.clear();
+    });
+    controller.resetFilters();
+    controller.clearLiveSearch();
+    controller.getOffersItemList(
+      id: widget.offerId.toString(),
+      offset: 1,
+      forceRefresh: true,
+    );
+  }
+
+  Widget _buildNoResultsWithReset({
+    required BuildContext context,
+    required Offers_Controller controller,
+    required String message,
+  }) {
+    final bool canReset = _hasActiveOffersFilters(controller);
+    return Center(
+      child: Padding(
+        padding: EdgeInsets.only(
+          top: ResponsiveHelper.isDesktop(context)
+              ? context.height * 0.3
+              : context.height * 0.4,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(message, textAlign: TextAlign.center),
+            if (canReset) ...[
+              const SizedBox(height: Dimensions.paddingSizeSmall),
+              OutlinedButton(
+                onPressed: () => _resetOffersFiltersAndReload(controller),
+                child: Text('reset'.tr),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   void initState() {
     super.initState();
@@ -337,13 +393,10 @@ class _OffersItemScreen extends State<OffersItemScreen> {
         if (liveResults.isNotEmpty) {
           return _buildOffersItemsView(liveResults, isSearching: true);
         }
-        return Center(
-          child: Padding(
-            padding: EdgeInsets.only(
-              top: isDesktop ? context.height * 0.3 : context.height * 0.4,
-            ),
-            child: Text('no_results_found'.tr),
-          ),
+        return _buildNoResultsWithReset(
+          context: context,
+          controller: offersController,
+          message: 'ما في نتائج بهاي الفلاتر.\nجرّب كلمة ثانية أو صفّر الفلتر.',
         );
       }
 
@@ -358,13 +411,10 @@ class _OffersItemScreen extends State<OffersItemScreen> {
         return _buildOffersItemsView(searchItems, isSearching: true);
       }
 
-      return Center(
-        child: Padding(
-          padding: EdgeInsets.only(
-            top: isDesktop ? context.height * 0.3 : context.height * 0.4,
-          ),
-          child: Text('no_results_found'.tr),
-        ),
+      return _buildNoResultsWithReset(
+        context: context,
+        controller: offersController,
+        message: 'ما في نتائج بهاي الفلاتر.\nجرّب كلمة ثانية أو صفّر الفلتر.',
       );
     }
 
@@ -373,38 +423,12 @@ class _OffersItemScreen extends State<OffersItemScreen> {
       if (offerItems.isNotEmpty) {
         return _buildOffersItemsView(offerItems);
       }
-      return Center(
-        child: Padding(
-          padding: EdgeInsets.only(
-            top: isDesktop ? context.height * 0.3 : context.height * 0.4,
-          ),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(
-                Icons.inventory_2_outlined,
-                size: 64,
-                color: Theme.of(context).disabledColor,
-              ),
-              const SizedBox(height: 16),
-              Text(
-                'no_items_found'.tr,
-                style: robotoMedium.copyWith(
-                  fontSize: Dimensions.fontSizeLarge,
-                  color: Theme.of(context).disabledColor,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'try_different_search'.tr,
-                style: robotoRegular.copyWith(
-                  fontSize: Dimensions.fontSizeDefault,
-                  color: Theme.of(context).disabledColor,
-                ),
-              ),
-            ],
-          ),
-        ),
+      return _buildNoResultsWithReset(
+        context: context,
+        controller: offersController,
+        message: _hasActiveOffersFilters(offersController)
+            ? 'ما في نتائج بهاي الفلاتر.\nجرّب كلمة ثانية أو صفّر الفلتر.'
+            : 'no_items_found'.tr,
       );
     }
 
@@ -762,6 +786,13 @@ class _OffersItemScreen extends State<OffersItemScreen> {
           horizontal: Dimensions.paddingSizeSmall,
           vertical: Dimensions.paddingSizeSmall,
         ),
+        noDataText: _hasActiveOffersFilters(offersController)
+            ? 'ما في نتائج بهاي الفلاتر.\nجرّب كلمة ثانية أو صفّر الفلتر.'
+            : 'no_item_available'.tr,
+        noDataActionText: 'reset'.tr,
+        onNoDataActionTap: _hasActiveOffersFilters(offersController)
+            ? () => _resetOffersFiltersAndReload(offersController)
+            : null,
       );
     });
   }

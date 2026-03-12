@@ -293,6 +293,20 @@ class StoreController extends GetxController implements GetxService {
   String _searchText = '';
   String get searchText => _searchText;
 
+  String _storeSearchFilterName = '';
+  String _storeSearchFilterSort = 'popular';
+  String _storeSearchFilterCategoryId = '';
+  bool _storeSearchFilterDiscount = false;
+  String _storeSearchFilterMin = '';
+  String _storeSearchFilterMax = '';
+  bool get hasActiveStoreSearchFilters =>
+      _storeSearchFilterName.trim().isNotEmpty ||
+      _storeSearchFilterSort != 'popular' ||
+      _storeSearchFilterCategoryId.isNotEmpty ||
+      _storeSearchFilterDiscount ||
+      _storeSearchFilterMin.isNotEmpty ||
+      _storeSearchFilterMax.isNotEmpty;
+
   bool _currentState = true;
   bool get currentState => _currentState;
 
@@ -1271,6 +1285,29 @@ class StoreController extends GetxController implements GetxService {
 
     // Reload stores without filters
     getStoreList(1, true, source: DataSourceEnum.client);
+  }
+
+  /// Reset all store listing filters to default state.
+  /// Set [reload] to true when you want fresh unfiltered stores immediately.
+  void resetAllStoreFilters({bool reload = false, bool notify = true}) {
+    _filterType = 'all';
+    _storeType = 'all';
+    _recentlyAdded = null;
+    _highestRated = null;
+    _fastestDelivery = null;
+    _minPrice = null;
+    _maxPrice = null;
+    _sortBy = null;
+
+    if (reload) {
+      _silentStoreReset();
+      getStoreList(1, true, source: DataSourceEnum.client);
+      return;
+    }
+
+    if (notify) {
+      update();
+    }
   }
 
   /// 🔒 TASK 2: Clear all module state including Hive cache
@@ -3937,6 +3974,13 @@ class StoreController extends GetxController implements GetxService {
       max: max,
     );
 
+    _storeSearchFilterName = research_Name.trim() == ' ' ? '' : research_Name;
+    _storeSearchFilterSort = product_arrangement;
+    _storeSearchFilterCategoryId = id_category;
+    _storeSearchFilterDiscount = discount;
+    _storeSearchFilterMin = min;
+    _storeSearchFilterMax = max;
+
     update();
     getStoreSearch(searchFiltermodel);
   }
@@ -4030,6 +4074,19 @@ class StoreController extends GetxController implements GetxService {
   void initSearchData() {
     _storeSearchItemModel = ItemModel(items: []);
     _searchText = '';
+    resetStoreSearchFilterState(notify: false);
+  }
+
+  void resetStoreSearchFilterState({bool notify = true}) {
+    _storeSearchFilterName = '';
+    _storeSearchFilterSort = 'popular';
+    _storeSearchFilterCategoryId = '';
+    _storeSearchFilterDiscount = false;
+    _storeSearchFilterMin = '';
+    _storeSearchFilterMax = '';
+    if (notify) {
+      update();
+    }
   }
 
   // Live search functionality

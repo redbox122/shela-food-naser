@@ -27,6 +27,24 @@ class _AllRestaurantsViewState extends State<AllRestaurantsView> {
   bool _isLoadingMore = false;
   ScrollController? _parentScrollController;
 
+  bool _hasActiveStoreFilters(StoreController controller) {
+    return controller.filterType != 'all' ||
+        controller.storeType != 'all' ||
+        controller.recentlyAdded == true ||
+        controller.highestRated == true ||
+        controller.fastestDelivery == true ||
+        controller.minPrice != null ||
+        controller.maxPrice != null ||
+        controller.sortBy != null;
+  }
+
+  String _buildNoStoreResultText(bool showRestaurantText) {
+    if (showRestaurantText) {
+      return 'ما في نتائج بهاي الفلاتر.\nجرّب بحث/فلتر مختلف أو صفّر الفلتر.';
+    }
+    return 'ما في نتائج بهاي الفلاتر.\nجرّب بحث/فلتر مختلف أو صفّر الفلتر.';
+  }
+
   @override
   void initState() {
     super.initState();
@@ -174,6 +192,9 @@ class _AllRestaurantsViewState extends State<AllRestaurantsView> {
   @override
   void dispose() {
     _parentScrollController?.removeListener(_onScroll);
+    if (Get.isRegistered<StoreController>()) {
+      Get.find<StoreController>().resetAllStoreFilters(reload: false, notify: false);
+    }
     super.dispose();
   }
 
@@ -402,9 +423,17 @@ class _AllRestaurantsViewState extends State<AllRestaurantsView> {
                   isStore: true,
                   items: null,
                   stores: displayStores?.map((s) => s as Store?).toList(),
-                  noDataText: showRestaurantText
-                      ? 'no_restaurant_available'.tr
-                      : 'no_store_available'.tr,
+                  noDataText: _hasActiveStoreFilters(storeController)
+                      ? _buildNoStoreResultText(showRestaurantText)
+                      : (showRestaurantText
+                          ? 'no_restaurant_available'.tr
+                          : 'no_store_available'.tr),
+                  noDataActionText: 'reset'.tr,
+                  onNoDataActionTap: _hasActiveStoreFilters(storeController)
+                      ? () {
+                          storeController.resetAllStoreFilters(reload: true);
+                        }
+                      : null,
                   verticalItem: storeController.isVertical,
                 ),
                 // Show loading indicator when loading more stores

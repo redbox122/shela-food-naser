@@ -191,6 +191,57 @@ class _BrandsItemScreenState extends State<BrandsItemScreen> {
     return filtered;
   }
 
+  bool _hasActiveBrandFilters(BrandsController controller) {
+    return _selectedSort != 'popular' ||
+        (_minPrice.isNotEmpty && _minPrice != '0') ||
+        (_maxPrice.isNotEmpty && _maxPrice != '0') ||
+        _searchController.text.trim().isNotEmpty ||
+        controller.searchText.trim().isNotEmpty;
+  }
+
+  void _resetBrandFiltersAndReload(BrandsController controller) {
+    setState(() {
+      _selectedSort = 'popular';
+      _selectedPriceLabel = 'all';
+      _minPrice = '';
+      _maxPrice = '';
+      _isPriceSortActive = false;
+      _searchController.clear();
+    });
+    controller.resetFilters();
+    controller.clearLiveSearch();
+    controller.getBrandItemList(widget.brandId, 1, true);
+  }
+
+  Widget _buildNoResultsWithReset({
+    required BuildContext context,
+    required BrandsController controller,
+    required String message,
+  }) {
+    final bool canReset = _hasActiveBrandFilters(controller);
+    return Center(
+      child: Padding(
+        padding: EdgeInsets.only(
+            top: ResponsiveHelper.isDesktop(context)
+                ? context.height * 0.3
+                : context.height * 0.4),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(message),
+            if (canReset) ...[
+              const SizedBox(height: Dimensions.paddingSizeSmall),
+              OutlinedButton(
+                onPressed: () => _resetBrandFiltersAndReload(controller),
+                child: Text('reset'.tr),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildSectionTitle(BuildContext context, String title) {
     return Padding(
       padding: const EdgeInsets.only(bottom: Dimensions.paddingSizeSmall),
@@ -270,49 +321,6 @@ class _BrandsItemScreenState extends State<BrandsItemScreen> {
     );
   }
 
-  Widget _buildBrandCategoryChips(
-      BuildContext context, BrandsController controller,
-      {StateSetter? modalSetState}) {
-    final categoryList = controller.categoryList;
-    if (categoryList == null || categoryList.isEmpty) {
-      return Text(
-        'no_categories_available'.tr,
-        style: robotoRegular.copyWith(
-          fontSize: Dimensions.fontSizeDefault,
-          color: Theme.of(context).disabledColor,
-        ),
-      );
-    }
-
-    const Color selectedChipColor = Color(0xFFC8E6C9);
-    return Wrap(
-      spacing: Dimensions.paddingSizeSmall,
-      runSpacing: Dimensions.paddingSizeSmall,
-      children: categoryList.map((category) {
-        final int categoryId = category.id ?? 0;
-        final bool isSelected =
-            controller.selectedCategoryIds.contains(categoryId);
-        return ChoiceChip(
-          label: Text(category.name ?? ''),
-          selected: isSelected,
-          showCheckmark: true,
-          checkmarkColor: const Color(0xFF1B5E20),
-          onSelected: (_) {
-            controller.toggleCategorySelection(categoryId);
-            final updater = modalSetState ?? setState;
-            updater(() {});
-          },
-          selectedColor: selectedChipColor,
-          labelStyle: TextStyle(
-            color: isSelected
-                ? const Color(0xFF1B5E20)
-                : Theme.of(context).textTheme.bodyLarge?.color,
-          ),
-        );
-      }).toList(),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final bool isDesktop = ResponsiveHelper.isDesktop(context);
@@ -335,7 +343,6 @@ class _BrandsItemScreenState extends State<BrandsItemScreen> {
                     _selectedSort != 'popular' ||
                     (_minPrice.isNotEmpty && _minPrice != '0') ||
                     (_maxPrice.isNotEmpty && _maxPrice != '0') ||
-                    brandsController.selectedCategoryIds.isNotEmpty ||
                     _searchController.text.trim().isNotEmpty;
                 return Container(
                   width: Dimensions.webMaxWidth,
@@ -522,14 +529,11 @@ class _BrandsItemScreenState extends State<BrandsItemScreen> {
                           );
                         }
                         return SliverFillRemaining(
-                          child: Center(
-                            child: Padding(
-                              padding: EdgeInsets.only(
-                                  top: isDesktop
-                                      ? context.height * 0.3
-                                      : context.height * 0.4),
-                              child: Text('no_results_found'.tr),
-                            ),
+                          child: _buildNoResultsWithReset(
+                            context: context,
+                            controller: brandsController,
+                            message:
+                                'ما في نتائج بهاي الفلاتر.\nجرّب كلمة ثانية أو صفّر الفلتر.',
                           ),
                         );
                       }
@@ -559,14 +563,11 @@ class _BrandsItemScreenState extends State<BrandsItemScreen> {
                       }
 
                       return SliverFillRemaining(
-                        child: Center(
-                          child: Padding(
-                            padding: EdgeInsets.only(
-                                top: isDesktop
-                                    ? context.height * 0.3
-                                    : context.height * 0.4),
-                            child: Text('no_results_found'.tr),
-                          ),
+                        child: _buildNoResultsWithReset(
+                          context: context,
+                          controller: brandsController,
+                          message:
+                              'ما في نتائج بهاي الفلاتر.\nجرّب كلمة ثانية أو صفّر الفلتر.',
                         ),
                       );
                     }
@@ -597,16 +598,39 @@ class _BrandsItemScreenState extends State<BrandsItemScreen> {
                           verticalItem: brandsController.isVertical,
                         ),
                       );
-                    } else {
+                    } else if (brandItems == null &&
+                        brandsController.isBrandLoadError) {
+                      // API failed / timeout — show error + retry
                       return SliverFillRemaining(
                         child: Center(
                           child: Padding(
                             padding: EdgeInsets.only(
-                                top: isDesktop
+                                top: ResponsiveHelper.isDesktop(context)
                                     ? context.height * 0.3
                                     : context.height * 0.4),
-                            child: Text('no_brand_item_found'.tr),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text('something_went_wrong'.tr),
+                                const SizedBox(height: Dimensions.paddingSizeSmall),
+                                OutlinedButton(
+                                  onPressed: () => brandsController
+                                      .getBrandItemList(widget.brandId, 1, true),
+                                  child: Text('retry'.tr),
+                                ),
+                              ],
+                            ),
                           ),
+                        ),
+                      );
+                    } else {
+                      return SliverFillRemaining(
+                        child: _buildNoResultsWithReset(
+                          context: context,
+                          controller: brandsController,
+                          message: _hasActiveBrandFilters(brandsController)
+                              ? 'ما في نتائج بهاي الفلاتر.\nجرّب كلمة ثانية أو صفّر الفلتر.'
+                              : 'no_brand_item_found'.tr,
                         ),
                       );
                     }
@@ -700,10 +724,6 @@ class _BrandsItemScreenState extends State<BrandsItemScreen> {
                         _buildSectionTitle(context, 'price_range'.tr),
                         _buildBrandPriceRangeChips(context,
                             modalSetState: modalSetState),
-                        const SizedBox(height: Dimensions.paddingSizeDefault),
-                        _buildSectionTitle(context, 'filter_categories'.tr),
-                        _buildBrandCategoryChips(context, controller,
-                            modalSetState: modalSetState),
                         const SizedBox(height: Dimensions.paddingSizeLarge),
                       ],
                     ),
@@ -744,6 +764,7 @@ class _BrandsItemScreenState extends State<BrandsItemScreen> {
                             );
                           } else {
                             controller.clearLiveSearch();
+                            controller.clearCategorySelections();
                             controller.applyCategoryFilter();
                           }
                           Navigator.pop(context);

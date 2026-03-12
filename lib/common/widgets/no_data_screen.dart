@@ -11,12 +11,14 @@ class NoDataScreen extends StatelessWidget {
   final bool showFooter;
   final String? text;
   final bool fromAddress;
+  final Widget? actionWidget;
   const NoDataScreen(
       {super.key,
       required this.text,
       this.isCart = false,
       this.showFooter = false,
-      this.fromAddress = false});
+      this.fromAddress = false,
+      this.actionWidget});
 
   @override
   Widget build(BuildContext context) {
@@ -45,6 +47,10 @@ class NoDataScreen extends StatelessWidget {
                     : Theme.of(context).disabledColor),
             textAlign: TextAlign.center,
           ),
+          if (actionWidget != null && !isCart && !fromAddress) ...[
+            const SizedBox(height: 4),
+            actionWidget!,
+          ],
           SizedBox(height: MediaQuery.of(context).size.height * 0.03),
           if (isCart)
             Builder(builder: (context) {
@@ -117,7 +123,8 @@ class NoDataScreen extends StatelessWidget {
                   textAlign: TextAlign.center,
                 )
               : const SizedBox(),
-          SizedBox(height: MediaQuery.of(context).size.height * 0.05),
+          if (isCart || fromAddress)
+            SizedBox(height: MediaQuery.of(context).size.height * 0.05),
           fromAddress
               ? InkWell(
                   onTap: () => Get.toNamed<void>(

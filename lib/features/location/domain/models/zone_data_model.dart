@@ -47,11 +47,13 @@ class ZoneDataModel {
     minimumShippingCharge = json.parseDouble('minimum_shipping_charge');
     perKmShippingCharge = json.parseDouble('per_km_shipping_charge');
     
-    // 🔥 FLEXIBLE PARSING: Support both formated_coordinates and coordinates
-    // Try formated_coordinates first (primary format from API)
-    if (json['formated_coordinates'] != null) {
+    // 🔥 FLEXIBLE PARSING: Support formated_coordinates + formatted_coordinates + coordinates
+    // Try legacy key first, then corrected key.
+    final dynamic formattedCoordinatesRaw =
+        json['formated_coordinates'] ?? json['formatted_coordinates'];
+    if (formattedCoordinatesRaw != null) {
       formatedCoordinates = <FormatedCoordinates>[];
-      final coordsList = json['formated_coordinates'];
+      final coordsList = formattedCoordinatesRaw;
       if (coordsList is List && coordsList.isNotEmpty) {
         for (var v in coordsList) {
           if (v is Map<String, dynamic>) {

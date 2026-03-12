@@ -323,9 +323,6 @@ class DashboardScreenState extends State<DashboardScreen> {
                             Get.find<LocationController>()
                                 .showLocationSuggestion &&
                             active) ||
-                        (orderController.showBottomSheet &&
-                            runningOrder.isNotEmpty &&
-                            _isLogin) ||
                         keyboardVisible)
                     ? null
                     : FloatingActionButton(
@@ -368,9 +365,6 @@ class DashboardScreenState extends State<DashboardScreen> {
                             Get.find<LocationController>()
                                 .showLocationSuggestion &&
                             active) ||
-                        (orderController.showBottomSheet &&
-                            runningOrder.isNotEmpty &&
-                            _isLogin) ||
                         keyboardVisible)
                     ? null
                     : GetBuilder<FavouriteController>(

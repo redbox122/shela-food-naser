@@ -56,6 +56,20 @@ class StoreRegistrationRepository
       'tax_cal': 'percent', // لا تتركه فارغ
       'translations': store.translation!,
     });
+    if (kDebugMode) {
+      final maskedPhone = store.phone != null && store.phone!.length > 4
+          ? '${store.phone!.substring(0, 4)}***'
+          : store.phone;
+      appLogger.info('[StoreRegistration] Request payload:');
+      appLogger.info('  - zone_id: ${store.zoneId}');
+      appLogger.info('  - module_id: ${store.moduleId}');
+      appLogger.info('  - lat/lng: ${store.lat}, ${store.lng}');
+      appLogger.info('  - email: ${store.email}');
+      appLogger.info('  - phone: $maskedPhone');
+      appLogger.info('  - min/max delivery: ${store.minDeliveryTime}/${store.maxDeliveryTime}');
+      appLogger.info('  - delivery_time_type: ${store.deliveryTimeType}');
+      appLogger.info('  - has_logo: ${logo != null}, has_cover: ${cover != null}');
+    }
 
     if (logo != null) {
       request.files.add(await http.MultipartFile.fromPath('logo', logo.path));
@@ -68,6 +82,9 @@ class StoreRegistrationRepository
     try {
       final http.StreamedResponse response = await request.send();
       final body = await response.stream.bytesToString();
+      if (kDebugMode) {
+        appLogger.info('[StoreRegistration] Response status=${response.statusCode}');
+      }
       if (kDebugMode && AppConstants.enableVerboseLogs) {
         appLogger.debug('📩 Response: $body');
       }
@@ -84,7 +101,12 @@ class StoreRegistrationRepository
         Get.back();
         showCustomSnackBar('✅ تم إرسال الطلب بنجاح', isError: false);
       } else if (response.statusCode == 500) {
-        showCustomSnackBar('قم بمراجعه البيانات ');
+        final String message = jsonResponse['message']?.toString().trim() ?? '';
+        if (message.isNotEmpty) {
+          showCustomSnackBar(message);
+        } else {
+          showCustomSnackBar('حدث خطأ داخلي من الخادم، الرجاء المحاولة لاحقًا');
+        }
       } else if (jsonResponse.containsKey('message') &&
           jsonResponse['message'].toString().contains('Duplicate entry')) {
         showCustomSnackBar('  رقم الهاتف او البريد الاكتروني تم الحفظ مسبقا ');
@@ -97,8 +119,12 @@ class StoreRegistrationRepository
               errorMessages += '📞 رقم الجوال مستخدم مسبقاً.\n';
               break;
             case 'password':
-              errorMessages +=
-                  '🔐 كلمة المرور ضعيفة أو مخترقة. الرجاء استخدام كلمة أقوى.\n';
+              final dynamic backendMessage = error['message'];
+              final String passwordMessage =
+                  backendMessage?.toString().trim().isNotEmpty == true
+                      ? backendMessage.toString().trim()
+                      : '🔐 كلمة المرور غير مقبولة من النظام. الرجاء استخدام كلمة مرور مختلفة.';
+              errorMessages += '$passwordMessage\n';
               break;
             case 'tax_cal':
               errorMessages +=
@@ -111,13 +137,23 @@ class StoreRegistrationRepository
               errorMessages += '⚠️ ${error['message']}\n';
           }
         }
-        // showCustomSnackBar(errorMessages.trim());
+        final String userMessage = errorMessages.trim();
+        if (userMessage.isNotEmpty) {
+          showCustomSnackBar(userMessage);
+        } else {
+          showCustomSnackBar('قم بمراجعه البيانات ');
+        }
 
         debugPrint(
             '\x1B[32m  / ${response.statusCode}    ${errorMessages.trim()}  \x1B[0m');
       } else if (jsonResponse.containsKey('message')) {
         // في حال كان الرد يحتوي فقط على رسالة عامة
-        // showCustomSnackBar("⚠️ ${jsonResponse['message']}");
+        final String message = jsonResponse['message']?.toString() ?? '';
+        if (message.isNotEmpty) {
+          showCustomSnackBar(message);
+        } else {
+          showCustomSnackBar('قم بمراجعه البيانات ');
+        }
         debugPrint('\x1B[32m  ////////////  \x1B[0m');
       }
 

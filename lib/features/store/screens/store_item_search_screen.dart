@@ -25,11 +25,42 @@ class _StoreItemSearchScreenState extends State<StoreItemSearchScreen> {
 
   String type = '';
 
+  String _buildNoResultText(StoreController controller) {
+    if (controller.hasActiveStoreSearchFilters) {
+      return 'ما في نتائج بهاي الفلاتر.\nجرّب كلمة ثانية أو صفّر الفلتر.';
+    }
+    return 'no_item_available'.tr;
+  }
+
+  void _resetStoreSearchFilters(StoreController controller) {
+    controller.applyFilters(
+      research_Name: ' ',
+      product_arrangement: 'popular',
+      id_category: '',
+      id_stores: widget.storeID ?? '',
+      discount: false,
+      min: '',
+      max: '',
+      fromHome: true,
+    );
+  }
+
   @override
   void initState() {
     super.initState();
 
     Get.find<StoreController>().initSearchData();
+  }
+
+  @override
+  void dispose() {
+    if (Get.isRegistered<StoreController>()) {
+      final storeController = Get.find<StoreController>();
+      storeController.resetStoreSearchFilterState(notify: false);
+      storeController.initSearchData();
+    }
+    _scrollController.dispose();
+    super.dispose();
   }
 
   @override
@@ -193,6 +224,13 @@ class _StoreItemSearchScreenState extends State<StoreItemSearchScreen> {
                           stores: null,
                           items: storeController.storeSearchItemModel?.items,
                           inStorePage: true,
+                          noDataText: _buildNoResultText(storeController),
+                          noDataActionText: 'reset'.tr,
+                          onNoDataActionTap:
+                              storeController.hasActiveStoreSearchFilters
+                                  ? () => _resetStoreSearchFilters(
+                                      storeController)
+                                  : null,
                         ),
                       ),
                     ),

@@ -205,10 +205,8 @@ class BannerRepository implements BannerRepositoryInterface {
         }
 
         final splashController = Get.find<SplashController>();
-        final moduleId = splashController.module?.id;
-        if (moduleId == null) {
-          return null;
-        }
+        // Fall back to promotional module (3) when no module is selected (e.g. MultiModuleHomeScreen)
+        final moduleId = splashController.module?.id ?? 3;
 
         final cacheService = HiveHomeCacheService();
         BannerModel? cachedBanners = await cacheService.loadBanners(moduleId);

@@ -78,8 +78,8 @@ class CategoryItemScreenState extends State<CategoryItemScreen>
 
     // Check if it's a cuisine category (position=0 AND cat_site_id <= 3 digits)
     // Per Module 6 API guide: Cuisines show stores, Menu Categories show items
-    // Rule: position=0 AND cat_site_id <= 3 digits → show STORES
-    //       position > 0 OR cat_site_id > 3 digits → show ITEMS
+    // Rule: position=0 AND cat_site_id <= 3 digits â†’ show STORES
+    //       position > 0 OR cat_site_id > 3 digits â†’ show ITEMS
     // This only applies to Food, Groceries, and Pharmacy modules
     if (shouldApplyCuisineRouting && category != null) {
       // Check if position is available, otherwise fall back to catSiteId length check
@@ -113,28 +113,28 @@ class CategoryItemScreenState extends State<CategoryItemScreen>
       } else {
         if (kDebugMode) {
           debugPrint(
-              '✅ CategoryItemScreen: Module $currentModuleId - Detected Menu Category (id: ${category.id}, position: ${category.position}, cat_site_id: ${category.catSiteId}) - Showing Items');
+              'âœ… CategoryItemScreen: Module $currentModuleId - Detected Menu Category (id: ${category.id}, position: ${category.position}, cat_site_id: ${category.catSiteId}) - Showing Items');
         }
       }
     } else if (!shouldApplyCuisineRouting) {
       if (kDebugMode) {
         debugPrint(
-            '✅ CategoryItemScreen: Module $currentModuleId - Ecommerce/Other module - Showing Items by default');
+            'âœ… CategoryItemScreen: Module $currentModuleId - Ecommerce/Other module - Showing Items by default');
       }
     } else if (category == null) {
       if (kDebugMode) {
         debugPrint(
-            '⚠️ CategoryItemScreen: Category not found in categoryList (id: ${widget.categoryID}) - Defaulting to items tab');
+            'âš ï¸ CategoryItemScreen: Category not found in categoryList (id: ${widget.categoryID}) - Defaulting to items tab');
         debugPrint(
             '   This might be a cuisine category - detection will be updated when childes response arrives');
       }
     } else if (kDebugMode &&
         (category.catSiteId == null || category.catSiteId!.isEmpty)) {
       debugPrint(
-          '⚠️ CategoryItemScreen: Category found but missing catSiteId (id: ${category.id}, name: ${category.name}) - Defaulting to items tab');
+          'âš ï¸ CategoryItemScreen: Category found but missing catSiteId (id: ${category.id}, name: ${category.name}) - Defaulting to items tab');
     }
 
-    // ✅ CRITICAL: Set _isStore IMMEDIATELY before postFrameCallback to prevent cache hits
+    // âœ… CRITICAL: Set _isStore IMMEDIATELY before postFrameCallback to prevent cache hits
     // This must happen before any async operations that might check cache
     categoryController.setRestaurant(isStore);
 
@@ -175,16 +175,16 @@ class CategoryItemScreenState extends State<CategoryItemScreen>
       }
     });
 
-    // ⚡ MANDATORY CALL: getSubCategoryList MUST be called on every screen entry
+    // âš¡ MANDATORY CALL: getSubCategoryList MUST be called on every screen entry
     // This ensures subcategories are always loaded, regardless of cache or previous state
     // Defer to postFrameCallback to avoid build errors, but ALWAYS execute
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      // 🔥 CRITICAL: Always call getSubCategoryList - no conditions, no checks
+      // ðŸ”¥ CRITICAL: Always call getSubCategoryList - no conditions, no checks
       // This is the root cause fix - ensures API call happens every time
       if (widget.categoryID != null && widget.categoryID!.isNotEmpty) {
         if (kDebugMode) {
           debugPrint(
-              '📞 CategoryItemScreen: Calling getSubCategoryList for categoryId: ${widget.categoryID}');
+              'ðŸ“ž CategoryItemScreen: Calling getSubCategoryList for categoryId: ${widget.categoryID}');
         }
         categoryController.getSubCategoryList(
           widget.categoryID,
@@ -193,7 +193,7 @@ class CategoryItemScreenState extends State<CategoryItemScreen>
         );
       } else if (kDebugMode) {
         debugPrint(
-            '⚠️ CategoryItemScreen: categoryID is null or empty, skipping getSubCategoryList');
+            'âš ï¸ CategoryItemScreen: categoryID is null or empty, skipping getSubCategoryList');
       }
 
       // Preload stores count/list on first open so the stores tab count
@@ -238,8 +238,7 @@ class CategoryItemScreenState extends State<CategoryItemScreen>
               scrollController.position.maxScrollExtent &&
           categoryController.categoryItemList != null &&
           !categoryController.isLoading) {
-        final int pageSize =
-            (categoryController.pageSize! / 10).ceil();
+        final int pageSize = (categoryController.pageSize! / 10).ceil();
         if (categoryController.offset < pageSize) {
           if (kDebugMode) {
             print('end of the page');
@@ -249,8 +248,7 @@ class CategoryItemScreenState extends State<CategoryItemScreen>
             categoryController.subCategoryIndex == 0
                 ? widget.categoryID
                 : categoryController
-                    .subCategoryList![categoryController.subCategoryIndex]
-                    .id
+                    .subCategoryList![categoryController.subCategoryIndex].id
                     .toString(),
             categoryController.offset + 1,
             categoryController.type,
@@ -373,14 +371,17 @@ class CategoryItemScreenState extends State<CategoryItemScreen>
     return filtered;
   }
 
-  // ✅ دالة البحث - للبحث فقط (بدون فلاتر)
   String _buildNoItemFoundText(CategoryController controller) {
     final String query = controller.currentSearchName.trim();
     if (query.isNotEmpty) {
-      return 'لا يوجد اسم منتج مثل "$query"\n'
-          'الرجاء اختيار اسم منتج آخر أو إعادة ضبط الفلتر';
+      return '${'no_results_found'.tr} "$query"\n'
+          '${'try_another_keyword_or_reset_filter'.tr}';
     }
     return 'no_category_item_found'.tr;
+  }
+
+  bool _shouldShowNoResultResetButton(CategoryController controller) {
+    return controller.currentSearchName.trim().isNotEmpty;
   }
 
   void _resetCategoryFilters(CategoryController catController) {
@@ -388,153 +389,15 @@ class CategoryItemScreenState extends State<CategoryItemScreen>
         ? (widget.categoryID ?? '')
         : catController.subCategoryList![catController.subCategoryIndex].id
             .toString();
-
-    catController.applyFilters(
-      research_Name: ' ',
-      product_arrangement: 'popular',
-      id_category: categoryId,
-      id_stores: '',
-      min: '',
-      max: '',
-      discount: false,
-      fromHome: true,
+    catController.resetFilterState(notify: false);
+    catController.getCategoryItemList(
+      categoryId,
+      1,
+      catController.type,
+      false,
+      includeChildren: catController.subCategoryIndex == 0,
+      forceRefresh: true,
     );
-  }
-
-  void _showSearchDialog(
-      BuildContext context, CategoryController catController) {
-    final TextEditingController searchController = TextEditingController();
-    bool isLoading = false;
-
-    showDialog<void>(
-      context: context,
-      builder: (BuildContext dialogContext) {
-        return StatefulBuilder(
-          builder: (context, setState) {
-            return AlertDialog(
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(Dimensions.radiusDefault),
-              ),
-              title: Text('search'.tr),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  TextField(
-                    controller: searchController,
-                    autofocus: true,
-                    decoration: InputDecoration(
-                      hintText: 'search_hint'.tr,
-                      prefixIcon: const Icon(Icons.search),
-                      border: OutlineInputBorder(
-                        borderRadius:
-                            BorderRadius.circular(Dimensions.radiusDefault),
-                      ),
-                    ),
-                    onSubmitted: (value) {
-                      if (value.isNotEmpty && !isLoading) {
-                        _performSearch(value, catController, setState, () {
-                          setState(() {
-                            isLoading = true;
-                          });
-                        }, () {
-                          setState(() {
-                            isLoading = false;
-                          });
-                          Navigator.of(dialogContext).pop();
-                        });
-                      }
-                    },
-                  ),
-                  if (isLoading) ...[
-                    const SizedBox(height: Dimensions.paddingSizeDefault),
-                    const CircularProgressIndicator(),
-                    const SizedBox(height: Dimensions.paddingSizeSmall),
-                    Text(
-                      'please_wait_we_are_fetching'.tr,
-                      style: robotoRegular.copyWith(
-                        fontSize: Dimensions.fontSizeSmall,
-                        color: Theme.of(context).disabledColor,
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.of(dialogContext).pop(),
-                  child: Text('cancel'.tr),
-                ),
-                ElevatedButton(
-                  onPressed: isLoading
-                      ? null
-                      : () {
-                          if (searchController.text.isNotEmpty) {
-                            _performSearch(
-                              searchController.text,
-                              catController,
-                              setState,
-                              () {
-                                setState(() {
-                                  isLoading = true;
-                                });
-                              },
-                              () {
-                                setState(() {
-                                  isLoading = false;
-                                });
-                                Navigator.of(dialogContext).pop();
-                              },
-                            );
-                          }
-                        },
-                  child: Text('search'.tr),
-                ),
-              ],
-            );
-          },
-        );
-      },
-    );
-  }
-
-  // ✅ تنفيذ البحث مع رسالة تحميل جميلة
-  Future<void> _performSearch(
-    String query,
-    CategoryController catController,
-    StateSetter setState,
-    VoidCallback onStart,
-    VoidCallback onComplete,
-  ) async {
-    onStart();
-
-    final splashController = Get.find<SplashController>();
-    final bool isEcommerceModule =
-        splashController.module?.moduleType == AppConstants.ecommerce ||
-            splashController.module?.id == 3;
-
-    // For Hyper (module 3), search across whole module (no category restriction).
-    final categoryId = isEcommerceModule
-        ? ''
-        : (catController.subCategoryIndex == 0
-            ? widget.categoryID!
-            : catController.subCategoryList![catController.subCategoryIndex].id
-                .toString());
-
-    catController.applyFilters(
-      research_Name: query,
-      product_arrangement: 'popular',
-      id_category: categoryId,
-      id_stores: '',
-      min: '',
-      max: '',
-      discount: false,
-      fromHome: !isEcommerceModule,
-    );
-
-    // انتظار قليل لإظهار رسالة التحميل
-    await Future<void>.delayed(const Duration(milliseconds: 500));
-
-    onComplete();
   }
 
   void applyQuickFilter({
@@ -624,7 +487,7 @@ class CategoryItemScreenState extends State<CategoryItemScreen>
     return null;
   }
 
-  /// ⚡ Skeleton loader for subcategories while loading
+  /// âš¡ Skeleton loader for subcategories while loading
   Widget _buildSubCategorySkeleton(BuildContext context) {
     return Center(
       child: Container(
@@ -676,9 +539,9 @@ class CategoryItemScreenState extends State<CategoryItemScreen>
     );
   }
 
-  /// ✅ DATA-DRIVEN: Recursive subcategory rendering for infinite browsing depth
+  /// âœ… DATA-DRIVEN: Recursive subcategory rendering for infinite browsing depth
   /// Uses sub_categories metadata from backend API response
-  /// ⚡ PERFORMANCE: Always shows "All" button, loads subcategories in background
+  /// âš¡ PERFORMANCE: Always shows "All" button, loads subcategories in background
   Widget _buildRecursiveCategoryTiles({
     required BuildContext context,
     required CategoryController categoryController,
@@ -693,7 +556,7 @@ class CategoryItemScreenState extends State<CategoryItemScreen>
       );
     }
 
-    // ✅ Priority 1: Use sub_categories from API metadata (data-driven)
+    // âœ… Priority 1: Use sub_categories from API metadata (data-driven)
     List<CategoryModel>? subCategoriesToRender;
     if (currentCategory?.subCategories != null &&
         currentCategory!.subCategories!.isNotEmpty) {
@@ -704,14 +567,14 @@ class CategoryItemScreenState extends State<CategoryItemScreen>
                   subCat.subCategories!.isNotEmpty))
           .toList();
     }
-    // ✅ Priority 2: Fallback to controller's subCategoryList (for backward compatibility)
+    // âœ… Priority 2: Fallback to controller's subCategoryList (for backward compatibility)
     else if (categoryController.subCategoryList != null &&
         categoryController.subCategoryList!.isNotEmpty &&
         depth == 0) {
       subCategoriesToRender = categoryController.subCategoryList;
     }
 
-    // ⚡ ALWAYS SHOW: Even if subcategories are loading or empty, show "All" button
+    // âš¡ ALWAYS SHOW: Even if subcategories are loading or empty, show "All" button
     // This ensures UI consistency and prevents flickering
     if (subCategoriesToRender == null || subCategoriesToRender.isEmpty) {
       // Show skeleton while loading (only for top level)
@@ -750,7 +613,7 @@ class CategoryItemScreenState extends State<CategoryItemScreen>
               padding: const EdgeInsets.only(left: Dimensions.paddingSizeSmall),
               physics: const BouncingScrollPhysics(),
               itemBuilder: (context, index) {
-                // ⚠️ UI REQUIREMENT: Only "all" (subcategories) should be visible
+                // âš ï¸ UI REQUIREMENT: Only "all" (subcategories) should be visible
                 // Do NOT re-add discounts / popular / filter buttons
                 // Removed filter buttons (filter, popular, discounts) - only showing subcategories now
                 // Safe access - we already checked subCategoriesToRender is not null above
@@ -765,7 +628,7 @@ class CategoryItemScreenState extends State<CategoryItemScreen>
                       categoryController.setSubCategoryIndex(
                           index, parentCategoryId);
                     } else {
-                      // ✅ RECURSIVE NAVIGATION: Navigate to deeper level using pre-fetched data
+                      // âœ… RECURSIVE NAVIGATION: Navigate to deeper level using pre-fetched data
                       // This achieves 0ms navigation delay by using sub_categories from API metadata
                       final subCategory = subCategoriesToRender![index];
                       Get.toNamed<void>(
@@ -861,7 +724,7 @@ class CategoryItemScreenState extends State<CategoryItemScreen>
   @override
   Widget build(BuildContext context) {
     return GetBuilder<CategoryController>(builder: (catController) {
-      // 🎯 PERFORMANCE: Use pre-computed getters from controller
+      // ðŸŽ¯ PERFORMANCE: Use pre-computed getters from controller
       // No calculations (.addAll, condition checks) in build()
       final List<Item>? item = catController.displayItemList;
       final List<Store>? stores = catController.displayStoreList;
@@ -945,15 +808,7 @@ class CategoryItemScreenState extends State<CategoryItemScreen>
                   // ===================================================================================
 
                   actions: [
-                    // ✅ زر البحث - للبحث فقط (بدون فلاتر)
-                    IconButton(
-                      onPressed: () =>
-                          _showSearchDialog(context, catController),
-                      icon: Icon(
-                        Icons.search,
-                        color: Theme.of(context).textTheme.bodyLarge!.color,
-                      ),
-                    ),
+                    // Search icon temporarily hidden for debugging.
                     IconButton(
                       onPressed: () =>
                           Get.toNamed<void>(RouteHelper.getCartRoute()),
@@ -1116,9 +971,17 @@ class CategoryItemScreenState extends State<CategoryItemScreen>
                                       navigateItemToStoreOnTap,
                                   noDataText:
                                       _buildNoItemFoundText(catController),
-                                  noDataActionText: 'reset'.tr,
-                                  onNoDataActionTap: () =>
-                                      _resetCategoryFilters(catController),
+                                  noDataActionText:
+                                      _shouldShowNoResultResetButton(
+                                              catController)
+                                          ? 'reset'.tr
+                                          : null,
+                                  onNoDataActionTap:
+                                      _shouldShowNoResultResetButton(
+                                              catController)
+                                          ? () => _resetCategoryFilters(
+                                              catController)
+                                          : null,
                                 ),
                               ),
                               SingleChildScrollView(
@@ -1148,8 +1011,8 @@ class CategoryItemScreenState extends State<CategoryItemScreen>
                                 child: Center(
                                   child: Text(
                                     catController.isStore
-                                        ? 'جاري جلب المزيد من المتاجر...'
-                                        : 'جاري جلب المزيد من المنتجات...',
+                                        ? 'loading_more_stores'.tr
+                                        : 'loading_more_items'.tr,
                                     style: robotoRegular.copyWith(
                                       color: Theme.of(context).hintColor,
                                     ),
@@ -1164,12 +1027,12 @@ class CategoryItemScreenState extends State<CategoryItemScreen>
               : SizedBox(
                   width: Dimensions.webMaxWidth,
                   child: Column(children: [
-                    // الجميع  =========================================================================
+                    // Ø§Ù„Ø¬Ù…ÙŠØ¹  =========================================================================
 
                     const SizedBox(height: 10),
 
-                    // ✅ DATA-DRIVEN: Recursive subcategory rendering from backend metadata
-                    // ⚡ PERFORMANCE: Reactive update only for subcategories section
+                    // âœ… DATA-DRIVEN: Recursive subcategory rendering from backend metadata
+                    // âš¡ PERFORMANCE: Reactive update only for subcategories section
                     if (widget.categoryID != null)
                       GetBuilder<CategoryController>(
                         id: 'sub_categories',
@@ -1180,11 +1043,11 @@ class CategoryItemScreenState extends State<CategoryItemScreen>
                         ),
                       ),
 
-                    // المنتجات  =========================================================================
+                    // Ø§Ù„Ù…Ù†ØªØ¬Ø§Øª  =========================================================================
 
                     const SizedBox(height: 10),
 
-                    // ✅ شريط الفلاتر الجديد
+                    // âœ… Ø´Ø±ÙŠØ· Ø§Ù„ÙÙ„Ø§ØªØ± Ø§Ù„Ø¬Ø¯ÙŠØ¯
                     if (widget.categoryID != null)
                       CategoryFilterBar(
                         categoryID: catController.subCategoryIndex == 0
@@ -1308,9 +1171,17 @@ class CategoryItemScreenState extends State<CategoryItemScreen>
                                         navigateItemToStoreOnTap,
                                     noDataText:
                                         _buildNoItemFoundText(catController),
-                                    noDataActionText: 'reset'.tr,
-                                    onNoDataActionTap: () =>
-                                        _resetCategoryFilters(catController),
+                                    noDataActionText:
+                                        _shouldShowNoResultResetButton(
+                                                catController)
+                                            ? 'reset'.tr
+                                            : null,
+                                    onNoDataActionTap:
+                                        _shouldShowNoResultResetButton(
+                                                catController)
+                                            ? () => _resetCategoryFilters(
+                                                catController)
+                                            : null,
                                   ),
                                 ),
                                 SingleChildScrollView(
@@ -1340,8 +1211,8 @@ class CategoryItemScreenState extends State<CategoryItemScreen>
                                 Dimensions.paddingSizeSmall),
                             child: Text(
                               catController.isStore
-                                  ? 'جاري جلب المزيد من المتاجر...'
-                                  : 'جاري جلب المزيد من المنتجات...',
+                                  ? 'loading_more_stores'.tr
+                                  : 'loading_more_items'.tr,
                               style: robotoRegular.copyWith(
                                 color: Theme.of(context).hintColor,
                               ),
@@ -1355,4 +1226,3 @@ class CategoryItemScreenState extends State<CategoryItemScreen>
     });
   }
 }
-

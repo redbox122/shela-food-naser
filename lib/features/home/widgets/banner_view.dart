@@ -185,7 +185,25 @@ class BannerView extends StatelessWidget {
                                     } else if (entry.data is String) {
                                       final String url =
                                           entry.data.toString();
-                                      if (await canLaunchUrlString(url)) {
+                                      if (url.startsWith('module://')) {
+                                        final int moduleId = int.tryParse(
+                                                url.replaceFirst('module://', '')) ??
+                                            0;
+                                        final splashController =
+                                            Get.find<SplashController>();
+                                        if (splashController.moduleList != null) {
+                                          final int moduleIndex =
+                                              splashController.moduleList!
+                                                  .indexWhere(
+                                                      (m) => m.id == moduleId);
+                                          if (moduleIndex != -1) {
+                                            splashController.switchModule(
+                                                context, moduleIndex, true);
+                                          }
+                                        }
+                                      } else if (Uri.tryParse(url)?.host.contains('qaydha.com') == true) {
+                                        Get.offAllNamed(RouteHelper.getMainRoute('home'));
+                                      } else if (await canLaunchUrlString(url)) {
                                         await launchUrlString(url,
                                             mode:
                                                 LaunchMode.externalApplication);

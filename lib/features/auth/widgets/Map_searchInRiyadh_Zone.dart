@@ -2,8 +2,10 @@
 
 import 'dart:collection';
 import 'dart:math';
+import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:get/get.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geocoding/geocoding.dart';
@@ -28,11 +30,88 @@ class _RiyadhMapSearchState extends State<RiyadhMapSearch> {
   Set<Polygon> _polygons = {};
   bool _isInsideZone = true;
   int? _activeZoneId;
+  bool _isGpsLoading = false;
+  BitmapDescriptor _markerIcon = BitmapDescriptor.defaultMarker;
 
   @override
   void initState() {
     super.initState();
     _initializeZonePolygons();
+
+    // ضع الدبوس داخل الزون مباشرةً
+    final center = _getZoneCenter();
+    if (center != null) _currentPosition = center;
+
+    _marker = _buildMarker(_currentPosition);
+
+    // حمّل الأيقونة الكبيرة بعد بناء الشجرة
+    WidgetsBinding.instance.addPostFrameCallback((_) => _loadMarkerIcon());
+  }
+
+  Marker _buildMarker(LatLng position, {String? label}) {
+    return Marker(
+      markerId: const MarkerId('riyadh_marker'),
+      position: position,
+      draggable: true,
+      icon: _markerIcon,
+      anchor: const Offset(0.5, 1.0),
+      infoWindow:
+          label != null ? InfoWindow(title: label) : InfoWindow.noText,
+      onDragEnd: (newPos) => _updatePosition(newPos),
+    );
+  }
+
+  Future<void> _loadMarkerIcon() async {
+    const double w = 96;
+    const double h = 128;
+    const double r = 40.0;
+    const double cx = w / 2;
+    const double cy = r + 6;
+
+    final color = Theme.of(context).primaryColor;
+    final recorder = ui.PictureRecorder();
+    final canvas = Canvas(recorder);
+
+    // ظل
+    canvas.drawCircle(
+      Offset(cx + 2, cy + 3),
+      r,
+      Paint()
+        ..color = Colors.black26
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8),
+    );
+
+    // الدائرة الرئيسية
+    canvas.drawCircle(Offset(cx, cy), r, Paint()..color = color);
+
+    // حلقة بيضاء داخلية
+    canvas.drawCircle(
+      Offset(cx, cy),
+      r - 10,
+      Paint()
+        ..color = Colors.white
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 4,
+    );
+
+    // ذيل الدبوس (مثلث)
+    final tail = Path()
+      ..moveTo(cx - 13, cy + r - 8)
+      ..lineTo(cx + 13, cy + r - 8)
+      ..lineTo(cx, h - 4)
+      ..close();
+    canvas.drawPath(tail, Paint()..color = color);
+
+    final img =
+        await recorder.endRecording().toImage(w.toInt(), h.toInt());
+    final data = await img.toByteData(format: ui.ImageByteFormat.png);
+
+    if (!mounted || data == null) return;
+    setState(() {
+      _markerIcon =
+          BitmapDescriptor.fromBytes(data.buffer.asUint8List());
+      _marker = _buildMarker(_currentPosition);
+    });
   }
 
   void _initializeZonePolygons() {
@@ -147,12 +226,7 @@ class _RiyadhMapSearchState extends State<RiyadhMapSearch> {
 
       setState(() {
         _currentPosition = newPosition;
-        _marker = Marker(
-          markerId: const MarkerId('riyadh_marker'),
-          position: newPosition,
-          draggable: true,
-          infoWindow: InfoWindow(title: query),
-        );
+        _marker = _buildMarker(newPosition, label: query);
         _isInsideZone = true;
         _activeZoneId = containing.id;
       });
@@ -166,28 +240,74 @@ class _RiyadhMapSearchState extends State<RiyadhMapSearch> {
     }
   }
 
-  void _updatePosition(LatLng newPosition) {
+  Future<void> _updatePosition(LatLng newPosition) async {
     final storeRegController = Get.find<StoreRegistrationController>();
     final zones = storeRegController.zoneList ?? [];
     final containing = _findContainingZone(newPosition, zones);
     if (containing == null) {
-      _showOutOfServiceDialog(); // Show the coming soon dialog
+      _showOutOfServiceDialog();
       return;
     }
 
     setState(() {
       _currentPosition = newPosition;
-      _marker = Marker(
-        markerId: const MarkerId('riyadh_marker'),
-        position: newPosition,
-        draggable: true,
-      );
+      _marker = _buildMarker(newPosition);
     });
 
-    // Update controller and inZone
     _activeZoneId = containing.id;
-    storeRegController.setLocation(_marker!.position,
-        forStoreRegistration: true, zoneId: _activeZoneId);
+    await storeRegController.setLocation(
+      newPosition,
+      forStoreRegistration: true,
+      zoneId: _activeZoneId,
+    );
+
+    // تحديث حقل العنوان تلقائياً من نتيجة reverse geocoding
+    if (mounted && storeRegController.storeAddress != null) {
+      setState(() {
+        _searchController.text = storeRegController.storeAddress!;
+      });
+    }
+  }
+
+  LatLng? _getZoneCenter() {
+    if (_polygons.isEmpty) return null;
+    final points = _polygons.first.points;
+    if (points.isEmpty) return null;
+    final lat =
+        points.map((p) => p.latitude).reduce((a, b) => a + b) / points.length;
+    final lng =
+        points.map((p) => p.longitude).reduce((a, b) => a + b) / points.length;
+    return LatLng(lat, lng);
+  }
+
+  Future<void> _moveToCurrentLocation() async {
+    if (_isGpsLoading) return;
+
+    LocationPermission permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+    }
+    if (permission == LocationPermission.denied ||
+        permission == LocationPermission.deniedForever) {
+      _showError('يجب السماح بالوصول للموقع');
+      return;
+    }
+
+    setState(() => _isGpsLoading = true);
+    try {
+      final Position position = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high,
+      );
+      final newPosition = LatLng(position.latitude, position.longitude);
+      await _mapController?.animateCamera(
+        CameraUpdate.newLatLngZoom(newPosition, 14),
+      );
+      await _updatePosition(newPosition);
+    } catch (_) {
+      _showError('فشل في الحصول على الموقع');
+    } finally {
+      if (mounted) setState(() => _isGpsLoading = false);
+    }
   }
 
   void _showError(String message) {
@@ -274,31 +394,76 @@ class _RiyadhMapSearchState extends State<RiyadhMapSearch> {
                         ),
                         textAlign: TextAlign.center,
                       ),
-                      const SizedBox(height: 20),
-                      // OK Button
-                      SizedBox(
-                        width: double.infinity,
-                        child: ElevatedButton(
-                          onPressed: () {
-                            Get.back(); // Close dialog
-                          },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Theme.of(context).primaryColor,
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(vertical: 14),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                            elevation: 0,
-                          ),
-                          child: Text(
-                            'ok'.tr,
-                            style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
+                      const SizedBox(height: 12),
+                      Text(
+                        'navigate_to_service_zone'.tr,
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                          color: Theme.of(context).textTheme.bodyMedium?.color,
                         ),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 20),
+                      Row(
+                        children: [
+                          // زر لا
+                          Expanded(
+                            child: OutlinedButton(
+                              onPressed: () => Get.back(),
+                              style: OutlinedButton.styleFrom(
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 14),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                side: BorderSide(
+                                    color: Theme.of(context).primaryColor),
+                              ),
+                              child: Text(
+                                'no'.tr,
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w600,
+                                  color: Theme.of(context).primaryColor,
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          // زر نعم
+                          Expanded(
+                            child: ElevatedButton(
+                              onPressed: () {
+                                Get.back();
+                                final center = _getZoneCenter();
+                                if (center != null) {
+                                  _mapController?.animateCamera(
+                                    CameraUpdate.newLatLngZoom(center, 11),
+                                  );
+                                }
+                              },
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor:
+                                    Theme.of(context).primaryColor,
+                                foregroundColor: Colors.white,
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 14),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                elevation: 0,
+                              ),
+                              child: Text(
+                                'yes'.tr,
+                                style: const TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ),
@@ -341,15 +506,53 @@ class _RiyadhMapSearchState extends State<RiyadhMapSearch> {
         const SizedBox(height: 22),
         GetBuilder<StoreRegistrationController>(builder: (storeRegController) {
           return Expanded(
-            child: GoogleMap(
-              onMapCreated: _onMapCreated,
-              initialCameraPosition: CameraPosition(
-                target: _currentPosition,
-                zoom: 9,
-              ),
-              markers: _marker != null ? {_marker!} : {},
-              polygons: _polygons,
-              onTap: _updatePosition,
+            child: Stack(
+              children: [
+                GoogleMap(
+                  onMapCreated: _onMapCreated,
+                  initialCameraPosition: CameraPosition(
+                    target: _currentPosition,
+                    zoom: 9,
+                  ),
+                  markers: _marker != null ? {_marker!} : {},
+                  polygons: _polygons,
+                  onTap: _updatePosition,
+                ),
+                Positioned(
+                  bottom: 16,
+                  right: 16,
+                  child: GestureDetector(
+                    onTap: _moveToCurrentLocation,
+                    child: Container(
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        shape: BoxShape.circle,
+                        boxShadow: const [
+                          BoxShadow(
+                              color: Colors.black26,
+                              blurRadius: 6,
+                              spreadRadius: 1),
+                        ],
+                      ),
+                      child: _isGpsLoading
+                          ? Padding(
+                              padding: const EdgeInsets.all(10),
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Theme.of(context).primaryColor,
+                              ),
+                            )
+                          : Icon(
+                              Icons.my_location,
+                              color: Theme.of(context).primaryColor,
+                              size: 22,
+                            ),
+                    ),
+                  ),
+                ),
+              ],
             ),
           );
         }),

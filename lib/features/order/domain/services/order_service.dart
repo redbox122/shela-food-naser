@@ -143,7 +143,9 @@ class OrderService implements OrderServiceInterface {
       }
 
       if (forOrder) {
-        Get.offNamed(RouteHelper.getOrderSuccessRoute(orderID, contactNumber, createAccount: createAccount, guestId: guestId));
+        if (isSuccess || isFailed || isCancel) {
+          Get.offNamed(RouteHelper.getOrderSuccessRoute(orderID, contactNumber, createAccount: createAccount, guestId: guestId));
+        }
       } else {
         if (isSuccess || isFailed || isCancel) {
           if (Get.currentRoute.contains(RouteHelper.payment)) {

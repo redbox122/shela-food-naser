@@ -21,6 +21,53 @@ class TrackDetailsViewWidget extends StatelessWidget {
   const TrackDetailsViewWidget(
       {super.key, required this.track, required this.status, this.callback, required this.showChatPermission});
 
+  void _showContactOptions(BuildContext context, bool takeAway) {
+    final String phone = takeAway
+        ? (track.store?.phone ?? '')
+        : (track.deliveryMan?.phone ?? '');
+
+    showModalBottomSheet<void>(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text('contact_options'.tr, style: robotoMedium),
+              const SizedBox(height: 16),
+              ListTile(
+                leading: const Icon(Icons.wb_sunny_outlined, color: Color(0xFF25D366)),
+                title: Text('whatsapp'.tr, style: robotoRegular),
+                onTap: () async {
+                  Navigator.pop(ctx);
+                  final cleanPhone = phone.replaceAll(RegExp(r'[^\d+]'), '');
+                  final url = 'https://wa.me/$cleanPhone';
+                  if (await canLaunchUrlString(url)) {
+                    await launchUrlString(url, mode: LaunchMode.externalApplication);
+                  } else {
+                    showCustomSnackBar('${'can_not_launch'.tr} WhatsApp');
+                  }
+                },
+              ),
+              ListTile(
+                leading: Icon(Icons.chat_bubble_outline, color: Theme.of(context).primaryColor),
+                title: Text('in_app_chat'.tr, style: robotoRegular),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  if (callback != null) callback!();
+                },
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     double distance = 0;
@@ -209,7 +256,7 @@ class TrackDetailsViewWidget extends StatelessWidget {
                 const SizedBox(width: Dimensions.paddingSizeSmall),
                 showChatPermission
                     ? InkWell(
-                        onTap: callback as void Function()?,
+                        onTap: () => _showContactOptions(context, takeAway),
                         child: Container(
                           padding: EdgeInsets.symmetric(
                               vertical: Get.context!.width >= 1300 ? 7 : Dimensions.paddingSizeExtraSmall,

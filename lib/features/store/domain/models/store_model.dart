@@ -179,9 +179,9 @@ class Store {
     name = json.parseString('name');
     phone = json.parseString('phone');
     email = json.parseString('email');
-    // Use direct API URL fields first (logo), keep logo_full_url as fallback.
+    // Prefer logo_full_url (complete URL from server) over logo (may be filename-only)
     logoFullUrl =
-        json.parseString('logo') ?? json.parseString('logo_full_url') ?? '';
+        json.parseString('logo_full_url') ?? json.parseString('logo') ?? '';
     logoStatus = json.parseString('logo_status') ??
         (logoFullUrl != null && logoFullUrl!.isNotEmpty ? 'ok' : 'invalid');
 

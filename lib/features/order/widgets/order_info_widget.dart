@@ -583,12 +583,11 @@ class OrderInfoWidget extends StatelessWidget {
                                         timerCancel();
                                         await Get.toNamed(RouteHelper.getChatRoute(
                                           notificationBody: NotificationBodyModel(
-                                              deliverymanId: order.deliveryMan!.id, orderId: int.parse(order.id.toString())),
+                                              adminId: 0, orderId: int.parse(order.id.toString())),
                                           user: User(
-                                              id: order.deliveryMan!.id,
-                                              fName: order.deliveryMan!.fName,
-                                              lName: order.deliveryMan!.lName,
-                                              imageFullUrl: order.deliveryMan!.imageFullUrl),
+                                              id: 0,
+                                              fName: 'المسئول',
+                                              lName: ''),
                                         ));
                                         startApiCall();
                                       },
@@ -710,6 +709,7 @@ class OrderInfoWidget extends StatelessWidget {
                             image: parcel ? '${order.parcelCategory!.imageFullUrl}' : '${order.store!.logoFullUrl}',
                             height: 35,
                             width: 35,
+                            errorWidget: Image.asset(Images.placeholder, height: 35, width: 35, fit: BoxFit.cover),
                           )),
                           const SizedBox(width: Dimensions.paddingSizeSmall),
                           Expanded(
@@ -761,12 +761,11 @@ class OrderInfoWidget extends StatelessWidget {
                               ? InkWell(
                                   onTap: () async {
                                     await Get.toNamed(RouteHelper.getChatRoute(
-                                      notificationBody: NotificationBodyModel(orderId: order.id, restaurantId: order.store!.vendorId),
+                                      notificationBody: NotificationBodyModel(orderId: order.id, adminId: 0),
                                       user: User(
-                                          id: order.store!.vendorId,
-                                          fName: order.store!.name,
-                                          lName: '',
-                                          imageFullUrl: order.store!.logoFullUrl),
+                                          id: 0,
+                                          fName: 'المسئول',
+                                          lName: ''),
                                     ));
                                   },
                                   child: Image.asset(Images.chatOrderDetails, height: 20, width: 20),

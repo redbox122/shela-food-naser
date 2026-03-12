@@ -60,7 +60,8 @@ class KaidhaSubRepository implements KaidhaSubRepositoryInterface {
       payload['user_id'] = userId;
     }
 
-    final bool hasToken = apiClient.token != null && apiClient.token!.isNotEmpty;
+    final bool hasToken =
+        apiClient.token != null && apiClient.token!.isNotEmpty;
     if (!hasToken && userId == null) {
       showCustomSnackBar('لا يمكن تنفيذ طلب نفاذ بدون user_id عند غياب التوكن');
       return null;
@@ -121,7 +122,8 @@ class KaidhaSubRepository implements KaidhaSubRepositoryInterface {
     debugPrint('📋 Response Headers: ${response.headers}');
 
     if (response.statusCode == 200 || response.statusCode == 201) {
-      final Map<String, dynamic> decodedJson = jsonDecode(responseBody) as Map<String, dynamic>;
+      final Map<String, dynamic> decodedJson =
+          jsonDecode(responseBody) as Map<String, dynamic>;
       final ResponseApiIncomeSourceModel model =
           ResponseApiIncomeSourceModel.fromJson(decodedJson);
 
@@ -144,8 +146,10 @@ class KaidhaSubRepository implements KaidhaSubRepositoryInterface {
             if (item is Map<String, dynamic>) {
               final field = item['field']?.toString();
               final message = item['message']?.toString();
-              if (field != null && field.isNotEmpty &&
-                  message != null && message.isNotEmpty) {
+              if (field != null &&
+                  field.isNotEmpty &&
+                  message != null &&
+                  message.isNotEmpty) {
                 fieldErrors[field] = message;
               }
             }
@@ -240,12 +244,13 @@ class KaidhaSubRepository implements KaidhaSubRepositoryInterface {
     }
 
     try {
-      final Response<dynamic> response = await apiClient.getData(AppConstants.get_walletUri);
+      final Response<dynamic> response =
+          await apiClient.getData(AppConstants.get_walletUri);
 
       // 🔧 DEBUG: Log raw response body if size < 100 bytes
       String rawResponseBody = '';
       int responseBodySize = 0;
-      
+
       if (response.body != null) {
         // Convert response body to JSON string
         if (response.body is Map) {
@@ -255,19 +260,24 @@ class KaidhaSubRepository implements KaidhaSubRepositoryInterface {
         } else {
           rawResponseBody = response.body.toString();
         }
-        
+
         // Get byte size of the response body
         responseBodySize = utf8.encode(rawResponseBody).length;
-        
+
         // If response size is < 100 bytes, print the entire raw response body
         if (responseBodySize < 100) {
-          debugPrint('🔍 [53-BYTE DEBUG] Response size: $responseBodySize bytes');
+          debugPrint(
+              '🔍 [53-BYTE DEBUG] Response size: $responseBodySize bytes');
           debugPrint('🔍 [53-BYTE DEBUG] Status Code: ${response.statusCode}');
-          debugPrint('🔍 [53-BYTE DEBUG] Raw Response Body (exact JSON string):');
-          debugPrint('═══════════════════════════════════════════════════════════');
+          debugPrint(
+              '🔍 [53-BYTE DEBUG] Raw Response Body (exact JSON string):');
+          debugPrint(
+              '═══════════════════════════════════════════════════════════');
           debugPrint(rawResponseBody);
-          debugPrint('═══════════════════════════════════════════════════════════');
-          debugPrint('🔍 [53-BYTE DEBUG] Response body type: ${response.body.runtimeType}');
+          debugPrint(
+              '═══════════════════════════════════════════════════════════');
+          debugPrint(
+              '🔍 [53-BYTE DEBUG] Response body type: ${response.body.runtimeType}');
         }
       }
 
@@ -275,19 +285,21 @@ class KaidhaSubRepository implements KaidhaSubRepositoryInterface {
       Response<dynamic>? responseToProcess = response;
       if (response.statusCode == 304) {
         if (kDebugMode) {
-          print('✅ Wallet Repository: 304 Not Modified - checking cache integrity');
+          print(
+              '✅ Wallet Repository: 304 Not Modified - checking cache integrity');
         }
-        
+
         // ⚡ TASK 1: 304 Loop Detection - If cache is null, we're in a loop
         if (_walletKaidhaCache == null) {
           // 🚨 CRITICAL: 304 Loop detected - cache is empty but server says unchanged
           if (kDebugMode) {
-            appLogger.warning('🚨 [CRITICAL] 304 Loop detected. Purging ETag for Qidha Wallet.');
+            appLogger.warning(
+                '🚨 [CRITICAL] 304 Loop detected. Purging ETag for Qidha Wallet.');
           }
-          
+
           // Nuclear option: Clear ETag and force fresh request with cache-busting headers
           await apiClient.clearEtag(AppConstants.get_walletUri);
-          
+
           // Force fresh request with cache-busting headers
           responseToProcess = await apiClient.getData(
             AppConstants.get_walletUri,
@@ -297,36 +309,42 @@ class KaidhaSubRepository implements KaidhaSubRepositoryInterface {
               'If-None-Match': '', // Empty to bypass ETag check
             },
           );
-          
+
           // If still 304 after purge, something is very wrong - return null to force retry
           if (responseToProcess.statusCode == 304) {
             if (kDebugMode) {
-              appLogger.error('🚨 [CRITICAL] Still getting 304 after ETag purge - server issue');
+              appLogger.error(
+                  '🚨 [CRITICAL] Still getting 304 after ETag purge - server issue');
             }
             return null;
           }
         } else {
           // Cache exists - check if it's skeleton data
           final cachedWallet = _walletKaidhaCache!.wallet;
-          final hasUsedBalance = cachedWallet?.usedBalance != null && 
-                                 cachedWallet!.usedBalance.toString().trim().isNotEmpty &&
-                                 (cachedWallet.usedBalance is num || double.tryParse(cachedWallet.usedBalance.toString()) != null);
-          final hasMinimumDueLimit = cachedWallet?.minimumDueLimit != null && 
-                                     cachedWallet!.minimumDueLimit.toString().trim().isNotEmpty &&
-                                     (cachedWallet.minimumDueLimit is num || double.tryParse(cachedWallet.minimumDueLimit.toString()) != null);
-          
+          final hasUsedBalance = cachedWallet?.usedBalance != null &&
+              cachedWallet!.usedBalance.toString().trim().isNotEmpty &&
+              (cachedWallet.usedBalance is num ||
+                  double.tryParse(cachedWallet.usedBalance.toString()) != null);
+          final hasMinimumDueLimit = cachedWallet?.minimumDueLimit != null &&
+              cachedWallet!.minimumDueLimit.toString().trim().isNotEmpty &&
+              (cachedWallet.minimumDueLimit is num ||
+                  double.tryParse(cachedWallet.minimumDueLimit.toString()) !=
+                      null);
+
           // If skeleton data detected (missing critical fields), purge ETag and force 200 OK
           if (!hasUsedBalance || !hasMinimumDueLimit) {
             if (kDebugMode) {
-              appLogger.warning('🚨 POISONED CACHE DETECTED: Cache missing used_balance or minimum_due_limit. Purging ETag...');
+              appLogger.warning(
+                  '🚨 POISONED CACHE DETECTED: Cache missing used_balance or minimum_due_limit. Purging ETag...');
             }
-            
+
             // Clear ETag to force fresh request
             await apiClient.clearEtag(AppConstants.get_walletUri);
-            
+
             // Force a 200 OK retry with cache-busting headers
             if (kDebugMode) {
-              print('🔄 Wallet Repository: Retrying with force refresh after cache purge');
+              print(
+                  '🔄 Wallet Repository: Retrying with force refresh after cache purge');
             }
             responseToProcess = await apiClient.getData(
               AppConstants.get_walletUri,
@@ -336,11 +354,13 @@ class KaidhaSubRepository implements KaidhaSubRepositoryInterface {
                 'If-None-Match': '',
               },
             );
-            
+
             // If retry also fails, return null to force controller retry
-            if (responseToProcess.statusCode != 200 && responseToProcess.statusCode != 201) {
+            if (responseToProcess.statusCode != 200 &&
+                responseToProcess.statusCode != 201) {
               if (kDebugMode) {
-                print('⚠️ Wallet Repository: Retry after cache purge failed - returning null');
+                print(
+                    '⚠️ Wallet Repository: Retry after cache purge failed - returning null');
               }
               return null;
             }
@@ -368,8 +388,9 @@ class KaidhaSubRepository implements KaidhaSubRepositoryInterface {
 
         // 🔧 FIX: Access response.data instead of response.body directly
         // Backend returns: { "success": true, "data": { "id": ..., "available_balance": ..., "status": ... } }
-        final Map<String, dynamic> responseData = responseToProcess.body as Map<String, dynamic>;
-        
+        final Map<String, dynamic> responseData =
+            responseToProcess.body as Map<String, dynamic>;
+
         // New unified response: { data: { id, signature_status, has_wallet, ... } }
         // Always prefer the data map; do not rely on old wallet paths.
         Map<String, dynamic> walletData;
@@ -382,11 +403,12 @@ class KaidhaSubRepository implements KaidhaSubRepositoryInterface {
         final dynamic hasWalletValue = walletData['has_wallet'];
         if (hasWalletValue == false) {
           if (kDebugMode) {
-            print('ℹ️ Wallet Repository: has_wallet=false - user has no wallet');
+            print(
+                'ℹ️ Wallet Repository: has_wallet=false - user has no wallet');
           }
           return null;
         }
-        
+
         // Create wallet object with correct field names
         final Map<String, dynamic> walletJson = {
           'id': walletData['id'],
@@ -397,14 +419,16 @@ class KaidhaSubRepository implements KaidhaSubRepositoryInterface {
           'completed_at': walletData['completed_at'],
           'completed_by': walletData['completed_by'],
           'credit_limit': walletData['credit_limit'],
-          'minimum_due': walletData['minimum_due'] ?? walletData['minimum_due_amount'],
+          'minimum_due':
+              walletData['minimum_due'] ?? walletData['minimum_due_amount'],
           'available_balance': walletData['available_balance'], // Not "balance"
           'used_balance': walletData['used_balance'],
           'usage_percentage_limit': walletData['usage_percentage_limit'],
           'status': walletData['status'], // "Pending"/"Active", not "active"
           'auto_lock_day': walletData['auto_lock_day'],
           'manual_unlock_expiry_date': walletData['manual_unlock_expiry_date'],
-          'usage_percentage_limit_by_monthly': walletData['usage_percentage_limit_by_monthly'],
+          'usage_percentage_limit_by_monthly':
+              walletData['usage_percentage_limit_by_monthly'],
           'signature_path': walletData['signature_path'],
           'signature_status': walletData['signature_status'],
           'lock_day': walletData['lock_day'],
@@ -413,12 +437,12 @@ class KaidhaSubRepository implements KaidhaSubRepositoryInterface {
           'used_percentage': walletData['used_percentage'],
           'total_avilable_balance': walletData['total_avilable_balance'],
         };
-        
+
         final Map<String, dynamic> modelJson = {
           'message': responseData['message'] ?? 'Wallet retrieved successfully',
           'wallet': walletJson,
         };
-        
+
         _walletKaidhaCache = WalletKaidhaModel.fromJson(modelJson);
         print('✅ محفظه قيدها: ${_walletKaidhaCache!.wallet?.status}');
         return _walletKaidhaCache;
@@ -556,7 +580,8 @@ class KaidhaSubRepository implements KaidhaSubRepositoryInterface {
     if (response.statusCode == 200 || response.statusCode == 201) {
       getWalletKaidh();
 
-      final Map<String, dynamic>? bodyMap = response.body as Map<String, dynamic>?;
+      final Map<String, dynamic>? bodyMap =
+          response.body as Map<String, dynamic>?;
       showCustomSnackBar("${bodyMap?["message"]}", isError: false);
     } else {
       showCustomSnackBar('فشل شحن المبلغ');
@@ -627,7 +652,9 @@ class KaidhaSubRepository implements KaidhaSubRepositoryInterface {
         return NafathCheckStatusModel.fromJson(body as Map<String, dynamic>);
       }
 
-      showCustomSnackBar(_extractMessage(body, '??? ??? ????? ?????? ?? ????????'));
+      showCustomSnackBar(
+        _extractMessage(body, 'حدث خطأ أثناء التحقق من نافذ'),
+      );
       return null;
     } catch (e) {
       print('? Nafath checkStatus failed: $e');
@@ -663,7 +690,8 @@ class KaidhaSubRepository implements KaidhaSubRepositoryInterface {
         },
       );
       if (kDebugMode) {
-        debugPrint('📡 Nafath initiate POST -> ${apiClient.appBaseUrl}${AppConstants.nafath_initiateUri}');
+        debugPrint(
+            '📡 Nafath initiate POST -> ${apiClient.appBaseUrl}${AppConstants.nafath_initiateUri}');
       }
       print('${response.body}');
       print('${response.request?.url}');
@@ -672,7 +700,8 @@ class KaidhaSubRepository implements KaidhaSubRepositoryInterface {
           body is Map<String, dynamic> && body['success'] == true;
       if ((response.statusCode == 200 || response.statusCode == 201) &&
           isSuccess) {
-        final Map<String, dynamic> payload = body['data'] as Map<String, dynamic>;
+        final Map<String, dynamic> payload =
+            body['data'] as Map<String, dynamic>;
         model = NafathRandomModel.fromJson(payload);
         return model;
       } else {
@@ -714,7 +743,8 @@ class KaidhaSubRepository implements KaidhaSubRepositoryInterface {
       }
 
       final dynamic body = response.body;
-      final bool okHttp = response.statusCode == 200 || response.statusCode == 201;
+      final bool okHttp =
+          response.statusCode == 200 || response.statusCode == 201;
       if (okHttp && !_isSuccessBody(body)) {
         final String message = _extractMessage(body, 'فشل إلغاء طلب نفاذ');
         showCustomSnackBar(message);
@@ -731,7 +761,8 @@ class KaidhaSubRepository implements KaidhaSubRepositoryInterface {
   Future<NafathRandomModel?> Nafath_send_retry(
       BuildContext context, String nationalId) async {
     try {
-      if (nationalId.length != 10 || !RegExp(r'^\d{10}$').hasMatch(nationalId)) {
+      if (nationalId.length != 10 ||
+          !RegExp(r'^\d{10}$').hasMatch(nationalId)) {
         showCustomSnackBar('رقم الهوية غير صالح');
         return null;
       }
@@ -760,7 +791,8 @@ class KaidhaSubRepository implements KaidhaSubRepositoryInterface {
           body is Map<String, dynamic> && body['success'] == true;
       if ((response.statusCode == 200 || response.statusCode == 201) &&
           isSuccess) {
-        final Map<String, dynamic> payload = body['data'] as Map<String, dynamic>;
+        final Map<String, dynamic> payload =
+            body['data'] as Map<String, dynamic>;
         return NafathRandomModel.fromJson(payload);
       }
 
@@ -802,14 +834,16 @@ class KaidhaSubRepository implements KaidhaSubRepositoryInterface {
       },
     );
     if (kDebugMode) {
-      debugPrint('📡 Nafath sign POST -> ${apiClient.appBaseUrl}${AppConstants.nafath_signUri}');
+      debugPrint(
+          '📡 Nafath sign POST -> ${apiClient.appBaseUrl}${AppConstants.nafath_signUri}');
     }
     if ((response.statusCode == 200 || response.statusCode == 201) &&
         !_isSuccessBody(response.body)) {
       final String message =
           _extractMessage(response.body, 'فشل إرسال توقيع العقد');
       showCustomSnackBar(message);
-      return Response(statusCode: 400, statusText: message, body: response.body);
+      return Response(
+          statusCode: 400, statusText: message, body: response.body);
     }
     return response;
   }
@@ -829,7 +863,8 @@ class KaidhaSubRepository implements KaidhaSubRepositoryInterface {
     };
 
     if (kDebugMode) {
-      debugPrint('📡 SendState_kaidha POST -> ${apiClient.appBaseUrl}${AppConstants.registration_activityUri}');
+      debugPrint(
+          '📡 SendState_kaidha POST -> ${apiClient.appBaseUrl}${AppConstants.registration_activityUri}');
       debugPrint('📦 Body: ${jsonEncode(req)}');
     }
 
@@ -849,7 +884,9 @@ class KaidhaSubRepository implements KaidhaSubRepositoryInterface {
       }
     }
 
-    if (response.statusCode != 200 && response.statusCode != 201 && response.statusCode != 304) {
+    if (response.statusCode != 200 &&
+        response.statusCode != 201 &&
+        response.statusCode != 304) {
       debugPrint('SendState_kaidha failed: ${response.statusCode}');
     }
 
@@ -861,4 +898,3 @@ class KaidhaSubRepository implements KaidhaSubRepositoryInterface {
     _walletKaidhaCache = null;
   }
 }
-

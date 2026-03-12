@@ -146,13 +146,9 @@ class SplashScreenState extends State<SplashScreen> {
       // silently dropped. The 3 s cap keeps startup fast even if the backend
       // is slow; the minimum splash duration (2.5 s) runs concurrently so the
       // net UX cost is at most ~0.5 s on a cold network.
-      await splashController
+      unawaited(splashController
           .preloadCoreModulesForFastSwitch()
-          .timeout(
-            const Duration(seconds: 3),
-            onTimeout: () {},
-          )
-          .catchError((Object _) {});
+          .catchError((Object _) {}));
       
       // If no module is selected and multiple modules exist, go DIRECTLY to multi-module screen
       // 🏗️ MODULE-FIRST ARCHITECTURE: No prefetch without module
@@ -245,7 +241,13 @@ class SplashScreenState extends State<SplashScreen> {
         await Future.wait([
           splashController.waitUntilReady(),
           dataLoadingFuture,
-        ]).timeout(const Duration(seconds: 3));
+        ]).timeout(
+          const Duration(seconds: 2),
+          onTimeout: () {
+            debugPrint('⏱️ SplashScreen: Timeout - routing immediately');
+            return [];
+          },
+        );
       } on TimeoutException {
         // Timeout guard: move on with cached data immediately
         debugPrint('⏱️ SplashScreen: Timeout waiting for API, routing with cache');
