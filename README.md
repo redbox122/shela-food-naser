@@ -1,4 +1,4 @@
-# Shella Food Delivery - User App
+# Shella app - User App
 تطبيق التسوق للمستخدمين
 
 ## التوثيق
