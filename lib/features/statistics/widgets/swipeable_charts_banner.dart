@@ -421,7 +421,7 @@ class _SwipeableChartsBannerState extends State<SwipeableChartsBanner> {
       'Pharmacy': AppColors.blueColor,
       'Electronics': AppColors.orangeColor,
       'Clothing': AppColors.redColor,
-      'Books': AppColors.purpleColor,
+      'Books': AppColors.primaryColor,
     };
     return colors[categoryName] ?? AppColors.greyColor;
   }

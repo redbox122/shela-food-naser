@@ -428,7 +428,7 @@ class StatisticsScreenWithToggleState extends State<StatisticsScreenWithToggle>
                 'إجمالي الرصيد',
                 '${_convertToArabicNumerals((walletInfo.availableBalance + walletInfo.usedBalance).toStringAsFixed(2))} ر.س',
                 Icons.account_balance,
-                Colors.purple,
+                AppColors.primaryColor,
                 'الرصيد الإجمالي',
               ),
             ],
@@ -1416,7 +1416,7 @@ class StatisticsScreenWithToggleState extends State<StatisticsScreenWithToggle>
                     'الإنفاق الأسبوعي',
                     '${_convertToArabicNumerals(weeklySpending.toStringAsFixed(2))} ر.س',
                     Icons.trending_up,
-                    Colors.purple,
+                    AppColors.primaryColor,
                   ),
                 ],
               ),
@@ -1467,20 +1467,24 @@ class StatisticsScreenWithToggleState extends State<StatisticsScreenWithToggle>
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.purple[50],
+        color: AppColors.primaryColor.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.purple[200]!),
+        border: Border.all(color: AppColors.primaryColor.withValues(alpha: 0.25)),
       ),
       child: Column(
         children: [
-          Icon(Icons.trending_up, color: Colors.purple[400], size: 48),
+          Icon(
+            Icons.trending_up,
+            color: AppColors.primaryColor.withValues(alpha: 0.75),
+            size: 48,
+          ),
           const SizedBox(height: 12),
           Text(
             'الاتجاهات الشهرية',
             style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.bold,
-              color: Colors.purple[700],
+              color: AppColors.primaryColor,
             ),
           ),
           const SizedBox(height: 8),
@@ -1488,7 +1492,7 @@ class StatisticsScreenWithToggleState extends State<StatisticsScreenWithToggle>
             'سيتم عرض الاتجاهات الشهرية قريباً',
             style: TextStyle(
               fontSize: 14,
-              color: Colors.purple[600],
+              color: AppColors.primaryColor.withValues(alpha: 0.9),
             ),
             textAlign: TextAlign.center,
           ),

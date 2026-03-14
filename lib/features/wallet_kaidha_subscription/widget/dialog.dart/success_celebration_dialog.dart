@@ -6,6 +6,7 @@ import 'package:animated_text_kit/animated_text_kit.dart';
 import 'dart:math';
 
 import 'package:get/get.dart';
+import 'package:sixam_mart/util/app_colors.dart';
 
 class Success_Celebration_dialog extends StatefulWidget {
   const Success_Celebration_dialog({super.key});
@@ -60,7 +61,7 @@ class _Success_Celebration_dialogState extends State<Success_Celebration_dialog>
               emissionFrequency: 0.05,
               numberOfParticles: 20,
               gravity: 0.3,
-              colors: const [Colors.green, Colors.blue, Colors.pink, Colors.orange, Colors.purple],
+              colors: const [Colors.green, Colors.blue, Colors.pink, Colors.orange, AppColors.primaryColor],
             ),
           ),
         ],
@@ -116,7 +117,7 @@ class _SuccessCelebrationWidgetState extends State<SuccessCelebrationWidget> {
               emissionFrequency: 0.05,
               numberOfParticles: 20,
               gravity: 0.3,
-              colors: const [Colors.green, Colors.blue, Colors.pink, Colors.orange, Colors.purple],
+              colors: const [Colors.green, Colors.blue, Colors.pink, Colors.orange, AppColors.primaryColor],
             ),
 
             //

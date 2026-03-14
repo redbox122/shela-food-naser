@@ -611,7 +611,7 @@ class _SimpleChartsBannerState extends State<SimpleChartsBanner> {
       'الأطعمة الأساسية': AppColors.orangeColor,
       'الإلكترونيات والأجهزة المنزلية': AppColors.redColor,
       'الأرز والمعكرونة والبقوليات': AppColors.secondaryColor,
-      'الهواتف المحمولة وأجهزة اليد الذكية': Colors.purple,
+      'الهواتف المحمولة وأجهزة اليد الذكية': AppColors.primaryColor,
       'أطعمة طازجة': Colors.teal,
       'العطور ومزيلات العرق': Colors.pink,
       'العناية بالفم': Colors.cyan,
@@ -884,7 +884,7 @@ class PieChartPainter extends CustomPainter {
       'الأطعمة الأساسية': AppColors.orangeColor,
       'الإلكترونيات والأجهزة المنزلية': AppColors.redColor,
       'الأرز والمعكرونة والبقوليات': AppColors.secondaryColor,
-      'الهواتف المحمولة وأجهزة اليد الذكية': Colors.purple,
+      'الهواتف المحمولة وأجهزة اليد الذكية': AppColors.primaryColor,
       'أطعمة طازجة': Colors.teal,
       'العطور ومزيلات العرق': Colors.pink,
       'العناية بالفم': Colors.cyan,
@@ -896,3 +896,4 @@ class PieChartPainter extends CustomPainter {
     return colors[categoryName] ?? AppColors.gryColor;
   }
 }
+

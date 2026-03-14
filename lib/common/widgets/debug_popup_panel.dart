@@ -183,7 +183,7 @@ class DebugPopupPanel extends StatelessWidget {
                       context,
                       'Bottom Sheet Example',
                       Icons.view_day,
-                      Colors.purple,
+                      Theme.of(context).primaryColor,
                       () => _showBottomSheetExample(context),
                     ),
                   ],
