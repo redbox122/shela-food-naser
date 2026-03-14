@@ -1,26 +1,27 @@
-@"
-# 🚀 Shella Food Delivery - Captain App
-تطبيق منفذي الخدمات (سائقي التوصيل)
+# Shella Food Delivery - User App
+تطبيق التسوق للمستخدمين
 
-## 📚 التوثيق
+## التوثيق
 للحصول على التوثيق الكامل باللغة العربية، يرجى زيارة:
 
-__📂 مجلد التوثيق - gaber_sgin__
+`gaber_sgin/`
 
-أو ابدأ مباشرة من: __📖 دليل التوثيق__
+أو ابدأ مباشرة من:
 
-## ℹ️ معلومات المشروع
-* الاسم: منفذي الخدمات
-* النوع: تطبيق Flutter
-* الإصدار: 1.1.4+18
-* SDK: Flutter 3.4.0+
+`gaber_sgin/README.md`
 
-## 🕒 آخر تحديث
-* التاريخ: 15 مارس 2026
-* التغييرات: استعادة الملفات الناقصة وإصلاح module router
+## معلومات المشروع
+- الاسم: تطبيق التسوق
+- النوع: تطبيق Flutter
+- الإصدار: 1.1.4+18
+- SDK: Flutter 3.4.0+
 
-## 🚀 البدء السريع
-``````
+## آخر تحديث
+- التاريخ: 15 مارس 2026
+- التغييرات: استعادة الملفات الناقصة وإصلاح module router
+
+## البدء السريع
+```bash
 # تحميل التبعيات
 flutter pub get
 
@@ -29,11 +30,4 @@ flutter run
 
 # البناء (Android)
 flutter build apk --release
-``````
-
-للتوثيق الكامل: __gaber_sgin/____README.md__
-"@ | Set-Content README.md -Encoding UTF8
-
-git add README.md
-git commit -m "Update README - last updated 25 Feb 2026"
-git push origin main
+```
