@@ -1,65 +1,60 @@
-# Miscellaneous
-*.class
-*.log
-*.pyc
-*.swp
-.DS_Store
-.atom/
-.buildlog/
-.history
-.svn/
-
-# IntelliJ related
+# ─── بيئة التطوير والـ IDE ───
+.idea/
 *.iml
 *.ipr
 *.iws
-.idea/
+.atom/
+.vscode/
+.DS_Store
+*.swp
+*.swo
+.history/
+.svn/
 
-# The .vscode folder contains launch configuration and tasks you configure in
-# VS Code which you may wish to be included in version control, so this line
-# is commented out by default.
-#.vscode/
-
-# Flutter/Dart/Pub related
-**/doc/api/
-**/ios/Flutter/.last_build_id
+# ─── Flutter / Dart ───
 .dart_tool/
-.flutter-plugins
-.flutter-plugins-dependencies
 .packages
 .pub-cache/
 .pub/
+.flutter-plugins
+.flutter-plugins-dependencies
+**/doc/api/
+**/ios/Flutter/.last_build_id
 /build/
 
+# ─── أرشيفات ومخرجات مؤقتة ───
+*.class
+*.log
+*.pyc
 changes.tar
 changes.zip
-get_changed_files.sh
 changed_files.zip
-
-# Web related
-
-# Symbolication related
 app.*.symbols
-
-# Obfuscation related
 app.*.map.json
 
-# Android Studio will place build artifacts here
+# ─── Android ───
 /android/app/debug
 /android/app/profile
 /android/app/release
+android/local.properties
 
-# Build artifacts and temporary files
-delete/
-2025/
-
-# SECURITY: Keep API keys and sensitive data out of version control
+# مفاتيح وتوقيع (لا ترفع أبداً)
 android/key.properties
 android/app/key.properties
 *.jks
 *.keystore
 
-# Documentation and temporary markdown files (keep README.md)
+# ─── iOS ───
+ios/Podfile.lock
+ios/.symlinks/
+ios/Flutter/Flutter.framework
+ios/Flutter/Flutter.podspec
+
+# ─── مجلدات مؤقتة للمشروع ───
+delete/
+2025/
+
+# ─── توثيق مؤقت (يُحتفظ بـ README.md) ───
 API_*.md
 BACKEND_*.md
 ECOMMERCE_*.md
@@ -76,33 +71,26 @@ STORE_*.md
 URGENT_*.md
 test_*.md
 foodmodule.md
-
-Module 6*.md
+Module*.md
 apis/
 app screens/
 notifications/
 
-# Test scripts and temporary scripts
-*.ps1
-*.sh
-*.bat
-test_*.dart
-fetch_*.dart
+# ─── سكربتات مؤقتة (اختياري: أزل السطر لو تريد رفع سكربتات) ───
+get_changed_files.sh
+get_valid_ids.sh
 check_*.ps1
 build_production.bat
-get_valid_ids.sh
 
-# Temporary JSON and data files
+# ─── بيانات مؤقتة وتجارب ───
 module6_categories_*.json
 module6_categories_summary.txt
 modules_response*.json
-
-# Temporary image files (root level only)
 WhatsApp Image*.jpg
 
-# Local properties (machine-specific)
-android/local.properties
-ios/Podfile.lock
+# ─── Firebase (إن احتوى على بيانات حساسة) ───
+# firebase.json
 
-# Firebase config (if contains sensitive data)
-firebase.json
+# ─── ملفات اختبار مؤقتة ───
+test_*.dart
+fetch_*.dart
