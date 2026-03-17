@@ -1,33 +1,74 @@
 # Shella app - User App
 تطبيق التسوق للمستخدمين
 
-## التوثيق
-للحصول على التوثيق الكامل باللغة العربية، يرجى زيارة:
+تطبيق شيلا — منصة متعددة الخدمات: طعام، بقالة، صيدلية، تجارة إلكترونية وطرود.
 
-`gaber_sgin/`
+---
 
-أو ابدأ مباشرة من:
+## 📱 عن المشروع
 
-`gaber_sgin/README.md`
+- **الاسم:** Shella (تطبيق المستخدمين)
+- **النوع:** تطبيق Flutter (Android & iOS)
+- **الإصدار:** 3.9.5+180
+- **المستودع:** [github.com/nasser1207/shellafood-user-app](https://github.com/nasser1207/shellafood-user-app)
 
-## معلومات المشروع
-- الاسم: تطبيق التسوق
-- النوع: تطبيق Flutter
-- الإصدار: 1.1.4+18
-- SDK: Flutter 3.4.0+
+---
 
-## آخر تحديث
-- التاريخ: 15 مارس 2026
-- التغييرات: استعادة الملفات الناقصة وإصلاح module router
+## ✨ الخدمات
 
-## البدء السريع
+- توصيل طعام ومطاعم
+- بقالة وتسوق
+- صيدلية
+- تجارة إلكترونية
+- خدمة الطرود (Parcel)
+
+---
+
+## 📋 المتطلبات
+
+- Flutter SDK >= 3.2.0
+- Dart >= 3.2.0
+
+---
+
+## 🚀 البدء السريع
+
 ```bash
+# استنساخ المشروع
+git clone https://github.com/nasser1207/shellafood-user-app.git
+cd shellafood-user-app
+
 # تحميل التبعيات
 flutter pub get
 
 # التشغيل
 flutter run
-
-# البناء (Android)
-flutter build apk --release
 ```
+
+---
+
+## 📦 البناء للإنتاج
+
+```bash
+# Android (APK)
+flutter build apk --release
+
+# Android (App Bundle)
+flutter build appbundle --release
+
+# iOS
+flutter build ios --release
+```
+
+---
+
+## 📂 التوثيق
+
+للتوثيق الإضافي (إن وُجد) راجع مجلد المشروع أو الملفات المرفقة.
+
+---
+
+## آخر تحديث
+
+- **التاريخ:** مارس 2026
+- **أبرز التعديلات:** إصلاحات الثيم (توحيد الألوان بين Android و iOS)، استقرار التوجيه والمسارات.
