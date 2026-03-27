@@ -40,6 +40,11 @@ class FavouriteScreenState extends State<FavouriteScreen> with SingleTickerProvi
       appBar: CustomAppBar(title: 'favourite'.tr, backButton: false),
       body: AuthHelper.isLoggedIn()
           ? SafeArea(
+              top: false,
+              bottom: true,
+              left: false,
+              right: false,
+              minimum: EdgeInsets.zero,
               child: Column(children: [
               WebScreenTitleWidget(title: 'favourite'.tr),
               Padding(

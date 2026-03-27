@@ -203,6 +203,12 @@ class StoreController extends GetxController implements GetxService {
   bool _isLoading = false;
   bool get isLoading => _isLoading;
 
+  bool _hasAllStoresError = false;
+  bool get hasAllStoresError => _hasAllStoresError;
+
+  bool _hasPopularStoresError = false;
+  bool get hasPopularStoresError => _hasPopularStoresError;
+
   void _updateHomeRestaurantSections() {
     update(['popular_restaurants', 'all_restaurants_list']);
   }
@@ -324,6 +330,9 @@ class StoreController extends GetxController implements GetxService {
 
   bool _isSearching = false;
   bool get isSearching => _isSearching;
+
+  bool _hasStoreSearchError = false;
+  bool get hasStoreSearchError => _hasStoreSearchError;
 
   // Live search properties
   List<Item>? _liveSearchResults;
@@ -661,6 +670,7 @@ class StoreController extends GetxController implements GetxService {
     if (!_canFetchStores()) {
       return _allStoreModel;
     }
+    _hasAllStoresError = false;
     final String requestSignature =
         'offset=$offset|reload=$reload|source=$source|limit=${limit ?? -1}|'
         'filter=$_filterType|storeType=$_storeType|recent=$_recentlyAdded|'
@@ -890,6 +900,7 @@ class StoreController extends GetxController implements GetxService {
       }
     } catch (e) {
       debugPrint('❌ Error loading stores: $e');
+      _hasAllStoresError = true;
       // ✅ TASK 2: PROTECT CACHE - Only set empty model if no existing data
       if (offset == 1 && _allStoreModel == null) {
         // First load, no cache exists - set empty model
@@ -1443,6 +1454,7 @@ class StoreController extends GetxController implements GetxService {
     if (!_canFetchStores()) {
       return _popularStoreList;
     }
+    _hasPopularStoresError = false;
     // 🔍 DEBUG: Entry point verification
     print(
         '🚀 getPopularStoreList() ENTRY - reload: $reload, type: $type, dataSource: $dataSource');
@@ -1625,6 +1637,7 @@ class StoreController extends GetxController implements GetxService {
           }
         } catch (e) {
           print('❌ getPopularStoreList: Error loading stores - $e');
+          _hasPopularStoresError = true;
           // ⚡ FIX: Set empty list on error to show empty state UI instead of shimmer
           _popularStoreList = [];
           update();
@@ -4030,6 +4043,7 @@ class StoreController extends GetxController implements GetxService {
     if (searchText.isEmpty) {
       showCustomSnackBar('write_item_name'.tr);
     } else {
+      _hasStoreSearchError = false;
       _isSearching = true;
       _searchText = searchText;
       _type = type;
@@ -4038,17 +4052,27 @@ class StoreController extends GetxController implements GetxService {
         _storeSearchItemModel = null;
         update();
       }
-      final ItemModel? storeSearchItemModel =
-          await storeServiceInterface.getStoreSearchItemList(
-              searchText,
-              storeID,
-              offset,
-              type,
-              (_store != null &&
-                      _store!.categoryIds!.isNotEmpty &&
-                      _categoryIndex != 0)
-                  ? _storeSpecificCategoryList![_categoryIndex].id
-                  : 0);
+      ItemModel? storeSearchItemModel;
+      try {
+        storeSearchItemModel = await storeServiceInterface.getStoreSearchItemList(
+            searchText,
+            storeID,
+            offset,
+            type,
+            (_store != null &&
+                    _store!.categoryIds!.isNotEmpty &&
+                    _categoryIndex != 0)
+                ? _storeSpecificCategoryList![_categoryIndex].id
+                : 0);
+      } catch (e) {
+        _hasStoreSearchError = true;
+        _isSearching = false;
+        if (kDebugMode) {
+          debugPrint('❌ StoreController.getStoreSearchItemList: $e');
+        }
+        update();
+        return;
+      }
 
       if (storeSearchItemModel != null) {
         if (offset == 1) {
@@ -4060,6 +4084,7 @@ class StoreController extends GetxController implements GetxService {
           //_pageSize = storeSearchItemModel.totalSize!;
         }
       }
+      _isSearching = false;
       update();
     }
   }
@@ -4073,6 +4098,7 @@ class StoreController extends GetxController implements GetxService {
 
   void initSearchData() {
     _storeSearchItemModel = ItemModel(items: []);
+    _hasStoreSearchError = false;
     _searchText = '';
     resetStoreSearchFilterState(notify: false);
   }
@@ -4093,6 +4119,7 @@ class StoreController extends GetxController implements GetxService {
   void performLiveSearch(String query) {
     // Cancel previous timer
     _searchDebounceTimer?.cancel();
+    _hasStoreSearchError = false;
 
     // Set new timer
     _searchDebounceTimer = Timer(_searchDebounceDelay, () {
@@ -4116,6 +4143,7 @@ class StoreController extends GetxController implements GetxService {
   // Perform API search for live search
   Future<void> _performApiSearch(String query) async {
     try {
+      _hasStoreSearchError = false;
       _isLiveSearching = true;
       _isSearching = true;
       update();
@@ -4157,6 +4185,7 @@ class StoreController extends GetxController implements GetxService {
       }
     } catch (e) {
       print('❌ API search failed: $e');
+      _hasStoreSearchError = true;
       _liveSearchResults = [];
     } finally {
       _isLiveSearching = false;
@@ -4179,6 +4208,7 @@ class StoreController extends GetxController implements GetxService {
   // Clear live search
   void clearLiveSearch() {
     _searchDebounceTimer?.cancel();
+    _hasStoreSearchError = false;
     _liveSearchResults = null;
     _isLiveSearching = false;
     _isSearching = false;

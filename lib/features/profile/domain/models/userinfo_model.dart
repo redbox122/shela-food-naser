@@ -1,3 +1,6 @@
+import 'dart:convert';
+
+import 'package:flutter/foundation.dart';
 import 'package:sixam_mart/features/chat/domain/models/conversation_model.dart';
 import 'package:sixam_mart/common/utils/json_parser.dart';
 
@@ -60,6 +63,10 @@ class UserInfoModel {
   });
 
   UserInfoModel.fromJson(Map<String, dynamic> json) {
+    if (kDebugMode) {
+      debugPrint('DEBUG: Full User JSON from API => ${jsonEncode(json)}');
+    }
+
     final Map<String, dynamic>? nestedUserMap =
         json['userinfo'] is Map<String, dynamic>
             ? json['userinfo'] as Map<String, dynamic>
@@ -74,7 +81,23 @@ class UserInfoModel {
     lName = json.parseString('l_name');
     email = json.parseString('email');
     imageFullUrl = json.parseString('image'); // API returns "image" (not "image_full_url")
-    phone = json.parseString('phone');
+    final String? directPhone = _cleanString(
+      json['phone'] ??
+          json['mobile'] ??
+          json['contact_number'] ??
+          json['phone_number'] ??
+          json['contact'],
+    );
+    final String? nestedPhone = nestedUserMap != null
+        ? _cleanString(
+            nestedUserMap['phone'] ??
+                nestedUserMap['mobile'] ??
+                nestedUserMap['contact_number'] ??
+                nestedUserMap['phone_number'] ??
+                nestedUserMap['contact'],
+          )
+        : null;
+    phone = directPhone ?? nestedPhone;
     createdAt = json.parseString('created_at');
     password = json.parseString('password');
     orderCount = json.parseInt('order_count');
@@ -137,7 +160,7 @@ class UserInfoModel {
     data['loyalty_point'] = loyaltyPoint;
     data['ref_code'] = refCode;
     if (userInfo != null) {
-      data['user`info'] = userInfo!.toJson();
+      data.addAll(userInfo!.toJson());
     }
     data['is_valid_for_discount'] = isValidForDiscount;
     data['discount_amount'] = discountAmount;

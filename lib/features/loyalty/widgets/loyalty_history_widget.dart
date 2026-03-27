@@ -7,6 +7,7 @@ import 'package:sixam_mart/helper/responsive_helper.dart';
 import 'package:sixam_mart/util/dimensions.dart';
 import 'package:sixam_mart/util/styles.dart';
 import 'package:sixam_mart/common/widgets/no_data_screen.dart';
+import 'package:sixam_mart/common/widgets/error_state_view.dart';
 
 class LoyaltyHistoryWidget extends StatelessWidget {
   const LoyaltyHistoryWidget({super.key});
@@ -30,7 +31,16 @@ class LoyaltyHistoryWidget extends StatelessWidget {
 
             ]),
           ),
-          loyaltyController.transactionList != null ? loyaltyController.transactionList!.isNotEmpty ? GridView.builder(
+          loyaltyController.hasTransactionError &&
+                  !loyaltyController.isLoading &&
+                  (loyaltyController.transactionList == null ||
+                      loyaltyController.transactionList!.isEmpty)
+              ? ErrorStateView(
+                  onRetry: () {
+                    loyaltyController.getLoyaltyTransactionList('1', true);
+                  },
+                )
+              : loyaltyController.transactionList != null ? loyaltyController.transactionList!.isNotEmpty ? GridView.builder(
             key: UniqueKey(),
             gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
               crossAxisSpacing: 50,

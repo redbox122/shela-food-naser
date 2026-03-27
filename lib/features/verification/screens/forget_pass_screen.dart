@@ -128,9 +128,16 @@ class _ForgetPassScreenState extends State<ForgetPassScreen> {
                   const SizedBox(height: Dimensions.paddingSizeLarge),
                   GetBuilder<VerificationController>(builder: (verificationController) {
                     return GetBuilder<AuthController>(builder: (authController) {
+                      final bool isLoading =
+                          verificationController.isLoading || authController.isLoading;
+
+                      if (isLoading) {
+                        return const Center(child: CircularProgressIndicator());
+                      }
+
                       return CustomButton(
                         buttonText: widget.fromDialog ? 'verify'.tr : 'next'.tr,
-                        isLoading: verificationController.isLoading || authController.isLoading,
+                        isLoading: isLoading,
                         onPressed: () => _onPressedForgetPass(_countryDialCode!),
                       );
                     });

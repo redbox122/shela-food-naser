@@ -36,6 +36,7 @@ import 'package:sixam_mart/common/widgets/custom_dropdown.dart';
 import 'package:sixam_mart/common/widgets/custom_snackbar.dart';
 import 'package:sixam_mart/common/widgets/footer_view.dart';
 import 'package:sixam_mart/common/widgets/not_logged_in_screen.dart';
+import 'package:sixam_mart/common/widgets/error_state_view.dart';
 import 'package:sixam_mart/common/utils/app_logger.dart';
 import 'package:get/get.dart';
 import 'package:sixam_mart/features/checkout/widgets/bottom_section.dart';
@@ -500,7 +501,12 @@ class CheckoutScreenState extends State<CheckoutScreen> {
     return Scaffold(
       appBar: CustomAppBar(title: 'checkout'.tr),
       endDrawerEnableOpenDragGesture: false,
-      body: currentAddress == null
+      body: SafeArea(
+        top: false,
+        left: false,
+        right: false,
+        minimum: EdgeInsets.zero,
+        child: currentAddress == null
           ? Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -529,6 +535,24 @@ class CheckoutScreenState extends State<CheckoutScreen> {
               ? GetBuilder<CheckoutController>(
                   id: 'checkout', // Use targeted ID for partial rebuild.
                   builder: (checkoutController) {
+                    if (checkoutController.hasCheckoutError &&
+                        !checkoutController.isCheckoutReady &&
+                        checkoutController.store == null) {
+                      return ErrorStateView(
+                        onRetry: () {
+                          if (effectiveStoreId != null && effectiveStoreId! > 0) {
+                            checkoutController.initCheckoutData(
+                              context,
+                              effectiveStoreId!,
+                              preloadedCartList: _cartList?.whereType<CartModel>().toList(),
+                              preCalculatedDistance: checkoutController.distance,
+                            );
+                          } else {
+                            initCall();
+                          }
+                        },
+                      );
+                    }
                     // 🔒 CRITICAL GUARD: Prevent calculations if cart is empty or null
                     // ✅ FIX: Show error UI instead of throwing exception
                     if (_cartList == null || _cartList!.isEmpty) {
@@ -1237,6 +1261,7 @@ class CheckoutScreenState extends State<CheckoutScreen> {
                   initCall();
                   setState(() {});
                 }),
+      ),
     );
   }
 

@@ -49,9 +49,41 @@ class OrderTrackingScreenState extends State<OrderTrackingScreen> {
       if (!mounted || route?.isCurrent != true) {
         return;
       }
-      Get.find<OrderController>().timerTrackOrder(widget.orderID.toString(),
+      final OrderController orderController = Get.find<OrderController>();
+      if (_isOrderInTerminalState(orderController.trackModel)) {
+        timer.cancel();
+        return;
+      }
+      orderController.timerTrackOrder(widget.orderID.toString(),
           contactNumber: widget.contactNumber);
+      if (_isOrderInTerminalState(orderController.trackModel)) {
+        timer.cancel();
+      }
     });
+  }
+
+  bool _isOrderInTerminalState(OrderModel? order) {
+    if (order == null || order.id?.toString() != widget.orderID.toString()) {
+      return false;
+    }
+    final String orderStatus = (order.orderStatus ?? '').toLowerCase();
+    final String paymentStatus = (order.paymentStatus ?? '').toLowerCase();
+    const Set<String> terminalOrderStatuses = <String>{
+      'delivered',
+      'canceled',
+      'cancelled',
+      'failed',
+      'refunded',
+    };
+    const Set<String> terminalPaymentStatuses = <String>{
+      'paid',
+      'failed',
+      'canceled',
+      'cancelled',
+      'refunded',
+    };
+    return terminalOrderStatuses.contains(orderStatus) ||
+        terminalPaymentStatuses.contains(paymentStatus);
   }
 
   @override

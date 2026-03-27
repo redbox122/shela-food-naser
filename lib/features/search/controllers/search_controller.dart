@@ -52,6 +52,12 @@ class Search_Controller extends GetxController implements GetxService {
 
   bool _isLoading = false;
   bool get isLoading => _isLoading;
+  bool _hasError = false;
+  bool get hasError => _hasError;
+  bool _hasPopularCategoriesError = false;
+  bool get hasPopularCategoriesError => _hasPopularCategoriesError;
+  bool _hasTrendingCategoriesError = false;
+  bool get hasTrendingCategoriesError => _hasTrendingCategoriesError;
 
   final List<String> _sortList = ['ascending'.tr, 'descending'.tr];
   List<String> get sortList => _sortList;
@@ -305,6 +311,7 @@ class Search_Controller extends GetxController implements GetxService {
     // If we need to search, perform both searches in parallel
     if (needItemSearch || needStoreSearch) {
       _isLoading = true;
+      _hasError = false;
       _searchHomeText = query;
       _searchText = query;
       _rating = -1;
@@ -356,6 +363,7 @@ class Search_Controller extends GetxController implements GetxService {
       final Response response =
           await searchServiceInterface.getSearchData(query, false);
       if (response.statusCode == 200) {
+        _hasError = false;
         _itemResultText = query;
         _searchItemList = [];
         _allItemList = [];
@@ -382,9 +390,14 @@ class Search_Controller extends GetxController implements GetxService {
         for (final item in items) {
           print('${item.name} - ${item.price}');
         }
+      } else {
+        _hasError = true;
+        _searchItemList = [];
+        _allItemList = [];
       }
     } catch (e) {
       debugPrint('Error searching items: $e');
+      _hasError = true;
       _searchItemList = [];
       _allItemList = [];
     }
@@ -395,15 +408,21 @@ class Search_Controller extends GetxController implements GetxService {
       final Response response =
           await searchServiceInterface.getSearchData(query, true);
       if (response.statusCode == 200) {
+        _hasError = false;
         _storeResultText = query;
         _searchStoreList = [];
         _allStoreList = [];
         final storeModel = StoreModel.fromJson(response.body as Map<String, dynamic>);
         _searchStoreList!.addAll(storeModel.stores!);
         _allStoreList!.addAll(storeModel.stores!);
+      } else {
+        _hasError = true;
+        _searchStoreList = [];
+        _allStoreList = [];
       }
     } catch (e) {
       debugPrint('Error searching stores: $e');
+      _hasError = true;
       _searchStoreList = [];
       _allStoreList = [];
     }
@@ -414,6 +433,7 @@ class Search_Controller extends GetxController implements GetxService {
     if (searchFilterModel == null) return;
 
     _isLoading = true;
+    _hasError = false;
     // إعادة تعيين المتغيرات
     _rating = -1;
     _storeRating = -1;
@@ -439,6 +459,7 @@ class Search_Controller extends GetxController implements GetxService {
           searchFilterModel, _isStore);
 
       if (response.statusCode == 200 && response.body != null) {
+        _hasError = false;
         if (_isStore) {
           final storeModel = StoreModel.fromJson(response.body as Map<String, dynamic>);
           _storeResultText = searchFilterModel.research_Name ?? '';
@@ -450,9 +471,19 @@ class Search_Controller extends GetxController implements GetxService {
           _searchItemList = List<Item>.from(itemModel.items ?? []);
           _allItemList = List<Item>.from(itemModel.items ?? []);
         }
+      } else {
+        _hasError = true;
+        if (_isStore) {
+          _searchStoreList = [];
+          _allStoreList = [];
+        } else {
+          _searchItemList = [];
+          _allItemList = [];
+        }
       }
     } catch (e) {
       debugPrint('Error applying search filter: $e');
+      _hasError = true;
     }
 
     _isLoading = false;
@@ -542,14 +573,32 @@ class Search_Controller extends GetxController implements GetxService {
 
   Future<void> getPopularCategories() async {
     _popularCategoryList = null;
-    _popularCategoryList = await searchServiceInterface.getPopularCategories();
+    _hasPopularCategoriesError = false;
+    try {
+      _popularCategoryList = await searchServiceInterface.getPopularCategories();
+      if (_popularCategoryList == null) {
+        _hasPopularCategoriesError = true;
+      }
+    } catch (_) {
+      _hasPopularCategoriesError = true;
+      _popularCategoryList = <PopularCategoryModel?>[];
+    }
     update();
   }
 
   Future<void> getTrendingCategories() async {
     _trendingCategoryList = null;
-    _trendingCategoryList =
-        await searchServiceInterface.getTrendingCategories();
+    _hasTrendingCategoriesError = false;
+    try {
+      _trendingCategoryList =
+          await searchServiceInterface.getTrendingCategories();
+      if (_trendingCategoryList == null) {
+        _hasTrendingCategoriesError = true;
+      }
+    } catch (_) {
+      _hasTrendingCategoriesError = true;
+      _trendingCategoryList = <PopularCategoryModel?>[];
+    }
     update();
   }
 }

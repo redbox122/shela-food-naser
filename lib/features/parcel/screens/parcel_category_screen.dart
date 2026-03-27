@@ -45,7 +45,13 @@ class _ParcelCategoryScreenState extends State<ParcelCategoryScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: ResponsiveHelper.isDesktop(context) ? null : const ParcelAppBarWidget(),
-      body: GetBuilder<ParcelController>(builder: (parcelController) {
+      body: SafeArea(
+        top: ResponsiveHelper.isDesktop(context),
+        bottom: true,
+        left: false,
+        right: false,
+        minimum: EdgeInsets.zero,
+        child: GetBuilder<ParcelController>(builder: (parcelController) {
         return GetBuilder<BannerController>(builder: (bannerController) {
 
           final bool showVideoAndServices = parcelController.videoContentDetails != null && (parcelController.videoContentDetails!.bannerVideo != null || parcelController.videoContentDetails!.bannerImageFullUrl != null);
@@ -207,11 +213,12 @@ class _ParcelCategoryScreenState extends State<ParcelCategoryScreen> {
                   ),
             ),
 
-            ResponsiveHelper.isDesktop(context) ? const Positioned(right: 0, top: 0, bottom: 0, child: Center(child: ModuleWidget())) : const SizedBox(),
+            ResponsiveHelper.isDesktop(context) ? const PositionedDirectional(end: 0, top: 0, bottom: 0, child: Center(child: ModuleWidget())) : const SizedBox(),
 
           ]);
         });
       }),
+      ),
     );
   }
 }

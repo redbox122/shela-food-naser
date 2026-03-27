@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:get/get.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:sixam_mart/common/models/response_model.dart';
@@ -96,6 +98,11 @@ class ProfileRepository implements ProfileRepositoryInterface {
   @override
   Future<ResponseModel> updateProfile(UpdateUserModel userInfoModel, XFile? data, String token) async {
     ResponseModel responseModel;
+    if (kDebugMode) {
+      debugPrint('------- Update Profile Payload -------');
+      debugPrint(jsonEncode(userInfoModel.toJson()));
+      debugPrint('--------------------------------------');
+    }
     final Response response = await apiClient
         .postMultipartData(AppConstants.updateProfileUri, userInfoModel.toJson(), [MultipartBody('image', data)], handleError: false);
     if (response.statusCode == 200) {

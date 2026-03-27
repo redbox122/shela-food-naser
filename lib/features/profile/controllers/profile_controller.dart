@@ -31,7 +31,11 @@ class ProfileController extends GetxController implements GetxService {
   bool _isLoading = false;
   bool get isLoading => _isLoading;
 
+  bool _hasProfileError = false;
+  bool get hasProfileError => _hasProfileError;
+
   Future<void> getUserInfo() async {
+    _hasProfileError = false;
     _pickedFile = null;
     final bool hadExistingData = _userInfoModel != null;
     if (AuthHelper.isLoggedIn() && _userInfoModel == null) {
@@ -98,6 +102,7 @@ class ProfileController extends GetxController implements GetxService {
       }
       // _userInfoModel remains unchanged (preserved)
     } else {
+      _hasProfileError = true;
       if (kDebugMode) {
         debugPrint('ℹ️ ProfileController: getUserInfo() - API returned null and no existing data');
       }

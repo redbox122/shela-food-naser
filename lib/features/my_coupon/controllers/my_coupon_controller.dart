@@ -24,6 +24,9 @@ class CouponController extends GetxController implements GetxService {
   bool _isLoading = false;
   bool get isLoading => _isLoading;
 
+  bool _hasError = false;
+  bool get hasError => _hasError;
+
   bool _freeDelivery = false;
   bool get freeDelivery => _freeDelivery;
 
@@ -39,6 +42,7 @@ class CouponController extends GetxController implements GetxService {
 
   Future<void> getCouponList() async {
     _isLoading = true;
+    _hasError = false;
     update();
     try {
       final List<CouponModel>? couponList =
@@ -47,6 +51,9 @@ class CouponController extends GetxController implements GetxService {
       if (couponList != null) {
         _couponList!.addAll(couponList);
       }
+    } catch (_) {
+      _hasError = true;
+      _couponList = <CouponModel>[];
     } finally {
       _isLoading = false;
       update();

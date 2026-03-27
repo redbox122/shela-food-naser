@@ -241,9 +241,9 @@ class _AnimatedNotificationIconParcelState
               },
             ),
             if (notificationController.hasNotification)
-              Positioned(
+              PositionedDirectional(
                 top: 0,
-                right: 0,
+                end: 0,
                 child: AnimatedBuilder(
                   animation: _animationController,
                   builder: (context, child) {

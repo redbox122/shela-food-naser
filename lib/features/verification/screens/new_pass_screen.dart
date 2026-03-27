@@ -104,9 +104,17 @@ class _NewPassScreenState extends State<NewPassScreen> {
 
                   GetBuilder<ProfileController>(builder: (profileController) {
                     return GetBuilder<VerificationController>(builder: (verificationController) {
+                      final bool isLoading = widget.fromPasswordChange
+                          ? profileController.isLoading
+                          : verificationController.isLoading;
+
+                      if (isLoading) {
+                        return const Center(child: CircularProgressIndicator());
+                      }
+
                       return CustomButton(
                         buttonText: 'submit'.tr,
-                        isLoading: widget.fromPasswordChange ? profileController.isLoading : verificationController.isLoading,
+                        isLoading: isLoading,
                         onPressed: () => _onPressedPasswordChange(),
                       );
                     });

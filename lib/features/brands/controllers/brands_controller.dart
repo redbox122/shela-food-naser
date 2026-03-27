@@ -1,4 +1,4 @@
-﻿import 'dart:async';
+import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
@@ -745,6 +745,15 @@ class BrandsController extends GetxController implements GetxService {
             if (kDebugMode) {
               appLogger.info(
                   'âœ… PRIORITY API: Updated brand items from API (brandId=$brandId, offset=$offset, items=${brandItemModel.items!.length})');
+            }
+          } else {
+            if (offset == 1) {
+              _isBrandLoadError = true;
+            }
+            _isLoading = false;
+            _isLoadingMore = false;
+            if (notify) {
+              update(['items_list']);
             }
           }
         } catch (error) {

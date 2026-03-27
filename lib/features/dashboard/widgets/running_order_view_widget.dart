@@ -5,18 +5,26 @@ import 'package:sixam_mart/features/order/domain/models/order_model.dart';
 import 'package:sixam_mart/helper/route_helper.dart';
 import 'package:sixam_mart/util/app_constants.dart';
 import 'package:sixam_mart/util/dimensions.dart';
-import 'package:sixam_mart/util/images.dart';
 import 'package:sixam_mart/util/styles.dart';
 import 'package:sixam_mart/features/order/screens/order_details_screen.dart';
 
 class RunningOrderViewWidget extends StatelessWidget {
   final List<OrderModel> reversOrder;
   final Function onOrderTap;
-  const RunningOrderViewWidget({super.key, required this.reversOrder, required this.onOrderTap});
+  final VoidCallback? onClose;
+  const RunningOrderViewWidget({
+    super.key,
+    required this.reversOrder,
+    required this.onOrderTap,
+    this.onClose,
+  });
 
   @override
   Widget build(BuildContext context) {
     return GetBuilder<OrderController>(builder: (orderController) {
+      if (reversOrder.isEmpty) {
+        return const SizedBox();
+      }
       return Container(
         decoration: BoxDecoration(
           color: Theme.of(context).cardColor,
@@ -39,123 +47,278 @@ class RunningOrderViewWidget extends StatelessWidget {
             ),
            ),
 
-           ListView.builder(
-            itemCount: reversOrder.length,
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            padding: EdgeInsets.zero,
-            itemBuilder: (context, index){
-
-              final bool isFirstOrder =  index == 0;
-
-              final String? orderStatus = reversOrder[index].orderStatus;
-              int status = 0;
-
-              if(orderStatus == AppConstants.pending){
-                status = 1;
-              }else if(orderStatus == AppConstants.accepted || orderStatus == AppConstants.processing || orderStatus == AppConstants.confirmed){
-                status = 2;
-              }else if(orderStatus == AppConstants.handover || orderStatus == AppConstants.pickedUp){
-                status = 3;
-              }
-
-              return InkWell(
-                onTap: () async {
-                  await Get.toNamed(
-                    RouteHelper.getOrderDetailsRoute(reversOrder[index].id),
-                    arguments: OrderDetailsScreen(
-                      orderId: reversOrder[index].id,
-                      orderModel: reversOrder[index],
-                    ),
-                  );
-                  if(orderController.showBottomSheet){
-                    orderController.showRunningOrders();
-                  }
-                },
-                child: Container(
-                  margin: const EdgeInsets.only(bottom: Dimensions.paddingSizeExtraSmall, top: Dimensions.paddingSizeSmall),
-
-                  child:  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: Dimensions.paddingSizeDefault),
-                    child: Row( children: [
-
-                      Center(
-                        child: SizedBox(
-                          height: orderStatus == AppConstants.pending ? 50 : 60, width: orderStatus == AppConstants.pending ? 50 : 60,
-                          child: Padding(
-                            padding: const EdgeInsets.all(8.0),
-                            child: Image.asset( status == 2 ? orderStatus == AppConstants.confirmed || orderStatus == AppConstants.accepted ? Images.confirmedGif
-                                : Images.processingGif : status == 3
-                                ? orderStatus == AppConstants.handover ? Images.handoverGif : Images.onTheWayGif : Images.pendingGif,
-                        height: 60, width: 60, fit: BoxFit.fill),
-                          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+              Dimensions.paddingSizeDefault,
+              Dimensions.paddingSizeDefault,
+              Dimensions.paddingSizeDefault,
+              Dimensions.paddingSizeDefault,
+            ),
+            child: Column(
+              children: [
+                _buildOrderStatusPill(context, reversOrder.first, orderController),
+                if (reversOrder.length > 1) ...[
+                  const SizedBox(height: Dimensions.paddingSizeSmall),
+                  InkWell(
+                    onTap: () => onOrderTap(),
+                    borderRadius: BorderRadius.circular(Dimensions.radiusDefault),
+                    child: Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: Dimensions.paddingSizeDefault,
+                        vertical: Dimensions.paddingSizeSmall,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).primaryColor.withValues(alpha: 0.08),
+                        borderRadius: BorderRadius.circular(Dimensions.radiusDefault),
+                        border: Border.all(
+                          color: Theme.of(context).primaryColor.withValues(alpha: 0.2),
                         ),
                       ),
-
-                      SizedBox(width: isFirstOrder ? 0 : Dimensions.paddingSizeSmall),
-
-                      Expanded(
-                        child: Column(mainAxisAlignment: isFirstOrder ? MainAxisAlignment.center : MainAxisAlignment.start,
-                            crossAxisAlignment: isFirstOrder ? CrossAxisAlignment.center : CrossAxisAlignment.start, children: [
-                              Row( mainAxisAlignment: isFirstOrder ? MainAxisAlignment.center : MainAxisAlignment.start, children: [
-
-                                Text('${'your_order_is'.tr} ', style: robotoBold.copyWith(fontSize: Dimensions.fontSizeDefault)),
-                                Text(reversOrder[index].orderStatus!.tr, style: robotoBold.copyWith(fontSize: Dimensions.fontSizeDefault, color: Theme.of(context).primaryColor)),
-                              ]) ,
-                              const SizedBox(height: Dimensions.paddingSizeExtraSmall),
-
-                              Text(
-                                '${'order'.tr} #${reversOrder[index].id}',
-                                style: robotoRegular.copyWith(fontSize: Dimensions.fontSizeSmall), maxLines: 1, overflow: TextOverflow.ellipsis,
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.layers_outlined,
+                            color: Theme.of(context).primaryColor,
+                            size: 18,
+                          ),
+                          const SizedBox(width: Dimensions.paddingSizeSmall),
+                          Expanded(
+                            child: Text(
+                              _buildMoreOrdersLabel(reversOrder.length - 1),
+                              style: robotoMedium.copyWith(
+                                color: Theme.of(context).primaryColor,
                               ),
-
-                              isFirstOrder ? SizedBox(
-                                child: Padding(
-                                  padding: const EdgeInsets.symmetric(horizontal: Dimensions.paddingSizeDefault,
-                                      vertical: Dimensions.paddingSizeSmall),
-                                  child: Row(children: [
-                                    Expanded(child: trackView(context, status: status >= 1 ? true : false)),
-                                    const SizedBox(width: Dimensions.paddingSizeExtraSmall),
-
-                                    Expanded(child: trackView(context, status: status >= 2 ? true : false)),
-                                    const SizedBox(width: Dimensions.paddingSizeExtraSmall),
-
-                                    Expanded(child: trackView(context, status: status >= 3 ? true : false)),
-                                    const SizedBox(width: Dimensions.paddingSizeExtraSmall),
-
-                                    Expanded(child: trackView(context, status: status >= 4 ? true : false)),
-                                  ]),
-                                ),
-                              ) : const SizedBox()
-
-                            ]),
+                            ),
+                          ),
+                          Icon(
+                            Icons.arrow_forward_ios_rounded,
+                            size: 14,
+                            color: Theme.of(context).primaryColor,
+                          ),
+                        ],
                       ),
-
-                      Container(
-                        padding: const EdgeInsets.all(Dimensions.paddingSizeDefault),
-                        decoration: BoxDecoration(color: Theme.of(context).primaryColor.withValues(alpha: 0.1), shape: BoxShape.circle),
-                        child: isFirstOrder ? !(reversOrder.length < 2) ? InkWell(
-                          onTap: () => onOrderTap(),
-                          child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-                                Text('+${reversOrder.length - 1}', style: robotoBold.copyWith(fontSize: Dimensions.fontSizeLarge, color: Theme.of(context).primaryColor)),
-                                Text('more'.tr, style: robotoBold.copyWith(fontSize: Dimensions.fontSizeExtraSmall, color: Theme.of(context).primaryColor)),
-                              ]),
-                            ) : Icon(Icons.arrow_forward, size: 18, color: Theme.of(context).primaryColor)
-                            : Icon(Icons.arrow_forward, size: 18, color: Theme.of(context).primaryColor),
-                      ),
-
-                    ]),
-                  ) ,
-                ),
-              );
-            }),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
          ]),
      );
     });
   }
 
-  Widget trackView(BuildContext context, {required bool status}) {
-    return Container(height: 5, decoration: BoxDecoration(color: status ? Theme.of(context).primaryColor
-        : Theme.of(context).disabledColor.withValues(alpha: 0.5), borderRadius: BorderRadius.circular(Dimensions.radiusDefault)));
+  Widget _buildOrderStatusPill(
+    BuildContext context,
+    OrderModel order,
+    OrderController orderController,
+  ) {
+    final String orderStatus = (order.orderStatus ?? AppConstants.pending).tr;
+    final Color statusColor = _getStatusColor(order.orderStatus, context);
+    final IconData statusIcon = _getStatusIcon(order.orderStatus);
+    final int statusLevel = _getStatusLevel(order.orderStatus);
+    return InkWell(
+      onTap: () async {
+        await Get.toNamed(
+          RouteHelper.getOrderDetailsRoute(order.id),
+          arguments: OrderDetailsScreen(
+            orderId: order.id,
+            orderModel: order,
+          ),
+        );
+        if (orderController.showBottomSheet) {
+          orderController.showRunningOrders();
+        }
+      },
+      borderRadius: BorderRadius.circular(Dimensions.radiusDefault),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(
+          horizontal: Dimensions.paddingSizeDefault,
+          vertical: Dimensions.paddingSizeSmall,
+        ),
+        decoration: BoxDecoration(
+          color: Theme.of(context).cardColor,
+          borderRadius: BorderRadius.circular(Dimensions.radiusDefault),
+          border: Border.all(color: Theme.of(context).dividerColor),
+        ),
+        child: Row(
+          children: [
+            Container(
+              height: 30,
+              width: 30,
+              decoration: BoxDecoration(
+                color: statusColor.withValues(alpha: 0.12),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(statusIcon, color: statusColor, size: 18),
+            ),
+            const SizedBox(width: Dimensions.paddingSizeSmall),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          '${'order'.tr} #${order.id}',
+                          style: robotoMedium.copyWith(
+                            fontSize: Dimensions.fontSizeDefault,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      const SizedBox(width: Dimensions.paddingSizeExtraSmall),
+                      _buildStatusBadge(context, orderStatus, statusColor),
+                    ],
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    'track_order'.tr,
+                    style: robotoRegular.copyWith(
+                      fontSize: Dimensions.fontSizeSmall,
+                      color: Theme.of(context).hintColor,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  _buildStatusProgress(context, statusLevel: statusLevel),
+                ],
+              ),
+            ),
+            const SizedBox(width: Dimensions.paddingSizeSmall),
+            if (onClose != null)
+              GestureDetector(
+                onTap: onClose,
+                child: Container(
+                  padding: const EdgeInsets.all(4),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).disabledColor.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                  child: Icon(
+                    Icons.close_rounded,
+                    size: 14,
+                    color: Theme.of(context).hintColor,
+                  ),
+                ),
+              ),
+            if (onClose != null)
+              const SizedBox(width: Dimensions.paddingSizeSmall),
+            Icon(
+              Icons.arrow_forward_ios_rounded,
+              size: 14,
+              color: Theme.of(context).primaryColor,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Color _getStatusColor(String? orderStatus, BuildContext context) {
+    if (orderStatus == AppConstants.pending) {
+      return Colors.orange;
+    }
+    if (orderStatus == AppConstants.accepted ||
+        orderStatus == AppConstants.confirmed ||
+        orderStatus == AppConstants.processing) {
+      return Colors.blue;
+    }
+    if (orderStatus == AppConstants.handover ||
+        orderStatus == AppConstants.pickedUp ||
+        orderStatus == 'out_for_delivery') {
+      return Colors.green;
+    }
+    return Theme.of(context).primaryColor;
+  }
+
+  IconData _getStatusIcon(String? orderStatus) {
+    if (orderStatus == AppConstants.pending) {
+      return Icons.hourglass_top_rounded;
+    }
+    if (orderStatus == AppConstants.accepted ||
+        orderStatus == AppConstants.confirmed ||
+        orderStatus == AppConstants.processing) {
+      return Icons.restaurant_rounded;
+    }
+    if (orderStatus == AppConstants.handover ||
+        orderStatus == AppConstants.pickedUp ||
+        orderStatus == 'out_for_delivery') {
+      return Icons.delivery_dining_rounded;
+    }
+    return Icons.receipt_long_rounded;
+  }
+
+  Widget _buildStatusBadge(
+    BuildContext context,
+    String orderStatus,
+    Color statusColor,
+  ) {
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: Dimensions.paddingSizeSmall,
+        vertical: 3,
+      ),
+      decoration: BoxDecoration(
+        color: statusColor.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        orderStatus,
+        style: robotoMedium.copyWith(
+          fontSize: Dimensions.fontSizeExtraSmall,
+          color: statusColor,
+        ),
+      ),
+    );
+  }
+
+  String _buildMoreOrdersLabel(int extraOrdersCount) {
+    return '+$extraOrdersCount ${'other_orders'.tr}';
+  }
+
+  int _getStatusLevel(String? orderStatus) {
+    if (orderStatus == AppConstants.pending) {
+      return 1;
+    }
+    if (orderStatus == AppConstants.accepted ||
+        orderStatus == AppConstants.confirmed ||
+        orderStatus == AppConstants.processing) {
+      return 2;
+    }
+    if (orderStatus == AppConstants.handover ||
+        orderStatus == AppConstants.pickedUp) {
+      return 3;
+    }
+    if (orderStatus == 'out_for_delivery' ||
+        orderStatus == AppConstants.delivered) {
+      return 4;
+    }
+    return 1;
+  }
+
+  Widget _buildStatusProgress(BuildContext context, {required int statusLevel}) {
+    return Row(
+      children: List<Widget>.generate(4, (int index) {
+        final bool isCompleted = index < statusLevel;
+        return Expanded(
+          child: Container(
+            height: 4,
+            margin: EdgeInsets.only(
+              right: index == 3 ? 0 : Dimensions.paddingSizeExtraSmall,
+            ),
+            decoration: BoxDecoration(
+              color: isCompleted
+                  ? Theme.of(context).primaryColor
+                  : Theme.of(context).disabledColor.withValues(alpha: 0.35),
+              borderRadius: BorderRadius.circular(Dimensions.radiusDefault),
+            ),
+          ),
+        );
+      }),
+    );
   }
 }

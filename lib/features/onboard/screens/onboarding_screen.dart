@@ -4,11 +4,13 @@ import 'package:sixam_mart/features/auth/controllers/auth_controller.dart';
 import 'package:sixam_mart/features/splash/controllers/splash_controller.dart';
 import 'package:sixam_mart/features/onboard/controllers/onboard_controller.dart';
 import 'package:sixam_mart/features/location/controllers/location_controller.dart';
+import 'package:sixam_mart/helper/responsive_helper.dart';
 import 'package:sixam_mart/util/dimensions.dart';
 import 'package:sixam_mart/util/styles.dart';
 import 'package:sixam_mart/common/widgets/custom_button.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:sixam_mart/common/widgets/no_data_screen.dart';
 
 class OnBoardingScreen extends StatefulWidget {
   const OnBoardingScreen({super.key});
@@ -30,7 +32,13 @@ class _OnBoardingScreenState extends State<OnBoardingScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: GetBuilder<OnBoardingController>(builder: (onBoardingController) {
+      body: SafeArea(
+        top: !ResponsiveHelper.isDesktop(context),
+        bottom: true,
+        left: false,
+        right: false,
+        minimum: EdgeInsets.zero,
+        child: GetBuilder<OnBoardingController>(builder: (onBoardingController) {
         return onBoardingController.onBoardingList.isNotEmpty
             ? Stack(
                 children: [
@@ -155,8 +163,12 @@ class _OnBoardingScreenState extends State<OnBoardingScreen> {
                   ]),
                 ],
               )
-            : const SizedBox();
+            : NoDataScreen(
+                text: 'no_data_found'.tr,
+                showFooter: false,
+              );
       }),
+      ),
     );
   }
 

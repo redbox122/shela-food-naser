@@ -246,7 +246,13 @@ class _SearchFilterBarState extends State<SearchFilterBar> {
         minChildSize: 0.5,
         maxChildSize: 0.95,
         expand: false,
-        builder: (context, scrollController) => Container(
+        builder: (context, scrollController) => SafeArea(
+          top: false,
+          bottom: true,
+          left: false,
+          right: false,
+          minimum: EdgeInsets.zero,
+          child: Container(
           padding: const EdgeInsets.all(Dimensions.paddingSizeDefault),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -373,6 +379,7 @@ class _SearchFilterBarState extends State<SearchFilterBar> {
               ),
             ],
           ),
+        ),
         ),
       ),
     );

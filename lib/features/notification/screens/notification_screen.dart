@@ -15,6 +15,7 @@ import 'package:sixam_mart/common/widgets/custom_app_bar.dart';
 import 'package:sixam_mart/common/widgets/custom_image.dart';
 import 'package:sixam_mart/common/widgets/footer_view.dart';
 import 'package:sixam_mart/common/widgets/no_data_screen.dart';
+import 'package:sixam_mart/common/widgets/error_state_view.dart';
 import 'package:sixam_mart/common/widgets/not_logged_in_screen.dart';
 import 'package:sixam_mart/features/notification/widgets/notification_dialog_widget.dart';
 import 'package:flutter/material.dart';
@@ -69,12 +70,23 @@ class _NotificationScreenState extends State<NotificationScreen> {
                 Get.back();
               }
             }),
-        body: AuthHelper.isLoggedIn()
+        body: SafeArea(
+          top: false,
+          bottom: true,
+          left: false,
+          right: false,
+          minimum: EdgeInsets.zero,
+          child: AuthHelper.isLoggedIn()
             ? GetBuilder<NotificationController>(
                 builder: (notificationController) {
                 if (notificationController.notificationList != null) {
                   notificationController.saveSeenNotificationCount(
                       notificationController.notificationList!.length);
+                }
+                if (notificationController.hasError) {
+                  return ErrorStateView(
+                    onRetry: _loadData,
+                  );
                 }
                 final List<DateTime> dateTimeList = [];
                 return notificationController.notificationList != null
@@ -198,14 +210,20 @@ class _NotificationScreenState extends State<NotificationScreen> {
                                                                 ),
                                                                 builder:
                                                                     (context) {
-                                                                  return ConstrainedBox(
-                                                                    constraints:
-                                                                        BoxConstraints(
-                                                                            maxHeight:
-                                                                                MediaQuery.of(context).size.height * 0.8),
-                                                                    child: NotificationBottomSheet(
-                                                                        notificationModel:
-                                                                            notificationController.notificationList![index]),
+                                                                  return SafeArea(
+                                                                    top: false,
+                                                                    bottom: true,
+                                                                    left: false,
+                                                                    right: false,
+                                                                    minimum: EdgeInsets.zero,
+                                                                    child: ConstrainedBox(
+                                                                      constraints: BoxConstraints(
+                                                                        maxHeight: MediaQuery.of(context).size.height * 0.8,
+                                                                      ),
+                                                                      child: NotificationBottomSheet(
+                                                                        notificationModel: notificationController.notificationList![index],
+                                                                      ),
+                                                                    ),
                                                                   );
                                                                 },
                                                               );
@@ -354,13 +372,16 @@ class _NotificationScreenState extends State<NotificationScreen> {
                             ),
                           )
                         : NoDataScreen(
-                            text: 'no_notification_found'.tr, showFooter: true)
+                            text: 'no_notifications'.tr,
+                            subtitle: 'no_notifications_subtitle'.tr,
+                            showFooter: true)
                     : const Center(child: CircularProgressIndicator());
               })
             : NotLoggedInScreen(callBack: (value) {
                 _loadData();
                 setState(() {});
               }),
+        ),
       ),
     );
   }

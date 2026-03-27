@@ -8,6 +8,8 @@ class BusinessController extends GetxController implements GetxService {
 
   bool _isLoading = false;
   bool get isLoading => _isLoading;
+  bool _hasBusinessPlanError = false;
+  bool get hasBusinessPlanError => _hasBusinessPlanError;
 
   String _businessPlanStatus = 'business';
   String get businessPlanStatus => _businessPlanStatus;
@@ -32,14 +34,18 @@ class BusinessController extends GetxController implements GetxService {
 
   Future<void> submitBusinessPlan({required int storeId, required int? packageId})async {
     _isLoading = true;
+    _hasBusinessPlanError = false;
     update();
-
-    if(packageId != null) {
-      _businessPlanStatus = 'payment';
-      _businessPlanStatus = await businessServiceInterface.processesBusinessPlan(_businessPlanStatus, _paymentIndex, storeId, _digitalPaymentName, packageId);
-    } else {
-      const String businessPlan = 'commission';
-      await businessServiceInterface.setUpBusinessPlan(BusinessPlanBody(businessPlan: businessPlan, storeId: storeId.toString()), _digitalPaymentName, businessPlanStatus, storeId);
+    try {
+      if(packageId != null) {
+        _businessPlanStatus = 'payment';
+        _businessPlanStatus = await businessServiceInterface.processesBusinessPlan(_businessPlanStatus, _paymentIndex, storeId, _digitalPaymentName, packageId);
+      } else {
+        const String businessPlan = 'commission';
+        await businessServiceInterface.setUpBusinessPlan(BusinessPlanBody(businessPlan: businessPlan, storeId: storeId.toString()), _digitalPaymentName, businessPlanStatus, storeId);
+      }
+    } catch (_) {
+      _hasBusinessPlanError = true;
     }
 
     _isLoading = false;

@@ -8,6 +8,7 @@ import 'package:sixam_mart/common/widgets/custom_image.dart';
 import 'package:sixam_mart/common/widgets/footer_view.dart';
 import 'package:sixam_mart/common/widgets/item_shimmer.dart';
 import 'package:sixam_mart/common/widgets/no_data_screen.dart';
+import 'package:sixam_mart/common/widgets/error_state_view.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:sixam_mart/common/widgets/web_page_title_widget.dart';
@@ -43,7 +44,16 @@ class _CategoryScreenState extends State<CategoryScreen> {
                   SizedBox(
                     width: Dimensions.webMaxWidth,
                     child: GetBuilder<CategoryController>(builder: (catController) {
-                      return catController.categoryList != null
+                      return catController.hasCategoryError &&
+                              !catController.isLoading &&
+                              (catController.categoryList == null ||
+                                  catController.categoryList!.isEmpty)
+                          ? ErrorStateView(
+                              onRetry: () {
+                                catController.getCategoryList(false);
+                              },
+                            )
+                          : catController.categoryList != null
                           ? catController.categoryList!.isNotEmpty
                               ? GridView.builder(
                                   physics: const NeverScrollableScrollPhysics(),

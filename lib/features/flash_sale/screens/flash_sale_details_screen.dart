@@ -6,6 +6,7 @@ import 'package:sixam_mart/helper/responsive_helper.dart';
 import 'package:sixam_mart/util/dimensions.dart';
 import 'package:sixam_mart/util/styles.dart';
 import 'package:sixam_mart/common/widgets/custom_app_bar.dart';
+import 'package:sixam_mart/common/widgets/error_state_view.dart';
 import 'package:sixam_mart/common/widgets/footer_view.dart';
 import 'package:sixam_mart/common/widgets/paginated_list_view.dart';
 import 'package:sixam_mart/features/flash_sale/widgets/flash_product_card_widget.dart';
@@ -42,6 +43,18 @@ class _FlashSaleDetailsScreenState extends State<FlashSaleDetailsScreen> {
       body: Center(
         child: GetBuilder<FlashSaleController>(
             builder: (flashSaleController) {
+              if (flashSaleController.hasError &&
+                  flashSaleController.productFlashSale == null) {
+                return ErrorStateView(
+                  onRetry: () {
+                    flashSaleController.getFlashSaleWithId(
+                      1,
+                      true,
+                      widget.id,
+                    );
+                  },
+                );
+              }
               return Column(children: [
                 SizedBox(height: ResponsiveHelper.isDesktop(context) ? Dimensions.paddingSizeDefault : 0),
                 Container(

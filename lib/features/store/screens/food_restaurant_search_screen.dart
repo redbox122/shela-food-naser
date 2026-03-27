@@ -13,6 +13,7 @@ import 'package:sixam_mart/features/item/domain/models/item_model.dart';
 import 'package:sixam_mart/features/language/controllers/language_controller.dart';
 import 'package:sixam_mart/features/store/controllers/store_controller.dart';
 import 'package:sixam_mart/features/store/widgets/food_restaurant/food_restaurant_menu_item_card.dart';
+import 'package:sixam_mart/common/widgets/error_state_view.dart';
 import 'package:sixam_mart/util/app_colors.dart';
 import 'package:sixam_mart/util/dimensions.dart';
 import 'package:sixam_mart/util/styles.dart';
@@ -165,6 +166,7 @@ class _FoodRestaurantSearchScreenState extends State<FoodRestaurantSearchScreen>
                       searchResults,
                       isSearching,
                       _searchController.text,
+                      storeController.hasStoreSearchError,
                     ),
                   ),
                 ],
@@ -176,7 +178,8 @@ class _FoodRestaurantSearchScreenState extends State<FoodRestaurantSearchScreen>
     );
   }
 
-  Widget _buildSearchResults(List<dynamic> results, bool isSearching, String searchText) {
+  Widget _buildSearchResults(
+      List<dynamic> results, bool isSearching, String searchText, bool hasError) {
     // Empty search state
     if (searchText.isEmpty) {
       return Center(
@@ -207,6 +210,15 @@ class _FoodRestaurantSearchScreenState extends State<FoodRestaurantSearchScreen>
         child: CircularProgressIndicator(
           color: AppColors.primaryColor,
         ),
+      );
+    }
+
+    // Error state with retry
+    if (hasError && searchText.isNotEmpty && results.isEmpty) {
+      return ErrorStateView(
+        onRetry: () {
+          Get.find<StoreController>().performLiveSearch(searchText);
+        },
       );
     }
 

@@ -103,6 +103,9 @@ class CheckoutController extends GetxController implements GetxService {
   bool _isCheckoutReady = false;
   bool get isCheckoutReady => _isCheckoutReady;
 
+  bool _hasCheckoutError = false;
+  bool get hasCheckoutError => _hasCheckoutError;
+
   // Delivery charge readiness flag
   // UI should only show delivery fee/total when this is true
   bool _isDeliveryChargeReady = false;
@@ -868,6 +871,7 @@ class CheckoutController extends GetxController implements GetxService {
     double? preCalculatedDistance,
   }) async {
     try {
+      _hasCheckoutError = false;
       debugPrint('📦 [Checkout] Initializing checkout data...');
 
       // 1. Check if we already have a valid distance in the controller state
@@ -927,6 +931,7 @@ class CheckoutController extends GetxController implements GetxService {
       update();
     } catch (e) {
       debugPrint('❌ [Checkout] Error in initCheckoutData: $e');
+      _hasCheckoutError = true;
       _isCheckoutReady = false;
       update();
     }
@@ -1821,9 +1826,6 @@ class CheckoutController extends GetxController implements GetxService {
           update();
           showCustomSnackBar('فشلت العملية، يرجى المحاولة في وقت آخر');
           return '';
-        } else {
-          // Payment successful
-          showCustomSnackBar('تم الدفع بنجاح!', isError: false);
         }
       } else if (_paymentMethodIndex == 0 && isKaidhaPay == true) {
         // Qidha Wallet Payment - Use the new API
@@ -2020,9 +2022,11 @@ class CheckoutController extends GetxController implements GetxService {
         // 🥇 Update flow state - نجحت العملية
         _paymentFlowState = PaymentFlowState.success;
 
-        // Show success message
+        final String successMessage = 'تم انشاء الطلب وتم الدفع بنجاح';
+
+        // Show success message only after full successful flow
         Future.delayed(const Duration(seconds: 1), () {
-          showCustomSnackBar('order_placed_successfully'.tr, isError: false);
+          showCustomSnackBar(successMessage, isError: false);
         });
 
         // Store order ID before clearing it
@@ -2034,7 +2038,7 @@ class CheckoutController extends GetxController implements GetxService {
           callback(
             context,
             true,
-            'order_placed_successfully'.tr,
+            successMessage,
             orderIdString,
             zoneID,
             parsedOrderAmount,

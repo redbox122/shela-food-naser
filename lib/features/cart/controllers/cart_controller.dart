@@ -389,6 +389,9 @@ class CartController extends GetxController implements GetxService {
   bool _isLoading = false;
   bool get isLoading => _isLoading;
 
+  bool _hasCartError = false;
+  bool get hasCartError => _hasCartError;
+
   // Separate loading state for cart data operations
   bool _isCartDataLoading = false;
   bool get isCartDataLoading => _isCartDataLoading;
@@ -1669,6 +1672,7 @@ class CartController extends GetxController implements GetxService {
   }
 
   Future<void> getCartDataOnline({bool forceRefresh = false}) async {
+    _hasCartError = false;
     if (Get.isRegistered<SplashController>()) {
       final splashController = Get.find<SplashController>();
       if (splashController.module != null) {
@@ -2047,6 +2051,7 @@ class CartController extends GetxController implements GetxService {
       debugPrint('🔍 CartController: Final storeId value: $_storeId');
     } catch (e, stack) {
       debugPrint('❌ Error in getCartDataOnline: $e\n$stack');
+      _hasCartError = true;
     } finally {
       _isLoading = false;
       _isCartDataLoading = false;

@@ -7,6 +7,7 @@ import 'package:sixam_mart/helper/responsive_helper.dart';
 import 'package:sixam_mart/util/dimensions.dart';
 import 'package:sixam_mart/util/styles.dart';
 import 'package:sixam_mart/common/widgets/no_data_screen.dart';
+import 'package:sixam_mart/common/widgets/error_state_view.dart';
 import '../../../common/widgets/history_item_widget.dart';
 
 class WalletHistoryWidget extends StatelessWidget {
@@ -91,7 +92,20 @@ class WalletHistoryWidget extends StatelessWidget {
             ),
           ]),
         ),
-        walletController.transactionList != null
+        walletController.hasTransactionError &&
+                !walletController.isLoading &&
+                (walletController.transactionList == null ||
+                    walletController.transactionList!.isEmpty)
+            ? ErrorStateView(
+                onRetry: () {
+                  walletController.getWalletTransactionList(
+                    '1',
+                    true,
+                    walletController.type,
+                  );
+                },
+              )
+            : walletController.transactionList != null
             ? walletController.transactionList!.isNotEmpty
                 ? GridView.builder(
                     key: UniqueKey(),

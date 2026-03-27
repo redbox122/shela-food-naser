@@ -42,10 +42,9 @@ PreferredSize custom_AppBar(BuildContext context,
               ),
             ),
           ),
-          Positioned(
+          PositionedDirectional(
             bottom: 10,
-            right: Directionality.of(context) == TextDirection.rtl ? 15 : null,
-            left: Directionality.of(context) == TextDirection.rtl ? null : 15,
+            start: 15,
             child: IconButton(
               icon: Icon(icon, color: AppColors.wtColor, size: 26),
               onPressed: onPressed ??

@@ -15,6 +15,7 @@ import 'package:sixam_mart/features/item/domain/models/item_model.dart';
 import 'package:sixam_mart/features/store/controllers/store_controller.dart';
 import 'package:sixam_mart/features/store/domain/models/store_model.dart';
 import 'package:sixam_mart/common/widgets/custom_image.dart';
+import 'package:sixam_mart/common/widgets/error_state_view.dart';
 import 'package:sixam_mart/common/widgets/item_shimmer.dart';
 import 'package:sixam_mart/features/category/widgets/grocery_category/grocery_category_header.dart';
 import 'package:sixam_mart/features/category/widgets/grocery_category/grocery_category_tabs.dart';
@@ -48,6 +49,7 @@ class _GroceryCategoryDetailScreenState
   int? _selectedSubCategoryId;
   List<Item> _items = [];
   bool _isLoading = true;
+  bool _hasLoadError = false;
 
   @override
   void initState() {
@@ -107,6 +109,7 @@ class _GroceryCategoryDetailScreenState
     });
 
     try {
+      _hasLoadError = false;
       // Use the category ID or subcategory ID
       final categoryIdToLoad = subCategoryId ?? widget.categoryId;
       
@@ -128,6 +131,7 @@ class _GroceryCategoryDetailScreenState
         }
       }
     } catch (e) {
+      _hasLoadError = true;
       if (kDebugMode) {
         debugPrint('   ❌ Error loading category items: $e');
       }
@@ -321,6 +325,14 @@ class _GroceryCategoryDetailScreenState
                             hasDivider: false,
                           ),
                         ) // ⚡ TASK 2: Instant skeleton morphing
+                      : _hasLoadError && _items.isEmpty
+                          ? ErrorStateView(
+                              onRetry: () {
+                                _loadCategoryItems(
+                                  subCategoryId: _selectedSubCategoryId,
+                                );
+                              },
+                            )
                       : GroceryProductGrid(
                           items: _items,
                         ),

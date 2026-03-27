@@ -163,6 +163,9 @@ class VerificationScreenState extends State<VerificationScreen> {
                 : null,
             child: GetBuilder<VerificationController>(
                 builder: (verificationController) {
+              if (verificationController.isLoading) {
+                return const Center(child: CircularProgressIndicator());
+              }
               return Column(children: [
                 isDesktop
                     ? Align(

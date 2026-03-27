@@ -15,6 +15,7 @@ import 'package:sixam_mart/util/styles.dart';
 import 'package:sixam_mart/common/widgets/custom_app_bar.dart';
 import 'package:sixam_mart/common/widgets/footer_view.dart';
 import 'package:sixam_mart/common/widgets/not_logged_in_screen.dart';
+import 'package:sixam_mart/common/widgets/error_state_view.dart';
 import 'package:sixam_mart/common/widgets/web_page_title_widget.dart';
 
 class LoyaltyScreen extends StatefulWidget {
@@ -163,6 +164,11 @@ class _LoyaltyScreenState extends State<LoyaltyScreen> {
           return isLoggedIn
               ? profileController.userInfoModel != null
                   ? SafeArea(
+                      top: false,
+                      bottom: true,
+                      left: false,
+                      right: false,
+                      minimum: EdgeInsets.zero,
                       child: RefreshIndicator(
                         onRefresh: () async {
                           if (kDebugMode) {
@@ -249,7 +255,15 @@ class _LoyaltyScreenState extends State<LoyaltyScreen> {
                         ),
                       ),
                     )
-                  : const Center(child: CircularProgressIndicator())
+                  : profileController.hasProfileError
+                      ? ErrorStateView(
+                          onRetry: () {
+                            profileController.getUserInfo();
+                            Get.find<LoyaltyController>()
+                                .getLoyaltyTransactionList('1', true);
+                          },
+                        )
+                      : const Center(child: CircularProgressIndicator())
               : NotLoggedInScreen(callBack: (value) {
                   initCall();
                   setState(() {});

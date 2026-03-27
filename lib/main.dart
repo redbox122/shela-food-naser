@@ -57,7 +57,7 @@ void _setupLogging() {
   };
 }
 
-// ⚡ NEW: Flag to track initialization status
+// âš¡ NEW: Flag to track initialization status
 bool _heavyServicesInitialized = false;
 
 Future<void> main() async {
@@ -71,14 +71,14 @@ Future<void> main() async {
     enablePageLogging: AppConstants.enableVerboseLogs,
     filterEGLLogs: true,
   );
-  appLogger.info('🚀 App Logger initialized');
+  appLogger.info('ðŸš€ App Logger initialized');
 
-  // ⚡ PERFORMANCE: Start timing from main function
+  // âš¡ PERFORMANCE: Start timing from main function
   final mainStartTime = DateTime.now();
   appLogger.info(
-      '⏱️ PERFORMANCE: main() started at ${mainStartTime.millisecondsSinceEpoch}ms');
+      'â±ï¸ PERFORMANCE: main() started at ${mainStartTime.millisecondsSinceEpoch}ms');
 
-  // 🔴 Global error handler - catches all Flutter errors
+  // ðŸ”´ Global error handler - catches all Flutter errors
   FlutterError.onError = (FlutterErrorDetails details) {
     logger_package.logger.e(
       "Flutter Error: ${details.exception}",
@@ -93,20 +93,23 @@ Future<void> main() async {
     );
   };
 
-  // ⚡ CRITICAL OPTIMIZATION: Load ONLY essential services for first screen
+  // âš¡ CRITICAL OPTIMIZATION: Load ONLY essential services for first screen
   // Move ALL heavy operations to background after first frame
   final Map<String, Map<String, String>> languages = await _initEssentialOnly();
+
+  // Date formatting must be ready before any UI calls DateFormat().
+  await _initializeCriticalDateFormatting();
 
   if (!GetPlatform.isWeb) {
     await SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
   }
 
-  // ⚡ PERFORMANCE: Log runApp timing
+  // âš¡ PERFORMANCE: Log runApp timing
   final runAppStartTime = DateTime.now();
   appLogger.info(
-      '⏱️ PERFORMANCE: runApp() called at ${runAppStartTime.millisecondsSinceEpoch}ms');
+      'â±ï¸ PERFORMANCE: runApp() called at ${runAppStartTime.millisecondsSinceEpoch}ms');
 
-  // 🔍 MEMORY LEAK TRACKING: Wrap app in debug mode to monitor controller disposal
+  // ðŸ” MEMORY LEAK TRACKING: Wrap app in debug mode to monitor controller disposal
   final app = MyApp(languages: languages);
 
   if (kDebugMode && AppConstants.enableVerboseLogs) {
@@ -121,14 +124,37 @@ Future<void> main() async {
   final runAppDuration =
       runAppEndTime.difference(runAppStartTime).inMilliseconds;
   appLogger.info(
-      '⏱️ PERFORMANCE: runApp() call completed in ${runAppDuration}ms (rendering happens asynchronously)');
+      'â±ï¸ PERFORMANCE: runApp() call completed in ${runAppDuration}ms (rendering happens asynchronously)');
 
-  // ⚡ CRITICAL: Initialize heavy services AFTER first frame renders
+  // âš¡ CRITICAL: Initialize heavy services AFTER first frame renders
   WidgetsBinding.instance.addPostFrameCallback((_) {
     _initializeHeavyServices();
   });
 }
+Future<void> _initializeCriticalDateFormatting() async {
+  final Locale deviceLocale =
+      WidgetsBinding.instance.platformDispatcher.locale;
 
+  final Set<String> locales = <String>{
+    'ar',
+    'en',
+    'en_US',
+    'es',
+    'bn',
+    deviceLocale.toString(),
+    deviceLocale.languageCode,
+  }..removeWhere((value) => value.trim().isEmpty);
+
+  await Future.wait(
+    locales.map((locale) async {
+      try {
+        await initializeDateFormatting(locale);
+      } catch (_) {
+        // Ignore unsupported locale aliases and keep app startup resilient.
+      }
+    }),
+  );
+}
 /// ⚡ NEW: Initialize ONLY what's needed for routing decision
 /// Target: < 500ms total time
 Future<Map<String, Map<String, String>>> _initEssentialOnly() async {
@@ -138,66 +164,66 @@ Future<Map<String, Map<String, String>>> _initEssentialOnly() async {
   final languages = await init();
 
   final duration = DateTime.now().difference(startTime).inMilliseconds;
-  appLogger.info('⚡ Essential services initialized in ${duration}ms');
+  appLogger.info('âš¡ Essential services initialized in ${duration}ms');
 
   return languages;
 }
 
-/// ⚡ NEW: Initialize heavy services in background (non-blocking)
+/// âš¡ NEW: Initialize heavy services in background (non-blocking)
 /// This runs AFTER the first frame is painted
 Future<void> _initializeHeavyServices() async {
   if (_heavyServicesInitialized) {
-    appLogger.info('⚠️ Heavy services already initialized, skipping');
+    appLogger.info('âš ï¸ Heavy services already initialized, skipping');
     return;
   }
 
   _heavyServicesInitialized = true;
   final heavyInitStartTime = DateTime.now();
   appLogger.info(
-      '⏱️ PERFORMANCE: Heavy initializations started at ${heavyInitStartTime.millisecondsSinceEpoch}ms (after first frame)');
+      'â±ï¸ PERFORMANCE: Heavy initializations started at ${heavyInitStartTime.millisecondsSinceEpoch}ms (after first frame)');
 
   try {
-    // ⚡ STAGE 1: Critical services (Firebase must be first)
+    // âš¡ STAGE 1: Critical services (Firebase must be first)
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
     );
-    if (kDebugMode) debugPrint('✅ Firebase initialized (Stage 1)');
+    if (kDebugMode) debugPrint('âœ… Firebase initialized (Stage 1)');
 
-    // ⚡ STAGE 2: Initialize services that depend on Firebase in parallel
+    // âš¡ STAGE 2: Initialize services that depend on Firebase in parallel
     await Future.wait([
       NotificationService().initialize(),
       CacheManager().initialize(),
       HiveHomeCacheService().initialize(),
     ]);
-    if (kDebugMode) debugPrint('✅ Core services initialized (Stage 2)');
+    if (kDebugMode) debugPrint('âœ… Core services initialized (Stage 2)');
 
-    // ⚡ STAGE 3: Non-critical services (can fail without breaking app)
+    // âš¡ STAGE 3: Non-critical services (can fail without breaking app)
     _initializeNonCriticalServices();
 
     final heavyInitEndTime = DateTime.now();
     final heavyInitDuration =
         heavyInitEndTime.difference(heavyInitStartTime).inMilliseconds;
     appLogger.info(
-        '⏱️ PERFORMANCE: Heavy initializations completed in ${heavyInitDuration}ms');
+        'â±ï¸ PERFORMANCE: Heavy initializations completed in ${heavyInitDuration}ms');
   } catch (e, stackTrace) {
     if (kDebugMode) {
-      debugPrint('❌ Initialization error (after first frame): $e');
+      debugPrint('âŒ Initialization error (after first frame): $e');
       debugPrint('Stack trace: $stackTrace');
     }
-    appLogger.error('❌ Heavy initialization error', e, stackTrace);
+    appLogger.error('âŒ Heavy initialization error', e, stackTrace);
 
     // Continue app launch even if some services fail
     if (e.toString().contains('Firebase') ||
         e.toString().contains('core/no-app')) {
       if (kDebugMode) {
         debugPrint(
-            '⚠️ Firebase initialization failed - some features may not work');
+            'âš ï¸ Firebase initialization failed - some features may not work');
       }
     }
   }
 }
 
-/// ⚡ NEW: Initialize non-critical services (fire and forget)
+/// âš¡ NEW: Initialize non-critical services (fire and forget)
 /// These can fail without affecting app functionality
 void _initializeNonCriticalServices() {
   // Run these in background without awaiting
@@ -205,9 +231,9 @@ void _initializeNonCriticalServices() {
     try {
       // Secure tokens (payment integration)
       await SecureTokenLoader.initialize();
-      if (kDebugMode) debugPrint('✅ Secure tokens loaded');
+      if (kDebugMode) debugPrint('âœ… Secure tokens loaded');
     } catch (e) {
-      if (kDebugMode) debugPrint('⚠️ Secure tokens failed: $e');
+      if (kDebugMode) debugPrint('âš ï¸ Secure tokens failed: $e');
     }
   });
 
@@ -215,9 +241,9 @@ void _initializeNonCriticalServices() {
     try {
       // Edge to edge UI
       await EdgeToEdgeService.initialize();
-      if (kDebugMode) debugPrint('✅ Edge-to-edge initialized');
+      if (kDebugMode) debugPrint('âœ… Edge-to-edge initialized');
     } catch (e) {
-      if (kDebugMode) debugPrint('⚠️ Edge-to-edge failed: $e');
+      if (kDebugMode) debugPrint('âš ï¸ Edge-to-edge failed: $e');
     }
   });
 
@@ -225,9 +251,9 @@ void _initializeNonCriticalServices() {
     try {
       // Hive migration (non-blocking)
       await HiveMigrationService.migrateFromSharedPreferences();
-      if (kDebugMode) debugPrint('✅ Hive migration completed');
+      if (kDebugMode) debugPrint('âœ… Hive migration completed');
     } catch (e) {
-      if (kDebugMode) debugPrint('⚠️ Migration failed: $e');
+      if (kDebugMode) debugPrint('âš ï¸ Migration failed: $e');
     }
   });
 
@@ -241,26 +267,19 @@ void _initializeNonCriticalServices() {
           xfbml: true,
           version: 'v15.0',
         );
-        if (kDebugMode) debugPrint('✅ Facebook auth initialized');
+        if (kDebugMode) debugPrint('âœ… Facebook auth initialized');
       }
     } catch (e) {
-      if (kDebugMode) debugPrint('⚠️ Facebook auth failed: $e');
+      if (kDebugMode) debugPrint('âš ï¸ Facebook auth failed: $e');
     }
   });
 
   Future.microtask(() async {
     try {
-      // Date formatting (can be lazy loaded when needed)
-      await Future.wait([
-        initializeDateFormatting('ar'),
-        initializeDateFormatting('en_US'),
-        initializeDateFormatting('en'),
-        initializeDateFormatting('es'),
-        initializeDateFormatting('bn'),
-      ]);
-      if (kDebugMode) debugPrint('✅ Date formatting initialized');
+      // Date formatting is initialized before runApp.
+      if (kDebugMode) debugPrint('âœ… Date formatting already initialized');
     } catch (e) {
-      if (kDebugMode) debugPrint('⚠️ Date formatting failed: $e');
+      if (kDebugMode) debugPrint('âš ï¸ Date formatting failed: $e');
     }
   });
 }
@@ -277,13 +296,13 @@ class MyApp extends StatefulWidget {
 class _MyAppState extends State<MyApp> {
   String? _lastLoggedRoute;
   DateTime? _lastRouteLoggedAt;
-  BuildContext? _appContext; // 🔧 FIX: Store context from build method
+  BuildContext? _appContext; // ðŸ”§ FIX: Store context from build method
 
   @override
   void initState() {
     super.initState();
 
-    // ⚡ OPTIMIZATION: Delay route initialization until after first frame
+    // âš¡ OPTIMIZATION: Delay route initialization until after first frame
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       await _route();
     });
@@ -292,13 +311,13 @@ class _MyAppState extends State<MyApp> {
   Future<void> _route() async {
     try {
       if (GetPlatform.isWeb) {
-        // ⚡ Web-specific initialization
+        // âš¡ Web-specific initialization
         await Get.find<SplashController>().initSharedData();
 
         final address = AddressHelper.getUserAddressFromSharedPref();
 
         if (address == null) {
-          if (kDebugMode) debugPrint('⚠️ لم يتم العثور على عنوان مخزن');
+          if (kDebugMode) debugPrint('âš ï¸ Ù„Ù… ÙŠØªÙ… Ø§Ù„Ø¹Ø«ÙˆØ± Ø¹Ù„Ù‰ Ø¹Ù†ÙˆØ§Ù† Ù…Ø®Ø²Ù†');
         } else if (address.zoneIds == null) {
           Get.find<AuthController>().clearSharedAddress();
         }
@@ -312,48 +331,48 @@ class _MyAppState extends State<MyApp> {
           // Only load cart data if not already loaded
           final cartController = Get.find<CartController>();
           if (cartController.cartList.isEmpty) {
-            debugPrint('🔄 Main: Loading cart data on app start (empty cart)');
-            // ⚡ Load cart in background (non-blocking)
+            debugPrint('ðŸ”„ Main: Loading cart data on app start (empty cart)');
+            // âš¡ Load cart in background (non-blocking)
             unawaited(cartController.getCartDataOnline());
           } else {
-            debugPrint('💾 Main: Using existing cart data on app start');
+            debugPrint('ðŸ’¾ Main: Using existing cart data on app start');
           }
         }
 
-        // ⚡ Load config data will be called from routingCallback when GetMaterialApp is ready
+        // âš¡ Load config data will be called from routingCallback when GetMaterialApp is ready
         // This ensures context is available and GetMaterialApp is fully initialized
         if (kDebugMode) {
           debugPrint(
-              '🌐 Web: getConfigData will be called from routingCallback when app is ready');
+              'ðŸŒ Web: getConfigData will be called from routingCallback when app is ready');
         }
       } else {
         // For mobile platforms (Android/iOS) - check for updates
         if (kDebugMode) {
           debugPrint(
-              '📱 Platform detected: ${GetPlatform.isAndroid ? 'Android' : 'iOS'}');
-          debugPrint('🔄 Update checking handled by splash route helper');
+              'ðŸ“± Platform detected: ${GetPlatform.isAndroid ? 'Android' : 'iOS'}');
+          debugPrint('ðŸ”„ Update checking handled by splash route helper');
         }
       }
     } catch (e) {
-      if (kDebugMode) debugPrint('🔥 Routing/init error: $e');
+      if (kDebugMode) debugPrint('ðŸ”¥ Routing/init error: $e');
     }
   }
 
-  /// ⚡ PERFORMANCE: Separated GetBuilder widgets with specific IDs
+  /// âš¡ PERFORMANCE: Separated GetBuilder widgets with specific IDs
   /// This prevents unnecessary rebuilds - theme changes won't rebuild locale widgets
   /// and vice versa. Each controller only rebuilds its own dependent widgets.
   @override
   Widget build(BuildContext context) {
-    // ⚡ OPTIMIZATION: Use GetBuilder with specific IDs to limit rebuild scope
+    // âš¡ OPTIMIZATION: Use GetBuilder with specific IDs to limit rebuild scope
     // Theme changes only rebuild theme-dependent widgets
     return GetBuilder<ThemeController>(
       id: 'app_theme', // Specific ID for theme rebuilds
       builder: (themeController) {
-        // ⚡ Locale changes only rebuild locale-dependent widgets
+        // âš¡ Locale changes only rebuild locale-dependent widgets
         return GetBuilder<LocalizationController>(
           id: 'app_locale', // Specific ID for locale rebuilds
           builder: (localizeController) {
-            // ⚡ Config changes only rebuild config-dependent widgets
+            // âš¡ Config changes only rebuild config-dependent widgets
             return GetBuilder<SplashController>(
               id: 'app_config', // Specific ID for config rebuilds
               builder: (splashController) {
@@ -370,7 +389,7 @@ class _MyAppState extends State<MyApp> {
     );
   }
 
-  /// ⚡ PERFORMANCE: Extracted MaterialApp builder to reduce nesting depth
+  /// âš¡ PERFORMANCE: Extracted MaterialApp builder to reduce nesting depth
   /// and improve code readability
   Widget _buildMaterialApp({
     required ThemeController themeController,
@@ -386,7 +405,7 @@ class _MyAppState extends State<MyApp> {
     return GetMaterialApp(
       enableLog: false, // Disable GetX verbose logging
       routingCallback: (routing) {
-        // 🔧 FIX: On web, call getConfigData when first route is ready
+        // ðŸ”§ FIX: On web, call getConfigData when first route is ready
         if (GetPlatform.isWeb &&
             routing?.current != null &&
             _appContext != null) {
@@ -396,7 +415,7 @@ class _MyAppState extends State<MyApp> {
             if (splashController.configModel == null) {
               if (kDebugMode) {
                 debugPrint(
-                    '🌐 Web: Calling getConfigData from routingCallback');
+                    'ðŸŒ Web: Calling getConfigData from routingCallback');
               }
               Get.find<SplashController>().getConfigData(
                 context,
@@ -409,12 +428,12 @@ class _MyAppState extends State<MyApp> {
           }
         }
 
-        // ✅ PROFESSIONAL ROUTE LOGGING: Track all route changes for debugging
+        // âœ… PROFESSIONAL ROUTE LOGGING: Track all route changes for debugging
         final routeName = routing?.current;
         final previousRoute = routing?.previous;
         final isBack = routing?.isBack ?? false;
 
-        if (routeName != null) {
+        if (routeName != null && routeName.trim().isNotEmpty) {
           if (routeName == previousRoute) {
             return;
           }
@@ -428,9 +447,9 @@ class _MyAppState extends State<MyApp> {
           _lastRouteLoggedAt = now;
 
           if (shouldLog) {
-            // ✅ Enhanced route logging with full details
+            // âœ… Enhanced route logging with full details
             if (kDebugMode) {
-              debugPrint('➡️ ROUTE CHANGE');
+              debugPrint('âž¡ï¸ ROUTE CHANGE');
               debugPrint('   - current: $routeName');
               debugPrint('   - previous: ${previousRoute ?? "none"}');
               debugPrint('   - isBack: $isBack');
@@ -439,15 +458,15 @@ class _MyAppState extends State<MyApp> {
             }
 
             appLogger.logPageEntry(routeName);
-            debugPrint('\x1B[32m    📱 تم الانتقال إلى: $routeName \x1B[0m');
+            debugPrint('📱 تم الانتقال إلى: $routeName');
           }
 
-          // 🔍 LEAK TRACKING: Trigger leak check after route change
+          // ðŸ” LEAK TRACKING: Trigger leak check after route change
           if (kDebugMode) {
             Future.delayed(const Duration(seconds: 5), () {
               // Check if controllers from previous route are still alive
               debugPrint(
-                  '🔍 LeakTracker: Checking for leaked controllers after route: $routeName');
+                  'ðŸ” LeakTracker: Checking for leaked controllers after route: $routeName');
             });
           }
         }
@@ -465,7 +484,7 @@ class _MyAppState extends State<MyApp> {
         AppConstants.languages[0].languageCode!,
         AppConstants.languages[0].countryCode,
       ),
-      // 🏗️ MODULE-FIRST ARCHITECTURE: Always start with Splash screen
+      // ðŸ—ï¸ MODULE-FIRST ARCHITECTURE: Always start with Splash screen
       // Splash screen will handle routing to MultiModuleHomeScreen or DashboardScreen
       // This ensures proper Module-First flow and prevents navigation loops
       initialRoute: RouteHelper.getSplashRoute(null),
@@ -473,34 +492,40 @@ class _MyAppState extends State<MyApp> {
       defaultTransition: Transition.topLevel,
       transitionDuration: const Duration(milliseconds: 500),
       builder: (BuildContext context, Widget? childWidget) {
-        return MediaQuery(
-          data: MediaQuery.of(context).copyWith(
-            textScaler: const TextScaler.linear(1),
-          ),
-          child: Material(
-            child: Stack(
-              children: [
-                if (childWidget != null) childWidget,
-                // ⚡ PERFORMANCE: Cookies view uses specific ID to avoid rebuilding
+        final TextDirection textDirection = localizeController.isLtr
+            ? TextDirection.ltr
+            : TextDirection.rtl;
+        return Directionality(
+          textDirection: textDirection,
+          child: MediaQuery(
+            data: MediaQuery.of(context).copyWith(
+              textScaler: const TextScaler.linear(1),
+            ),
+            child: Material(
+              child: Stack(
+                children: [
+                  if (childWidget != null) childWidget,
+                // âš¡ PERFORMANCE: Cookies view uses specific ID to avoid rebuilding
                 // when other splash data changes
-                GetBuilder<SplashController>(
-                  id: 'cookies_status', // Specific ID for cookies rebuilds only
-                  builder: (splashController) {
-                    final showCookies = !splashController.savedCookiesData &&
-                        !splashController.getAcceptCookiesStatus(
-                            splashController.configModel?.cookiesText ?? '');
+                  GetBuilder<SplashController>(
+                    id: 'cookies_status',
+                    builder: (splashController) {
+                      final showCookies = !splashController.savedCookiesData &&
+                          !splashController.getAcceptCookiesStatus(
+                              splashController.configModel?.cookiesText ?? '');
 
-                    if (showCookies && ResponsiveHelper.isWeb()) {
-                      return const Align(
-                        alignment: Alignment.bottomCenter,
-                        child: CookiesView(),
-                      );
-                    }
+                      if (showCookies && ResponsiveHelper.isWeb()) {
+                        return const Align(
+                          alignment: Alignment.bottomCenter,
+                          child: CookiesView(),
+                        );
+                      }
 
-                    return const SizedBox();
-                  },
-                ),
-              ],
+                      return const SizedBox();
+                    },
+                  ),
+                ],
+              ),
             ),
           ),
         );
@@ -509,9 +534,10 @@ class _MyAppState extends State<MyApp> {
   }
 }
 
-// ⚡ HELPER: Non-awaited future helper
+// âš¡ HELPER: Non-awaited future helper
 void unawaited(Future<void> future) {
   future.catchError((Object e) {
-    if (kDebugMode) debugPrint('⚠️ Unawaited future error: $e');
+    if (kDebugMode) debugPrint('âš ï¸ Unawaited future error: $e');
   });
 }
+

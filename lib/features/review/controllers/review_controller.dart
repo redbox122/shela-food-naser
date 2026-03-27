@@ -16,6 +16,9 @@ class ReviewController extends GetxController implements GetxService {
   bool _isLoading = false;
   bool get isLoading => _isLoading;
 
+  bool _hasError = false;
+  bool get hasError => _hasError;
+
   List<int> _ratingList = [];
   List<int> get ratingList => _ratingList;
 
@@ -32,11 +35,20 @@ class ReviewController extends GetxController implements GetxService {
   int get deliveryManRating => _deliveryManRating;
 
   Future<void> getStoreReviewList(String? storeID) async {
+    _hasError = false;
     _storeReviewList = null;
-    final List<ReviewModel>? storeReviewList = await reviewServiceInterface.getStoreReviewList(storeID);
-    if (storeReviewList != null) {
-      _storeReviewList = [];
-      _storeReviewList!.addAll(storeReviewList);
+    try {
+      final List<ReviewModel>? storeReviewList =
+          await reviewServiceInterface.getStoreReviewList(storeID);
+      if (storeReviewList != null) {
+        _storeReviewList = [];
+        _storeReviewList!.addAll(storeReviewList);
+      } else {
+        _hasError = true;
+      }
+    } catch (_) {
+      _hasError = true;
+      _storeReviewList = <ReviewModel>[];
     }
     update();
   }

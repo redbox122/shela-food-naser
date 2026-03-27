@@ -9,6 +9,7 @@ import 'package:sixam_mart/common/widgets/footer_view.dart';
 import 'package:sixam_mart/common/widgets/item_view.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:sixam_mart/common/widgets/error_state_view.dart';
 import 'package:sixam_mart/common/widgets/web_page_title_widget.dart';
 
 class AllStoreScreen extends StatefulWidget {
@@ -281,6 +282,9 @@ class _AllStoreScreenState extends State<AllStoreScreen> {
                                       : storeController.latestStoreList;
                       final List<Store?> sortedStores =
                           _applyStoreFilters(stores, storeController);
+                      final bool isInitialBranchFailure = !isAllPage &&
+                          stores == null &&
+                          !storeController.isLoading;
                       final _StoreCounters counters =
                           _calculateCounters(stores, storeController);
                       final int loadedCount = stores?.length ?? 0;
@@ -307,21 +311,64 @@ class _AllStoreScreenState extends State<AllStoreScreen> {
                                 ),
                               ),
                             ),
-                          ItemsView(
-                            isStore: true,
-                            items: null,
-                            isFeatured: widget.isFeatured,
-                            noDataText: widget.isFeatured
-                                ? 'no_store_available'.tr
-                                : Get.find<SplashController>()
-                                        .configModel!
-                                        .moduleConfig!
-                                        .module!
-                                        .showRestaurantText!
-                                    ? 'no_restaurant_available'.tr
-                                    : 'no_store_available'.tr,
-                            stores: sortedStores,
-                          ),
+                          if (isAllPage &&
+                              storeController.hasAllStoresError &&
+                              sortedStores.isEmpty &&
+                              !storeController.isLoading)
+                            ErrorStateView(
+                              onRetry: () {
+                                storeController.getStoreList(
+                                  1,
+                                  true,
+                                  limit: _pageLimit,
+                                );
+                              },
+                            )
+                          else if (widget.isPopular &&
+                              storeController.hasPopularStoresError &&
+                              sortedStores.isEmpty &&
+                              !storeController.isLoading)
+                            ErrorStateView(
+                              onRetry: () {
+                                storeController.getPopularStoreList(
+                                  true,
+                                  storeController.type,
+                                  true,
+                                );
+                              },
+                            )
+                          else if (isInitialBranchFailure)
+                            ErrorStateView(
+                              onRetry: () {
+                                if (widget.isFeatured) {
+                                  storeController.getFeaturedStoreList();
+                                } else if (widget.isTopOfferStore) {
+                                  storeController.getTopOfferStoreList(true, true);
+                                } else {
+                                  storeController.getLatestStoreList(
+                                    true,
+                                    storeController.type,
+                                    true,
+                                  );
+                                }
+                              },
+                            )
+                          else
+                            ItemsView(
+                              isStore: true,
+                              items: null,
+                              isFeatured: widget.isFeatured,
+                              noDataText: widget.isFeatured
+                                  ? 'no_store_available'.tr
+                                  : Get.find<SplashController>()
+                                          .configModel!
+                                          .moduleConfig!
+                                          .module!
+                                          .showRestaurantText!
+                                      ? 'no_restaurant_available'.tr
+                                      : 'no_store_available'.tr,
+                              stores: sortedStores,
+                            ),
                           if (isAllPage &&
                               !hasReachedEnd &&
                               (storeController.isLoading || _isPaginating))

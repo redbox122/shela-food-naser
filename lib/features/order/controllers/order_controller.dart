@@ -41,6 +41,8 @@ class OrderController extends GetxController implements GetxService {
 
   bool _Order_isLoading = false;
   bool get Order_isLoading => _Order_isLoading;
+  bool _hasOrderError = false;
+  bool get hasOrderError => _hasOrderError;
 
   // OrderModel? _track_Model;
   // OrderModel? get track_Model => _track_Model;
@@ -50,6 +52,8 @@ class OrderController extends GetxController implements GetxService {
 
   bool _isLoading = false;
   bool get isLoading => _isLoading;
+  bool _hasTrackError = false;
+  bool get hasTrackError => _hasTrackError;
 
   bool _isTimerTrackOrderInProgress = false;
 
@@ -297,6 +301,7 @@ class OrderController extends GetxController implements GetxService {
     debugPrint(
         '[OrderCtrl] getRunningOrders start offset=$offset isUpdate=$isUpdate fromDashboard=$fromDashboard');
     _Order_isLoading = true;
+    _hasOrderError = false;
 
     if (offset == 1) {
       _runningOrderModel = null;
@@ -316,6 +321,7 @@ class OrderController extends GetxController implements GetxService {
     }
 
     if (orderModel != null) {
+      _hasOrderError = false;
       if (offset == 1) {
         _runningOrderModel = PaginatedOrderModel();
 
@@ -353,6 +359,8 @@ class OrderController extends GetxController implements GetxService {
       }
 
       update();
+    } else {
+      _hasOrderError = true;
     }
 
     _Order_isLoading = false;
@@ -366,6 +374,7 @@ class OrderController extends GetxController implements GetxService {
   Future<void> getHistoryOrders(int offset, {bool isUpdate = false}) async {
     debugPrint(
         '[OrderCtrl] getHistoryOrders start offset=$offset isUpdate=$isUpdate');
+    _hasOrderError = false;
     if (offset == 1) {
       _historyOrderModel = null;
       _canceledOrderModel = null;
@@ -383,6 +392,7 @@ class OrderController extends GetxController implements GetxService {
       debugPrint('[OrderCtrl] getHistoryOrders sampleIds=$sampleIds');
     }
     if (orderModel != null) {
+      _hasOrderError = false;
       final List<OrderModel> paidOrders = (orderModel.orders ?? [])
           .where((order) => order.paymentStatus != 'unpaid')
           .toList();
@@ -419,6 +429,8 @@ class OrderController extends GetxController implements GetxService {
         _canceledOrderModel!.totalSize = _canceledOrderModel!.orders!.length;
       }
       update();
+    } else {
+      _hasOrderError = true;
     }
     debugPrint(
       '[OrderCtrl] getHistoryOrders done history=${_historyOrderModel?.orders?.length ?? -1} '
@@ -497,6 +509,7 @@ class OrderController extends GetxController implements GetxService {
       bool? fromGuestInput = false,
       bool preserveTrackModel = false}) async {
     _responseModel = null;
+    _hasTrackError = false;
     if (!fromTracking) {
       _orderDetails = null;
     }
@@ -523,6 +536,7 @@ class OrderController extends GetxController implements GetxService {
         }
         _responseModel = ResponseModel(true, response.body.toString());
       } else {
+        _hasTrackError = true;
         _responseModel = ResponseModel(false, response.statusText);
       }
 

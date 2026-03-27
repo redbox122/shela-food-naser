@@ -51,6 +51,8 @@ import 'package:sixam_mart/common/enums/data_source_enum.dart';
 import 'package:sixam_mart/common/models/module_model.dart';
 import 'package:sixam_mart/api/api_client.dart';
 import 'package:sixam_mart/common/utils/app_logger.dart';
+import 'package:sixam_mart/common/widgets/no_data_screen.dart';
+import 'package:sixam_mart/common/widgets/error_state_view.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -281,6 +283,7 @@ class _HomeScreenState extends State<HomeScreen> {
   final GlobalKey headerKey = GlobalKey();
   Timer? _deferredLoadTimer;
   bool _deferredLoadQueued = false;
+  int? _lastConnectivityRecoveryModuleId;
 
   // ⚡ Cache-First Fix: Track if first load completed
   static bool _hasLoadedOnce = false;
@@ -500,6 +503,14 @@ class _HomeScreenState extends State<HomeScreen> {
       if (AppConstants.useBffV2Endpoint &&
           Get.isRegistered<HomeUnifiedController>()) {
         final unifiedController = Get.find<HomeUnifiedController>();
+        final int? currentModuleId = splashController.module?.id;
+        final bool shouldForceRecoveryRefresh = splashController.hasConnection &&
+            unifiedController.lastRequestStatusCode == 1 &&
+            !unifiedController.isLoading &&
+            currentModuleId != null &&
+            _lastConnectivityRecoveryModuleId != currentModuleId;
+        final int? recoveryModuleId =
+            shouldForceRecoveryRefresh ? currentModuleId : null;
 
         // ⚡ PERFORMANCE: First frame - load from cache only (banners, categories, offers) without stores
         final cacheLoaded = await unifiedController.loadCachedDataForInstantUI(
@@ -516,7 +527,16 @@ class _HomeScreenState extends State<HomeScreen> {
             if (!mounted) {
               return;
             }
-            HomeScreen._refreshInBackground(context);
+            if (recoveryModuleId != null) {
+              _lastConnectivityRecoveryModuleId = recoveryModuleId;
+              unifiedController.allowImmediateFetchForModule(recoveryModuleId);
+              unifiedController.loadHomeData(
+                forceRefresh: true,
+                showLoading: false,
+              );
+            } else {
+              HomeScreen._refreshInBackground(context);
+            }
           });
 
           // ⚡ PERFORMANCE: Load stores AFTER first frame (post-frame callback)
@@ -1047,15 +1067,17 @@ class _HomeScreenState extends State<HomeScreen> {
         WidgetsBinding.instance.addPostFrameCallback((_) {
           splashController.getModules();
         });
-        // Show loading while modules are being loaded
-        return Scaffold(
-          backgroundColor: Colors.white,
-          body: Center(
-            child: CircularProgressIndicator(
-              valueColor:
-                  AlwaysStoppedAnimation<Color>(Theme.of(context).primaryColor),
-            ),
+        // When API returns empty module list, show empty state instead of spinner.
+        return NoDataScreen(
+          text: 'home_no_places_available'.tr,
+          subtitle: 'home_no_places_available_subtitle'.tr,
+          actionWidget: ElevatedButton(
+            onPressed: () {
+              splashController.getModules(dataSource: DataSourceEnum.client);
+            },
+            child: Text('retry'.tr),
           ),
+          showFooter: false,
         );
       }
 
@@ -1191,6 +1213,12 @@ class _HomeScreenState extends State<HomeScreen> {
       _logUiStateSnapshot('HomeScreen.build', splashController);
 
       return GetBuilder<HomeController>(builder: (homeController) {
+        final bool showUnifiedHomeError = !isParcel &&
+            AppConstants.useBffV2Endpoint &&
+            Get.isRegistered<HomeUnifiedController>() &&
+            Get.find<HomeUnifiedController>().hasError &&
+            !Get.find<HomeUnifiedController>().isLoading &&
+            !Get.find<HomeUnifiedController>().hasCachedData;
         return Scaffold(
           appBar: ResponsiveHelper.isDesktop(context)
               ? PreferredSize(
@@ -1239,7 +1267,23 @@ class _HomeScreenState extends State<HomeScreen> {
           backgroundColor: Theme.of(context).colorScheme.surface,
           body: isParcel
               ? const ParcelCategoryScreen()
+              : showUnifiedHomeError
+                  ? ErrorStateView(
+                      onRetry: () {
+                        if (Get.isRegistered<HomeUnifiedController>()) {
+                          Get.find<HomeUnifiedController>().loadHomeData(
+                                forceRefresh: true,
+                                showLoading: true,
+                              );
+                        }
+                      },
+                    )
               : SafeArea(
+                  top: false,
+                  bottom: true,
+                  left: false,
+                  right: false,
+                  minimum: EdgeInsets.zero,
                   child: RefreshIndicator(
                     onRefresh: () async {
                       splashController.setRefreshing(true);

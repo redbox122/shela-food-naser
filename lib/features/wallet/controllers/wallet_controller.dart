@@ -35,6 +35,9 @@ class WalletController extends GetxController implements GetxService {
   bool _isLoading = false;
   bool get isLoading => _isLoading;
 
+  bool _hasTransactionError = false;
+  bool get hasTransactionError => _hasTransactionError;
+
   String? _digitalPaymentName;
   String? get digitalPaymentName => _digitalPaymentName;
 
@@ -247,6 +250,7 @@ class WalletController extends GetxController implements GetxService {
 
   Future<void> getWalletTransactionList(
       String offset, bool reload, String walletType) async {
+    _hasTransactionError = false;
     if (kDebugMode) {
       debugPrint('💰 [WalletController] getWalletTransactionList() called');
       debugPrint('   📄 offset: $offset');
@@ -273,8 +277,19 @@ class WalletController extends GetxController implements GetxService {
         debugPrint('   📡 API: /api/v1/customer/wallet/transactions?offset=$offset&limit=10&type=$walletType');
       }
       
-      final TransactionModel? transactionModel = await walletServiceInterface
-          .getWalletTransactionList(offset, walletType);
+      TransactionModel? transactionModel;
+      try {
+        transactionModel = await walletServiceInterface
+            .getWalletTransactionList(offset, walletType);
+      } catch (e) {
+        _hasTransactionError = true;
+        _isLoading = false;
+        if (kDebugMode) {
+          debugPrint('💰 [WalletController] ❌ Exception in getWalletTransactionList: $e');
+        }
+        update();
+        return;
+      }
 
       if (transactionModel != null) {
         if (offset == '1') {
@@ -322,6 +337,7 @@ class WalletController extends GetxController implements GetxService {
           debugPrint('   - Final state check: _transactionList.length = ${_transactionList?.length ?? 0}');
         }
       } else {
+        _hasTransactionError = true;
         if (kDebugMode) {
           debugPrint('💰 [WalletController] ⚠️ API returned null transaction model');
         }

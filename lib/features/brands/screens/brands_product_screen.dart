@@ -4,12 +4,14 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:shimmer_animation/shimmer_animation.dart';
 import 'package:sixam_mart/common/widgets/custom_app_bar.dart';
+import 'package:sixam_mart/common/widgets/error_state_view.dart';
 import 'package:sixam_mart/common/widgets/footer_view.dart';
 import 'package:sixam_mart/common/widgets/item_view.dart';
 import 'package:sixam_mart/common/widgets/item_widget.dart';
 import 'package:sixam_mart/common/widgets/web_page_title_widget.dart';
 import 'package:sixam_mart/features/brands/controllers/brands_controller.dart';
 import 'package:sixam_mart/features/category/controllers/category_controller.dart';
+import 'package:sixam_mart/features/splash/controllers/splash_controller.dart';
 import 'package:sixam_mart/helper/responsive_helper.dart';
 import 'package:sixam_mart/util/dimensions.dart';
 import 'package:sixam_mart/util/styles.dart';
@@ -574,6 +576,10 @@ class _BrandsItemScreenState extends State<BrandsItemScreen> {
 
                     // Handle brand items
                     final brandItems = brandsController.brandItems;
+                    final bool showOfflineBrandError =
+                        !Get.find<SplashController>().hasConnection &&
+                            !brandsController.isLoading &&
+                            (brandItems == null || brandItems.isEmpty);
 
                     // ✅ FIX: Show beautiful loading animation when items are being fetched
                     if (brandsController.isLoading &&
@@ -598,28 +604,15 @@ class _BrandsItemScreenState extends State<BrandsItemScreen> {
                           verticalItem: brandsController.isVertical,
                         ),
                       );
-                    } else if (brandItems == null &&
-                        brandsController.isBrandLoadError) {
+                    } else if (showOfflineBrandError ||
+                        (brandItems == null && brandsController.isBrandLoadError)) {
                       // API failed / timeout — show error + retry
                       return SliverFillRemaining(
-                        child: Center(
-                          child: Padding(
-                            padding: EdgeInsets.only(
-                                top: ResponsiveHelper.isDesktop(context)
-                                    ? context.height * 0.3
-                                    : context.height * 0.4),
-                            child: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Text('something_went_wrong'.tr),
-                                const SizedBox(height: Dimensions.paddingSizeSmall),
-                                OutlinedButton(
-                                  onPressed: () => brandsController
-                                      .getBrandItemList(widget.brandId, 1, true),
-                                  child: Text('retry'.tr),
-                                ),
-                              ],
-                            ),
+                        child: ErrorStateView(
+                          onRetry: () => brandsController.getBrandItemList(
+                            widget.brandId,
+                            1,
+                            true,
                           ),
                         ),
                       );

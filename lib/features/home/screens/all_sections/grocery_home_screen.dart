@@ -8,6 +8,7 @@ import 'package:sixam_mart/features/splash/controllers/splash_controller.dart';
 import 'package:sixam_mart/features/store/controllers/store_controller.dart';
 import 'package:sixam_mart/util/app_constants.dart';
 import 'package:sixam_mart/common/utils/app_logger.dart';
+import 'package:sixam_mart/common/widgets/error_state_view.dart';
 import 'package:sixam_mart/features/category/controllers/category_controller.dart';
 
 class GroceryHomeScreen extends StatefulWidget {
@@ -238,6 +239,17 @@ class _GroceryHomeScreenState extends State<GroceryHomeScreen> {
     return GetBuilder<HomeUnifiedController>(
       builder: (unifiedController) {
         appLogger.debug('GroceryHomeScreen: HomeUnifiedController state - hasCachedData=${unifiedController.hasCachedData}, isLoading=${unifiedController.isLoading}');
+
+        if (unifiedController.hasError && !unifiedController.isLoading) {
+          return ErrorStateView(
+            onRetry: () {
+              unifiedController.loadHomeData(
+                forceRefresh: true,
+                showLoading: true,
+              );
+            },
+          );
+        }
         
         // Show shimmer if no cached data and still loading
         if (!unifiedController.hasCachedData && unifiedController.isLoading) {

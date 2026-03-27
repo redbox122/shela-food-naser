@@ -16,6 +16,7 @@ import 'package:sixam_mart/util/images.dart';
 import 'package:sixam_mart/util/styles.dart';
 import 'package:sixam_mart/common/widgets/custom_app_bar.dart';
 import 'package:sixam_mart/common/widgets/custom_snackbar.dart';
+import 'package:sixam_mart/common/widgets/error_state_view.dart';
 import 'package:sixam_mart/common/widgets/footer_view.dart';
 import 'package:sixam_mart/common/widgets/not_logged_in_screen.dart';
 import 'package:sixam_mart/common/widgets/web_page_title_widget.dart';
@@ -88,6 +89,14 @@ class _ReferAndEarnScreenState extends State<ReferAndEarnScreen> {
                         child: SizedBox(
                           width: Dimensions.webMaxWidth,
                           child: GetBuilder<ProfileController>(builder: (profileController) {
+                            if (profileController.userInfoModel == null &&
+                                profileController.hasProfileError) {
+                              return ErrorStateView(
+                                onRetry: () {
+                                  profileController.getUserInfo();
+                                },
+                              );
+                            }
                             final String referralCode =
                                 profileController.userInfoModel?.refCode
                                         ?.trim() ??

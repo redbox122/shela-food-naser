@@ -471,6 +471,16 @@ class HomeController extends GetxController implements GetxService {
   /// Returns true if successful, false otherwise
   Future<bool> _loadUnifiedHome(bool forceRefresh) async {
     try {
+      if (Get.isRegistered<SplashController>()) {
+        final splashController = Get.find<SplashController>();
+        if (!splashController.hasConnection) {
+          if (kDebugMode) {
+            print(
+                '⚠️ HomeController: Unified fetch skipped - device appears offline');
+          }
+          return false;
+        }
+      }
       int? moduleId;
       String? moduleType;
       if (Get.isRegistered<SplashController>()) {
@@ -504,13 +514,17 @@ class HomeController extends GetxController implements GetxService {
       final errorCode = unifiedController.lastRequestErrorCode;
       final bool hasUsableUnifiedData = unifiedController.hasCachedData ||
           (unifiedController.unifiedData?.isValid ?? false);
+      final bool isConnectivityFailure = statusCode == 1;
+      final bool effectiveSuccess = success && !isConnectivityFailure;
       final bool isUnifiedSuccess =
-          success || statusCode == 304 || hasUsableUnifiedData;
+          effectiveSuccess ||
+          statusCode == 304 ||
+          (hasUsableUnifiedData && !isConnectivityFailure);
 
       if (isUnifiedSuccess) {
         if (kDebugMode) {
           print('✅ HomeController: Unified considered successful '
-              '(success=$success, status=$statusCode, hasData=$hasUsableUnifiedData)');
+              '(success=$effectiveSuccess, rawSuccess=$success, status=$statusCode, hasData=$hasUsableUnifiedData)');
         }
         _dataSource = HomeDataSource.unified;
         return true;
@@ -518,7 +532,7 @@ class HomeController extends GetxController implements GetxService {
 
       if (kDebugMode) {
         print('⚠️ HomeController: Unified considered failed '
-            '(success=$success, status=$statusCode, error=$errorCode, hasData=$hasUsableUnifiedData)');
+            '(success=$success, status=$statusCode, error=$errorCode, hasData=$hasUsableUnifiedData, connectivityFailure=$isConnectivityFailure)');
       }
 
       return false;

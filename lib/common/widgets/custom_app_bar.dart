@@ -67,12 +67,12 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
             
             // Close button for notification center - positioned exactly as in Figma design
             if (backButton && isNotificationCenter)
-              Positioned(
+              PositionedDirectional(
                 bottom: 8,
-                right: 12,
+                start: 12,
                 child: IconButton(
                   icon: const Icon(
-                    Icons.arrow_back_sharp,
+                    Icons.arrow_back,
                     color: Colors.white,
                     size: 24,
                   ),
@@ -82,12 +82,12 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
             
             // Back button for other screens
             if (backButton && !isNotificationCenter)
-              Positioned(
+              PositionedDirectional(
                 bottom: 10,
-                right: 15,
+                start: 15,
                 child: IconButton(
                   icon: const Icon(
-                    Icons.arrow_back_sharp,
+                    Icons.arrow_back,
                     color: Colors.white,
                     size: 24,
                   ),
@@ -95,11 +95,11 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                 ),
               ),
             
-            // Cart and filter buttons (left side)
+            // Cart and filter buttons (trailing side in LTR)
             if (showCart || onVegFilterTap != null)
-              Positioned(
+              PositionedDirectional(
                 bottom: 10,
-                left: 15,
+                end: 15,
                 child: Row(
                   children: [
                     if (showCart)

@@ -31,6 +31,7 @@ import 'package:sixam_mart/util/app_constants.dart';
 import 'package:sixam_mart/common/widgets/confirmation_dialog.dart';
 import 'package:sixam_mart/common/widgets/custom_image.dart';
 import 'package:sixam_mart/common/widgets/custom_snackbar.dart';
+import 'package:sixam_mart/common/widgets/error_state_view.dart';
 import 'package:sixam_mart/common/cache/comprehensive_home_cache_manager.dart';
 import 'package:sixam_mart/features/menu/widgets/portion_widget.dart';
 import 'package:sixam_mart/features/update/controllers/update_controller.dart';
@@ -246,10 +247,24 @@ class _MenuScreenState extends State<MenuScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Theme.of(context).cardColor,
-      body: GetBuilder<ProfileController>(builder: (profileController) {
+      body: SafeArea(
+        top: !ResponsiveHelper.isDesktop(context),
+        bottom: false,
+        left: false,
+        right: false,
+        minimum: EdgeInsets.zero,
+        child: GetBuilder<ProfileController>(builder: (profileController) {
         final bool isLoggedIn = AuthHelper.isLoggedIn();
 
         if (isLoggedIn && profileController.userInfoModel == null) {
+          if (profileController.hasProfileError) {
+            return ErrorStateView(
+              onRetry: () {
+                profileController.getUserInfo();
+                loadData(context);
+              },
+            );
+          }
           return const Center(child: CircularProgressIndicator());
         }
 
@@ -1144,6 +1159,7 @@ class _MenuScreenState extends State<MenuScreen> {
           );
         });
       }),
+      ),
     );
   }
 

@@ -22,6 +22,9 @@ class AddressController extends GetxController implements GetxService {
   bool _isLoading = false;
   bool get isLoading => _isLoading;
 
+  bool _hasError = false;
+  bool get hasError => _hasError;
+
   Future<ResponseModel> addAddress(AddressModel addressModel, bool fromCheckout, int? storeZoneId) async {
     _isLoading = true;
     update();
@@ -84,6 +87,7 @@ class AddressController extends GetxController implements GetxService {
 
   Future<void> getAddressList() async {
     _isLoading = true;
+    _hasError = false;
     update();
     try {
       final List<AddressModel>? addressList =
@@ -105,6 +109,7 @@ class AddressController extends GetxController implements GetxService {
       if (kDebugMode) {
         print('⚠️ AddressController.getAddressList: Failed to load addresses: $e');
       }
+      _hasError = true;
       _addressList = <AddressModel>[];
       _allAddressList = <AddressModel>[];
     } finally {

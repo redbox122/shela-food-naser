@@ -23,6 +23,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:sixam_mart/features/category/widgets/category_selector_button.dart';
 import 'package:sixam_mart/features/category/widgets/category_bottom_sheet.dart';
+import 'package:sixam_mart/common/widgets/error_state_view.dart';
 
 import '../../../common/widgets/loading/loading.dart';
 
@@ -38,6 +39,7 @@ class CategoryItemScreen extends StatefulWidget {
 
 class CategoryItemScreenState extends State<CategoryItemScreen>
     with TickerProviderStateMixin {
+  bool get _hideProductsTab => Get.find<SplashController>().module?.id != 3;
   final ScrollController scrollController = ScrollController();
   final ScrollController storeScrollController = ScrollController();
   TabController? _tabController;
@@ -136,12 +138,17 @@ class CategoryItemScreenState extends State<CategoryItemScreen>
 
     // âœ… CRITICAL: Set _isStore IMMEDIATELY before postFrameCallback to prevent cache hits
     // This must happen before any async operations that might check cache
+    if (_hideProductsTab) {
+      initialIndex = 1;
+      isStore = true;
+    }
     categoryController.setRestaurant(isStore);
 
     _tabController =
         TabController(length: 2, initialIndex: initialIndex, vsync: this);
     _lastTabIndex = initialIndex;
-    _tabController!.addListener(() {
+    if (!_hideProductsTab) {
+      _tabController!.addListener(() {
       if (_tabController == null || _tabController!.indexIsChanging) return;
       if (_tabController!.index == _lastTabIndex) return;
       _lastTabIndex = _tabController!.index;
@@ -173,7 +180,8 @@ class CategoryItemScreenState extends State<CategoryItemScreen>
           );
         }
       }
-    });
+      });
+    }
 
     // âš¡ MANDATORY CALL: getSubCategoryList MUST be called on every screen entry
     // This ensures subcategories are always loaded, regardless of cache or previous state
@@ -189,7 +197,7 @@ class CategoryItemScreenState extends State<CategoryItemScreen>
         categoryController.getSubCategoryList(
           widget.categoryID,
           forceRefreshItems: true,
-          fetchItems: !isStore,
+          fetchItems: !isStore && !_hideProductsTab,
         );
       } else if (kDebugMode) {
         debugPrint(
@@ -198,19 +206,21 @@ class CategoryItemScreenState extends State<CategoryItemScreen>
 
       // Preload stores count/list on first open so the stores tab count
       // is accurate before the user taps it.
-      if (isStore) {
+      if (isStore || _hideProductsTab) {
         categoryController.getCategoryStoreList(
             widget.categoryID, 1, categoryController.type, false);
-        // Preload item data for Tab 2 so both tabs have counts/content ready.
-        categoryController.getCategoryItemList(
-          widget.categoryID,
-          1,
-          categoryController.type,
-          false,
-          includeChildren: true,
-          forceRefresh: true,
-          allowWhenStore: true,
-        );
+        if (!_hideProductsTab) {
+          // Preload item data for Tab 2 so both tabs have counts/content ready.
+          categoryController.getCategoryItemList(
+            widget.categoryID,
+            1,
+            categoryController.type,
+            false,
+            includeChildren: true,
+            forceRefresh: true,
+            allowWhenStore: true,
+          );
+        }
       } else {
         // For all modules, preload stores in background so the stores count
         // appears immediately instead of showing 0 until tab click.
@@ -743,6 +753,13 @@ class CategoryItemScreenState extends State<CategoryItemScreen>
           (splashController
                   .configModel?.moduleConfig?.module?.showRestaurantText ??
               false);
+      final bool hasCategoryDataMissing =
+          (catController.isStore && (stores == null || stores.isEmpty)) ||
+              (!catController.isStore && (item == null || item.isEmpty));
+      final bool showCategoryError =
+          (catController.hasCategoryError || !splashController.hasConnection) &&
+          !catController.isLoading &&
+          hasCategoryDataMissing;
       return PopScope(
         onPopInvokedWithResult: (didPop, result) async {
           if (catController.isSearching) {
@@ -854,7 +871,39 @@ class CategoryItemScreenState extends State<CategoryItemScreen>
                     const SizedBox(width: Dimensions.paddingSizeSmall),
                   ],
                 )),
-          body: ResponsiveHelper.isDesktop(context)
+          body: showCategoryError
+              ? ErrorStateView(
+                  onRetry: () {
+                    if (catController.isStore) {
+                      catController.getCategoryStoreList(
+                        catController.subCategoryIndex == 0
+                            ? widget.categoryID
+                            : catController
+                                .subCategoryList![catController.subCategoryIndex]
+                                .id
+                                .toString(),
+                        1,
+                        catController.type,
+                        true,
+                      );
+                    } else {
+                      catController.getCategoryItemList(
+                        catController.subCategoryIndex == 0
+                            ? widget.categoryID
+                            : catController
+                                .subCategoryList![catController.subCategoryIndex]
+                                .id
+                                .toString(),
+                        1,
+                        catController.type,
+                        true,
+                        includeChildren: catController.subCategoryIndex == 0,
+                        forceRefresh: true,
+                      );
+                    }
+                  },
+                )
+              : ResponsiveHelper.isDesktop(context)
               ? SingleChildScrollView(
                   child: FooterView(
                     child: Center(
@@ -933,70 +982,99 @@ class CategoryItemScreenState extends State<CategoryItemScreen>
                             child: Container(
                           width: Dimensions.webMaxWidth,
                           color: Theme.of(context).cardColor,
-                          child: TabBar(
-                            controller: _tabController,
-                            indicatorColor: Theme.of(context).primaryColor,
-                            indicatorWeight: 3,
-                            labelColor: Theme.of(context).primaryColor,
-                            unselectedLabelColor:
-                                Theme.of(context).disabledColor,
-                            unselectedLabelStyle: robotoRegular.copyWith(
-                                color: Theme.of(context).disabledColor,
-                                fontSize: Dimensions.fontSizeSmall),
-                            labelStyle: robotoBold.copyWith(
-                                fontSize: Dimensions.fontSizeSmall,
-                                color: Theme.of(context).primaryColor),
-                            tabs: [
-                              Tab(text: 'item'.tr),
-                              Tab(
-                                text: showRestaurantText
-                                    ? 'restaurants'.tr
-                                    : 'stores'.tr,
-                              ),
-                            ],
-                          ),
+                          child: _hideProductsTab
+                              ? Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: Dimensions.paddingSizeSmall,
+                                  ),
+                                  child: Center(
+                                    child: Text(
+                                      showRestaurantText
+                                          ? 'restaurants'.tr
+                                          : 'stores'.tr,
+                                      style: robotoBold.copyWith(
+                                        fontSize: Dimensions.fontSizeSmall,
+                                        color: Theme.of(context).primaryColor,
+                                      ),
+                                    ),
+                                  ),
+                                )
+                              : TabBar(
+                                  controller: _tabController,
+                                  indicatorColor: Theme.of(context).primaryColor,
+                                  indicatorWeight: 3,
+                                  labelColor: Theme.of(context).primaryColor,
+                                  unselectedLabelColor:
+                                      Theme.of(context).disabledColor,
+                                  unselectedLabelStyle: robotoRegular.copyWith(
+                                      color: Theme.of(context).disabledColor,
+                                      fontSize: Dimensions.fontSizeSmall),
+                                  labelStyle: robotoBold.copyWith(
+                                      fontSize: Dimensions.fontSizeSmall,
+                                      color: Theme.of(context).primaryColor),
+                                  tabs: [
+                                    Tab(text: 'item'.tr),
+                                    Tab(
+                                      text: showRestaurantText
+                                          ? 'restaurants'.tr
+                                          : 'stores'.tr,
+                                    ),
+                                  ],
+                                ),
                         )),
                         SizedBox(
                           height: 600,
-                          child: TabBarView(
-                            controller: _tabController,
-                            children: [
-                              SingleChildScrollView(
-                                controller: scrollController,
-                                child: ItemsView(
-                                  isStore: false,
-                                  items: item,
-                                  stores: null,
-                                  navigateItemToStoreOnTap:
-                                      navigateItemToStoreOnTap,
-                                  noDataText:
-                                      _buildNoItemFoundText(catController),
-                                  noDataActionText:
-                                      _shouldShowNoResultResetButton(
-                                              catController)
-                                          ? 'reset'.tr
-                                          : null,
-                                  onNoDataActionTap:
-                                      _shouldShowNoResultResetButton(
-                                              catController)
-                                          ? () => _resetCategoryFilters(
-                                              catController)
-                                          : null,
+                          child: _hideProductsTab
+                              ? SingleChildScrollView(
+                                  controller: storeScrollController,
+                                  child: ItemsView(
+                                    isStore: true,
+                                    items: null,
+                                    stores: stores,
+                                    noDataText: showRestaurantText
+                                        ? 'no_category_restaurant_found'.tr
+                                        : 'no_category_store_found'.tr,
+                                  ),
+                                )
+                              : TabBarView(
+                                  controller: _tabController,
+                                  children: [
+                                    SingleChildScrollView(
+                                      controller: scrollController,
+                                      child: ItemsView(
+                                        isStore: false,
+                                        items: item,
+                                        stores: null,
+                                        navigateItemToStoreOnTap:
+                                            navigateItemToStoreOnTap,
+                                        noDataText:
+                                            _buildNoItemFoundText(catController),
+                                        noDataActionText:
+                                            _shouldShowNoResultResetButton(
+                                                    catController)
+                                                ? 'reset'.tr
+                                                : null,
+                                        onNoDataActionTap:
+                                            _shouldShowNoResultResetButton(
+                                                    catController)
+                                                ? () => _resetCategoryFilters(
+                                                    catController)
+                                                : null,
+                                      ),
+                                    ),
+                                    SingleChildScrollView(
+                                      controller: storeScrollController,
+                                      child: ItemsView(
+                                        isStore: true,
+                                        items: null,
+                                        stores: stores,
+                                        noDataText: showRestaurantText
+                                            ? 'no_category_restaurant_found'.tr
+                                            : 'no_category_store_found'.tr,
+                                      ),
+                                    ),
+                                  ],
                                 ),
-                              ),
-                              SingleChildScrollView(
-                                controller: storeScrollController,
-                                child: ItemsView(
-                                  isStore: true,
-                                  items: null,
-                                  stores: stores,
-                                  noDataText: showRestaurantText
-                                      ? 'no_category_restaurant_found'.tr
-                                      : 'no_category_store_found'.tr,
-                                ),
-                              ),
-                            ],
-                          ),
                         ),
                         (catController.isLoading &&
                                 ((catController.isStore &&
@@ -1080,6 +1158,37 @@ class CategoryItemScreenState extends State<CategoryItemScreen>
                         final String storesCountText = storesCountLoading
                             ? '...'
                             : '${catController.restPageSize ?? (stores?.length ?? 0)}';
+                        if (_hideProductsTab) {
+                          return Padding(
+                            padding: const EdgeInsets.symmetric(
+                              vertical: Dimensions.paddingSizeSmall,
+                            ),
+                            child: Center(
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text(
+                                    showRestaurantText
+                                        ? 'restaurants'.tr
+                                        : 'stores'.tr,
+                                    style: robotoBold.copyWith(
+                                      fontSize: Dimensions.fontSizeSmall,
+                                      color: Theme.of(context).primaryColor,
+                                    ),
+                                  ),
+                                  const SizedBox(
+                                      width: Dimensions.paddingSizeExtraSmall),
+                                  Text(
+                                    storesCountText,
+                                    style: robotoMedium.copyWith(
+                                      fontSize: Dimensions.fontSizeSmall,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          );
+                        }
                         return TabBar(
                           controller: _tabController,
                           indicatorColor: Theme.of(context).primaryColor,
@@ -1150,54 +1259,67 @@ class CategoryItemScreenState extends State<CategoryItemScreen>
                             ),
                           )
                         : Expanded(
-                            child: TabBarView(
-                              controller: _tabController,
-                              children: [
-                                SingleChildScrollView(
-                                  controller: scrollController,
-                                  child: ItemsView(
-                                    isStore: false,
-                                    items: _applyLocalItemFilters(
-                                      catController,
-                                      (catController.isSearching
-                                              ? catController.searchItemList
-                                              : catController
-                                                  .categoryItemList) ??
-                                          [],
+                            child: _hideProductsTab
+                                ? SingleChildScrollView(
+                                    controller: storeScrollController,
+                                    child: ItemsView(
+                                      isStore: true,
+                                      items: null,
+                                      stores: stores,
+                                      verticalItem: catController.isVertical,
+                                      noDataText: showRestaurantText
+                                          ? 'no_category_restaurant_found'.tr
+                                          : 'no_category_store_found'.tr,
                                     ),
-                                    stores: null,
-                                    verticalItem: catController.isVertical,
-                                    navigateItemToStoreOnTap:
-                                        navigateItemToStoreOnTap,
-                                    noDataText:
-                                        _buildNoItemFoundText(catController),
-                                    noDataActionText:
-                                        _shouldShowNoResultResetButton(
-                                                catController)
-                                            ? 'reset'.tr
-                                            : null,
-                                    onNoDataActionTap:
-                                        _shouldShowNoResultResetButton(
-                                                catController)
-                                            ? () => _resetCategoryFilters(
-                                                catController)
-                                            : null,
+                                  )
+                                : TabBarView(
+                                    controller: _tabController,
+                                    children: [
+                                      SingleChildScrollView(
+                                        controller: scrollController,
+                                        child: ItemsView(
+                                          isStore: false,
+                                          items: _applyLocalItemFilters(
+                                            catController,
+                                            (catController.isSearching
+                                                    ? catController.searchItemList
+                                                    : catController
+                                                        .categoryItemList) ??
+                                                [],
+                                          ),
+                                          stores: null,
+                                          verticalItem: catController.isVertical,
+                                          navigateItemToStoreOnTap:
+                                              navigateItemToStoreOnTap,
+                                          noDataText:
+                                              _buildNoItemFoundText(catController),
+                                          noDataActionText:
+                                              _shouldShowNoResultResetButton(
+                                                      catController)
+                                                  ? 'reset'.tr
+                                                  : null,
+                                          onNoDataActionTap:
+                                              _shouldShowNoResultResetButton(
+                                                      catController)
+                                                  ? () => _resetCategoryFilters(
+                                                      catController)
+                                                  : null,
+                                        ),
+                                      ),
+                                      SingleChildScrollView(
+                                        controller: storeScrollController,
+                                        child: ItemsView(
+                                          isStore: true,
+                                          items: null,
+                                          stores: stores,
+                                          verticalItem: catController.isVertical,
+                                          noDataText: showRestaurantText
+                                              ? 'no_category_restaurant_found'.tr
+                                              : 'no_category_store_found'.tr,
+                                        ),
+                                      ),
+                                    ],
                                   ),
-                                ),
-                                SingleChildScrollView(
-                                  controller: storeScrollController,
-                                  child: ItemsView(
-                                    isStore: true,
-                                    items: null,
-                                    stores: stores,
-                                    verticalItem: catController.isVertical,
-                                    noDataText: showRestaurantText
-                                        ? 'no_category_restaurant_found'.tr
-                                        : 'no_category_store_found'.tr,
-                                  ),
-                                ),
-                              ],
-                            ),
                           ),
 
                     (catController.isLoading &&

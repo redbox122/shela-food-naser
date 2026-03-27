@@ -1542,7 +1542,7 @@ class BottomButton extends StatelessWidget {
             width: 700,
             child: Column(children: [
               CustomButton(
-                buttonText: 'user_current_location'.tr,
+                buttonText: 'continue'.tr,
                 onPressed: () async {
                   debugPrint('🔘 Current location button pressed');
                   // Capture context before async operations

@@ -140,6 +140,11 @@ class _ParcelLocationScreenState extends State<ParcelLocationScreen> with Ticker
     return Scaffold(
       appBar: CustomAppBar(title: 'parcel_location'.tr),
       body: SafeArea(
+        top: false,
+        bottom: true,
+        left: false,
+        right: false,
+        minimum: EdgeInsets.zero,
         child: GetBuilder<ParcelController>(builder: (parcelController) {
           return Column(children: [
             Expanded(

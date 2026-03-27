@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../../common/widgets/customAppBar.dart';
 import '../../../common/widgets/custom_text.dart';
+import '../../../common/widgets/error_state_view.dart';
 import '../../../common/widgets/no_data_screen.dart';
 import '../../../common/widgets/not_logged_in_screen.dart';
 import '../../../helper/auth_helper.dart';
@@ -41,11 +42,27 @@ class _MyCouponScreenState extends State<MyCouponScreen> {
       backgroundColor: AppColors.backgroundColor,
       appBar: customAppBar(context,
           title: 'قسائمي', img: 'assets/image/coupon1.png'),
-      body: isLoggedIn
+      body: SafeArea(
+        top: false,
+        bottom: true,
+        left: false,
+        right: false,
+        minimum: EdgeInsets.zero,
+        child: isLoggedIn
           ? GetBuilder<CouponController>(builder: (couponController) {
               if (couponController.isLoading &&
                   couponController.couponList == null) {
                 return const Center(child: CircularProgressIndicator());
+              }
+              if (couponController.hasError &&
+                  !couponController.isLoading &&
+                  (couponController.couponList == null ||
+                      couponController.couponList!.isEmpty)) {
+                return ErrorStateView(
+                  onRetry: () {
+                    couponController.getCouponList();
+                  },
+                );
               }
               final couponList = couponController.couponList ?? const [];
               return couponList.isNotEmpty
@@ -156,6 +173,7 @@ class _MyCouponScreenState extends State<MyCouponScreen> {
               initCall();
               setState(() {});
             }),
+        ),
     );
   }
 }

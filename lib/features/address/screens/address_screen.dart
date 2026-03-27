@@ -14,6 +14,7 @@ import 'package:sixam_mart/common/widgets/footer_view.dart';
 import 'package:sixam_mart/common/widgets/no_data_screen.dart';
 import 'package:sixam_mart/common/widgets/not_logged_in_screen.dart';
 import 'package:sixam_mart/common/widgets/web_page_title_widget.dart';
+import 'package:sixam_mart/common/widgets/error_state_view.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
@@ -59,7 +60,13 @@ class _AddressScreenState extends State<AddressScreen> {
                     child: Icon(Icons.add, color: Theme.of(context).cardColor),
                   ),
         floatingActionButtonLocation: ResponsiveHelper.isDesktop(context) ? FloatingActionButtonLocation.centerFloat : null,
-        body: Container(
+        body: SafeArea(
+          top: false,
+          bottom: true,
+          left: false,
+          right: false,
+          minimum: EdgeInsets.zero,
+          child: Container(
           height: context.height,
           decoration: BoxDecoration(
             image: DecorationImage(
@@ -89,7 +96,13 @@ class _AddressScreenState extends State<AddressScreen> {
                                 ResponsiveHelper.isDesktop(context)
                                     ? const SizedBox(height: Dimensions.paddingSizeSmall)
                                     : const SizedBox(),
-                                addressController.addressList != null
+                                (addressController.hasError && !addressController.isLoading)
+                                    ? ErrorStateView(
+                                        onRetry: () {
+                                          addressController.getAddressList();
+                                        },
+                                      )
+                                    : addressController.addressList != null
                                     ? addressController.addressList!.isNotEmpty
                                         ? Padding(
                                             padding: ResponsiveHelper.isMobile(context)
@@ -191,6 +204,7 @@ class _AddressScreenState extends State<AddressScreen> {
                   initCall();
                   setState(() {});
                 }),
+        ),
         ),
         bottomNavigationBar: widget.fromDashboard ? Container(height: GetPlatform.isIOS ? 80 : 65) : const SizedBox(),
       );

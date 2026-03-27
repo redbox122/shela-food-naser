@@ -51,6 +51,9 @@ class Offers_Controller extends GetxController implements GetxService {
 
   bool _isItemsLoading = false;
   bool get isItemsLoading => _isItemsLoading;
+
+  bool _hasItemsError = false;
+  bool get hasItemsError => _hasItemsError;
   int _itemsRequestToken = 0;
   String? _activeItemsRequestKey;
 
@@ -465,6 +468,7 @@ class Offers_Controller extends GetxController implements GetxService {
     bool forceRefresh = false,
     bool notify = true,
   }) async {
+    _hasItemsError = false;
     final int moduleId = Get.find<SplashController>().module?.id ?? -1;
     final String requestKey = '$id|$offset|$limit|$moduleId';
 
@@ -571,9 +575,14 @@ class Offers_Controller extends GetxController implements GetxService {
           print(
               '[OFFERS_CTRL] fetch.done id=$id offset=$offset itemsCount=${brandItemModel.items?.length ?? 0} totalSize=${brandItemModel.totalSize}');
         }
-      } else if (kDebugMode) {
-        print(
-            '[OFFERS_CTRL] fetch.done id=$id offset=$offset itemsCount=0 (null model)');
+      } else {
+        if (offset == 1) {
+          _hasItemsError = true;
+        }
+        if (kDebugMode) {
+          print(
+              '[OFFERS_CTRL] fetch.done id=$id offset=$offset itemsCount=0 (null model)');
+        }
       }
     } catch (e, st) {
       if (kDebugMode) {
@@ -581,6 +590,7 @@ class Offers_Controller extends GetxController implements GetxService {
             '❌ Offers_Controller.getOffersItemList failed (id: $id, offset: $offset): $e');
         print(st);
       }
+      _hasItemsError = true;
     } finally {
       // Only the latest request can unlock/update loading state
       if (requestToken == _itemsRequestToken) {
@@ -619,6 +629,7 @@ class Offers_Controller extends GetxController implements GetxService {
   void resetLoadingStates({bool notify = true}) {
     _isLoading = false;
     _isItemsLoading = false;
+    _hasItemsError = false;
     _isSearching = false;
     _isLiveSearching = false;
     _isFilterModalOpen = false;
@@ -646,6 +657,7 @@ class Offers_Controller extends GetxController implements GetxService {
       // Reset state flags
       _isLoading = false;
       _isItemsLoading = false;
+      _hasItemsError = false;
       _isSearching = false;
       _isLiveSearching = false;
 

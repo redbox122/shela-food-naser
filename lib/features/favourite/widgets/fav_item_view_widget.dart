@@ -4,6 +4,7 @@ import 'package:sixam_mart/util/dimensions.dart';
 import 'package:sixam_mart/util/styles.dart';
 import 'package:sixam_mart/common/widgets/footer_view.dart';
 import 'package:sixam_mart/common/widgets/item_view.dart';
+import 'package:sixam_mart/common/widgets/error_state_view.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
@@ -22,6 +23,11 @@ class FavItemViewWidget extends StatelessWidget {
         final bool hasItems = isStore
             ? (favouriteController.wishStoreList?.isNotEmpty ?? false)
             : (favouriteController.wishItemList?.isNotEmpty ?? false);
+        if (!isLoading && favouriteController.hasError) {
+          return ErrorStateView(
+            onRetry: () => favouriteController.getFavouriteList(),
+          );
+        }
         return RefreshIndicator(
           onRefresh: () async {
             await favouriteController.getFavouriteList();
@@ -68,13 +74,15 @@ class _EmptyFavouriteState extends StatelessWidget {
           Icon(Icons.favorite_border_rounded, size: 64, color: Theme.of(context).disabledColor),
           const SizedBox(height: Dimensions.paddingSizeDefault),
           Text(
-            'no_wish_data_found'.tr,
+            'no_favorites_yet'.tr,
             style: robotoMedium.copyWith(color: Theme.of(context).disabledColor),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: Dimensions.paddingSizeSmall),
           Text(
-            isStore ? 'اضغط على ❤️ لحفظ المتاجر المفضلة' : 'اضغط على ❤️ لحفظ المنتجات المفضلة',
+            isStore
+                ? 'no_favorites_yet_subtitle_stores'.tr
+                : 'no_favorites_yet_subtitle_items'.tr,
             style: robotoRegular.copyWith(color: Theme.of(context).hintColor),
             textAlign: TextAlign.center,
           ),

@@ -31,6 +31,7 @@ import 'package:sixam_mart/features/home/controllers/home_unified_controller.dar
 import 'package:sixam_mart/features/splash/controllers/splash_controller.dart';
 import 'package:sixam_mart/helper/auth_helper.dart';
 import 'package:sixam_mart/common/utils/app_logger.dart';
+import 'package:sixam_mart/common/widgets/error_state_view.dart';
 import 'package:sixam_mart/util/app_constants.dart';
 
 class PharmacyHomeScreen extends StatefulWidget {
@@ -260,6 +261,16 @@ class _PharmacyHomeScreenState extends State<PharmacyHomeScreen> {
     // Shows shimmer only if no cached data AND loading
     return GetBuilder<HomeUnifiedController>(
       builder: (unifiedController) {
+        if (unifiedController.hasError && !unifiedController.isLoading) {
+          return ErrorStateView(
+            onRetry: () {
+              unifiedController.loadHomeData(
+                forceRefresh: true,
+                showLoading: true,
+              );
+            },
+          );
+        }
         // Show shimmer if no cached data and still loading
         if (!unifiedController.hasCachedData && unifiedController.isLoading) {
           return const Center(child: CircularProgressIndicator());

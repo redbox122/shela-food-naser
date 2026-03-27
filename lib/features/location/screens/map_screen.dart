@@ -16,7 +16,10 @@ import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:get/get.dart';
 import 'package:sixam_mart/features/order/widgets/address_details_widget.dart';
+import 'package:sixam_mart/common/widgets/error_state_view.dart';
 import 'package:url_launcher/url_launcher_string.dart';
+import 'dart:async';
+import 'dart:io';
 
 class MapScreen extends StatefulWidget {
   final AddressModel address;
@@ -40,6 +43,9 @@ class MapScreenState extends State<MapScreen> {
   GoogleMapController? _mapController;
   bool isHovered = false;
   bool _isLoadingLocation = false;
+  Timer? _connectivityProbeTimer;
+  bool _isCheckingConnectivity = true;
+  bool _showConnectivityError = false;
 
   @override
   void initState() {
@@ -51,6 +57,49 @@ class MapScreenState extends State<MapScreen> {
 
     // Try to get actual GPS location
     _getCurrentLocation();
+    _startConnectivityProbe();
+  }
+
+  @override
+  void dispose() {
+    _connectivityProbeTimer?.cancel();
+    super.dispose();
+  }
+
+  void _startConnectivityProbe() {
+    _connectivityProbeTimer?.cancel();
+    setState(() {
+      _isCheckingConnectivity = true;
+      _showConnectivityError = false;
+    });
+    _connectivityProbeTimer = Timer(const Duration(seconds: 5), () {
+      _resolveConnectivityState();
+    });
+  }
+
+  Future<void> _resolveConnectivityState() async {
+    if (!mounted) {
+      return;
+    }
+    final bool hasConnection = await _hasActiveInternetConnection();
+    if (!mounted) {
+      return;
+    }
+    setState(() {
+      _isCheckingConnectivity = false;
+      _showConnectivityError = !hasConnection;
+    });
+  }
+
+  Future<bool> _hasActiveInternetConnection() async {
+    try {
+      final List<InternetAddress> result = await InternetAddress.lookup(
+        'one.one.one.one',
+      ).timeout(const Duration(seconds: 3));
+      return result.isNotEmpty && result.first.rawAddress.isNotEmpty;
+    } catch (_) {
+      return false;
+    }
   }
 
   Future<void> _getCurrentLocation() async {
@@ -100,6 +149,19 @@ class MapScreenState extends State<MapScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (_showConnectivityError && !_isCheckingConnectivity) {
+      return Scaffold(
+        appBar: CustomAppBar(
+            title: widget.storeName != 'null' && widget.storeName.isNotEmpty
+                ? widget.storeName
+                : 'location'.tr),
+        body: ErrorStateView(
+          titleKey: 'something_went_wrong',
+          subtitleKey: 'no_internet_connection',
+          onRetry: _startConnectivityProbe,
+        ),
+      );
+    }
     return Scaffold(
       appBar: CustomAppBar(
           title: widget.storeName != 'null' && widget.storeName.isNotEmpty
@@ -491,7 +553,7 @@ class MapScreenState extends State<MapScreen> {
       permission = await Geolocator.requestPermission();
     }
     if (permission == LocationPermission.denied) {
-      showCustomSnackBar('you_have_to_allow'.tr);
+      Get.dialog<void>(const PermissionDialogWidget());
     } else if (permission == LocationPermission.deniedForever) {
       Get.dialog<void>(const PermissionDialogWidget());
     } else {

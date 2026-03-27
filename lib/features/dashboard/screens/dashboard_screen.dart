@@ -4,6 +4,7 @@ import 'package:expandable_bottom_sheet/expandable_bottom_sheet.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
 import 'package:animated_bottom_navigation_bar/animated_bottom_navigation_bar.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sixam_mart/features/rental_module/common/widgets/taxi_cart_widget.dart';
 import 'package:sixam_mart/features/dashboard/widgets/store_registration_success_bottom_sheet.dart';
 import 'package:sixam_mart/features/home/controllers/home_controller.dart';
@@ -23,6 +24,7 @@ import 'package:sixam_mart/helper/taxi_helper.dart';
 import 'package:sixam_mart/util/app_constants.dart';
 import 'package:sixam_mart/util/dimensions.dart';
 import 'package:sixam_mart/common/widgets/cart_widget.dart';
+import 'package:sixam_mart/common/widgets/custom_snackbar.dart';
 import 'package:sixam_mart/features/dashboard/widgets/parcel_bottom_sheet_widget.dart';
 import 'package:sixam_mart/features/favourite/screens/favourite_screen.dart';
 import 'package:sixam_mart/features/favourite/controllers/favourite_controller.dart';
@@ -65,6 +67,13 @@ class DashboardScreenState extends State<DashboardScreen> {
   GlobalKey<ExpandableBottomSheetState> key = GlobalKey();
   late bool _isLogin;
   bool active = false;
+  DateTime? _runningOrdersHiddenUntil;
+  String? _runningOrdersHiddenSignature;
+  static const String _runningOrdersHiddenUntilKey =
+      'running_orders_hidden_until_ms';
+  static const String _runningOrdersHiddenSignatureKey =
+      'running_orders_hidden_signature';
+  static const Duration _runningOrdersHideDuration = Duration(minutes: 30);
 
   @override
   void initState() {
@@ -84,15 +93,13 @@ class DashboardScreenState extends State<DashboardScreen> {
     _isLogin = AuthHelper.isLoggedIn();
     _applyModuleOverrideIfNeeded();
     _showRegistrationSuccessBottomSheet();
+    _loadRunningOrdersBarVisibilityState();
     if (_isLogin) {
       // Disable loyalty congratulation popup after order completion.
       if (Get.find<AuthController>().getEarningPint().isNotEmpty) {
         Get.find<AuthController>().saveEarningPoint('');
       }
-      // 🚫 REMOVED: getRunningOrders() call from DashboardScreen initState
-      // OrderScreen now loads its own data in its own initState (Law of Isolation)
-      // This prevents 118-frame skips when MultiModuleHomeScreen is shown
-      // Orders will only load when user navigates to OrderScreen tab
+      _loadRunningOrdersForGlobalBottomSheet();
     }
     _pageIndex = widget.pageIndex;
     _pageController = PageController(initialPage: widget.pageIndex);
@@ -105,6 +112,96 @@ class DashboardScreenState extends State<DashboardScreen> {
       const OrderScreen(),
       const MenuScreen()
     ];
+  }
+
+  void _loadRunningOrdersForGlobalBottomSheet() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Future.delayed(const Duration(milliseconds: 600), () {
+        if (!mounted || !_isLogin || !Get.isRegistered<OrderController>()) {
+          return;
+        }
+        final OrderController orderController = Get.find<OrderController>();
+        final bool hasRunningOrdersLoaded =
+            orderController.runningOrderModel?.orders != null;
+        if (!hasRunningOrdersLoaded) {
+          orderController.getRunningOrders(1, isUpdate: false, fromDashboard: true);
+        }
+      });
+    });
+  }
+
+  Future<void> _loadRunningOrdersBarVisibilityState() async {
+    final SharedPreferences preferences = await SharedPreferences.getInstance();
+    final int? hiddenUntilMs = preferences.getInt(_runningOrdersHiddenUntilKey);
+    final String? hiddenSignature =
+        preferences.getString(_runningOrdersHiddenSignatureKey);
+    if (!mounted) {
+      return;
+    }
+    setState(() {
+      _runningOrdersHiddenUntil = hiddenUntilMs != null
+          ? DateTime.fromMillisecondsSinceEpoch(hiddenUntilMs)
+          : null;
+      _runningOrdersHiddenSignature = hiddenSignature;
+    });
+  }
+
+  Future<void> _hideRunningOrdersBarTemporarily(
+      List<OrderModel> reversedRunningOrders) async {
+    final DateTime hideUntil = DateTime.now().add(_runningOrdersHideDuration);
+    final String signature = _buildRunningOrdersSignature(reversedRunningOrders);
+    setState(() {
+      _runningOrdersHiddenUntil = hideUntil;
+      _runningOrdersHiddenSignature = signature;
+    });
+    final SharedPreferences preferences = await SharedPreferences.getInstance();
+    await preferences.setInt(
+        _runningOrdersHiddenUntilKey, hideUntil.millisecondsSinceEpoch);
+    await preferences.setString(_runningOrdersHiddenSignatureKey, signature);
+    showCustomSnackBar('تم إخفاء شريط الطلبات مؤقتًا', isError: false);
+  }
+
+  Future<void> _clearRunningOrdersBarHiddenState() async {
+    if (_runningOrdersHiddenUntil == null && _runningOrdersHiddenSignature == null) {
+      return;
+    }
+    setState(() {
+      _runningOrdersHiddenUntil = null;
+      _runningOrdersHiddenSignature = null;
+    });
+    final SharedPreferences preferences = await SharedPreferences.getInstance();
+    await preferences.remove(_runningOrdersHiddenUntilKey);
+    await preferences.remove(_runningOrdersHiddenSignatureKey);
+  }
+
+  String _buildRunningOrdersSignature(List<OrderModel> reversedRunningOrders) {
+    return reversedRunningOrders
+        .map((OrderModel order) =>
+            '${order.id}:${order.orderStatus ?? ''}:${order.paymentStatus ?? ''}')
+        .join('|');
+  }
+
+  bool _shouldShowRunningOrdersBar(List<OrderModel> reversedRunningOrders) {
+    if (reversedRunningOrders.isEmpty) {
+      return false;
+    }
+    final DateTime? hiddenUntil = _runningOrdersHiddenUntil;
+    if (hiddenUntil == null) {
+      return true;
+    }
+    final DateTime now = DateTime.now();
+    final String currentSignature =
+        _buildRunningOrdersSignature(reversedRunningOrders);
+    final bool hasSignatureChanged = _runningOrdersHiddenSignature != null &&
+        _runningOrdersHiddenSignature != currentSignature;
+    final bool hasHideExpired = now.isAfter(hiddenUntil);
+    if (hasSignatureChanged || hasHideExpired) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _clearRunningOrdersBarHiddenState();
+      });
+      return true;
+    }
+    return false;
   }
 
   void _applyModuleOverrideIfNeeded() {
@@ -303,7 +400,8 @@ class DashboardScreenState extends State<DashboardScreen> {
                               !ResponsiveHelper.isDesktop(context)) ||
                           !_isLogin ||
                           runningOrder.isEmpty ||
-                          !orderController.showBottomSheet
+                          !orderController.showBottomSheet ||
+                          !_shouldShowRunningOrdersBar(reversOrder)
                       ? const SizedBox()
                       : Dismissible(
                           key: UniqueKey(),
@@ -311,6 +409,9 @@ class DashboardScreenState extends State<DashboardScreen> {
                               orderController.showRunningOrders(),
                           child: RunningOrderViewWidget(
                             reversOrder: reversOrder,
+                            onClose: () {
+                              _hideRunningOrdersBarTemporarily(reversOrder);
+                            },
                             onOrderTap: () {
                               _setPage(3);
                               orderController.showRunningOrders();
@@ -375,7 +476,12 @@ class DashboardScreenState extends State<DashboardScreen> {
                           final String favBadgeText =
                               favCount > 99 ? '99+' : favCount.toString();
                           final bool showFavBadge = !isParcel && favCount > 0;
-                          return AnimatedBottomNavigationBar.builder(
+                          return SafeArea(
+                            top: false,
+                            left: false,
+                            right: false,
+                            minimum: EdgeInsets.zero,
+                            child: AnimatedBottomNavigationBar.builder(
                             itemCount: iconList.length,
                             tabBuilder: (index, isActive) {
                               final Color iconColor = isActive
@@ -436,6 +542,7 @@ class DashboardScreenState extends State<DashboardScreen> {
                                   index < 2 ? index : index + 1;
                               _setPage(pageIndex);
                             },
+                          ),
                           );
                         },
                       ),

@@ -158,12 +158,14 @@ class SplashController extends GetxController implements GetxService {
       }
       // Use existing method that loads and updates Controllers directly
       // This method temporarily sets Module 3 in headers, loads content, and restores headers
-      await loadAndCachePromotionalContent();
+      await loadAndCachePromotionalContent(moduleId: 3);
       if (kDebugMode) {
         debugPrint(
             '✅ SplashController: Promotional content loaded for MultiModuleHomeScreen');
       }
     } catch (e, stackTrace) {
+      _hasLoadedPromotionalContent = false;
+      update(['promotional_content']);
       if (kDebugMode) {
         debugPrint(
             '❌ SplashController: Error loading promotional content: $e');
@@ -185,12 +187,15 @@ class SplashController extends GetxController implements GetxService {
       }
       return;
     }
-    _hasLoadedPromotionalContent = true;
+    // Keep this false until we actually load promotional data successfully.
+    // Otherwise offline failures can leave the UI stuck in a loading state.
+    _hasLoadedPromotionalContent = false;
     if (kDebugMode) {
       debugPrint(
           '🔥 SplashController: Loading promotional content (Module 3)');
     }
     await _loadPromotionalContentForMultiModuleScreen();
+    update(['promotional_content']);
   }
 
   ConfigModel? _configModel;
@@ -2756,6 +2761,7 @@ class SplashController extends GetxController implements GetxService {
           bool loadedFromUnified = false;
 
           if (Get.isRegistered<HomeUnifiedController>()) {
+
             final unifiedController = Get.find<HomeUnifiedController>();
             final cachedUnified = unifiedController.getModuleData(finalModuleId);
             if (cachedUnified?.offers != null &&

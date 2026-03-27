@@ -5,6 +5,7 @@ import 'package:sixam_mart/util/dimensions.dart';
 import 'package:sixam_mart/util/styles.dart';
 import 'package:sixam_mart/common/widgets/custom_button.dart';
 import 'package:sixam_mart/common/widgets/custom_image.dart';
+import 'package:sixam_mart/common/widgets/error_state_view.dart';
 import 'package:sixam_mart/common/widgets/no_data_screen.dart';
 import 'package:sixam_mart/common/widgets/web_menu_bar.dart';
 import 'package:flutter/material.dart';
@@ -31,6 +32,16 @@ class _InterestScreenState extends State<InterestScreen> {
       appBar: ResponsiveHelper.isDesktop(context) ? const WebMenuBar() : null,
       body: SafeArea(
         child: GetBuilder<CategoryController>(builder: (categoryController) {
+          if (categoryController.hasCategoryError &&
+              !categoryController.isLoading &&
+              (categoryController.categoryList == null ||
+                  categoryController.categoryList!.isEmpty)) {
+            return ErrorStateView(
+              onRetry: () {
+                categoryController.getCategoryList(true);
+              },
+            );
+          }
           return categoryController.categoryList != null
               ? categoryController.categoryList!.isNotEmpty
                   ? Center(

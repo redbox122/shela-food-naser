@@ -10,7 +10,9 @@ import 'package:sixam_mart/helper/date_converter.dart';
 import 'package:sixam_mart/helper/route_helper.dart';
 import 'package:sixam_mart/theme/light_theme.dart';
 import 'package:sixam_mart/util/images.dart';
+import 'package:sixam_mart/util/dimensions.dart';
 import 'package:sixam_mart/common/widgets/custom_image.dart';
+import 'package:sixam_mart/common/widgets/error_state_view.dart';
 import '../../../common/widgets/loading/loading.dart';
 import 'package:flutter/foundation.dart';
 import 'package:sixam_mart/common/utils/app_logger.dart';
@@ -55,13 +57,66 @@ class OrderViewWidget extends StatelessWidget {
               '[OrderView] tab=$isRunning showing loader (duplicate guard)');
           return const Center(child: LoadingWidget());
         }
+        if (paginatedOrderModel == null && orderController.hasOrderError) {
+          return ErrorStateView(
+            onRetry: () {
+              if (isRunning == 0) {
+                orderController.getRunningOrders(1, isUpdate: true);
+              } else {
+                orderController.getHistoryOrders(1, isUpdate: true);
+              }
+            },
+          );
+        }
 
         if (paginatedOrderModel == null ||
             paginatedOrderModel.orders == null ||
             paginatedOrderModel.orders!.isEmpty) {
           debugPrint(
               '[OrderView] tab=$isRunning empty: model/orders null or empty');
-          return Center(child: Text('no_order_found'.tr));
+          return Center(
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.shopping_bag_outlined,
+                    size: 64,
+                    color: Theme.of(context).disabledColor,
+                  ),
+                  const SizedBox(height: Dimensions.paddingSizeDefault),
+                  Text(
+                    'no_orders_yet'.tr,
+                    textAlign: TextAlign.center,
+                    style: Theme.of(context).textTheme.bodyMedium,
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'no_orders_yet_subtitle'.tr,
+                    textAlign: TextAlign.center,
+                    style: Theme.of(context)
+                        .textTheme
+                        .bodySmall
+                        ?.copyWith(color: Theme.of(context).hintColor),
+                  ),
+                  const SizedBox(height: 16),
+                  TextButton(
+                    onPressed: () {
+                      Get.toNamed<void>(RouteHelper.getMainRoute('home'));
+                    },
+                    child: Text(
+                      'order_now'.tr,
+                      style: TextStyle(
+                        color: Theme.of(context).primaryColor,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
         }
 
         // Filter out orders with unpaid payment status
@@ -76,7 +131,49 @@ class OrderViewWidget extends StatelessWidget {
         if (filteredOrders.isEmpty) {
           debugPrint(
               '[OrderView] tab=$isRunning empty after paymentStatus filtering');
-          return Center(child: Text('no_order_found'.tr));
+          return Center(
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.shopping_bag_outlined,
+                    size: 64,
+                    color: Theme.of(context).disabledColor,
+                  ),
+                  const SizedBox(height: Dimensions.paddingSizeDefault),
+                  Text(
+                    'no_orders_yet'.tr,
+                    textAlign: TextAlign.center,
+                    style: Theme.of(context).textTheme.bodyMedium,
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'no_orders_yet_subtitle'.tr,
+                    textAlign: TextAlign.center,
+                    style: Theme.of(context)
+                        .textTheme
+                        .bodySmall
+                        ?.copyWith(color: Theme.of(context).hintColor),
+                  ),
+                  const SizedBox(height: 16),
+                  TextButton(
+                    onPressed: () {
+                      Get.toNamed<void>(RouteHelper.getMainRoute('home'));
+                    },
+                    child: Text(
+                      'order_now'.tr,
+                      style: TextStyle(
+                        color: Theme.of(context).primaryColor,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
         }
 
         return RefreshIndicator(

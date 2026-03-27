@@ -4,6 +4,7 @@ import 'package:sixam_mart/common/widgets/confirmation_dialog.dart';
 import 'package:sixam_mart/common/widgets/custom_app_bar.dart';
 import 'package:sixam_mart/common/widgets/custom_button.dart';
 import 'package:sixam_mart/common/widgets/custom_image.dart';
+import 'package:sixam_mart/common/widgets/error_state_view.dart';
 import 'package:sixam_mart/common/widgets/footer_view.dart';
 import 'package:sixam_mart/common/widgets/web_page_title_widget.dart';
 import 'package:sixam_mart/features/auth/widgets/web_registration_stepper_widget.dart';
@@ -49,7 +50,16 @@ class _SubscriptionPaymentScreenState extends State<SubscriptionPaymentScreen> {
         },
         child: Scaffold(
           appBar: isDesktop ? CustomAppBar(title: 'vendor_registration'.tr) : null,
-          body: Column(children: [
+          body: businessController.hasBusinessPlanError && !businessController.isLoading
+              ? ErrorStateView(
+                  onRetry: () {
+                    businessController.submitBusinessPlan(
+                      storeId: widget.storeId,
+                      packageId: widget.packageId,
+                    );
+                  },
+                )
+              : Column(children: [
             WebScreenTitleWidget(title: 'join_as_vendor'.tr),
             const SizedBox(height: Dimensions.paddingSizeExtraOverLarge),
             isDesktop
@@ -257,16 +267,20 @@ class _SubscriptionPaymentScreenState extends State<SubscriptionPaymentScreen> {
                     ),
                     padding:
                         const EdgeInsets.symmetric(horizontal: Dimensions.paddingSizeLarge, vertical: Dimensions.paddingSizeDefault),
-                    child: CustomButton(
-                      buttonText: 'confirm'.tr,
-                      isLoading: businessController.isLoading,
-                      onPressed: () {
-                        businessController.submitBusinessPlan(storeId: widget.storeId, packageId: widget.packageId);
-                      },
-                    ),
+                    child: businessController.isLoading
+                        ? const Center(child: CircularProgressIndicator())
+                        : CustomButton(
+                            buttonText: 'confirm'.tr,
+                            isLoading: false,
+                            onPressed: () {
+                              businessController.submitBusinessPlan(
+                                  storeId: widget.storeId,
+                                  packageId: widget.packageId);
+                            },
+                          ),
                   )
                 : const SizedBox(),
-          ]),
+                ]),
         ),
       );
     });

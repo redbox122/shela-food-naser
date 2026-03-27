@@ -20,6 +20,7 @@ import 'package:sixam_mart/common/utils/app_logger.dart';
 import 'package:sixam_mart/features/home/widgets/shop_home_skeleton.dart';
 import 'package:sixam_mart/helper/string_extension.dart';
 import 'package:sixam_mart/features/home/widgets/home_screen_data_provider.dart';
+import 'package:sixam_mart/common/widgets/error_state_view.dart';
 
 class ShopHomeScreen extends StatefulWidget {
   const ShopHomeScreen({super.key});
@@ -474,6 +475,16 @@ class _ShopHomeScreenState extends State<ShopHomeScreen> {
     return GetBuilder<HomeUnifiedController>(
       assignId: true,
       builder: (unifiedController) {
+        if (unifiedController.hasError && !unifiedController.isLoading) {
+          return ErrorStateView(
+            onRetry: () {
+              unifiedController.loadHomeData(
+                forceRefresh: true,
+                showLoading: true,
+              );
+            },
+          );
+        }
         // Show shimmer if no cached data and still loading
         if (!unifiedController.hasCachedData && unifiedController.isLoading) {
           return const ShopHomeSkeleton();

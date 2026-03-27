@@ -29,7 +29,13 @@ class _DeliveryInstructionBottomSheetWidgetState extends State<DeliveryInstructi
   Widget build(BuildContext context) {
     return GetBuilder<ParcelController>(
       builder: (parcelController) {
-        return Container(
+        return SafeArea(
+          top: false,
+          bottom: true,
+          left: false,
+          right: false,
+          minimum: EdgeInsets.zero,
+          child: Container(
           constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.8, minHeight: 250, maxWidth: 500),
           padding: const EdgeInsets.all(Dimensions.paddingSizeDefault),
           decoration: BoxDecoration(
@@ -115,9 +121,9 @@ class _DeliveryInstructionBottomSheetWidgetState extends State<DeliveryInstructi
 
             ]),
           ) : const Center(child: CircularProgressIndicator()),
-
+        ),
         );
-      }
+      },
     );
   }
 }

@@ -38,6 +38,7 @@ import 'package:sixam_mart/common/widgets/web_constrained_box.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
+import 'package:sixam_mart/common/widgets/error_state_view.dart';
 import 'package:sixam_mart/features/cart/widgets/web_cart_items_widget.dart';
 import 'package:sixam_mart/features/home/screens/home_screen.dart';
 import '../../my_coupon/controllers/my_coupon_controller.dart';
@@ -417,7 +418,13 @@ class _CartScreenState extends State<CartScreen> {
         backgroundColor: Colors.white,
         appBar: _buildModernHeader(),
         endDrawerEnableOpenDragGesture: false,
-        body: GetBuilder<StoreController>(builder: (storeController) {
+        body: SafeArea(
+          top: false,
+          bottom: true,
+          left: false,
+          right: false,
+          minimum: EdgeInsets.zero,
+          child: GetBuilder<StoreController>(builder: (storeController) {
           // #region agent log
           _writeDebugLog(
               'cart_screen.dart:280',
@@ -791,11 +798,24 @@ class _CartScreenState extends State<CartScreen> {
                           ),
                   ]);
                 } else {
-                  return const NoDataScreen(
-                      isCart: true, text: '', showFooter: true);
+                  if (cartController.hasCartError) {
+                    return ErrorStateView(
+                      onRetry: () {
+                        cartController.getCartDataOnline(forceRefresh: true);
+                      },
+                    );
+                  }
+
+                  return NoDataScreen(
+                    isCart: true,
+                    text: '',
+                    subtitle: 'cart_empty_subtitle'.tr,
+                    showFooter: true,
+                  );
                 }
               });
         }),
+        ),
       ),
     );
   }

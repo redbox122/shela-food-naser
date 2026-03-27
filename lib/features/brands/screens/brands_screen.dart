@@ -5,10 +5,12 @@ import 'package:sixam_mart/common/widgets/custom_image.dart';
 import 'package:sixam_mart/common/widgets/footer_view.dart';
 import 'package:sixam_mart/common/widgets/web_page_title_widget.dart';
 import 'package:sixam_mart/features/brands/controllers/brands_controller.dart';
+import 'package:sixam_mart/common/enums/data_source_enum.dart';
 import 'package:sixam_mart/helper/responsive_helper.dart';
 import 'package:sixam_mart/helper/route_helper.dart';
 import 'package:sixam_mart/util/dimensions.dart';
 import 'package:sixam_mart/util/styles.dart';
+import 'package:sixam_mart/common/widgets/error_state_view.dart';
 
 class BrandsScreen extends StatefulWidget {
   const BrandsScreen({super.key});
@@ -83,11 +85,29 @@ class _BrandsScreenState extends State<BrandsScreen> {
                               );
                             },
                           )
-                        : Center(
+                        : brandsController.isBrandLoadError
+                            ? ErrorStateView(
+                                onRetry: () {
+                                  brandsController.getBrandList(
+                                    dataSource: DataSourceEnum.client,
+                                    forceRefresh: true,
+                                  );
+                                },
+                              )
+                            : Center(
                             child: Padding(
                                 padding: EdgeInsets.only(top: isDesktop ? context.height * 0.3 : context.height * 0.4),
                                 child: Text('no_brands_found'.tr)))
-                    : Center(
+                    : brandsController.isBrandLoadError
+                        ? ErrorStateView(
+                            onRetry: () {
+                              brandsController.getBrandList(
+                                dataSource: DataSourceEnum.client,
+                                forceRefresh: true,
+                              );
+                            },
+                          )
+                        : Center(
                         child: Padding(
                             padding: EdgeInsets.only(top: isDesktop ? context.height * 0.3 : context.height * 0.4),
                             child: const CircularProgressIndicator())),

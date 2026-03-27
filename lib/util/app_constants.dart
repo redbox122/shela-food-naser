@@ -559,9 +559,8 @@ class AppConstants {
       '$storageBaseUrl/offers-banners';
 
   /// External URLs (moved from hardcoded strings)
-  static const String investorJoinUrl =
-      'https://dev.shelafood.com/join-as-investor';
-  static const String qaydhaWebsiteUrl = 'https://www.qaydha.com/';
+  static const String investorJoinUrl = 'https://app.shelafood.com/';
+  static const String qaydhaWebsiteUrl = 'https://app.shelafood.com/';
 
   /// Placeholder image URLs (for fallback only - should be replaced with local assets)
   static const String placeholderImageUrl = 'https://via.placeholder.com/100';

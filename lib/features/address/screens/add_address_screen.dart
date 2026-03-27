@@ -1371,7 +1371,7 @@ class _AddAddressScreenState extends State<AddAddressScreen> {
       permission = await Geolocator.requestPermission();
     }
     if (permission == LocationPermission.denied) {
-      showCustomSnackBar('you_have_to_allow'.tr);
+      Get.dialog(const PermissionDialogWidget());
     } else if (permission == LocationPermission.deniedForever) {
       Get.dialog(const PermissionDialogWidget());
     } else {

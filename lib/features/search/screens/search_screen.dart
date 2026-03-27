@@ -22,6 +22,7 @@ import 'package:sixam_mart/features/item/controllers/item_controller.dart';
 import 'package:sixam_mart/features/item/domain/models/item_model.dart';
 import 'package:sixam_mart/features/store/domain/models/store_model.dart';
 import 'package:sixam_mart/common/widgets/loading/loading.dart';
+import 'package:sixam_mart/common/widgets/error_state_view.dart';
 
 class SearchScreen extends StatefulWidget {
   final String? queryText;
@@ -1181,6 +1182,23 @@ class SearchScreenState extends State<SearchScreen>
             ),
           ),
           const SizedBox(height: DesignTokens.spaceLarge),
+        ] else if (searchController.trendingCategoryList == null) ...[
+          const Center(
+            child: Padding(
+              padding: EdgeInsets.all(DesignTokens.spaceDefault),
+              child: CircularProgressIndicator(
+                color: DesignTokens.secondaryOrange,
+              ),
+            ),
+          ),
+          const SizedBox(height: DesignTokens.spaceLarge),
+        ] else if (searchController.hasTrendingCategoriesError) ...[
+          ErrorStateView(
+            onRetry: () {
+              searchController.getTrendingCategories();
+            },
+          ),
+          const SizedBox(height: DesignTokens.spaceLarge),
         ],
 
         // Most Searched Categories
@@ -1223,6 +1241,12 @@ class SearchScreenState extends State<SearchScreen>
               ),
             ),
           ),
+        ] else if (searchController.hasPopularCategoriesError) ...[
+          ErrorStateView(
+            onRetry: () {
+              searchController.getPopularCategories();
+            },
+          ),
         ],
         // If empty, just don't show anything (no hardcoded defaults)
       ],
@@ -1232,6 +1256,16 @@ class SearchScreenState extends State<SearchScreen>
   /// Search results section - filtered by selected tab (Products vs Stores)
   Widget _SearchResultsSection(search.Search_Controller searchController) {
     final isStoreTab = searchController.isStore;
+    if (!searchController.isLoading && searchController.hasError) {
+      return ErrorStateView(
+        onRetry: () {
+          final String query = (searchController.searchText ?? '').trim();
+          if (query.isNotEmpty) {
+            searchController.searchData(query: query, fromHome: false);
+          }
+        },
+      );
+    }
 
     // ✅ Show beautiful loading indicator while searching
     if (searchController.isLoading) {
@@ -1260,13 +1294,28 @@ class SearchScreenState extends State<SearchScreen>
             Center(
               child: Padding(
                 padding: const EdgeInsets.all(DesignTokens.spaceLarge),
-                child: Text(
-                  'no_results_found'.tr,
-                  style: const TextStyle(
-                    color: DesignTokens.textLight,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w400,
-                  ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      'no_results_found'.tr,
+                      style: const TextStyle(
+                        color: DesignTokens.textLight,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w400,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'no_results_found_subtitle'.tr,
+                      style: TextStyle(
+                        color: DesignTokens.textLight.withValues(alpha: 0.8),
+                        fontSize: 13,
+                        fontWeight: FontWeight.w400,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
                 ),
               ),
             ),
@@ -1297,6 +1346,16 @@ class SearchScreenState extends State<SearchScreen>
         ),
       );
     }
+    if (searchController.hasError) {
+      return ErrorStateView(
+        onRetry: () {
+          final String query = (searchController.searchText ?? '').trim();
+          if (query.isNotEmpty) {
+            searchController.searchData(query: query, fromHome: false);
+          }
+        },
+      );
+    }
 
     if (searchController.searchItemList == null) {
       return const SizedBox.shrink();
@@ -1306,13 +1365,28 @@ class SearchScreenState extends State<SearchScreen>
       return Center(
         child: Padding(
           padding: const EdgeInsets.all(DesignTokens.spaceLarge),
-          child: Text(
-            'no_results_found'.tr,
-            style: const TextStyle(
-              color: DesignTokens.textLight,
-              fontSize: 14,
-              fontWeight: FontWeight.w400,
-            ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'no_results_found'.tr,
+                style: const TextStyle(
+                  color: DesignTokens.textLight,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w400,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'no_results_found_subtitle'.tr,
+                style: TextStyle(
+                  color: DesignTokens.textLight.withValues(alpha: 0.8),
+                  fontSize: 13,
+                  fontWeight: FontWeight.w400,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ],
           ),
         ),
       );
@@ -1342,13 +1416,28 @@ class SearchScreenState extends State<SearchScreen>
       return Center(
         child: Padding(
           padding: const EdgeInsets.all(DesignTokens.spaceLarge),
-          child: Text(
-            'no_results_found'.tr,
-            style: const TextStyle(
-              color: DesignTokens.textLight,
-              fontSize: 14,
-              fontWeight: FontWeight.w400,
-            ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'no_results_found'.tr,
+                style: const TextStyle(
+                  color: DesignTokens.textLight,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w400,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'no_results_found_subtitle'.tr,
+                style: TextStyle(
+                  color: DesignTokens.textLight.withValues(alpha: 0.8),
+                  fontSize: 13,
+                  fontWeight: FontWeight.w400,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ],
           ),
         ),
       );

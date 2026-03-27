@@ -24,7 +24,7 @@ class PermissionDialogWidget extends StatelessWidget {
             const SizedBox(height: Dimensions.paddingSizeLarge),
 
             Text(
-              'you_denied_location_permission'.tr, textAlign: TextAlign.center,
+              'location_access_required_to_use_feature'.tr, textAlign: TextAlign.center,
               style: robotoMedium.copyWith(fontSize: Dimensions.fontSizeLarge),
             ),
             const SizedBox(height: Dimensions.paddingSizeLarge),
@@ -36,7 +36,7 @@ class PermissionDialogWidget extends StatelessWidget {
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(Dimensions.radiusSmall), side: BorderSide(width: 2, color: Theme.of(context).primaryColor)),
                     minimumSize: const Size(1, 50),
                   ),
-                  child: Text('close'.tr),
+                  child: Text('not_now'.tr),
                   onPressed: () => Navigator.pop(context),
                 ),
               ),

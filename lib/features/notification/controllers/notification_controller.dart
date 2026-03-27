@@ -15,6 +15,8 @@ class NotificationController extends GetxController implements GetxService {
 
   bool _hasNotification = false;
   bool get hasNotification => _hasNotification;
+  bool _hasError = false;
+  bool get hasError => _hasError;
 
   // Task 1: Reactive unread notification signal
   final RxBool hasUnread = false.obs;
@@ -22,6 +24,7 @@ class NotificationController extends GetxController implements GetxService {
   Future<int> getNotificationList(bool reload) async {
     if (_notificationList == null || reload) {
       try {
+        _hasError = false;
         final List<NotificationModel>? notificationList =
             await notificationServiceInterface.getNotificationList();
 
@@ -61,6 +64,7 @@ class NotificationController extends GetxController implements GetxService {
           }
         }
       } catch (e) {
+        _hasError = true;
         _notificationList = <NotificationModel>[];
         _hasNotification = false;
         hasUnread.value = false;

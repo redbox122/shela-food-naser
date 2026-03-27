@@ -160,6 +160,10 @@ class _NewUserSetupScreenState extends State<NewUserSetupScreen> {
                     height:
                         (Get.find<SplashController>().configModel!.refEarningStatus == 1) ? Dimensions.paddingSizeExtraOverLarge : 0),
                 GetBuilder<AuthController>(builder: (authController) {
+                  if (authController.isLoading) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+
                   return CustomButton(
                     height: ResponsiveHelper.isDesktop(context) ? 50 : null,
                     width: ResponsiveHelper.isDesktop(context) ? 250 : null,
@@ -167,12 +171,14 @@ class _NewUserSetupScreenState extends State<NewUserSetupScreen> {
                     isBold: !ResponsiveHelper.isDesktop(context),
                     fontSize: ResponsiveHelper.isDesktop(context) ? Dimensions.fontSizeSmall : null,
                     buttonText: 'done'.tr,
-                    isLoading: authController.isLoading,
+                    isLoading: false,
                     onPressed: () async {
                       if (_formKeyInfo!.currentState!.validate()) {
                         if (widget.phone == null || widget.phone!.isEmpty) {
-                          String numberWithCountryCode = _countryDialCode! + _phoneController.text.trim();
-                          final PhoneValid phoneValid = await CustomValidator.isPhoneValid(numberWithCountryCode);
+                          String numberWithCountryCode =
+                              _countryDialCode! + _phoneController.text.trim();
+                          final PhoneValid phoneValid =
+                              await CustomValidator.isPhoneValid(numberWithCountryCode);
                           numberWithCountryCode = phoneValid.phone;
                           if (!phoneValid.isValid) {
                             showCustomSnackBar('invalid_phone_number'.tr);

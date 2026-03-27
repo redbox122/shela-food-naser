@@ -109,6 +109,11 @@ class NotificationService {
   // Foreground notification
   Future<void> _onMessage(RemoteMessage message) async {
     print('Foreground message: ${message.notification?.title}');
+    if (_shouldSuppressForegroundOrderNotification(message)) {
+      print(
+          '🔕 NotificationService: Suppressed pending/unpaid order notification during payment webview');
+      return;
+    }
     if (message.notification != null) {
       await NotificationService.showNotification(message);
       _handleNotificationTap(message);
@@ -122,6 +127,11 @@ class NotificationService {
   Future<void> _onInitialMessage(RemoteMessage? message) async {
     if (message != null) {
       print('Terminated state message: ${message.notification?.title}');
+      if (_shouldSuppressForegroundOrderNotification(message)) {
+        print(
+            '🔕 NotificationService: Suppressed pending/unpaid initial order notification during payment webview');
+        return;
+      }
       if (message.notification != null) {
         await NotificationService.showNotification(message);
         _handleNotificationTap(message);
@@ -253,5 +263,52 @@ class NotificationService {
     } catch (e) {
       print('🔔 NotificationService: Error saving notification for popup: $e');
     }
+  }
+
+  bool _shouldSuppressForegroundOrderNotification(RemoteMessage message) {
+    final String currentRoute = Get.currentRoute.toLowerCase();
+    final bool isOnPaymentWebView =
+        currentRoute.contains('myfatoorahpaymentwebviewscreen'.toLowerCase());
+    if (!isOnPaymentWebView) {
+      return false;
+    }
+    final Map<String, dynamic> data = message.data;
+    final String type = (data['type'] ?? data['notification_type'] ?? '')
+        .toString()
+        .toLowerCase();
+    final String title = (message.notification?.title ?? '').toLowerCase();
+    final String body = (message.notification?.body ?? '').toLowerCase();
+    final String paymentStatus =
+        (data['payment_status'] ?? '').toString().toLowerCase();
+    final String orderStatus = (data['order_status'] ?? '').toString().toLowerCase();
+    final bool hasOrderId = data['order_id'] != null;
+    final bool isOrderLike = hasOrderId ||
+        type.contains('order') ||
+        title.contains('order') ||
+        body.contains('order') ||
+        title.contains('طلب') ||
+        body.contains('طلب');
+    if (!isOrderLike) {
+      return false;
+    }
+    const Set<String> pendingPaymentStates = <String>{
+      '',
+      'unpaid',
+      'pending',
+      'created',
+    };
+    const Set<String> nonFinalOrderStates = <String>{
+      '',
+      'pending',
+      'confirmed',
+      'processing',
+      'accepted',
+      'handover',
+      'picked_up',
+      'out_for_delivery',
+      'ongoing',
+    };
+    return pendingPaymentStates.contains(paymentStatus) ||
+        nonFinalOrderStates.contains(orderStatus);
   }
 }

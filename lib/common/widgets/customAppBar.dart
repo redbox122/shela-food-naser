@@ -34,11 +34,11 @@ PreferredSize customAppBar(BuildContext context, {String? title, String? img, Ic
               ),
             ),
           ),
-          Positioned(
+          PositionedDirectional(
             bottom: 10,
-            right: 15,
+            start: 15,
             child: IconButton(
-              icon: const Icon(Icons.arrow_back_sharp, color: Colors.white, size: 26),
+              icon: const Icon(Icons.arrow_back, color: Colors.white, size: 26),
               onPressed: onPressed ??
                   () {
                     Navigator.pop(context);

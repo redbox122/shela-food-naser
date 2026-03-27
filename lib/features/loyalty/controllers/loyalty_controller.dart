@@ -24,7 +24,11 @@ class LoyaltyController extends GetxController implements GetxService {
   bool _isLoading = false;
   bool get isLoading => _isLoading;
 
+  bool _hasTransactionError = false;
+  bool get hasTransactionError => _hasTransactionError;
+
   Future<void> getLoyaltyTransactionList(String offset, bool reload) async {
+    _hasTransactionError = false;
     if (kDebugMode) {
       debugPrint('🎁 [LoyaltyController] getLoyaltyTransactionList() called');
       debugPrint('   📄 offset: $offset');
@@ -50,7 +54,20 @@ class LoyaltyController extends GetxController implements GetxService {
         debugPrint('   📡 API: /api/v1/customer/loyalty-point/transactions?offset=$offset&limit=10');
       }
       
-      final TransactionModel? transactionModel = await loyaltyServiceInterface.getLoyaltyTransactionList(offset);
+      TransactionModel? transactionModel;
+      try {
+        transactionModel =
+            await loyaltyServiceInterface.getLoyaltyTransactionList(offset);
+      } catch (e) {
+        _hasTransactionError = true;
+        _isLoading = false;
+        if (kDebugMode) {
+          debugPrint(
+              '🎁 [LoyaltyController] ❌ Exception in getLoyaltyTransactionList: $e');
+        }
+        update();
+        return;
+      }
 
       if (transactionModel != null) {
         if (offset == '1') {
@@ -70,6 +87,7 @@ class LoyaltyController extends GetxController implements GetxService {
         _isLoading = false;
         update();
       } else {
+        _hasTransactionError = true;
         if (kDebugMode) {
           debugPrint('🎁 [LoyaltyController] ⚠️ API returned null transaction model');
         }

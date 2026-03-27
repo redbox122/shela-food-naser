@@ -49,7 +49,7 @@ class SignUpScreenState extends State<SignUpScreen> {
                 children: [
                   ResponsiveHelper.isDesktop(context)
                       ? Align(
-                          alignment: Alignment.topRight,
+                          alignment: AlignmentDirectional.topEnd,
                           child: IconButton(
                             onPressed: () => Get.back(),
                             icon: const Icon(Icons.clear),
@@ -59,7 +59,7 @@ class SignUpScreenState extends State<SignUpScreen> {
                   Image.asset(Images.logo, width: 125),
                   const SizedBox(height: Dimensions.paddingSizeExtraLarge),
                   Align(
-                    alignment: Alignment.topRight,
+                    alignment: AlignmentDirectional.topEnd,
                     child: Text('sign_up'.tr, style: robotoBold.copyWith(fontSize: Dimensions.fontSizeExtraLarge)),
                   ),
                   const SizedBox(height: Dimensions.paddingSizeDefault),

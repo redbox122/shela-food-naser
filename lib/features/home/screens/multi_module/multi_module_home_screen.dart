@@ -21,6 +21,8 @@ import 'package:sixam_mart/features/banner/controllers/banner_controller.dart';
 import 'package:sixam_mart/features/offers/widgets/offers_view.dart';
 import 'package:sixam_mart/features/offers/controllers/offers_controller.dart';
 import 'package:sixam_mart/features/home/widgets/views/promotional_banner_view.dart';
+import 'package:sixam_mart/common/widgets/no_data_screen.dart';
+import 'package:sixam_mart/common/widgets/error_state_view.dart';
 import 'package:sixam_mart/common/utils/app_logger.dart';
 
 const double _sectionRadius = 16;
@@ -44,6 +46,7 @@ class MultiModuleHomeScreen extends StatefulWidget {
 class _MultiModuleHomeScreenState extends State<MultiModuleHomeScreen> {
   bool _isPromotionalRetryScheduled = false;
   bool _hasTriggeredPromotionalRecovery = false;
+  bool _isModulesRetryScheduled = false;
   @override
   void initState() {
     super.initState();
@@ -74,7 +77,9 @@ class _MultiModuleHomeScreenState extends State<MultiModuleHomeScreen> {
           !_hasTriggeredPromotionalRecovery) {
         _hasTriggeredPromotionalRecovery = true;
         final SplashController splashController = Get.find<SplashController>();
-        splashController.loadAndCachePromotionalContent();
+        splashController.loadAndCachePromotionalContent(
+          moduleId: MultiModuleHomeScreen.kPromotionalModuleId,
+        );
       }
     });
   }
@@ -139,7 +144,42 @@ class _MultiModuleHomeScreenState extends State<MultiModuleHomeScreen> {
         builder: (splashController) {
           final modules = splashController.moduleList;
           if (modules == null || modules.isEmpty) {
-            return const Center(child: CircularProgressIndicator());
+            if (splashController.hasConnection && !_isModulesRetryScheduled) {
+              _isModulesRetryScheduled = true;
+              Future.microtask(() async {
+                if (!mounted) {
+                  return;
+                }
+                await splashController.getModules();
+                if (mounted) {
+                  _isModulesRetryScheduled = false;
+                }
+              });
+            }
+            if (!splashController.hasConnection) {
+              return ErrorStateView(
+                onRetry: () async {
+                  await splashController.getModules();
+                  await splashController.loadAndCachePromotionalContent(
+                    moduleId: MultiModuleHomeScreen.kPromotionalModuleId,
+                  );
+                },
+              );
+            }
+            return NoDataScreen(
+              text: 'home_no_places_available'.tr,
+              subtitle: 'home_no_places_available_subtitle'.tr,
+              actionWidget: ElevatedButton(
+                onPressed: () async {
+                  await splashController.getModules();
+                  await splashController.loadAndCachePromotionalContent(
+                    moduleId: MultiModuleHomeScreen.kPromotionalModuleId,
+                  );
+                },
+                child: Text('retry'.tr),
+              ),
+              showFooter: false,
+            );
           }
           // 🔧 CRITICAL FIX: Wrap content with Obx to reactively listen to selectedModule changes
           // This ensures UI rebuilds when module is selected (even if already cached)
@@ -180,12 +220,16 @@ class _MultiModuleHomeScreenState extends State<MultiModuleHomeScreen> {
                                     ?.bottomSectionBannerFullUrl
                                     ?.isNotEmpty ??
                                 false;
+                            if (hasData || hasPromotionalBanner) {
+                              _hasTriggeredPromotionalRecovery = false;
+                            }
                             // Retry in-build only when top banner data is missing.
                             // Do not loop forever when promotional banner endpoint has no URL.
                             if (!hasData &&
                                 !bannerController.isLoading &&
                                 !_isPromotionalRetryScheduled &&
-                                !_hasTriggeredPromotionalRecovery) {
+                                (!_hasTriggeredPromotionalRecovery ||
+                                    splashController.hasConnection)) {
                               _isPromotionalRetryScheduled = true;
                               _hasTriggeredPromotionalRecovery = true;
                               Future.microtask(() async {
@@ -194,7 +238,10 @@ class _MultiModuleHomeScreenState extends State<MultiModuleHomeScreen> {
                                 }
                                 if (Get.isRegistered<SplashController>()) {
                                   await Get.find<SplashController>()
-                                      .loadAndCachePromotionalContent();
+                                      .loadAndCachePromotionalContent(
+                                    moduleId:
+                                        MultiModuleHomeScreen.kPromotionalModuleId,
+                                  );
                                 }
                                 if (mounted) {
                                   _isPromotionalRetryScheduled = false;
@@ -204,7 +251,16 @@ class _MultiModuleHomeScreenState extends State<MultiModuleHomeScreen> {
                             if (!splashController.isPromotionalContentReady &&
                                 !hasData &&
                                 !hasPromotionalBanner) {
-                              return const SizedBox.shrink();
+                              return ErrorStateView(
+                                onRetry: () {
+                                  _hasTriggeredPromotionalRecovery = false;
+                                  splashController
+                                      .loadAndCachePromotionalContent(
+                                    moduleId:
+                                        MultiModuleHomeScreen.kPromotionalModuleId,
+                                  );
+                                },
+                              );
                             }
                             if (!hasData && hasPromotionalBanner) {
                               return const PromotionalBannerView();
@@ -320,7 +376,12 @@ class _MultiModuleHomeScreenState extends State<MultiModuleHomeScreen> {
                   final String favBadgeText =
                       favCount > 99 ? '99+' : favCount.toString();
                   final bool showFavBadge = !isParcel && favCount > 0;
-                  return AnimatedBottomNavigationBar.builder(
+                  return SafeArea(
+                    top: false,
+                    left: false,
+                    right: false,
+                    minimum: EdgeInsets.zero,
+                    child: AnimatedBottomNavigationBar.builder(
                     itemCount: iconList.length,
                     tabBuilder: (index, isActive) {
                       final Color iconColor = isActive
@@ -379,6 +440,7 @@ class _MultiModuleHomeScreenState extends State<MultiModuleHomeScreen> {
                         ),
                       );
                     },
+                  ),
                   );
                 });
               },

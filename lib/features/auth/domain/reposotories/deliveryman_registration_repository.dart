@@ -184,16 +184,45 @@ class DeliverymanRegistrationRepository
       'phone': phone,
     };
 
-    final Response response = await apiClient.postData(AppConstants.statusUri, data);
+    // Try known backend variants in order:
+    // 1) current configured uri
+    // 2) direct /delivery-man/status (without auth/customer prefix)
+    // 3) customer-prefixed fallback
+    final List<String> endpointCandidates = <String>[
+      AppConstants.statusUri,
+      '/api/v1/delivery-man/status',
+      '/api/v1/customer/delivery-man/status',
+    ].toSet().toList();
 
-    if (response.statusCode == 200 || response.statusCode == 201) {
-      debugPrint('\x1B[32m  ${response.statusCode}  \x1B[0m');
+    Response? lastResponse;
+    for (final uri in endpointCandidates) {
+      debugPrint('[DM-REG] getStatus -> POST $uri body=$data');
+      final Response response = await apiClient.postData(
+        uri,
+        data,
+        handleError: false,
+      );
+      lastResponse = response;
 
-      return StatusModel.fromJson(response.body as Map<String, dynamic>);
-    } else {
-      debugPrint('\x1B[31m Error: ${response.statusCode} \x1B[0m');
-      throw Exception('Failed to load status');
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        debugPrint('[DM-REG] getStatus <- ${response.statusCode} uri=$uri body=${response.body}');
+        return StatusModel.fromJson(response.body as Map<String, dynamic>);
+      }
+
+      debugPrint('[DM-REG] getStatus miss uri=$uri status=${response.statusCode}');
     }
+
+    debugPrint(
+        '[DM-REG] getStatus failed status=${lastResponse?.statusCode} body=${lastResponse?.body}');
+    return StatusModel(
+      success: false,
+      message:
+          'status endpoint not found or failed (${lastResponse?.statusCode ?? 'unknown'})',
+      name: null,
+      phone: phone,
+      email: null,
+      status: null,
+    );
   }
 
   @override

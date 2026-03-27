@@ -5,10 +5,12 @@ import 'package:sixam_mart/common/widgets/custom_app_bar.dart';
 import 'package:sixam_mart/common/widgets/footer_view.dart';
 import 'package:sixam_mart/common/widgets/item_view.dart';
 import 'package:sixam_mart/common/widgets/loading/loading.dart';
+import 'package:sixam_mart/common/widgets/error_state_view.dart';
 import 'package:shimmer_animation/shimmer_animation.dart';
 import 'package:sixam_mart/common/widgets/web_page_title_widget.dart';
 import 'package:sixam_mart/features/item/domain/models/item_model.dart';
 import 'package:sixam_mart/features/category/controllers/category_controller.dart';
+import 'package:sixam_mart/features/splash/controllers/splash_controller.dart';
 import 'package:sixam_mart/helper/responsive_helper.dart';
 import 'package:sixam_mart/util/dimensions.dart';
 import 'package:sixam_mart/util/styles.dart';
@@ -195,7 +197,33 @@ class _OffersItemScreen extends State<OffersItemScreen> {
 
     return Scaffold(
       appBar: CustomAppBar(title: widget.offerName),
-      body: GetBuilder<Offers_Controller>(builder: (offersController) {
+      body: SafeArea(
+        top: false,
+        bottom: true,
+        left: false,
+        right: false,
+        minimum: EdgeInsets.zero,
+        child: GetBuilder<Offers_Controller>(builder: (offersController) {
+        final bool hasNoOfferItems =
+            (offersController.offersItemList == null ||
+                offersController.offersItemList!.isEmpty);
+        final bool shouldShowOffersNetworkError =
+            (!Get.find<SplashController>().hasConnection ||
+                    offersController.hasItemsError) &&
+                !offersController.isItemsLoading &&
+                !offersController.isSearching &&
+                hasNoOfferItems;
+        if (shouldShowOffersNetworkError) {
+          return ErrorStateView(
+            onRetry: () {
+              offersController.getOffersItemList(
+                id: widget.offerId.toString(),
+                offset: 1,
+                forceRefresh: true,
+              );
+            },
+          );
+        }
         // Show loading screen for initial load
         if (offersController.offersItemList == null &&
             !offersController.isItemsLoading &&
@@ -376,6 +404,7 @@ class _OffersItemScreen extends State<OffersItemScreen> {
           );
         });
       }),
+      ),
     );
   }
 
@@ -504,7 +533,13 @@ class _OffersItemScreen extends State<OffersItemScreen> {
           minChildSize: 0.5,
           maxChildSize: 0.95,
           expand: false,
-          builder: (context, scrollController) => Container(
+          builder: (context, scrollController) => SafeArea(
+            top: false,
+            bottom: true,
+            left: false,
+            right: false,
+            minimum: EdgeInsets.zero,
+            child: Container(
             padding: const EdgeInsets.all(Dimensions.paddingSizeDefault),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -615,6 +650,7 @@ class _OffersItemScreen extends State<OffersItemScreen> {
                 ),
               ],
             ),
+          ),
           ),
         ),
       ),

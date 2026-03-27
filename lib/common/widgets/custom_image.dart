@@ -55,6 +55,8 @@ class CustomImage extends StatefulWidget {
 }
 
 class _CustomImageState extends State<CustomImage> {
+  static const String _networkErrorText = 'تعذر تحميل الصورة. تحقق من الاتصال بالإنترنت';
+  static const String _imageUnavailableText = 'الصورة غير متوفرة';
   int _imageIndex = 0;
   String? _errorMessage;
 
@@ -91,7 +93,7 @@ class _CustomImageState extends State<CustomImage> {
     }
   }
 
-  /// 🔧 FIX: CDN (mafrservices) requires User-Agent header to serve images
+  /// ðŸ”§ FIX: CDN (mafrservices) requires User-Agent header to serve images
   /// CDN blocks empty User-Agents and returns HTML instead of images
   /// This ensures proper headers for successful image loading
   static Map<String, String> get _cloudflareHeaders => {
@@ -100,12 +102,12 @@ class _CustomImageState extends State<CustomImage> {
         'Accept-Language': 'en-US,en;q=0.9',
       };
 
-  /// 🔧 FIX: Guard against Infinity/NaN values when converting to int
+  /// ðŸ”§ FIX: Guard against Infinity/NaN values when converting to int
   /// This prevents crashes when width/height is double.infinity
   /// Also caps to maxCacheSize to prevent decoding huge images
   static const int _maxCacheSize = 1200; // Increased for better quality on high-DPI screens
 
-  /// 🎯 FIX: Calculate optimal cache size (1.5x display size for retina quality)
+  /// ðŸŽ¯ FIX: Calculate optimal cache size (1.5x display size for retina quality)
   /// Prevents decoding huge images while maintaining quality
   /// Ensures cache size is NEVER smaller than display size (prevents blur)
   static int? _calculateCacheSize(double? displaySize) {
@@ -133,14 +135,14 @@ class _CustomImageState extends State<CustomImage> {
     return _calculateCacheSize(displaySize);
   }
 
-  /// ✅ Helper: Check if character is a digit (0-9) without using RegExp
+  /// âœ… Helper: Check if character is a digit (0-9) without using RegExp
   static bool _isDigit(String char) {
     if (char.isEmpty) return false;
     final code = char.codeUnitAt(0);
     return code >= 48 && code <= 57; // '0' to '9'
   }
 
-  /// 🎯 FIX: Optimize image URLs intelligently based on container size
+  /// ðŸŽ¯ FIX: Optimize image URLs intelligently based on container size
   /// Calculates optimal resize value (1.5x container width for retina quality)
   /// Prevents loading huge images while maintaining quality
   String _optimizeImageUrl(String url, double? containerWidth) {
@@ -158,18 +160,18 @@ class _CustomImageState extends State<CustomImage> {
       return url;
     }
     
-    // 🔥 Calculate optimal size: container width × 1.5 for retina quality
+    // ðŸ”¥ Calculate optimal size: container width Ã— 1.5 for retina quality
     final targetWidth = (containerWidth * 1.5).round().clamp(200, 1200);
     
     // Replace existing Resize parameter with calculated value
     if (url.contains('Resize=')) {
-      // ✅ FIX: Use manual string replacement to avoid deprecated RegExp
+      // âœ… FIX: Use manual string replacement to avoid deprecated RegExp
       // Find the position of 'Resize=' and replace the number after it
       final resizeIndex = url.indexOf('Resize=');
       if (resizeIndex != -1) {
         final afterResize = url.substring(resizeIndex + 7); // 'Resize=' is 7 chars
         // Find where the number ends (first non-digit character)
-        // ✅ FIX: Check if character is digit without using RegExp
+        // âœ… FIX: Check if character is digit without using RegExp
         int numberEndIndex = 0;
         while (numberEndIndex < afterResize.length) {
           final char = afterResize[numberEndIndex];
@@ -202,7 +204,7 @@ class _CustomImageState extends State<CustomImage> {
   static int? _toSafeInt(double? value) {
     if (value == null || value.isInfinite || value.isNaN) return null;
     final intValue = value.toInt();
-    // 🔧 FIX: Cap cache size to prevent decoding 4000px images for 300px containers
+    // ðŸ”§ FIX: Cap cache size to prevent decoding 4000px images for 300px containers
     return intValue > _maxCacheSize ? _maxCacheSize : intValue;
   }
 
@@ -269,13 +271,13 @@ class _CustomImageState extends State<CustomImage> {
     } catch (e) {
       // If BlurHash decoding fails, return null to show gradient placeholder
       if (kDebugMode) {
-        print('⚠️ BlurHash decode failed: $e');
+        print('âš ï¸ BlurHash decode failed: $e');
       }
       return null;
     }
   }
 
-  /// 🛡️ FIX: Validate image URL before attempting to decode
+  /// ðŸ›¡ï¸ FIX: Validate image URL before attempting to decode
   /// Prevents Android ImageDecoder crashes from invalid URLs
   /// Blocks SVG and other unsupported formats
   static bool _isValidImageUrl(String url) {
@@ -289,7 +291,7 @@ class _CustomImageState extends State<CustomImage> {
         !url.startsWith('/')) {
       return false;
     }
-    // 🔥 Block SVG - Android ImageDecoder doesn't support it well
+    // ðŸ”¥ Block SVG - Android ImageDecoder doesn't support it well
     if (url.toLowerCase().contains('.svg') || url.toLowerCase().contains('svg')) {
       return false;
     }
@@ -307,35 +309,26 @@ class _CustomImageState extends State<CustomImage> {
         text.contains('connection refused') ||
         text.contains('network is unreachable') ||
         text.contains('connection reset by peer')) {
-      return 'لا يوجد اتصال جيد بالإنترنت';
+      return _networkErrorText;
     }
 
     if (text.contains('handshakeexception') ||
         text.contains('certificate') ||
         text.contains('ssl') ||
         text.contains('tls')) {
-      return 'مشكلة أمان بالشهادة (SSL)';
+      return _networkErrorText;
     }
 
     if (text.contains('404')) {
-      return 'الصورة غير موجودة على السيرفر';
-    }
-    if (text.contains('401') || text.contains('403')) {
-      return 'لا يوجد صلاحية للوصول إلى الصورة';
-    }
-    if (text.contains('500') ||
-        text.contains('502') ||
-        text.contains('503') ||
-        text.contains('504')) {
-      return 'السيرفر غير متاح حالياً';
+      return _imageUnavailableText;
     }
 
     if (widget.imageStatus == 'invalid' || widget.imageStatus == 'placeholder') {
-      return 'الصورة غير متوفرة';
+      return _imageUnavailableText;
     }
-    return 'حدث خطأ من السيرفر أثناء تحميل الصورة';
-  }
 
+    return _networkErrorText;
+  }
   void _advanceToNextUrl(List<String> candidates) {
     if (_imageIndex >= candidates.length - 1) {
       return;
@@ -355,21 +348,9 @@ class _CustomImageState extends State<CustomImage> {
       width: widget.width,
       color: Colors.grey[200],
       alignment: Alignment.center,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Icon(Icons.broken_image, size: 28, color: Colors.grey),
-          const SizedBox(height: 6),
-          Text(
-            message,
-            textAlign: TextAlign.center,
-            style: const TextStyle(fontSize: 12, color: Colors.grey),
-          ),
-        ],
-      ),
+      child: const Icon(Icons.broken_image, size: 24, color: Colors.grey),
     );
   }
-
   @override
   Widget build(BuildContext context) {
     if (widget.imageStatus == 'placeholder') {
@@ -382,19 +363,19 @@ class _CustomImageState extends State<CustomImage> {
         return widget.errorWidget!;
       }
       if (widget.imageStatus == 'invalid') {
-        return _buildErrorMessageUI('الصورة غير متوفرة');
+        return _buildErrorMessageUI(_imageUnavailableText);
       }
       if (widget.imageStatus == 'missing') {
-        return _buildErrorMessageUI('حدث خطأ من السيرفر أثناء تحميل الصورة');
+        return _buildErrorMessageUI(_networkErrorText);
       }
-      return _buildErrorMessageUI('حدث خطأ من السيرفر أثناء تحميل الصورة');
+      return _buildErrorMessageUI(_networkErrorText);
     }
 
     final imageUrl = candidates[_imageIndex];
     // FIX: Validate image URL before attempting to decode
     // Prevents Android ImageDecoder crashes from invalid URLs
     if (!_isValidImageUrl(imageUrl)) {
-      return _buildErrorMessageUI('الصورة غير متوفرة');
+      return _buildErrorMessageUI(_imageUnavailableText);
     }
 
     // FIX: Optimize image URL based on container size

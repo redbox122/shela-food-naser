@@ -25,6 +25,8 @@ class FavouriteController extends GetxController implements GetxService {
 
   bool _isRemoving = false;
   bool get isRemoving => _isRemoving;
+  bool _hasError = false;
+  bool get hasError => _hasError;
 
   void addToFavouriteList(Item? product, int? storeID, bool isStore, {bool getXSnackBar = false}) async {
     _isRemoving = true;
@@ -106,60 +108,72 @@ class FavouriteController extends GetxController implements GetxService {
   Future<void> getFavouriteList() async {
     _wishItemList = null;
     _wishStoreList = null;
-    final Response response = await favouriteServiceInterface.getFavouriteList();
-    if (response.statusCode == 304) {
-      // 304 has no body; keep UI responsive by resolving to empty lists
-      _wishItemList = _wishItemList ?? <Item>[];
-      _wishStoreList = _wishStoreList ?? <Store>[];
-      update();
-      return;
-    }
-    if (response.statusCode == 200) {
-      update();
-      _wishItemList = [];
-      _wishStoreList = [];
-      _wishStoreIdList = [];
-      _wishItemIdList = [];
+    _hasError = false;
+    try {
+      final Response response = await favouriteServiceInterface.getFavouriteList();
+      if (response.statusCode == 304) {
+        // 304 has no body; keep UI responsive by resolving to empty lists
+        _wishItemList = _wishItemList ?? <Item>[];
+        _wishStoreList = _wishStoreList ?? <Store>[];
+        update();
+        return;
+      }
+      if (response.statusCode == 200) {
+        _hasError = false;
+        update();
+        _wishItemList = [];
+        _wishStoreList = [];
+        _wishStoreIdList = [];
+        _wishItemIdList = [];
 
-      if ((response.body as Map<String, dynamic>)['item'] != null) {
-        ((response.body as Map<String, dynamic>)['item'] as List).forEach((item) async {
-          final itemMap = item as Map<String, dynamic>;
-          final moduleType = itemMap['module_type'] as String?;
-          if (moduleType == null ||
-              !(Get.find<SplashController>().getModuleConfig(moduleType).newVariation ?? false) ||
-              itemMap['variations'] == null ||
-              ((itemMap['variations'] as List?)?.isEmpty ?? true) ||
-              ((itemMap['food_variations'] as List?)?.isNotEmpty ?? false)) {
-            final Item i = Item.fromJson(itemMap);
-            if (Get.find<SplashController>().module == null) {
-              _wishItemList!.addAll(favouriteServiceInterface.wishItemList(i));
-              _wishItemIdList.addAll(favouriteServiceInterface.wishItemIdList(i));
-            } else {
-              _wishItemList!.add(i);
-              _wishItemIdList.add(i.id);
+        if ((response.body as Map<String, dynamic>)['item'] != null) {
+          ((response.body as Map<String, dynamic>)['item'] as List).forEach((item) async {
+            final itemMap = item as Map<String, dynamic>;
+            final moduleType = itemMap['module_type'] as String?;
+            if (moduleType == null ||
+                !(Get.find<SplashController>().getModuleConfig(moduleType).newVariation ?? false) ||
+                itemMap['variations'] == null ||
+                ((itemMap['variations'] as List?)?.isEmpty ?? true) ||
+                ((itemMap['food_variations'] as List?)?.isNotEmpty ?? false)) {
+              final Item i = Item.fromJson(itemMap);
+              if (Get.find<SplashController>().module == null) {
+                _wishItemList!.addAll(favouriteServiceInterface.wishItemList(i));
+                _wishItemIdList.addAll(favouriteServiceInterface.wishItemIdList(i));
+              } else {
+                _wishItemList!.add(i);
+                _wishItemIdList.add(i.id);
+              }
+            }
+          });
+        }
+
+        ((response.body as Map<String, dynamic>)['store'] as List).forEach((store) async {
+          final storeMap = store as Map<String, dynamic>;
+          if (Get.find<SplashController>().module == null) {
+            _wishStoreList!.addAll(favouriteServiceInterface.wishStoreList(storeMap));
+            _wishStoreIdList.addAll(favouriteServiceInterface.wishStoreIdList(storeMap));
+          } else {
+            Store? s;
+            try {
+              s = Store.fromJson(storeMap);
+            } catch (e) {
+              debugPrint('exception create in store list create : $e');
+            }
+            if (s != null && Get.find<SplashController>().module!.id == s.moduleId) {
+              _wishStoreList!.add(s);
+              _wishStoreIdList.add(s.id);
             }
           }
         });
+      } else {
+        _hasError = true;
+        _wishItemList = <Item?>[];
+        _wishStoreList = <Store?>[];
       }
-
-      ((response.body as Map<String, dynamic>)['store'] as List).forEach((store) async {
-        final storeMap = store as Map<String, dynamic>;
-        if (Get.find<SplashController>().module == null) {
-          _wishStoreList!.addAll(favouriteServiceInterface.wishStoreList(storeMap));
-          _wishStoreIdList.addAll(favouriteServiceInterface.wishStoreIdList(storeMap));
-        } else {
-          Store? s;
-          try {
-            s = Store.fromJson(storeMap);
-          } catch (e) {
-            debugPrint('exception create in store list create : $e');
-          }
-          if (s != null && Get.find<SplashController>().module!.id == s.moduleId) {
-            _wishStoreList!.add(s);
-            _wishStoreIdList.add(s.id);
-          }
-        }
-      });
+    } catch (_) {
+      _hasError = true;
+      _wishItemList = <Item?>[];
+      _wishStoreList = <Store?>[];
     }
     update();
   }

@@ -13,6 +13,7 @@ import 'package:sixam_mart/features/splash/controllers/splash_controller.dart';
 import 'package:sixam_mart/util/dimensions.dart';
 import 'package:sixam_mart/util/app_constants.dart';
 import 'package:sixam_mart/common/utils/app_logger.dart';
+import 'package:sixam_mart/common/widgets/error_state_view.dart';
 
 class FoodHomeScreen extends StatefulWidget {
   const FoodHomeScreen({super.key});
@@ -379,6 +380,17 @@ class _FoodHomeScreenState extends State<FoodHomeScreen> {
       builder: (unifiedController) {
         appLogger.debug(
             'FoodHomeScreen: HomeUnifiedController state - hasCachedData=${unifiedController.hasCachedData}, isLoading=${unifiedController.isLoading}');
+
+        if (unifiedController.hasError && !unifiedController.isLoading) {
+          return ErrorStateView(
+            onRetry: () {
+              unifiedController.loadHomeData(
+                forceRefresh: true,
+                showLoading: true,
+              );
+            },
+          );
+        }
 
         // Show shimmer if no cached data and still loading
         if (!unifiedController.hasCachedData && unifiedController.isLoading) {

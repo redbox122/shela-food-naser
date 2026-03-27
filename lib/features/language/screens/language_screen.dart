@@ -28,7 +28,13 @@ class _ChooseLanguageScreenState extends State<ChooseLanguageScreen> {
     return Scaffold(
       appBar: (widget.fromMenu || ResponsiveHelper.isDesktop(context)) ? CustomAppBar(title: 'language'.tr) : null,
       backgroundColor: Theme.of(context).cardColor,
-      body: GetBuilder<LocalizationController>(builder: (localizationController) {
+      body: SafeArea(
+        top: !(widget.fromMenu || ResponsiveHelper.isDesktop(context)),
+        bottom: true,
+        left: false,
+        right: false,
+        minimum: EdgeInsets.zero,
+        child: GetBuilder<LocalizationController>(builder: (localizationController) {
         return ResponsiveHelper.isDesktop(context)
             ? const WebLanguageScreen()
             : Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -108,8 +114,9 @@ class _ChooseLanguageScreenState extends State<ChooseLanguageScreen> {
                 //     Get.offAllNamed(RouteHelper.getMainRoute('home'));
                 //   },
                 // ),
-              ]);
+              ]        );
       }),
+      ),
     );
   }
 }

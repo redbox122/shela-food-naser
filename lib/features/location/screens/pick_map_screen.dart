@@ -17,9 +17,12 @@ import 'package:get/get.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:sixam_mart/features/location/widgets/serach_location_widget.dart';
 import 'package:sixam_mart/features/location/widgets/zone_redirection_dialog.dart';
+import 'package:sixam_mart/features/location/domain/models/zone_response_model.dart';
 import 'package:sixam_mart/helper/route_helper.dart';
 import 'package:sixam_mart/features/splash/controllers/splash_controller.dart';
+import 'package:sixam_mart/common/widgets/error_state_view.dart';
 import 'dart:async';
+import 'dart:io';
 
 class PickMapScreen extends StatefulWidget {
   final bool fromSignUp;
@@ -62,6 +65,10 @@ class _PickMapScreenState extends State<PickMapScreen> {
   bool _hasInitialized = false;
   // 🎯 PERFORMANCE: Debounce timer to reduce API calls when dragging pin
   Timer? _pinDebounceTimer;
+  Timer? _connectivityProbeTimer;
+  bool _isCheckingConnectivity = true;
+  bool _showConnectivityError = false;
+  bool _isSkippingLocationSelection = false;
   
 
   @override
@@ -135,6 +142,7 @@ class _PickMapScreenState extends State<PickMapScreen> {
     // First: Let first frame render (no map)
     // Then: Build map after frame is ready
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      _startConnectivityProbe();
       // Delay map creation by 100ms to let first frame render smoothly
       Future.delayed(const Duration(milliseconds: 100), () {
         if (mounted) {
@@ -172,7 +180,52 @@ class _PickMapScreenState extends State<PickMapScreen> {
   void dispose() {
     // 🎯 PERFORMANCE: Cancel debounce timer
     _pinDebounceTimer?.cancel();
+    _connectivityProbeTimer?.cancel();
     super.dispose();
+  }
+
+  void _startConnectivityProbe() {
+    _connectivityProbeTimer?.cancel();
+    setState(() {
+      _isCheckingConnectivity = true;
+      _showConnectivityError = false;
+    });
+    _connectivityProbeTimer = Timer(const Duration(seconds: 5), () {
+      _resolveConnectivityState();
+    });
+  }
+
+  Future<void> _resolveConnectivityState() async {
+    if (!mounted) {
+      return;
+    }
+    final bool hasConnection = await _hasActiveInternetConnection();
+    if (hasConnection && Get.isRegistered<LocationController>()) {
+      final LocationController locationController = Get.find<LocationController>();
+      if (!locationController.loadingZones &&
+          (locationController.zonePolygons.isEmpty ||
+              !locationController.zonesLoaded)) {
+        await locationController.fetchZonePolygons(forceRefresh: true);
+      }
+    }
+    if (!mounted) {
+      return;
+    }
+    setState(() {
+      _isCheckingConnectivity = false;
+      _showConnectivityError = !hasConnection;
+    });
+  }
+
+  Future<bool> _hasActiveInternetConnection() async {
+    try {
+      final List<InternetAddress> result = await InternetAddress.lookup(
+        'one.one.one.one',
+      ).timeout(const Duration(seconds: 3));
+      return result.isNotEmpty && result.first.rawAddress.isNotEmpty;
+    } catch (_) {
+      return false;
+    }
   }
 
   // 🔥 UI-ONLY FIX: Removed _getCurrentLocation() - PickMapScreen doesn't request GPS
@@ -181,8 +234,193 @@ class _PickMapScreenState extends State<PickMapScreen> {
   // 🔥 UI-ONLY FIX: Removed _checkAlreadyLocationEnable() - PickMapScreen doesn't check permissions
   // Permission checking is handled by AccessLocationScreen before opening PickMap
 
+  /// First launch uses `onboarding` after guest login; cold start without intro uses `splash`.
+  bool get _canSkipWithDefaultLocation =>
+      widget.route == 'splash' || widget.route == 'onboarding';
+
+  Future<void> _skipLocationAndContinueWithDefault() async {
+    if (_isSkippingLocationSelection) {
+      return;
+    }
+    setState(() {
+      _isSkippingLocationSelection = true;
+    });
+    try {
+      final SplashController splashController = Get.find<SplashController>();
+      final String? configLat =
+          splashController.configModel?.defaultLocation?.lat;
+      final String? configLng =
+          splashController.configModel?.defaultLocation?.lng;
+      final double? parsedLat =
+          configLat != null ? double.tryParse(configLat) : null;
+      final double? parsedLng =
+          configLng != null ? double.tryParse(configLng) : null;
+      final bool hasValidConfigDefault = parsedLat != null &&
+          parsedLng != null &&
+          (parsedLat != 0 || parsedLng != 0);
+      final double latitude = hasValidConfigDefault
+          ? parsedLat
+          : LocationController.DEFAULT_FALLBACK_LOCATION.latitude;
+      final double longitude = hasValidConfigDefault
+          ? parsedLng
+          : LocationController.DEFAULT_FALLBACK_LOCATION.longitude;
+      final String addressText = 'default_app_location_address'.tr;
+      if (!mounted) {
+        return;
+      }
+      final LocationController locationController =
+          Get.find<LocationController>();
+      final ZoneResponseModel zoneResponse = await locationController.getZone(
+        latitude.toString(),
+        longitude.toString(),
+        false,
+      );
+      if (!mounted) {
+        return;
+      }
+      final AddressModel defaultAddress = AddressModel(
+        latitude: latitude.toString(),
+        longitude: longitude.toString(),
+        addressType: 'current',
+        address: addressText,
+        zoneId: 0,
+        zoneIds: [],
+        zoneData: [],
+        areaIds: [],
+      );
+      if (zoneResponse.isSuccess && zoneResponse.zoneIds.isNotEmpty) {
+        defaultAddress.zoneId = zoneResponse.zoneIds.first;
+        defaultAddress.zoneIds = List<int>.from(zoneResponse.zoneIds);
+        defaultAddress.zoneData = zoneResponse.zoneData;
+        defaultAddress.areaIds = List<int>.from(zoneResponse.areaIds);
+        locationController.disableZoneChecks();
+        locationController.saveAddressAndNavigate(
+          context,
+          defaultAddress,
+          widget.fromSignUp,
+          widget.route,
+          widget.canRoute,
+          ResponsiveHelper.isDesktop(context),
+          skipZoneValidation: true,
+        );
+      } else {
+        locationController.saveAddressAndNavigate(
+          context,
+          defaultAddress,
+          widget.fromSignUp,
+          widget.route,
+          widget.canRoute,
+          ResponsiveHelper.isDesktop(context),
+          skipZoneValidation: false,
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isSkippingLocationSelection = false;
+        });
+      }
+    }
+  }
+
+  Widget _buildSkipWithDefaultLocationButton(BuildContext context) {
+    final Color primaryColor = Theme.of(context).primaryColor;
+    final bool disabled = _isSkippingLocationSelection;
+    return Opacity(
+      opacity: disabled ? 0.72 : 1,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: disabled ? null : _skipLocationAndContinueWithDefault,
+          borderRadius: BorderRadius.circular(Dimensions.radiusDefault),
+          child: Ink(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(Dimensions.radiusDefault),
+              border: Border.all(color: primaryColor, width: 1.5),
+              color: primaryColor.withValues(alpha: 0.07),
+              boxShadow: [
+                BoxShadow(
+                  color: primaryColor.withValues(alpha: 0.12),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(
+                vertical: Dimensions.paddingSizeDefault,
+                horizontal: Dimensions.paddingSizeLarge,
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  if (disabled)
+                    Padding(
+                      padding: const EdgeInsetsDirectional.only(
+                        end: Dimensions.paddingSizeSmall,
+                      ),
+                      child: SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: primaryColor,
+                        ),
+                      ),
+                    ),
+                  Expanded(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          'not_now'.tr,
+                          textAlign: TextAlign.center,
+                          style: robotoBold.copyWith(
+                            color: primaryColor,
+                            fontSize: Dimensions.fontSizeLarge,
+                          ),
+                        ),
+                        const SizedBox(
+                          height: Dimensions.paddingSizeExtraSmall,
+                        ),
+                        Text(
+                          'skip_use_app_default_location_hint'.tr,
+                          textAlign: TextAlign.center,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: robotoRegular.copyWith(
+                            fontSize: Dimensions.fontSizeSmall,
+                            color: Theme.of(context)
+                                .textTheme
+                                .bodyMedium
+                                ?.color
+                                ?.withValues(alpha: 0.78),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    if (_showConnectivityError && !_isCheckingConnectivity) {
+      return Scaffold(
+        backgroundColor: Theme.of(context).cardColor,
+        body: ErrorStateView(
+          titleKey: 'something_went_wrong',
+          subtitleKey: 'no_internet_connection',
+          onRetry: _startConnectivityProbe,
+        ),
+      );
+    }
     return Scaffold(
       backgroundColor: ResponsiveHelper.isDesktop(context)
           ? Colors.transparent
@@ -256,8 +494,8 @@ class _PickMapScreenState extends State<PickMapScreen> {
                                   const MinMaxZoomPreference(0, 16),
                               myLocationButtonEnabled: false,
                                   myLocationEnabled: false,
-                                  // 🎯 CRITICAL: Use zonesLoaded to show polygons only after zones are loaded
-                                  polygons: locationController.zonesLoaded ? locationController.zonePolygons : {},
+                                  // Draw any available polygons immediately.
+                                  polygons: locationController.zonePolygons,
                               onMapCreated:
                                   (GoogleMapController mapController) async {
                                 _mapController = mapController;
@@ -419,7 +657,9 @@ class _PickMapScreenState extends State<PickMapScreen> {
                                 final AddressModel currentLocation =
                                     await Get.find<LocationController>()
                                         .getCurrentLocation(false,
-                                            mapController: _mapController);
+                                            mapController: _mapController,
+                                            forceRefresh: true,
+                                            skipZoneValidation: true);
                                 if (currentLocation.latitude != null &&
                                     currentLocation.longitude != null) {
                                 final newPos = LatLng(
@@ -439,6 +679,13 @@ class _PickMapScreenState extends State<PickMapScreen> {
                     ),
                       ),
                       const SizedBox(height: Dimensions.paddingSizeExtraLarge),
+                    if (_canSkipWithDefaultLocation)
+                      Padding(
+                        padding: const EdgeInsets.only(
+                          bottom: Dimensions.paddingSizeSmall,
+                        ),
+                        child: _buildSkipWithDefaultLocationButton(context),
+                      ),
                     GetBuilder<LocationController>(
                       builder: (locationController) {
                         return CustomButton(
@@ -486,8 +733,8 @@ class _PickMapScreenState extends State<PickMapScreen> {
                     minMaxZoomPreference: const MinMaxZoomPreference(0, 16),
                     myLocationButtonEnabled: false,
                         myLocationEnabled: false,
-                        // 🎯 CRITICAL: Use zonesLoaded to show polygons only after zones are loaded
-                        polygons: locationController.zonesLoaded ? locationController.zonePolygons : {},
+                        // Draw any available polygons immediately.
+                        polygons: locationController.zonePolygons,
                     onMapCreated: (GoogleMapController mapController) async {
                       _mapController = mapController;
                       Get.find<LocationController>()
@@ -759,7 +1006,9 @@ class _PickMapScreenState extends State<PickMapScreen> {
                         final AddressModel currentLocation =
                             await Get.find<LocationController>()
                                 .getCurrentLocation(false,
-                                    mapController: _mapController);
+                                    mapController: _mapController,
+                                    forceRefresh: true,
+                                    skipZoneValidation: true);
                         if (currentLocation.latitude != null &&
                             currentLocation.longitude != null) {
                         final newPos = LatLng(
@@ -804,6 +1053,13 @@ class _PickMapScreenState extends State<PickMapScreen> {
                                 },
                     ),
                   ),
+                  if (_canSkipWithDefaultLocation)
+                    Positioned(
+                      bottom: Dimensions.paddingSizeLarge + 72,
+                      left: Dimensions.paddingSizeLarge,
+                      right: Dimensions.paddingSizeLarge,
+                      child: _buildSkipWithDefaultLocationButton(context),
+                    ),
               ]),
       ))),
     );

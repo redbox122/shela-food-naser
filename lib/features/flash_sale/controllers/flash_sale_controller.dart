@@ -25,6 +25,9 @@ class FlashSaleController extends GetxController implements GetxService {
   ProductFlashSale? _productFlashSale;
   ProductFlashSale? get productFlashSale => _productFlashSale;
 
+  bool _hasError = false;
+  bool get hasError => _hasError;
+
   void setPageIndex(int index) {
     _pageIndex = index;
     update();
@@ -83,11 +86,20 @@ class FlashSaleController extends GetxController implements GetxService {
   }
 
   Future<void> getFlashSaleWithId(int offset, bool reload, int id) async {
+    _hasError = false;
     if (reload) {
       _productFlashSale = null;
       update();
     }
-    final ProductFlashSale? productFlashSale = await flashSaleServiceInterface.getFlashSaleWithId(id, offset);
+    ProductFlashSale? productFlashSale;
+    try {
+      productFlashSale =
+          await flashSaleServiceInterface.getFlashSaleWithId(id, offset);
+    } catch (_) {
+      _hasError = true;
+      update();
+      return;
+    }
     if (productFlashSale != null) {
       if (offset == 1) {
         _productFlashSale = productFlashSale;
@@ -107,6 +119,12 @@ class FlashSaleController extends GetxController implements GetxService {
           _duration = _duration! - const Duration(seconds: 1);
           update();
         });
+      }
+      update();
+    } else {
+      _hasError = true;
+      if (offset == 1) {
+        _productFlashSale = null;
       }
       update();
     }

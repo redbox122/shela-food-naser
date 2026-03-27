@@ -60,7 +60,6 @@ class _UpdateProfileScreenState extends State<UpdateProfileScreen> {
     if (Get.find<AuthController>().isLoggedIn() && Get.find<ProfileController>().userInfoModel == null) {
       Get.find<ProfileController>().getUserInfo();
     }
-    Get.find<ProfileController>().getUserInfo();
     Get.find<ProfileController>().initData();
   }
 
@@ -91,7 +90,13 @@ class _UpdateProfileScreenState extends State<UpdateProfileScreen> {
     return Scaffold(
       appBar: ResponsiveHelper.isDesktop(context) ? const WebMenuBar() : null,
       backgroundColor: Theme.of(context).colorScheme.surface,
-      body: GetBuilder<ProfileController>(builder: (profileController) {
+      body: SafeArea(
+        top: !ResponsiveHelper.isDesktop(context),
+        bottom: true,
+        left: false,
+        right: false,
+        minimum: EdgeInsets.zero,
+        child: GetBuilder<ProfileController>(builder: (profileController) {
         if (profileController.userInfoModel != null && _phoneController.text.isEmpty && _isPhoneLoading) {
           if (profileController.userInfoModel?.phone != null && profileController.userInfoModel!.phone!.isNotEmpty) {
             _splitPhoneNumber(profileController.userInfoModel!.phone!);
@@ -259,6 +264,7 @@ class _UpdateProfileScreenState extends State<UpdateProfileScreen> {
                 setState(() {});
               });
       }),
+      ),
     );
   }
 
@@ -483,8 +489,7 @@ class _UpdateProfileScreenState extends State<UpdateProfileScreen> {
         fit: BoxFit.cover,
         cacheWidth: (size * 3).round(),
         cacheHeight: (size * 3).round(),
-        errorBuilder: (c, o, s) =>
-            _buildProfileAvatar(profileController, size, context),
+        errorBuilder: (c, o, s) => _buildProfileAvatarFallback(size, context),
       );
     }
 
@@ -496,8 +501,23 @@ class _UpdateProfileScreenState extends State<UpdateProfileScreen> {
       fit: BoxFit.cover,
       imageCacheWidth: (size * 3).round(),
       imageCacheHeight: (size * 3).round(),
-      imageErrorBuilder: (c, o, s) =>
-          _buildProfileAvatar(profileController, size, context),
+      imageErrorBuilder: (c, o, s) => _buildProfileAvatarFallback(size, context),
+    );
+  }
+
+  Widget _buildProfileAvatarFallback(double size, BuildContext context) {
+    return Container(
+      height: size,
+      width: size,
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardColor.withValues(alpha: 0.2),
+        shape: BoxShape.circle,
+      ),
+      child: Icon(
+        Icons.person,
+        color: Theme.of(context).cardColor,
+        size: size * 0.55,
+      ),
     );
   }
 

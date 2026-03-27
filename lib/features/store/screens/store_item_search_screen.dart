@@ -11,6 +11,7 @@ import 'package:sixam_mart/common/widgets/item_view.dart';
 import 'package:sixam_mart/common/widgets/paginated_list_view.dart';
 import 'package:sixam_mart/common/widgets/veg_filter_widget.dart';
 import 'package:sixam_mart/features/store/widgets/bottom_cart_widget.dart';
+import 'package:sixam_mart/common/widgets/error_state_view.dart';
 
 class StoreItemSearchScreen extends StatefulWidget {
   final String? storeID;
@@ -203,39 +204,61 @@ class _StoreItemSearchScreenState extends State<StoreItemSearchScreen> {
               // storeController.categoryList![storeController.categoryIndex].id != -1
               //     ?
               Expanded(
-                child: SingleChildScrollView(
-                  controller: _scrollController,
-                  padding: ResponsiveHelper.isDesktop(context) ? null : const EdgeInsets.all(Dimensions.paddingSizeSmall),
-                  child: FooterView(
-                    child: SizedBox(
-                      width: Dimensions.webMaxWidth,
-                      child: PaginatedListView(
-                        scrollController: _scrollController,
-                        onPaginate: (int? offset) => storeController.getStoreSearchItemList(
-                          storeController.searchText,
-                          widget.storeID,
-                          offset!,
-                          storeController.searchType,
-                        ),
-                        totalSize: storeController.storeSearchItemModel?.totalSize,
-                        offset: storeController.storeSearchItemModel?.offset,
-                        itemView: ItemsView(
-                          isStore: false,
-                          stores: null,
-                          items: storeController.storeSearchItemModel?.items,
-                          inStorePage: true,
-                          noDataText: _buildNoResultText(storeController),
-                          noDataActionText: 'reset'.tr,
-                          onNoDataActionTap:
-                              storeController.hasActiveStoreSearchFilters
-                                  ? () => _resetStoreSearchFilters(
-                                      storeController)
-                                  : null,
+                child: storeController.storeSearchItemModel == null &&
+                        !storeController.isSearching &&
+                        !storeController.hasStoreSearchError
+                    ? const Center(child: CircularProgressIndicator())
+                    : storeController.hasStoreSearchError &&
+                        !storeController.isSearching &&
+                        ((storeController.storeSearchItemModel?.items?.isEmpty ??
+                                true))
+                    ? ErrorStateView(
+                        onRetry: () {
+                          storeController.getStoreSearchItemList(
+                            storeController.searchText,
+                            widget.storeID,
+                            1,
+                            storeController.searchType,
+                          );
+                        },
+                      )
+                    : SingleChildScrollView(
+                        controller: _scrollController,
+                        padding: ResponsiveHelper.isDesktop(context)
+                            ? null
+                            : const EdgeInsets.all(Dimensions.paddingSizeSmall),
+                        child: FooterView(
+                          child: SizedBox(
+                            width: Dimensions.webMaxWidth,
+                            child: PaginatedListView(
+                              scrollController: _scrollController,
+                              onPaginate: (int? offset) => storeController
+                                  .getStoreSearchItemList(
+                                storeController.searchText,
+                                widget.storeID,
+                                offset!,
+                                storeController.searchType,
+                              ),
+                              totalSize:
+                                  storeController.storeSearchItemModel?.totalSize,
+                              offset: storeController.storeSearchItemModel?.offset,
+                              itemView: ItemsView(
+                                isStore: false,
+                                stores: null,
+                                items: storeController.storeSearchItemModel?.items,
+                                inStorePage: true,
+                                noDataText: _buildNoResultText(storeController),
+                                noDataActionText: 'reset'.tr,
+                                onNoDataActionTap:
+                                    storeController.hasActiveStoreSearchFilters
+                                        ? () => _resetStoreSearchFilters(
+                                            storeController)
+                                        : null,
+                              ),
+                            ),
+                          ),
                         ),
                       ),
-                    ),
-                  ),
-                ),
               ),
 
               // : Expanded(

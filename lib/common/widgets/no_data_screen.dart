@@ -10,6 +10,7 @@ class NoDataScreen extends StatelessWidget {
   final bool isCart;
   final bool showFooter;
   final String? text;
+  final String? subtitle;
   final bool fromAddress;
   final Widget? actionWidget;
   const NoDataScreen(
@@ -17,6 +18,7 @@ class NoDataScreen extends StatelessWidget {
       required this.text,
       this.isCart = false,
       this.showFooter = false,
+      this.subtitle,
       this.fromAddress = false,
       this.actionWidget});
 
@@ -47,7 +49,18 @@ class NoDataScreen extends StatelessWidget {
                     : Theme.of(context).disabledColor),
             textAlign: TextAlign.center,
           ),
-          if (actionWidget != null && !isCart && !fromAddress) ...[
+          if (subtitle != null && subtitle!.isNotEmpty) ...[
+            SizedBox(height: MediaQuery.of(context).size.height * 0.008),
+            Text(
+              subtitle!,
+              style: robotoRegular.copyWith(
+                fontSize: MediaQuery.of(context).size.height * 0.014,
+                color: Theme.of(context).hintColor,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
+          if (actionWidget != null && !fromAddress) ...[
             const SizedBox(height: 4),
             actionWidget!,
           ],

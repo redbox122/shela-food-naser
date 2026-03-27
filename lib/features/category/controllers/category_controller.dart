@@ -1,4 +1,4 @@
-﻿// ignore_for_file: avoid_print, unused_import
+// ignore_for_file: avoid_print, unused_import
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -373,6 +373,9 @@ class CategoryController extends GetxController implements GetxService {
   bool _isLoading = false;
   bool get isLoading => _isLoading;
 
+  bool _hasCategoryError = false;
+  bool get hasCategoryError => _hasCategoryError;
+
   int _pageSize = 0;
   int? get pageSize => _pageSize;
 
@@ -624,6 +627,7 @@ class CategoryController extends GetxController implements GetxService {
       DataSourceEnum dataSource = DataSourceEnum.local,
       bool fromRecall = false,
       int? expectedModuleId}) async {
+    _hasCategoryError = false;
     // OPTIMIZATION: Early return if categories already loaded and no reload requested
     // This prevents redundant cache reads and API calls when navigating between screens
     if (!reload &&
@@ -729,6 +733,8 @@ class CategoryController extends GetxController implements GetxService {
           showSnackbar: false, // No UI changes in pilot phase
           logError: true,
         );
+        _hasCategoryError = true;
+        update();
         // Preserve existing behavior - return null on error
         return null;
       }
@@ -1530,6 +1536,7 @@ class CategoryController extends GetxController implements GetxService {
     final int effectiveOffset = (categoryChanged && offset != 1) ? 1 : offset;
 
     try {
+      _hasCategoryError = false;
       _offset = effectiveOffset;
       final bool resolvedIncludeChildren =
           includeChildren ?? (_subCategoryIndex == 0);
@@ -1623,6 +1630,7 @@ class CategoryController extends GetxController implements GetxService {
           showSnackbar: false, // No UI changes in pilot phase
           logError: true,
         );
+        _hasCategoryError = true;
         // Preserve existing behavior - set loading to false and return
         _isLoading = false;
         update();
@@ -1728,6 +1736,7 @@ class CategoryController extends GetxController implements GetxService {
       } else {
         if (effectiveOffset == 1) {
           _categoryItemList = [];
+          _hasCategoryError = true;
         }
         _pageSize = 0;
         _isLoading = false;
@@ -1742,6 +1751,7 @@ class CategoryController extends GetxController implements GetxService {
         showSnackbar: false, // No UI changes in pilot phase
         logError: true,
       );
+      _hasCategoryError = true;
       // Preserve existing behavior
       if (effectiveOffset == 1) {
         _categoryItemList = [];
@@ -1764,6 +1774,7 @@ class CategoryController extends GetxController implements GetxService {
 
   void getCategoryStoreList(
       String? categoryID, int offset, String type, bool notify) async {
+    _hasCategoryError = false;
     if (kDebugMode) {
       final module = Get.isRegistered<SplashController>()
           ? Get.find<SplashController>().module
@@ -1853,6 +1864,17 @@ class CategoryController extends GetxController implements GetxService {
         }
       }
       _lastCompletedCategoryStoreOffsets[requestKey] = offset;
+      update();
+    } catch (e) {
+      _hasCategoryError = true;
+      _isLoading = false;
+      if (offset == 1) {
+        _categoryStoreList = [];
+      }
+      _restPageSize = _categoryStoreList?.length ?? 0;
+      if (kDebugMode) {
+        debugPrint('❌ CategoryController.getCategoryStoreList: $e');
+      }
       update();
     } finally {
       if (_inFlightCategoryStoreOffsets[requestKey] == offset) {

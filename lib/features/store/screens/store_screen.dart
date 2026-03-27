@@ -23,6 +23,7 @@ import 'package:sixam_mart/util/styles.dart';
 import 'package:sixam_mart/common/widgets/custom_button.dart';
 import 'package:sixam_mart/common/widgets/custom_image.dart';
 import 'package:sixam_mart/common/widgets/custom_snackbar.dart';
+import 'package:sixam_mart/common/widgets/error_state_view.dart';
 import 'package:sixam_mart/common/widgets/footer_view.dart';
 import 'package:sixam_mart/common/widgets/item_view.dart';
 import 'package:sixam_mart/common/widgets/item_widget.dart';
@@ -230,47 +231,20 @@ class _StoreScreenState extends State<StoreScreen> {
                       LoadingWidget(messageKey: 'loading', showMessage: true),
                 );
               }
-              return Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(
-                      Icons.store_outlined,
-                      size: 64,
-                      color: Theme.of(context).disabledColor,
-                    ),
-                    const SizedBox(height: Dimensions.paddingSizeDefault),
-                    Text(
-                      'failed_to_load_store'.tr,
-                      style: robotoMedium.copyWith(
-                        fontSize: Dimensions.fontSizeLarge,
-                        color: Theme.of(context).textTheme.bodyLarge?.color,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: Dimensions.paddingSizeSmall),
-                    Text(
-                      'please_try_again'.tr,
-                      style: robotoRegular.copyWith(
-                        fontSize: Dimensions.fontSizeDefault,
-                        color: Theme.of(context).disabledColor,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: Dimensions.paddingSizeLarge),
-                    CustomButton(
-                      buttonText: 'retry'.tr,
-                      onPressed: () {
-                        // ✅ FIX #1: StoreScreen is redirect-only - retry is not needed
-                        // If retry is needed, it should be handled by specialized screens
-                        // (FoodRestaurantDetailScreen / GroceryStoreDetailScreen)
-                        Get.back<void>();
-                      },
-                      width: 150,
-                      height: 40,
-                    ),
-                  ],
-                ),
+              return ErrorStateView(
+                onRetry: () {
+                  final int? storeId = widget.store?.id;
+                  if (storeId != null && storeId > 0) {
+                    storeController.getStoreDetails(
+                      context,
+                      Store(id: storeId),
+                      widget.fromModule,
+                      slug: widget.slug,
+                    );
+                  } else {
+                    Get.back<void>();
+                  }
+                },
               );
             }
 

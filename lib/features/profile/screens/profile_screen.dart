@@ -16,6 +16,7 @@ import 'package:sixam_mart/util/styles.dart';
 import 'package:sixam_mart/common/widgets/confirmation_dialog.dart';
 import 'package:sixam_mart/common/widgets/custom_image.dart';
 import 'package:sixam_mart/common/widgets/footer_view.dart';
+import 'package:sixam_mart/common/widgets/error_state_view.dart';
 import 'package:sixam_mart/common/widgets/web_menu_bar.dart';
 import 'package:sixam_mart/features/profile/widgets/profile_button_widget.dart';
 import 'package:sixam_mart/features/profile/widgets/profile_card_widget.dart';
@@ -49,11 +50,25 @@ class _ProfileScreenState extends State<ProfileScreen> {
       appBar: ResponsiveHelper.isDesktop(context) ? const WebMenuBar() : null,
       backgroundColor: Theme.of(context).colorScheme.surface,
       key: UniqueKey(),
-      body: GetBuilder<ProfileController>(builder: (profileController) {
+      body: SafeArea(
+        top: !ResponsiveHelper.isDesktop(context),
+        bottom: true,
+        left: false,
+        right: false,
+        minimum: EdgeInsets.zero,
+        child: GetBuilder<ProfileController>(builder: (profileController) {
         final bool isLoggedIn = AuthHelper.isLoggedIn();
         final String? joinedAt = profileController.userInfoModel?.createdAt;
-        return (isLoggedIn && profileController.userInfoModel == null)
-            ? const Center(child: CircularProgressIndicator())
+        return (isLoggedIn &&
+                profileController.userInfoModel == null &&
+                profileController.hasProfileError)
+            ? ErrorStateView(
+                onRetry: () {
+                  profileController.getUserInfo();
+                },
+              )
+            : (isLoggedIn && profileController.userInfoModel == null)
+                ? const Center(child: CircularProgressIndicator())
             : SingleChildScrollView(
                 child: FooterView(
                   minHeight: isLoggedIn
@@ -337,6 +352,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ),
               );
       }),
+      ),
     );
   }
 }

@@ -7,6 +7,7 @@ import 'package:sixam_mart/helper/responsive_helper.dart';
 import 'package:sixam_mart/util/dimensions.dart';
 import 'package:sixam_mart/common/widgets/custom_app_bar.dart';
 import 'package:sixam_mart/common/widgets/footer_view.dart';
+import 'package:sixam_mart/common/widgets/error_state_view.dart';
 import 'package:sixam_mart/common/widgets/no_data_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -37,7 +38,23 @@ class _ReviewScreenState extends State<ReviewScreen> {
 
     return Scaffold(
       appBar: CustomAppBar(title: widget.storeName ?? 'store_reviews'.tr),
-      body: GetBuilder<ReviewController>(builder: (reviewController) {
+      body: SafeArea(
+        top: false,
+        bottom: true,
+        left: false,
+        right: false,
+        minimum: EdgeInsets.zero,
+        child: GetBuilder<ReviewController>(builder: (reviewController) {
+        if (reviewController.hasError &&
+            !reviewController.isLoading &&
+            (reviewController.storeReviewList == null ||
+                reviewController.storeReviewList!.isEmpty)) {
+          return ErrorStateView(
+            onRetry: () {
+              reviewController.getStoreReviewList(widget.storeID);
+            },
+          );
+        }
         return reviewController.storeReviewList != null
             ? reviewController.storeReviewList!.isNotEmpty
                 ? RefreshIndicator(
@@ -103,6 +120,7 @@ class _ReviewScreenState extends State<ReviewScreen> {
                 : Center(child: NoDataScreen(text: 'no_review_found'.tr, showFooter: true))
             : const Center(child: CircularProgressIndicator());
       }),
+      ),
     );
   }
 }

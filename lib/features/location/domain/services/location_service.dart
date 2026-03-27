@@ -259,11 +259,18 @@ class LocationService implements LocationServiceInterface {
     debugPrint('🔍 Checking location permission...');
 
     // First check if location services are enabled
-    final bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
     if (!serviceEnabled) {
-      debugPrint('❌ Location services are disabled');
+      debugPrint('❌ Location services are disabled - opening settings');
       showCustomSnackBar('location_services_disabled'.tr);
-      return;
+      await Geolocator.openLocationSettings();
+      await Future.delayed(const Duration(milliseconds: 700));
+      serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) {
+        debugPrint('❌ Location services still disabled after settings');
+        showCustomSnackBar('location_services_disabled'.tr);
+        return;
+      }
     }
 
     LocationPermission permission = await Geolocator.checkPermission();
@@ -276,8 +283,8 @@ class LocationService implements LocationServiceInterface {
     }
 
     if (permission == LocationPermission.denied) {
-      debugPrint('❌ Permission still denied, showing snackbar');
-      showCustomSnackBar('you_have_to_allow'.tr);
+      debugPrint('❌ Permission denied, showing settings dialog');
+      Get.dialog(const PermissionDialogWidget());
     } else if (permission == LocationPermission.deniedForever) {
       debugPrint('❌ Permission denied forever, showing dialog');
       Get.dialog(const PermissionDialogWidget());

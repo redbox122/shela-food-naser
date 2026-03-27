@@ -87,55 +87,67 @@ class _PaymentMethodBottomSheetState extends State<PaymentMethodBottomSheet> {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      constraints:
-          BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.9),
-      padding: const EdgeInsets.all(Dimensions.paddingSizeLarge),
-      decoration: BoxDecoration(
-        color: Theme.of(context).cardColor,
-        borderRadius: BorderRadius.vertical(
-          top: const Radius.circular(Dimensions.radiusLarge),
-          bottom: Radius.circular(
-              ResponsiveHelper.isDesktop(context) ? Dimensions.radiusLarge : 0),
-        ),
-      ),
-      child: GetBuilder<KaidhaSubscription_Controller>(
-        builder: (KaidhaSubController) {
-          return GetBuilder<CheckoutController>(builder: (checkoutController) {
-            return SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const SizedBox(height: 10),
-                  const Text('اختر طريقة الدفع',
-                      style:
-                          TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 20),
-                  PriceConverter.convertPrice2(
-                    checkoutController.viewTotalPrice,
-                    textStyle: robotoBold.copyWith(
-                      color: Theme.of(context).primaryColor,
-                      fontSize: Dimensions.fontSizeOverLarge,
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-
-                  // Digital Payment Methods List
-                  _buildDigitalPaymentMethodsList(checkoutController),
-
-                  const SizedBox(height: 20),
-                  const LinearProgressIndicator(value: 0.1),
-                  const SizedBox(height: 20),
-
-                  // Show action buttons
-                  _buildActionButtons(checkoutController),
-
-                  const SizedBox(height: 30),
-                ],
+    final double sheetMaxHeight = MediaQuery.sizeOf(context).height * 0.9;
+    return SafeArea(
+      top: false,
+      bottom: true,
+      left: false,
+      right: false,
+      minimum: EdgeInsets.zero,
+      child: Align(
+        alignment: Alignment.bottomCenter,
+        child: ConstrainedBox(
+          constraints: BoxConstraints(maxHeight: sheetMaxHeight),
+          child: Material(
+            color: Colors.transparent,
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(Dimensions.paddingSizeLarge),
+              decoration: BoxDecoration(
+                color: Theme.of(context).cardColor,
+                borderRadius: BorderRadius.vertical(
+                  top: const Radius.circular(Dimensions.radiusLarge),
+                  bottom: Radius.circular(
+                      ResponsiveHelper.isDesktop(context) ? Dimensions.radiusLarge : 0),
+                ),
               ),
-            );
-          });
-        },
+              child: GetBuilder<KaidhaSubscription_Controller>(
+                builder: (KaidhaSubController) {
+                  return GetBuilder<CheckoutController>(builder: (checkoutController) {
+                    return SingleChildScrollView(
+                      physics: const ClampingScrollPhysics(),
+                      keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const SizedBox(height: 10),
+                          const Text('اختر طريقة الدفع',
+                              style: TextStyle(
+                                  fontSize: 20, fontWeight: FontWeight.bold)),
+                          const SizedBox(height: 20),
+                          PriceConverter.convertPrice2(
+                            checkoutController.viewTotalPrice,
+                            textStyle: robotoBold.copyWith(
+                              color: Theme.of(context).primaryColor,
+                              fontSize: Dimensions.fontSizeOverLarge,
+                            ),
+                          ),
+                          const SizedBox(height: 20),
+                          _buildDigitalPaymentMethodsList(checkoutController),
+                          const SizedBox(height: 20),
+                          const LinearProgressIndicator(value: 0.1),
+                          const SizedBox(height: 20),
+                          _buildActionButtons(checkoutController),
+                          const SizedBox(height: 30),
+                        ],
+                      ),
+                    );
+                  });
+                },
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -179,7 +191,7 @@ class _PaymentMethodBottomSheetState extends State<PaymentMethodBottomSheet> {
         crossAxisCount: ResponsiveHelper.isDesktop(context) ? 4 : 3,
         mainAxisSpacing: Dimensions.paddingSizeDefault,
         crossAxisSpacing: Dimensions.paddingSizeDefault,
-        childAspectRatio: 1.1,
+        childAspectRatio: ResponsiveHelper.isDesktop(context) ? 1.15 : 1.28,
       ),
       itemCount: filteredPaymentMethods.length,
       itemBuilder: (context, index) {
@@ -264,7 +276,7 @@ class _PaymentMethodBottomSheetState extends State<PaymentMethodBottomSheet> {
             ),
           ),
         ),
-        const SizedBox(width: Dimensions.paddingSizeDefault),
+        SizedBox(width: Dimensions.paddingSizeDefault),
         Expanded(
           child: ElevatedButton(
             onPressed:
@@ -305,13 +317,6 @@ class _PaymentMethodBottomSheetState extends State<PaymentMethodBottomSheet> {
 
       // Close the modal first
       Navigator.of(context).pop();
-
-      // Just show confirmation that payment method was selected
-      // Payment will be processed when user clicks "Pay and Follow Order"
-      showCustomSnackBar(
-        'تم اختيار طريقة الدفع: ${checkoutController.select_payment_Methods!.paymentMethodAr}',
-        isError: false,
-      );
     } else {
       showCustomSnackBar('يرجى اختيار طريقة دفع أولاً');
     }

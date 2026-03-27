@@ -11,6 +11,7 @@ import 'package:sixam_mart/helper/responsive_helper.dart';
 import 'package:sixam_mart/util/dimensions.dart';
 import 'package:sixam_mart/common/widgets/footer_view.dart';
 import 'package:sixam_mart/common/widgets/not_logged_in_screen.dart';
+import 'package:sixam_mart/common/widgets/error_state_view.dart';
 import 'package:sixam_mart/common/widgets/web_page_title_widget.dart';
 import 'package:sixam_mart/features/wallet/widgets/wallet_card_widget.dart';
 import 'package:sixam_mart/features/wallet/widgets/wallet_history_widget.dart';
@@ -173,6 +174,11 @@ class _WalletScreenState extends State<WalletScreen> {
         return isLoggedIn
             ? profileController.userInfoModel != null
                 ? SafeArea(
+                    top: false,
+                    bottom: true,
+                    left: false,
+                    right: false,
+                    minimum: EdgeInsets.zero,
                     child: RefreshIndicator(
                       onRefresh: () async {
                         if (kDebugMode) {
@@ -269,7 +275,16 @@ class _WalletScreenState extends State<WalletScreen> {
                       ),
                     ),
                   )
-                : const Center(child: CircularProgressIndicator())
+                : profileController.hasProfileError
+                    ? ErrorStateView(
+                        onRetry: () {
+                          profileController.getUserInfo();
+                          final walletController = Get.find<WalletController>();
+                          walletController.getWalletTransactionList(
+                              '1', true, walletController.type);
+                        },
+                      )
+                    : const Center(child: CircularProgressIndicator())
             : NotLoggedInScreen(callBack: (value) {
                 initCall();
               });

@@ -46,6 +46,8 @@ class ParcelController extends GetxController implements GetxService {
 
   bool _isLoading = false;
   bool get isLoading => _isLoading;
+  bool _hasOrderError = false;
+  bool get hasOrderError => _hasOrderError;
 
   double? _distance = -1;
   double? get distance => _distance;
@@ -399,9 +401,18 @@ class ParcelController extends GetxController implements GetxService {
       {bool forParcel = false,
       bool isOfflinePay = false}) async {
     _isLoading = true;
+    _hasOrderError = false;
     update();
     String orderID = '';
-    final Response response = await parcelServiceInterface.placeOrder(placeOrderBody);
+    Response response;
+    try {
+      response = await parcelServiceInterface.placeOrder(placeOrderBody);
+    } catch (_) {
+      _isLoading = false;
+      _hasOrderError = true;
+      update();
+      return orderID;
+    }
     _isLoading = false;
     if (response.statusCode == 200) {
       final String? message = (response.body as Map<String, dynamic>)['message'] as String?;
@@ -424,6 +435,7 @@ class ParcelController extends GetxController implements GetxService {
         print('-------- Order placed successfully $orderID ----------');
       }
     } else {
+      _hasOrderError = true;
       if (!isOfflinePay) {
         parcelCallback(
             false,

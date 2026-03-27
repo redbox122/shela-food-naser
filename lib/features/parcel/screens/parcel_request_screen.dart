@@ -25,6 +25,7 @@ import 'package:sixam_mart/util/styles.dart';
 import 'package:sixam_mart/common/widgets/custom_app_bar.dart';
 import 'package:sixam_mart/common/widgets/custom_button.dart';
 import 'package:sixam_mart/common/widgets/custom_image.dart';
+import 'package:sixam_mart/common/widgets/error_state_view.dart';
 import 'package:sixam_mart/common/widgets/custom_snackbar.dart';
 import 'package:sixam_mart/common/widgets/custom_text_field.dart';
 import 'package:sixam_mart/common/widgets/footer_view.dart';
@@ -121,6 +122,11 @@ class _ParcelRequestScreenState extends State<ParcelRequestScreen> {
     return Scaffold(
       appBar: CustomAppBar(title: 'parcel_request'.tr),
       body: SafeArea(
+        top: false,
+        bottom: true,
+        left: false,
+        right: false,
+        minimum: EdgeInsets.zero,
         child: guestCheckoutPermission || _isLoggedIn
             ? GetBuilder<ParcelController>(builder: (parcelController) {
                 double charge = -1;
@@ -144,6 +150,19 @@ class _ParcelRequestScreenState extends State<ParcelRequestScreen> {
                 }
 
                 return Column(children: [
+                  if (parcelController.hasOrderError && !parcelController.isLoading)
+                    Padding(
+                      padding: const EdgeInsets.only(
+                        left: Dimensions.paddingSizeSmall,
+                        right: Dimensions.paddingSizeSmall,
+                        top: Dimensions.paddingSizeSmall,
+                      ),
+                      child: ErrorStateView(
+                        onRetry: () {
+                          initCall();
+                        },
+                      ),
+                    ),
                   Expanded(
                       child: SingleChildScrollView(
                     padding: ResponsiveHelper.isDesktop(context)
@@ -1140,9 +1159,13 @@ class _ParcelRequestScreenState extends State<ParcelRequestScreen> {
     final bool isInstructionSelected = parcelController.selectedIndexNote != -1;
     final bool isCustomNote = parcelController.customNote!.isNotEmpty;
 
+    if (parcelController.isLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
     return CustomButton(
       buttonText: 'confirm_parcel_request'.tr,
-      isLoading: parcelController.isLoading,
+      isLoading: false,
       margin: ResponsiveHelper.isDesktop(context)
           ? null
           : const EdgeInsets.all(Dimensions.paddingSizeSmall),
