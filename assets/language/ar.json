@@ -2012,6 +2012,13 @@
   "refund_to_wallet_processing": "تم إلغاء الطلب بنجاح. جاري إعادة المبلغ إلى محفظتك.",
   "refund_to_original_payment_processing": "تم إلغاء الطلب بنجاح. سيتم إعادة المبلغ إلى وسيلة الدفع الأصلية.",
   "something_went_wrong": "حدث خطأ ما. يرجى المحاولة مرة أخرى.",
-  "searching_for_products": "جاري البحث..."
+  "searching_for_products": "جاري البحث...",
+  "item_sheet_options_fee": "إضافة الخيارات",
+  "item_sheet_price_per_item": "سعر القطعة",
+  "recommended_in_cart": "بالسلة",
+  "recommended_customize_add": "اختر الخيارات",
+  "item_sheet_scope_title": "أنت تعدّل الآن",
+  "item_sheet_order_preview": "ملخص الطلب",
+  "item_sheet_cart_other_hint": "تنبيه: سلتك فيها @count صنفاً إضافياً على الأقل. السعر والكمية وزر +/− أدناه خاصة بالمنتج المعروض أعلاه فقط."
 }
 

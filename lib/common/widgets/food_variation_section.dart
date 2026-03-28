@@ -10,6 +10,8 @@ class FoodVariationSection extends StatelessWidget {
   final Item item;
   final Function(int variationIndex, int optionIndex) onVariationSelected;
   final List<List<bool?>> selectedVariations;
+  /// When non-null and length matches [foodVariations], used to scroll to invalid sections.
+  final List<GlobalKey>? variationSectionKeys;
 
   const FoodVariationSection({
     super.key,
@@ -17,6 +19,7 @@ class FoodVariationSection extends StatelessWidget {
     required this.item,
     required this.onVariationSelected,
     required this.selectedVariations,
+    this.variationSectionKeys,
   });
 
   @override
@@ -35,31 +38,37 @@ class FoodVariationSection extends StatelessWidget {
         final String variationTitle = variationTitles[index];
         final String subtitle = variationSubtitles[index];
 
-        return FoodOrderVariationSection(
-          title: variationTitle,
-          subtitle: subtitle,
-          child: ListView.builder(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            itemCount: foodVariation.variationValues!.length,
-            itemBuilder: (context, i) {
-              // Guard against RangeError: ensure selectedVariations is properly initialized
-              bool isSelected = false;
-              if (selectedVariations.length > index &&
-                  selectedVariations[index].length > i) {
-                isSelected = selectedVariations[index][i] ?? false;
-              }
+        final GlobalKey? sectionKey =
+            variationSectionKeys != null && index < variationSectionKeys!.length
+                ? variationSectionKeys![index]
+                : null;
+        return KeyedSubtree(
+          key: sectionKey ?? ValueKey<String>('food_variation_$index'),
+          child: FoodOrderVariationSection(
+            title: variationTitle,
+            subtitle: subtitle,
+            child: ListView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: foodVariation.variationValues!.length,
+              itemBuilder: (context, i) {
+                bool isSelected = false;
+                if (selectedVariations.length > index &&
+                    selectedVariations[index].length > i) {
+                  isSelected = selectedVariations[index][i] ?? false;
+                }
 
-              return FoodOrderOptionItem(
-                label: foodVariation.variationValues![i].level!,
-                price: foodVariation.variationValues![i].optionPrice,
-                isSelected: isSelected,
-                onTap: () {
-                  onVariationSelected(index, i);
-                },
-                isMultiSelect: foodVariation.multiSelect ?? false,
-              );
-            },
+                return FoodOrderOptionItem(
+                  label: foodVariation.variationValues![i].level!,
+                  price: foodVariation.variationValues![i].optionPrice,
+                  isSelected: isSelected,
+                  onTap: () {
+                    onVariationSelected(index, i);
+                  },
+                  isMultiSelect: foodVariation.multiSelect ?? false,
+                );
+              },
+            ),
           ),
         );
       },

@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:sixam_mart/common/widgets/custom_image.dart';
+import 'package:sixam_mart/features/cart/controllers/cart_controller.dart';
 import 'package:sixam_mart/features/language/controllers/language_controller.dart';
 import 'package:sixam_mart/features/store/screens/food_restaurant_search_screen.dart';
 import 'package:sixam_mart/helper/route_helper.dart';
 import 'package:sixam_mart/util/app_colors.dart';
 import 'package:sixam_mart/util/dimensions.dart';
+import 'package:sixam_mart/util/styles.dart';
 
 class FoodRestaurantHeader extends StatelessWidget {
   final String coverPhotoUrl;
@@ -130,12 +132,7 @@ class FoodRestaurantHeader extends StatelessWidget {
                             },
                           ),
                           const SizedBox(width: Dimensions.paddingSizeDefault),
-                          _buildActionButton(
-                            icon: Icons.shopping_cart_outlined,
-                            onTap: () {
-                              Get.toNamed(RouteHelper.getCartRoute());
-                            },
-                          ),
+                          _buildCartActionButton(context),
                         ],
                       ),
                       // Right side: Back button (arrow direction based on language)
@@ -152,6 +149,62 @@ class FoodRestaurantHeader extends StatelessWidget {
                 );
               },
             ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCartActionButton(BuildContext context) {
+    return GestureDetector(
+      onTap: () => Get.toNamed<void>(RouteHelper.getCartRoute()),
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Container(
+            width: 28,
+            height: 29,
+            alignment: Alignment.center,
+            decoration: const BoxDecoration(
+              color: AppColors.wtColor_2,
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              Icons.shopping_cart_outlined,
+              size: 20,
+              color: AppColors.textColor,
+            ),
+          ),
+          GetBuilder<CartController>(
+            id: 'cart_count',
+            builder: (CartController cartController) {
+              final int cartQuantity = cartController.totalCartQuantity;
+              if (cartQuantity <= 0) {
+                return const SizedBox.shrink();
+              }
+              final String countLabel =
+                  cartQuantity > 99 ? '99+' : cartQuantity.toString();
+              return PositionedDirectional(
+                top: -4,
+                end: -4,
+                child: Container(
+                  constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
+                  padding: const EdgeInsets.symmetric(horizontal: 3),
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: Theme.of(context).colorScheme.error,
+                  ),
+                  child: Text(
+                    countLabel,
+                    style: robotoRegular.copyWith(
+                      fontSize: countLabel.length > 2 ? 8 : 10,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+              );
+            },
           ),
         ],
       ),

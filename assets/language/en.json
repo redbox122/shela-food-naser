@@ -1997,5 +1997,12 @@
   "refund_to_wallet_processing": "Order canceled successfully. Your refund is being returned to your wallet.",
   "refund_to_original_payment_processing": "Order canceled successfully. Your refund will be returned to your original payment method.",
   "something_went_wrong": "Something went wrong. Please try again.",
-  "searching_for_products": "Searching for products..."
+  "searching_for_products": "Searching for products...",
+  "item_sheet_options_fee": "Options surcharge",
+  "item_sheet_price_per_item": "Price per item",
+  "recommended_in_cart": "In cart",
+  "recommended_customize_add": "Options",
+  "item_sheet_scope_title": "You are customizing",
+  "item_sheet_order_preview": "Order summary",
+  "item_sheet_cart_other_hint": "Note: your cart has @count other item line(s). Price, quantity, and +/− below apply only to the product shown above."
 }

@@ -78,11 +78,18 @@ class CartItemWidget extends StatelessWidget {
           child: CustomInkWell(
             onTap: () {
               ResponsiveHelper.isMobile(context)
-                  ? showModalBottomSheet(
+                  ? showModalBottomSheet<void>(
                       context: context,
                       isScrollControlled: true,
                       backgroundColor: Colors.transparent,
-                      builder: (con) => ItemBottomSheet(item: cart.item, cartIndex: cartIndex, cart: cart),
+                      isDismissible: true,
+                      enableDrag: true,
+                      showDragHandle: true,
+                      builder: (BuildContext con) => ItemBottomSheet(
+                        item: cart.item,
+                        cartIndex: cartIndex,
+                        cart: cart,
+                      ),
                     )
                   : showDialog(
                       context: context,

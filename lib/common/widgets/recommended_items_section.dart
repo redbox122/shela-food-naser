@@ -7,6 +7,7 @@ import 'package:sixam_mart/common/widgets/custom_image.dart';
 import 'package:sixam_mart/common/widgets/cart_snackbar.dart';
 import 'package:sixam_mart/helper/price_converter.dart';
 import 'package:sixam_mart/helper/route_helper.dart';
+import 'package:sixam_mart/util/design_tokens.dart';
 import 'package:sixam_mart/util/styles.dart';
 import 'package:get/get.dart';
 
@@ -60,7 +61,7 @@ class RecommendedItemsSection extends StatelessWidget {
           ),
           // Horizontal scrollable list
           SizedBox(
-            height: 195,
+            height: 228,
             child: ListView.builder(
               scrollDirection: Axis.horizontal,
               padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -247,194 +248,310 @@ class _RecommendedItemCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GetBuilder<CartController>(builder: (cartController) {
-      final cartQuantity = _getCartQuantity(cartController);
-      final showQuantityControls = cartQuantity > 0 && !_hasVariations(item);
+    return GetBuilder<CartController>(
+      id: 'cart_items',
+      builder: (CartController cartController) {
+        final int cartQuantity = _getCartQuantity(cartController);
+        final bool showQuantityControls =
+            cartQuantity > 0 && !_hasVariations(item);
+        final String itemLabel = item.name ?? '';
+        final ColorScheme scheme = Theme.of(context).colorScheme;
 
-      return Container(
-        width: 150,
-        margin: const EdgeInsets.only(left: 12),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(12),
-          boxShadow: const [
-            BoxShadow(
-              color: Color(0x0C000000),
-              blurRadius: 8,
-              offset: Offset(0, 2),
-            ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Item image
-            ClipRRect(
-              borderRadius:
-                  const BorderRadius.vertical(top: Radius.circular(12)),
-              child: CustomImage(
-                image: item.imageFullUrl ?? '',
-                height: 100,
-                width: double.infinity,
+        return Container(
+          width: 156,
+          margin: const EdgeInsets.only(left: 12),
+          decoration: BoxDecoration(
+            color: Theme.of(context).cardColor,
+            borderRadius: BorderRadius.circular(12),
+            border: showQuantityControls
+                ? Border.all(
+                    color: DesignTokens.primaryGreen,
+                    width: 2,
+                  )
+                : null,
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x0C000000),
+                blurRadius: 8,
+                offset: Offset(0, 2),
               ),
-            ),
-
-            // Item details
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.all(12),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              ClipRRect(
+                borderRadius:
+                    const BorderRadius.vertical(top: Radius.circular(10)),
+                child: Stack(
                   children: [
-                    // Item name
-                    Text(
-                      item.name ?? '',
-                      style: robotoRegular.copyWith(
-                        fontSize: 12,
-                        color: const Color(0xFF2D3633),
-                        fontWeight: FontWeight.w400,
-                        height: 1.4,
-                      ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      textAlign: TextAlign.right,
+                    CustomImage(
+                      image: item.imageFullUrl ?? '',
+                      height: 88,
+                      width: double.infinity,
                     ),
-
-                    // Price and controls row
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        // Price
-                        Flexible(
-                          child: Text(
-                            '${PriceConverter.convertPrice(item.price)} ريال',
-                            style: robotoBold.copyWith(
-                              fontSize: 14,
-                              color: const Color(0xFF2D3633),
-                              fontWeight: FontWeight.w600,
+                    if (showQuantityControls)
+                      PositionedDirectional(
+                        top: 6,
+                        start: 6,
+                        child: DecoratedBox(
+                          decoration: BoxDecoration(
+                            color: DesignTokens.primaryGreen,
+                            borderRadius: BorderRadius.circular(20),
+                            boxShadow: const [
+                              BoxShadow(
+                                color: Color(0x33000000),
+                                blurRadius: 4,
+                                offset: Offset(0, 1),
+                              ),
+                            ],
+                          ),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 3,
                             ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
+                            child: Text(
+                              '${'recommended_in_cart'.tr} · $cartQuantity',
+                              style: robotoMedium.copyWith(
+                                fontSize: 10,
+                                color: Colors.white,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
                           ),
                         ),
-
-                        // Plus button or quantity controls
-                        if (showQuantityControls)
-                          _QuantityControls(
-                            quantity: cartQuantity,
-                            onDecrement: () => _handleDecrement(cartController),
-                            onIncrement: () => _handleIncrement(cartController),
-                          )
-                        else
-                          GestureDetector(
-                            onTap: () => _handleAddToCart(context),
-                            child: Container(
-                              width: 32,
-                              height: 32,
-                              decoration: const BoxDecoration(
-                                color: Color(0xFF31A342),
-                                shape: BoxShape.circle,
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Color(0x1A31A342),
-                                    blurRadius: 4,
-                                    offset: Offset(0, 2),
-                                  ),
-                                ],
-                              ),
-                              child: const Icon(
-                                Icons.add,
-                                color: Colors.white,
-                                size: 20,
-                              ),
-                            ),
-                          ),
-                      ],
-                    ),
+                      ),
                   ],
                 ),
               ),
-            ),
-          ],
-        ),
-      );
-    });
+              Expanded(
+                child: Padding(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Text(
+                        itemLabel,
+                        style: robotoRegular.copyWith(
+                          fontSize: 11,
+                          color: scheme.onSurface,
+                          fontWeight: FontWeight.w500,
+                          height: 1.35,
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        textAlign: TextAlign.right,
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        '${PriceConverter.convertPrice(item.price)} ريال',
+                        style: robotoBold.copyWith(
+                          fontSize: 13,
+                          color: scheme.onSurface,
+                          fontWeight: FontWeight.w600,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        textAlign: TextAlign.right,
+                      ),
+                      const Spacer(),
+                      if (showQuantityControls)
+                        Semantics(
+                          label:
+                              '$itemLabel ${'recommended_in_cart'.tr} $cartQuantity',
+                          child: DecoratedBox(
+                            decoration: BoxDecoration(
+                              color: DesignTokens.primaryGreen
+                                  .withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(
+                                color: DesignTokens.primaryGreen
+                                    .withValues(alpha: 0.35),
+                              ),
+                            ),
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(
+                                vertical: 4,
+                                horizontal: 2,
+                              ),
+                              child: _QuantityControls(
+                                quantity: cartQuantity,
+                                itemLabel: itemLabel,
+                                onDecrement: () =>
+                                    _handleDecrement(cartController),
+                                onIncrement: () =>
+                                    _handleIncrement(cartController),
+                              ),
+                            ),
+                          ),
+                        )
+                      else if (_hasVariations(item))
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            Semantics(
+                              label:
+                                  '${'recommended_customize_add'.tr} $itemLabel',
+                              button: true,
+                              child: Material(
+                                color: DesignTokens.primaryGreen,
+                                borderRadius: BorderRadius.circular(8),
+                                child: InkWell(
+                                  onTap: () => _handleAddToCart(context),
+                                  borderRadius: BorderRadius.circular(8),
+                                  child: SizedBox(
+                                    height: 36,
+                                    child: Row(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
+                                      children: [
+                                        const Icon(
+                                          Icons.tune_rounded,
+                                          color: Colors.white,
+                                          size: 16,
+                                        ),
+                                        const SizedBox(width: 4),
+                                        Flexible(
+                                          child: Text(
+                                            'recommended_customize_add'.tr,
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: robotoBold.copyWith(
+                                              fontSize: 11,
+                                              color: Colors.white,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        )
+                      else
+                        Semantics(
+                          label:
+                              '${'add_to_cart'.tr} $itemLabel',
+                          button: true,
+                          child: Align(
+                            alignment: AlignmentDirectional.centerEnd,
+                            child: Material(
+                              color: DesignTokens.primaryGreen,
+                              shape: const CircleBorder(),
+                              elevation: 2,
+                              shadowColor:
+                                  DesignTokens.primaryGreen.withValues(
+                                alpha: 0.35,
+                              ),
+                              child: InkWell(
+                                onTap: () => _handleAddToCart(context),
+                                customBorder: const CircleBorder(),
+                                child: const SizedBox(
+                                  width: 36,
+                                  height: 36,
+                                  child: Icon(
+                                    Icons.add_rounded,
+                                    color: Colors.white,
+                                    size: 20,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
   }
 }
 
-/// Quantity controls widget with minus, quantity display, and plus buttons
+/// Full-width quantity strip: each control is labeled with the product name.
 class _QuantityControls extends StatelessWidget {
   final int quantity;
+  final String itemLabel;
   final VoidCallback onDecrement;
   final VoidCallback onIncrement;
 
   const _QuantityControls({
     required this.quantity,
+    required this.itemLabel,
     required this.onDecrement,
     required this.onIncrement,
   });
 
   @override
   Widget build(BuildContext context) {
+    final Color onSurface = Theme.of(context).colorScheme.onSurface;
     return Directionality(
       textDirection: TextDirection.ltr,
       child: Row(
-        mainAxisSize: MainAxisSize.min,
+        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
         children: [
-          // Minus button (orange outlined circle)
-          GestureDetector(
-            onTap: onDecrement,
-            child: Container(
-              width: 32,
-              height: 32,
-              padding: const EdgeInsets.all(11),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                shape: BoxShape.circle,
-                border: Border.all(
-                  color: const Color(0xFFFA9D2B),
+          Semantics(
+            button: true,
+            label: '$itemLabel decrease quantity',
+            child: Material(
+              color: Theme.of(context).cardColor,
+              shape: const CircleBorder(),
+              child: InkWell(
+                customBorder: const CircleBorder(),
+                onTap: onDecrement,
+                child: Container(
+                  width: 34,
+                  height: 34,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: DesignTokens.secondaryOrange,
+                      width: 1.5,
+                    ),
+                  ),
+                  child: Icon(
+                    Icons.remove_rounded,
+                    size: 18,
+                    color: onSurface,
+                  ),
                 ),
-              ),
-              child: const Icon(
-                Icons.remove,
-                size: 10,
-                color: Color(0xFF2D3633),
               ),
             ),
           ),
-
-          const SizedBox(width: 12),
-
-          // Quantity number
           Text(
             quantity.toString(),
-            style: robotoRegular.copyWith(
-              color: const Color(0xFF2D3633),
-              fontSize: 16,
-              fontWeight: FontWeight.w400,
-              height: 1.50,
+            style: robotoBold.copyWith(
+              color: onSurface,
+              fontSize: 15,
+              fontWeight: FontWeight.w700,
             ),
             textAlign: TextAlign.center,
           ),
-
-          const SizedBox(width: 12),
-
-          // Plus button (green filled circle)
-          GestureDetector(
-            onTap: onIncrement,
-            child: Container(
-              width: 32,
-              height: 32,
-              padding: const EdgeInsets.all(10),
-              decoration: const BoxDecoration(
-                color: Color(0xFF31A342),
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(
-                Icons.add,
-                size: 12,
-                color: Colors.white,
+          Semantics(
+            button: true,
+            label: '$itemLabel increase quantity',
+            child: Material(
+              color: DesignTokens.primaryGreen,
+              shape: const CircleBorder(),
+              child: InkWell(
+                customBorder: const CircleBorder(),
+                onTap: onIncrement,
+                child: const SizedBox(
+                  width: 34,
+                  height: 34,
+                  child: Icon(
+                    Icons.add_rounded,
+                    color: Colors.white,
+                    size: 18,
+                  ),
+                ),
               ),
             ),
           ),

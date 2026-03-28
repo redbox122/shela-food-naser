@@ -1322,6 +1322,9 @@ class ItemController extends GetxController implements GetxService {
                   isCampaign: isCampaign),
               backgroundColor: Colors.transparent,
               isScrollControlled: true,
+              isDismissible: true,
+              enableDrag: true,
+              persistent: false,
             )
           : Get.dialog<void>(
               Dialog(
@@ -1499,6 +1502,9 @@ class ItemController extends GetxController implements GetxService {
                   item: item, inStorePage: inStore, isCampaign: isCampaign),
               backgroundColor: Colors.transparent,
               isScrollControlled: true,
+              isDismissible: true,
+              enableDrag: true,
+              persistent: false,
             )
           : Get.dialog<void>(
               Dialog(

@@ -6,7 +6,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sixam_mart/features/item/domain/models/item_model.dart';
 import 'package:sixam_mart/common/models/module_model.dart';
 import 'package:sixam_mart/features/cart/domain/models/cart_model.dart';
-import 'package:sixam_mart/features/cart/domain/models/online_cart_model.dart';
+import 'package:sixam_mart/features/cart/domain/models/online_cart_model.dart'
+    hide Variation;
 import 'package:sixam_mart/features/cart/domain/services/cart_service_interface.dart';
 import 'package:sixam_mart/features/checkout/domain/models/place_order_body_model.dart';
 import 'package:sixam_mart/features/home/screens/home_screen.dart';
@@ -740,6 +741,192 @@ class CartController extends GetxController implements GetxService {
     }
   }
 
+  /// Same rules as [CartServiceInterface.decideItemQuantity] but synchronous
+  /// so UI (e.g. recommended +/−) updates in the same frame.
+  int _decideItemQuantitySync({
+    required bool isIncrement,
+    required CartModel cartItem,
+    required int? stock,
+    required int? quantityLimit,
+    required bool moduleStock,
+  }) {
+    int quantity = cartItem.quantity ?? 1;
+    if (isIncrement) {
+      if (moduleStock && stock != null && quantity >= stock) {
+        showCustomSnackBar('out_of_stock'.tr);
+      } else if (quantityLimit != null &&
+          quantityLimit != 0 &&
+          quantity >= quantityLimit) {
+        showCustomSnackBar('${'maximum_quantity_limit'.tr} $quantityLimit');
+      } else {
+        quantity = quantity + 1;
+      }
+    } else {
+      quantity = quantity - 1;
+    }
+    return quantity;
+  }
+
+  /// POST every cart row that has no server [cart_id] before another add
+  /// replaces [_cartList] from API (e.g. suggested Pepsi/milk from the sheet).
+  ///
+  /// Uses [smartAddToCartOnline] with [skipDebounce] so rapid sequential adds
+  /// are not dropped by the 500ms debounce. Refreshes from API between passes
+  /// so the next row sees the real server cart (merge-by-item works reliably).
+  Future<bool> syncLocalCartRowsWithoutServerId() async {
+    Future<bool> drainPendingOnce() async {
+      const int maxIterations = 48;
+      int iterations = 0;
+      while (iterations < maxIterations) {
+        iterations++;
+        final int idx = _cartList.indexWhere(
+          (CartModel e) => e.id == null || (e.id != null && e.id! <= 0),
+        );
+        if (idx == -1) {
+          return true;
+        }
+        final CartModel row = _cartList[idx];
+        final List<CartModel> preserveOtherLocalOnly = <CartModel>[];
+        for (int i = 0; i < _cartList.length; i++) {
+          if (i == idx) {
+            continue;
+          }
+          final CartModel e = _cartList[i];
+          if (e.id == null || e.id! <= 0) {
+            preserveOtherLocalOnly.add(_deepCopyCartModel(e));
+          }
+        }
+        if (kDebugMode && preserveOtherLocalOnly.isNotEmpty) {
+          debugPrint(
+              '🛒 syncLocalCartRows: preserving ${preserveOtherLocalOnly.length} other local-only row(s) across API replace');
+        }
+        final OnlineCart? payload =
+            _onlineCartFromCartModelForServerAdd(row);
+        if (payload == null) {
+          debugPrint(
+              '⚠️ syncLocalCartRowsWithoutServerId: cannot build OnlineCart at index $idx');
+          return false;
+        }
+        bool ok =
+            await smartAddToCartOnline(payload, skipDebounce: true);
+        if (!ok) {
+          debugPrint(
+              '⚠️ syncLocalCartRows: smartAdd failed for ${row.item?.name}, refreshing cart and retrying');
+          await getCartDataOnline(forceRefresh: true);
+          ok = await smartAddToCartOnline(payload, skipDebounce: true);
+        }
+        if (!ok) {
+          ok = await addToCartOnline(payload);
+        }
+        if (!ok) {
+          debugPrint(
+              '⚠️ syncLocalCartRowsWithoutServerId: failed at index $idx (${row.item?.name})');
+          return false;
+        }
+        if (preserveOtherLocalOnly.isNotEmpty) {
+          _cartList.addAll(preserveOtherLocalOnly);
+          _cartList = _deduplicateCartList(_cartList);
+          await _persistCartListAfterMerge();
+        }
+        await Future<void>.delayed(const Duration(milliseconds: 72));
+      }
+      debugPrint(
+          '⚠️ syncLocalCartRowsWithoutServerId: max iterations ($maxIterations)');
+      return false;
+    }
+
+    if (!await drainPendingOnce()) {
+      return false;
+    }
+    await getCartDataOnline(forceRefresh: true);
+    final bool stillPending = _cartList.any(
+      (CartModel e) => e.id == null || (e.id != null && e.id! <= 0),
+    );
+    if (stillPending) {
+      return await drainPendingOnce();
+    }
+    return true;
+  }
+
+  List<OrderVariation> _orderVariationsFromCartFoodSelections(CartModel c) {
+    final List<OrderVariation> variations = <OrderVariation>[];
+    final Item? item = c.item;
+    final List<FoodVariation>? foodVariations = item?.foodVariations;
+    final List<List<bool?>>? selected = c.foodVariations;
+    if (item == null ||
+        foodVariations == null ||
+        foodVariations.isEmpty ||
+        selected == null) {
+      return variations;
+    }
+    for (int i = 0; i < foodVariations.length; i++) {
+      if (selected.length <= i || !selected[i].contains(true)) {
+        continue;
+      }
+      final List<VariationValue>? values = foodVariations[i].variationValues;
+      if (values == null || values.isEmpty) {
+        continue;
+      }
+      final List<VariationOption> options = <VariationOption>[];
+      for (int j = 0; j < values.length; j++) {
+        if (selected[i].length > j && selected[i][j] == true) {
+          options.add(VariationOption(
+            label: values[j].level,
+            optionPrice: values[j].optionPrice ?? 0.0,
+          ));
+        }
+      }
+      variations.add(OrderVariation(
+        name: foodVariations[i].name,
+        values: OrderVariationValue(options: options),
+      ));
+    }
+    return variations;
+  }
+
+  OnlineCart? _onlineCartFromCartModelForServerAdd(CartModel c) {
+    final Item? item = c.item;
+    final int? resolvedItemId = item?.id;
+    if (item == null || resolvedItemId == null) {
+      return null;
+    }
+    final List<int?> addOnIds = <int?>[];
+    final List<int?> addOnQtys = <int?>[];
+    if (c.addOnIds != null) {
+      for (final AddOn addOn in c.addOnIds!) {
+        addOnIds.add(addOn.id);
+        addOnQtys.add(addOn.quantity);
+      }
+    }
+    final List<Variation>? legacyVariation =
+        (c.variation != null && c.variation!.isNotEmpty) ? c.variation : null;
+    final List<OrderVariation> foodOrderVariations =
+        _orderVariationsFromCartFoodSelections(c);
+    final List<OrderVariation>? variationsToPass =
+        foodOrderVariations.isNotEmpty ? foodOrderVariations : null;
+    final String unitPrice =
+        (c.discountedPrice ?? c.price ?? 0.0).toString();
+    final int? storeIdForBody = c.storeId ?? item.storeId;
+    return OnlineCart(
+      null,
+      c.isCampaign == true ? null : resolvedItemId,
+      c.isCampaign == true ? resolvedItemId : null,
+      unitPrice,
+      legacyVariation != null && legacyVariation.isNotEmpty
+          ? (legacyVariation[0].type ?? '')
+          : '',
+      legacyVariation,
+      variationsToPass,
+      c.quantity ?? 1,
+      addOnIds,
+      c.addOns,
+      addOnQtys,
+      'Item',
+      itemType: 'Item',
+      storeId: storeIdForBody,
+    );
+  }
+
   /// 🔥 DEPRECATED: Use setQuantityById() instead
   /// This method uses index which can become invalid after cart mutations
   @Deprecated(
@@ -757,17 +944,19 @@ class CartController extends GetxController implements GetxService {
 
     // If no cart_id, can't use safe method
     if (cartItem.id == null) {
-      final int newQuantity = await cartServiceInterface.decideItemQuantity(
-          isIncrement,
-          _cartList,
-          cartIndex,
-          stock,
-          quantityLimit,
-          Get.find<SplashController>()
-              .configModel!
-              .moduleConfig!
-              .module!
-              .stock!);
+      final bool moduleStock = Get.find<SplashController>()
+              .configModel
+              ?.moduleConfig
+              ?.module
+              ?.stock ==
+          true;
+      final int newQuantity = _decideItemQuantitySync(
+        isIncrement: isIncrement,
+        cartItem: cartItem,
+        stock: stock,
+        quantityLimit: quantityLimit,
+        moduleStock: moduleStock,
+      );
       if (newQuantity <= 0) {
         _cartList.removeAt(cartIndex);
         _onCartMutated(reason: 'setQuantity_index_remove_pendingId');
@@ -1171,12 +1360,16 @@ class CartController extends GetxController implements GetxService {
   }
 
   // Smart cart management that automatically chooses add or update
-  Future<bool> smartAddToCartOnline(OnlineCart cart) async {
-    // Debounce rapid API calls
-    if (_lastCartOperation != null &&
-        DateTime.now().difference(_lastCartOperation!) < _debounceDelay) {
-      debugPrint('⏳ Debouncing cart operation - too soon after last call');
-      return false;
+  Future<bool> smartAddToCartOnline(
+    OnlineCart cart, {
+    bool skipDebounce = false,
+  }) async {
+    if (!skipDebounce) {
+      if (_lastCartOperation != null &&
+          DateTime.now().difference(_lastCartOperation!) < _debounceDelay) {
+        debugPrint('⏳ Debouncing cart operation - too soon after last call');
+        return false;
+      }
     }
 
     // 🔒 REMOVED: Zone validation when adding to cart
@@ -1188,8 +1381,12 @@ class CartController extends GetxController implements GetxService {
 
     _lastCartOperation = DateTime.now();
 
-    // Check if item already exists in cart
-    final int existingIndex = _findExistingCartItem(cart.itemId, cart.variant);
+    // Check if item already exists on server-backed cart rows only
+    final int existingIndex = _findExistingCartItem(
+      cart.itemId,
+      cart.variant,
+      requireServerLineId: true,
+    );
 
     if (existingIndex != -1) {
       // Same-store existing item: always use ADD API to append selected quantity.
@@ -1396,10 +1593,22 @@ class CartController extends GetxController implements GetxService {
     }
   }
 
-  // Find existing cart item by itemId and variant
-  int _findExistingCartItem(int? itemId, String? variant) {
+  /// When [requireServerLineId] is true, rows without a backend [CartModel.id]
+  /// are ignored. Prevents treating other local-only suggested lines as the
+  /// "existing" row for merge-append (which would still wipe the rest via API).
+  int _findExistingCartItem(
+    int? itemId,
+    String? variant, {
+    bool requireServerLineId = false,
+  }) {
     final String normalizedTargetVariant = _normalizeVariantKey(variant);
     for (int i = 0; i < _cartList.length; i++) {
+      if (requireServerLineId) {
+        final int? cid = _cartList[i].id;
+        if (cid == null || cid <= 0) {
+          continue;
+        }
+      }
       if (_cartList[i].item?.id == itemId) {
         // Check variant match for items with variations.
         // Treat "none"/"null"/empty as the same no-variation value.
@@ -1414,6 +1623,27 @@ class CartController extends GetxController implements GetxService {
       }
     }
     return -1;
+  }
+
+  CartModel _deepCopyCartModel(CartModel source) {
+    return CartModel.fromJson(
+      jsonDecode(jsonEncode(source.toJson())) as Map<String, dynamic>,
+    );
+  }
+
+  Future<void> _persistCartListAfterMerge() async {
+    await cartServiceInterface.addSharedPrefCartList(_cartList);
+    try {
+      final int? moduleId = ModuleHelper.getCacheModule()?.id;
+      final List<Map<String, dynamic>> cartListJson =
+          _cartList.map((CartModel cart) => cart.toJson()).toList();
+      await HiveHomeCacheService().saveCartData(moduleId, cartListJson);
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('⚠️ _persistCartListAfterMerge Hive save failed: $e');
+      }
+    }
+    _onCartMutated(reason: 'cart_list_merged_local_pending');
   }
 
   String _normalizeVariantKey(String? variant) {

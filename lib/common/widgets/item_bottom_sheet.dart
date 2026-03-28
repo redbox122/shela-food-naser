@@ -26,8 +26,18 @@ import 'package:sixam_mart/common/widgets/item_presets_section.dart';
 import 'package:sixam_mart/common/widgets/nutrition_popup.dart';
 import 'package:sixam_mart/features/checkout/screens/checkout_screen.dart';
 import 'package:sixam_mart/common/utils/app_logger.dart';
+import 'package:sixam_mart/util/app_constants.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+
+/// Line total for cart rows (unit `discountedPrice` or `price` × quantity).
+double _cartLineDisplayTotal(CartModel cartModel) {
+  final double unit =
+      cartModel.discountedPrice ?? cartModel.price ?? 0.0;
+  final int q = cartModel.quantity ?? 1;
+  return unit * q;
+}
 
 class ItemBottomSheet extends StatefulWidget {
   final Item? item;
@@ -53,6 +63,132 @@ class _ItemBottomSheetState extends State<ItemBottomSheet> {
   bool _newVariation = false;
   final TextEditingController _notesController = TextEditingController();
   Preset? _selectedPreset;
+  final ScrollController _scrollController = ScrollController();
+  final List<GlobalKey> _foodVariationSectionKeys = <GlobalKey>[];
+
+  static const int _notesMaxLength = 500;
+
+  void _ensureFoodVariationKeyCount(int count) {
+    if (_foodVariationSectionKeys.length == count) {
+      return;
+    }
+    if (_foodVariationSectionKeys.length < count) {
+      while (_foodVariationSectionKeys.length < count) {
+        _foodVariationSectionKeys.add(GlobalKey());
+      }
+    } else {
+      _foodVariationSectionKeys.length = count;
+    }
+  }
+
+  void _scrollToFoodVariationIndex(int index) {
+    if (index < 0 || index >= _foodVariationSectionKeys.length) {
+      return;
+    }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final BuildContext? targetContext =
+          _foodVariationSectionKeys[index].currentContext;
+      if (targetContext != null && mounted) {
+        Scrollable.ensureVisible(
+          targetContext,
+          duration: const Duration(milliseconds: 360),
+          curve: Curves.easeOutCubic,
+          alignment: 0.12,
+        );
+      }
+    });
+  }
+
+  /// Cart row index for [sheetItem] with current sheet selections only.
+  /// Never use [ItemController.cartIndex] here: adding a suggested item calls
+  /// [ItemController.setExistInCart] for *that* product and overwrites cartIndex,
+  /// which would hide the suggestion from the footer until the next cart change.
+  int _indexOfSheetItemInCart(
+    CartController cartController,
+    ItemController itemController,
+    Item? sheetItem,
+  ) {
+    final int? itemId = sheetItem?.id;
+    if (itemId == null) {
+      return -1;
+    }
+    final List<CartModel> cartList = cartController.cartList;
+    final List<List<bool?>>? variations = itemController.selectedVariations;
+    final bool useFoodMatch = sheetItem?.foodVariations != null &&
+        sheetItem!.foodVariations!.isNotEmpty;
+    if (useFoodMatch) {
+      for (int index = 0; index < cartList.length; index++) {
+        if (cartList[index].item?.id != itemId) {
+          continue;
+        }
+        if (variations != null && variations.isNotEmpty) {
+          if (cartList[index].foodVariations == null ||
+              cartList[index].foodVariations!.isEmpty) {
+            continue;
+          }
+          if (variations.length != cartList[index].foodVariations!.length) {
+            continue;
+          }
+          bool same = false;
+          for (int i = 0; i < variations.length; i++) {
+            if (cartList[index].foodVariations![i].length !=
+                variations[i].length) {
+              same = false;
+              break;
+            }
+            for (int j = 0; j < variations[i].length; j++) {
+              if (variations[i][j] ==
+                  cartList[index].foodVariations![i][j]) {
+                same = true;
+              } else {
+                same = false;
+                break;
+              }
+            }
+            if (!same) {
+              break;
+            }
+          }
+          if (same) {
+            return index;
+          }
+        } else {
+          return index;
+        }
+      }
+      return -1;
+    }
+    return cartController.isExistInCart(itemId, '', false, null);
+  }
+
+  /// Cart lines to show in the sheet footer (excludes the sheet product row only).
+  List<CartModel> _otherCartLinesForPreview(
+    CartController cartController,
+    ItemController itemController,
+    Item? sheetItem,
+  ) {
+    final int? editingCartId = widget.cart?.id;
+    if (editingCartId != null) {
+      return cartController.cartList
+          .where((CartModel c) => c.id != editingCartId)
+          .toList(growable: false);
+    }
+    final int idx = _indexOfSheetItemInCart(
+      cartController,
+      itemController,
+      sheetItem,
+    );
+    if (idx >= 0 && idx < cartController.cartList.length) {
+      final List<CartModel> out = <CartModel>[];
+      for (int i = 0; i < cartController.cartList.length; i++) {
+        if (i != idx) {
+          out.add(cartController.cartList[i]);
+        }
+      }
+      return out;
+    }
+    return List<CartModel>.from(cartController.cartList);
+  }
 
   /// Apply preset selections to variations
   void _applyPreset(Preset preset) {
@@ -363,6 +499,7 @@ class _ItemBottomSheetState extends State<ItemBottomSheet> {
   @override
   void dispose() {
     _notesController.dispose();
+    _scrollController.dispose();
     super.dispose();
   }
 
@@ -395,9 +532,9 @@ class _ItemBottomSheetState extends State<ItemBottomSheet> {
                   Radius.circular(Dimensions.radiusDefault))
               : const BorderRadius.vertical(top: Radius.circular(20)),
         ),
-        child: const Center(
+        child: Center(
           child: CircularProgressIndicator(
-            color: Color(0xFF00C853),
+            color: Theme.of(context).colorScheme.primary,
           ),
         ),
       );
@@ -405,6 +542,7 @@ class _ItemBottomSheetState extends State<ItemBottomSheet> {
 
     // Use fresh item data
     final item = _freshItem ?? widget.item!;
+    _ensureFoodVariationKeyCount(item.foodVariations?.length ?? 0);
 
     return Container(
       width: 550,
@@ -568,19 +706,44 @@ class _ItemBottomSheetState extends State<ItemBottomSheet> {
         appLogger.debug('   ✅ Final total: $priceWithDiscountAndAddons');
         final bool isAvailable = DateConverter.isAvailable(
             item.availableTimeStarts, item.availableTimeEnds);
+        final bool showStickyBottomBar =
+            !(item.scheduleOrder ?? false) && isAvailable;
+        // Reserve space for fixed footer (price breakdown + qty + CTA) so
+        // content e.g. recommended items is not clipped behind it.
+        final double scrollBottomPadding = MediaQuery.paddingOf(context).bottom +
+            (showStickyBottomBar ? 400 : 24);
 
         return ConstrainedBox(
           constraints: BoxConstraints(
               maxHeight: MediaQuery.of(context).size.height * 0.9),
           child: Stack(
             children: [
+              Positioned(
+                top: 10,
+                left: 0,
+                right: 0,
+                child: Center(
+                  child: Container(
+                    width: 40,
+                    height: 5,
+                    decoration: BoxDecoration(
+                      color: Theme.of(context)
+                          .colorScheme
+                          .outline
+                          .withValues(alpha: 0.45),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                ),
+              ),
               // Scrollable content area
               SingleChildScrollView(
-                padding: const EdgeInsetsDirectional.only(
+                controller: _scrollController,
+                padding: EdgeInsetsDirectional.only(
                   top: 80, // Space for fixed header
                   start: 20,
                   end: 20,
-                  bottom: 120, // Space for fixed bottom bar
+                  bottom: scrollBottomPadding,
                 ),
                 child: Directionality(
                   textDirection:
@@ -885,6 +1048,11 @@ class _ItemBottomSheetState extends State<ItemBottomSheet> {
                           foodVariations: item.foodVariations!,
                           item: item,
                           selectedVariations: itemController.selectedVariations,
+                          variationSectionKeys:
+                              _foodVariationSectionKeys.length ==
+                                      item.foodVariations!.length
+                                  ? _foodVariationSectionKeys
+                                  : null,
                           onVariationSelected: (variationIndex, optionIndex) {
                             itemController.setNewCartVariationIndex(
                                 variationIndex, optionIndex, item);
@@ -1029,35 +1197,68 @@ class _ItemBottomSheetState extends State<ItemBottomSheet> {
                             controller: _notesController,
                             minLines: 2,
                             maxLines: 4,
+                            maxLength: _notesMaxLength,
                             textInputAction: TextInputAction.newline,
+                            buildCounter: (
+                              BuildContext fieldContext, {
+                              required int currentLength,
+                              required bool isFocused,
+                              required int? maxLength,
+                            }) {
+                              return Padding(
+                                padding: const EdgeInsets.only(top: 4),
+                                child: Align(
+                                  alignment: AlignmentDirectional.centerEnd,
+                                  child: Text(
+                                    '$currentLength/${maxLength ?? _notesMaxLength}',
+                                    style: robotoRegular.copyWith(
+                                      fontSize: 11,
+                                      color: Theme.of(fieldContext)
+                                          .colorScheme
+                                          .onSurfaceVariant,
+                                    ),
+                                  ),
+                                ),
+                              );
+                            },
                             decoration: InputDecoration(
                               hintText: additionalNoteHint,
                               filled: true,
-                              fillColor: const Color(0xFFF7F9F8),
+                              fillColor: Theme.of(context)
+                                  .colorScheme
+                                  .surfaceContainerHighest
+                                  .withValues(alpha: 0.45),
                               contentPadding: const EdgeInsets.symmetric(
                                 horizontal: 14,
                                 vertical: 12,
                               ),
                               border: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(12),
-                                borderSide:
-                                    const BorderSide(color: Color(0xFFE4E8E6)),
+                                borderSide: BorderSide(
+                                  color: Theme.of(context).dividerColor,
+                                ),
                               ),
                               enabledBorder: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(12),
-                                borderSide:
-                                    const BorderSide(color: Color(0xFFE4E8E6)),
+                                borderSide: BorderSide(
+                                  color: Theme.of(context).dividerColor,
+                                ),
                               ),
                               focusedBorder: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(12),
-                                borderSide: const BorderSide(
-                                    color: Color(0xFF00A651), width: 1.2),
+                                borderSide: BorderSide(
+                                  color: Theme.of(context).colorScheme.primary,
+                                  width: 1.2,
+                                ),
                               ),
+                              counterText: '',
                             ),
-                            onChanged: (value) {
-                              appLogger.debug(
-                                '📝 [ItemBottomSheet] note_updated itemId=${item.id} length=${value.trim().length}',
-                              );
+                            onChanged: (String value) {
+                              if (kDebugMode && AppConstants.enableVerboseLogs) {
+                                appLogger.debug(
+                                  '📝 [ItemBottomSheet] note_updated itemId=${item.id} length=${value.trim().length}',
+                                );
+                              }
                             },
                           ),
                         ),
@@ -1069,10 +1270,24 @@ class _ItemBottomSheetState extends State<ItemBottomSheet> {
                           _freshItem!.recommendedItems!.isNotEmpty)
                         RecommendedItemsSection(
                           recommendedItems: _freshItem!.recommendedItems!,
-                          onOpenItem: (item) {
-                            Get.bottomSheet(
-                              ItemBottomSheet(item: item),
-                              isScrollControlled: true,
+                          onOpenItem: (Item openItem) {
+                            Get.back<void>();
+                            Future<void>.delayed(
+                              const Duration(milliseconds: 200),
+                              () {
+                                Get.bottomSheet<void>(
+                                  ItemBottomSheet(
+                                    item: openItem,
+                                    inStorePage: widget.inStorePage,
+                                    isCampaign: widget.isCampaign,
+                                  ),
+                                  backgroundColor: Colors.transparent,
+                                  isScrollControlled: true,
+                                  isDismissible: true,
+                                  enableDrag: true,
+                                  persistent: false,
+                                );
+                              },
                             );
                           },
                         ),
@@ -1096,15 +1311,22 @@ class _ItemBottomSheetState extends State<ItemBottomSheet> {
                     start: 16,
                     end: 16,
                   ),
-                  decoration: const BoxDecoration(
-                    color: Colors.white,
-                    boxShadow: [
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).cardColor,
+                    boxShadow: const [
                       BoxShadow(
                         color: Color(0x0C000000),
                         blurRadius: 10,
                         offset: Offset(0, 2),
                       ),
                     ],
+                    border: Border(
+                      bottom: BorderSide(
+                        color: Theme.of(context)
+                            .dividerColor
+                            .withValues(alpha: 0.35),
+                      ),
+                    ),
                   ),
                   child: Directionality(
                     textDirection:
@@ -1118,12 +1340,14 @@ class _ItemBottomSheetState extends State<ItemBottomSheet> {
                           child: Container(
                             padding: const EdgeInsets.all(8),
                             decoration: BoxDecoration(
-                              color: Colors.white,
+                              color: Theme.of(context).cardColor,
                               shape: BoxShape.circle,
                               boxShadow: DesignTokens.shadowStrong,
                             ),
-                            child: const Icon(
-                              Icons.arrow_back_rounded,
+                            child: Icon(
+                              Directionality.of(context) == TextDirection.rtl
+                                  ? Icons.arrow_forward_rounded
+                                  : Icons.arrow_back_rounded,
                               size: 24,
                               color: DesignTokens.textDark,
                             ),
@@ -1137,7 +1361,7 @@ class _ItemBottomSheetState extends State<ItemBottomSheet> {
                                 isArabic ? TextAlign.right : TextAlign.center,
                             style: robotoBold.copyWith(
                               fontSize: 16,
-                              color: const Color(0xFF2D3633),
+                              color: Theme.of(context).colorScheme.onSurface,
                               fontWeight: FontWeight.w600,
                             ),
                             maxLines: 1,
@@ -1173,7 +1397,7 @@ class _ItemBottomSheetState extends State<ItemBottomSheet> {
                                 decoration: BoxDecoration(
                                   color: isFavorite
                                       ? Colors.red.shade50
-                                      : Colors.white,
+                                      : Theme.of(context).cardColor,
                                   shape: BoxShape.circle,
                                   boxShadow: isFavorite
                                       ? DesignTokens.glowShadow(Colors.red)
@@ -1199,29 +1423,37 @@ class _ItemBottomSheetState extends State<ItemBottomSheet> {
 
               // Fixed Bottom Bar
               if (!(item.scheduleOrder ?? false) && isAvailable)
-                Positioned(
-                  bottom: 0,
-                  left: 0,
-                  right: 0,
-                  child: Container(
-                    decoration: const BoxDecoration(
-                      color: Colors.white,
-                      boxShadow: [
+              Positioned(
+                bottom: 0,
+                left: 0,
+                right: 0,
+                child: Container(
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).cardColor,
+                      boxShadow: const [
                         BoxShadow(
                           color: Color(0x0C000000),
                           blurRadius: 45,
                           offset: Offset(0, -4),
                         ),
                       ],
+                      border: Border(
+                        top: BorderSide(
+                          color: Theme.of(context)
+                              .dividerColor
+                              .withValues(alpha: 0.4),
+                        ),
+                      ),
                     ),
                     padding: EdgeInsetsDirectional.only(
-                      top: 16,
-                      bottom: MediaQuery.of(context).padding.bottom + 16,
+                      top: 12,
+                      bottom: MediaQuery.of(context).padding.bottom + 12,
                       start: 20,
                       end: 20,
                     ),
-                    child:
-                        GetBuilder<CartController>(builder: (cartController) {
+                    child: GetBuilder<CartController>(
+                        id: 'cart_items',
+                        builder: (cartController) {
                       // ✅ FRONTEND ONLY: Check if store is open from API only (no time calculations)
                       bool canOrder = true;
                       if (widget.inStorePage && item.storeId != null) {
@@ -1274,9 +1506,105 @@ class _ItemBottomSheetState extends State<ItemBottomSheet> {
 
                       final double totalPrice = priceWithDiscountAndAddons *
                           (itemController.quantity ?? 1);
+                      final int qty = itemController.quantity ?? 1;
+                      final double optionsExtraPerUnit = variationPrice +
+                          (isNewVariationModule
+                              ? 0.0
+                              : (_selectedPreset?.price ?? 0.0));
+                      final TextStyle? detailStyle = Theme.of(context)
+                          .textTheme
+                          .bodySmall
+                          ?.copyWith(
+                            color: Theme.of(context)
+                                .colorScheme
+                                .onSurfaceVariant,
+                          );
+                      final List<Widget> priceDetailRows = <Widget>[];
+                      if (optionsExtraPerUnit > 0.001) {
+                        priceDetailRows.add(
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 4),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    'item_sheet_options_fee'.tr,
+                                    style: detailStyle,
+                                  ),
+                                ),
+                                Text(
+                                  PriceConverter.convertPrice(
+                                      optionsExtraPerUnit * qty),
+                                  style: detailStyle,
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      }
+                      if (addonsCost > 0.001) {
+                        priceDetailRows.add(
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 4),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    'addons'.tr,
+                                    style: detailStyle,
+                                  ),
+                                ),
+                                Text(
+                                  PriceConverter.convertPrice(addonsCost * qty),
+                                  style: detailStyle,
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      }
+                      priceDetailRows.add(
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Expanded(
+                              child: Text(
+                                'item_sheet_price_per_item'.tr,
+                                style: detailStyle,
+                              ),
+                            ),
+                            Text(
+                              PriceConverter.convertPrice(
+                                  priceWithDiscountAndAddons),
+                              style: detailStyle?.copyWith(
+                                fontWeight: FontWeight.w600,
+                                color: Theme.of(context).colorScheme.onSurface,
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                      final List<CartModel> otherCartLines =
+                          _otherCartLinesForPreview(
+                        cartController,
+                        itemController,
+                        item,
+                      );
+                      final double othersSum = otherCartLines.fold<double>(
+                        0.0,
+                        (double sum, CartModel c) =>
+                            sum + _cartLineDisplayTotal(c),
+                      );
+                      final double grandTotal = totalPrice + othersSum;
                       return _UnifiedBottomBar(
                         quantity: itemController.quantity!,
-                        price: totalPrice,
+                        currentLineTotal: totalPrice,
+                        grandTotal: grandTotal,
+                        priceDetailRows: priceDetailRows,
+                        itemName: item.name ?? '',
+                        otherCartLines: otherCartLines,
                         helperText: helperText,
                         helperIsWarning: !canOrder || isOutOfStock,
                         buttonText: (!canOrder)
@@ -1304,16 +1632,19 @@ class _ItemBottomSheetState extends State<ItemBottomSheet> {
                             ? null
                             : () async {
                                 String? invalid;
-                                if (_newVariation) {
+                                int? invalidFoodVariationIndex;
+                                if (_newVariation &&
+                                    item.foodVariations != null &&
+                                    item.foodVariations!.isNotEmpty) {
                                   for (int index = 0;
                                       index < item.foodVariations!.length;
                                       index++) {
-                                    // Guard against RangeError: ensure selectedVariations is properly initialized
                                     if (itemController
                                             .selectedVariations.length <=
                                         index) {
                                       invalid =
                                           '${'choose_a_variation_from'.tr} ${item.foodVariations![index].name}';
+                                      invalidFoodVariationIndex = index;
                                       break;
                                     }
 
@@ -1325,6 +1656,7 @@ class _ItemBottomSheetState extends State<ItemBottomSheet> {
                                             .contains(true)) {
                                       invalid =
                                           '${'choose_a_variation_from'.tr} ${item.foodVariations![index].name}';
+                                      invalidFoodVariationIndex = index;
                                       break;
                                     } else if (item.foodVariations![index]
                                             .multiSelect! &&
@@ -1343,6 +1675,7 @@ class _ItemBottomSheetState extends State<ItemBottomSheet> {
                                           '${'select_minimum'.tr} ${item.foodVariations![index].min} '
                                           '${'and_up_to'.tr} ${item.foodVariations![index].max} ${'options_from'.tr}'
                                           ' ${item.foodVariations![index].name} ${'variation'.tr}';
+                                      invalidFoodVariationIndex = index;
                                       break;
                                     }
                                   }
@@ -1364,6 +1697,10 @@ class _ItemBottomSheetState extends State<ItemBottomSheet> {
                                 if (invalid != null) {
                                   showCustomSnackBar(invalid,
                                       getXSnackBar: true);
+                                  if (invalidFoodVariationIndex != null) {
+                                    _scrollToFoodVariationIndex(
+                                        invalidFoodVariationIndex);
+                                  }
                                 } else {
                                   // Calculate discount amount for cart line
                                   // For new-variation modules, backend has already applied the item-level discount
@@ -1482,6 +1819,8 @@ class _ItemBottomSheetState extends State<ItemBottomSheet> {
                                     addOnsList,
                                     listOfAddOnQty,
                                     'Item',
+                                    itemType: 'Item',
+                                    storeId: effectiveStoreId,
                                   );
 
                                   if (widget.isCampaign) {
@@ -1535,9 +1874,18 @@ class _ItemBottomSheetState extends State<ItemBottomSheet> {
                                           ),
                                           barrierDismissible: false);
                                     } else {
-                                      await Get.find<CartController>()
+                                      final bool preSynced = await cartController
+                                          .syncLocalCartRowsWithoutServerId();
+                                      if (!preSynced) {
+                                        showCustomSnackBar(
+                                          'please_try_again'.tr,
+                                          getXSnackBar: true,
+                                        );
+                                        return;
+                                      }
+                                      await cartController
                                           .addToCartOnline(onlineCart)
-                                          .then((success) {
+                                          .then((bool success) {
                                         if (success) {
                                           Get.back<void>();
                                         } else {
@@ -1615,10 +1963,13 @@ class _ItemBottomSheetState extends State<ItemBottomSheet> {
 
 // ==================== MODERN 3D UI COMPONENTS ====================
 
-/// Unified Bottom Bar - Figma Style (Quantity + Button in Single Container)
+/// Compact bottom bar: order summary (this line + other cart lines) + qty + CTA.
 class _UnifiedBottomBar extends StatelessWidget {
   final int quantity;
-  final double price;
+  final double currentLineTotal;
+  final double grandTotal;
+  final String itemName;
+  final List<CartModel> otherCartLines;
   final String buttonText;
   final String helperText;
   final bool helperIsWarning;
@@ -1627,10 +1978,14 @@ class _UnifiedBottomBar extends StatelessWidget {
   final VoidCallback onDecrease;
   final VoidCallback onIncrease;
   final VoidCallback? onPressed;
+  final List<Widget> priceDetailRows;
 
   const _UnifiedBottomBar({
     required this.quantity,
-    required this.price,
+    required this.currentLineTotal,
+    required this.grandTotal,
+    required this.itemName,
+    required this.otherCartLines,
     required this.buttonText,
     required this.helperText,
     required this.helperIsWarning,
@@ -1639,152 +1994,266 @@ class _UnifiedBottomBar extends StatelessWidget {
     required this.onDecrease,
     required this.onIncrease,
     required this.onPressed,
+    this.priceDetailRows = const <Widget>[],
   });
 
   @override
   Widget build(BuildContext context) {
+    final String grandTotalLabel = PriceConverter.convertPrice(grandTotal);
+    final ColorScheme scheme = Theme.of(context).colorScheme;
+    final bool showCartTotalRow = otherCartLines.isNotEmpty;
+    final String mainLabel = itemName.isEmpty
+        ? '—'
+        : '$quantity× ${itemName.trim()}';
     return Column(
       mainAxisSize: MainAxisSize.min,
-      spacing: DesignTokens.spaceDefault,
       children: [
-        // Quantity Controls Row (above the button)
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            // Decrease button (outlined with orange border)
-            _MinimalQuantityButton(
-              icon: Icons.remove,
-              onTap: onDecrease,
-              isOutlined: true,
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsetsDirectional.fromSTEB(10, 10, 10, 10),
+          decoration: BoxDecoration(
+            color: scheme.primary.withValues(alpha: 0.07),
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(
+              color: scheme.primary.withValues(alpha: 0.22),
             ),
-
-            const SizedBox(width: 25),
-
-            // Quantity number
-            Text(
-              quantity.toString(),
-              textAlign: TextAlign.center,
-              style: robotoRegular.copyWith(
-                color: const Color(0xFF2D3633),
-                fontSize: 16,
-                fontWeight: FontWeight.w400,
-                height: 1.50,
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.receipt_long_rounded,
+                    size: 18,
+                    color: scheme.primary,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'item_sheet_order_preview'.tr,
+                      style: robotoMedium.copyWith(
+                        fontSize: 12,
+                        color: scheme.onSurface,
+                        height: 1.2,
+                      ),
+                    ),
+                  ),
+                ],
               ),
+              const SizedBox(height: 8),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: Text(
+                      mainLabel,
+                      maxLines: 3,
+                      overflow: TextOverflow.ellipsis,
+                      style: robotoBold.copyWith(
+                        fontSize: 13,
+                        color: scheme.onSurface,
+                        height: 1.25,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    PriceConverter.convertPrice(currentLineTotal),
+                    style: robotoBold.copyWith(
+                      fontSize: 13,
+                      color: scheme.primary,
+                    ),
+                  ),
+                ],
+              ),
+              if (priceDetailRows.isNotEmpty) ...[
+                const SizedBox(height: 6),
+                Padding(
+                  padding: const EdgeInsetsDirectional.only(start: 4),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: priceDetailRows,
+                  ),
+                ),
+              ],
+              ...otherCartLines.map((CartModel c) {
+                final int q = c.quantity ?? 1;
+                final String name = c.item?.name?.trim() ?? '—';
+                final String lineLabel = '$q× $name';
+                return Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: Text(
+                          lineLabel,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: robotoBold.copyWith(
+                            fontSize: 13,
+                            color: scheme.onSurface,
+                            height: 1.25,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        PriceConverter.convertPrice(_cartLineDisplayTotal(c)),
+                        style: robotoBold.copyWith(
+                          fontSize: 13,
+                          color: scheme.onSurface,
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }),
+              if (showCartTotalRow) ...[
+                Padding(
+                  padding: const EdgeInsets.only(top: 10),
+                  child: Divider(
+                    height: 1,
+                    thickness: 1,
+                    color:
+                        Theme.of(context).dividerColor.withValues(alpha: 0.35),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'total'.tr,
+                      style: robotoBold.copyWith(
+                        fontSize: 13,
+                        color: scheme.onSurface,
+                      ),
+                    ),
+                    Text(
+                      grandTotalLabel,
+                      style: robotoBold.copyWith(
+                        fontSize: 14,
+                        color: scheme.primary,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ],
+          ),
+        ),
+        const SizedBox(height: 10),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            _CompactQuantityPill(
+              quantity: quantity,
+              onDecrease: onDecrease,
+              onIncrease: onIncrease,
             ),
-
-            const SizedBox(width: 25),
-
-            // Increase button (filled green)
-            _MinimalQuantityButton(
-              icon: Icons.add,
-              onTap: onIncrease,
-              isOutlined: false,
+            const SizedBox(width: 10),
+            Expanded(
+              child: Semantics(
+                button: true,
+                enabled: isEnabled && !isLoading,
+                label:
+                    '$buttonText $grandTotalLabel ${itemName.isEmpty ? '' : itemName}',
+                child: Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    onTap: isEnabled && !isLoading ? onPressed : null,
+                    borderRadius: BorderRadius.circular(10),
+                    child: Ink(
+                      height: 44,
+                      decoration: BoxDecoration(
+                        gradient:
+                            isEnabled ? DesignTokens.primaryGreenGradient : null,
+                        color: isEnabled ? null : Colors.grey,
+                        borderRadius: BorderRadius.circular(10),
+                        boxShadow: isEnabled
+                            ? DesignTokens.shadowSubtle
+                            : null,
+                      ),
+                      child: Center(
+                        child: isLoading
+                            ? const SizedBox(
+                                width: 22,
+                                height: 22,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2.2,
+                                  valueColor: AlwaysStoppedAnimation<Color>(
+                                    Colors.white,
+                                  ),
+                                ),
+                              )
+                            : Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                ),
+                                child: FittedBox(
+                                  fit: BoxFit.scaleDown,
+                                  child: Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Text(
+                                        buttonText,
+                                        maxLines: 1,
+                                        style: robotoBold.copyWith(
+                                          fontSize: 14,
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                      Padding(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 6,
+                                        ),
+                                        child: Text(
+                                          '·',
+                                          style: robotoBold.copyWith(
+                                            fontSize: 14,
+                                            color: Colors.white70,
+                                          ),
+                                        ),
+                                      ),
+                                      Text(
+                                        grandTotalLabel,
+                                        maxLines: 1,
+                                        style: robotoBold.copyWith(
+                                          fontSize: 14,
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
             ),
           ],
         ),
+        const SizedBox(height: 6),
         Text(
           helperText,
           textAlign: TextAlign.center,
           maxLines: 2,
           overflow: TextOverflow.ellipsis,
           style: robotoRegular.copyWith(
-            fontSize: 12,
+            fontSize: 11,
+            height: 1.25,
             color: helperIsWarning
-                ? const Color(0xFFC62828)
-                : const Color(0xFF6E7A76),
+                ? Theme.of(context).colorScheme.error
+                : Theme.of(context).colorScheme.onSurfaceVariant,
             fontWeight: FontWeight.w500,
-          ),
-        ),
-
-        // Main Green Button with Price
-        GestureDetector(
-          onTap: isEnabled ? onPressed : null,
-          child: Container(
-            height: 56,
-            decoration: BoxDecoration(
-              gradient: isEnabled ? DesignTokens.primaryGreenGradient : null,
-              color: isEnabled ? null : Colors.grey,
-              borderRadius: BorderRadius.circular(DesignTokens.radiusSmall),
-              boxShadow: isEnabled
-                  ? DesignTokens.shadowStrong
-                  : DesignTokens.shadowSubtle,
-            ),
-            child: isLoading
-                ? const Center(
-                    child: SizedBox(
-                      width: 24,
-                      height: 24,
-                      child: CircularProgressIndicator(
-                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                        strokeWidth: 2.5,
-                      ),
-                    ),
-                  )
-                : Row(
-                    children: [
-                      // Left side: Shopping cart icon
-                      Padding(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: DesignTokens.spaceDefault,
-                        ),
-                        child: Container(
-                          width: 28,
-                          height: 28,
-                          decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.2),
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                          child: const Icon(
-                            Icons.shopping_cart,
-                            color: Colors.white,
-                            size: 18,
-                          ),
-                        ),
-                      ),
-
-                      // Middle: Price with ريال
-                      Expanded(
-                        child: Center(
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Text(
-                                PriceConverter.convertPrice(price),
-                                style: robotoBold.copyWith(
-                                  fontSize: 16,
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-
-                      // Vertical divider
-                      Container(
-                        width: 1,
-                        height: 28,
-                        color: Colors.white.withValues(alpha: 0.3),
-                      ),
-
-                      // Right side: Button text
-                      Expanded(
-                        flex: 2,
-                        child: Center(
-                          child: Text(
-                            buttonText,
-                            style: robotoBold.copyWith(
-                              fontSize: 16,
-                              color: Colors.white,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
           ),
         ),
       ],
@@ -1792,39 +2261,82 @@ class _UnifiedBottomBar extends StatelessWidget {
   }
 }
 
-/// Minimal flat quantity button matching Figma
-class _MinimalQuantityButton extends StatelessWidget {
-  final IconData icon;
-  final VoidCallback onTap;
-  final bool isOutlined;
+class _CompactQuantityPill extends StatelessWidget {
+  final int quantity;
+  final VoidCallback onDecrease;
+  final VoidCallback onIncrease;
 
-  const _MinimalQuantityButton({
-    required this.icon,
-    required this.onTap,
-    required this.isOutlined,
+  const _CompactQuantityPill({
+    required this.quantity,
+    required this.onDecrease,
+    required this.onIncrease,
   });
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: 32,
-        height: 32,
-        padding: EdgeInsets.all(isOutlined ? 11 : 10),
-        decoration: BoxDecoration(
-          color: isOutlined ? Colors.white : const Color(0xFF31A342),
-          shape: BoxShape.circle,
-          border: isOutlined
-              ? Border.all(
-                  color: const Color(0xFFFA9D2B),
-                )
-              : null,
-        ),
-        child: Icon(
-          icon,
-          size: isOutlined ? 10 : 12,
-          color: isOutlined ? const Color(0xFF2D3633) : Colors.white,
+    final Color borderColor = Theme.of(context).dividerColor;
+    final Color fillColor = Theme.of(context)
+        .colorScheme
+        .surfaceContainerHighest
+        .withValues(alpha: 0.55);
+    return Container(
+      height: 44,
+      decoration: BoxDecoration(
+        color: fillColor,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: borderColor.withValues(alpha: 0.85)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _CompactQtyIconButton(
+            icon: Icons.remove_rounded,
+            onTap: onDecrease,
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 10),
+            child: Text(
+              quantity.toString(),
+              style: robotoMedium.copyWith(
+                fontSize: 15,
+                color: Theme.of(context).colorScheme.onSurface,
+              ),
+            ),
+          ),
+          _CompactQtyIconButton(
+            icon: Icons.add_rounded,
+            onTap: onIncrease,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CompactQtyIconButton extends StatelessWidget {
+  final IconData icon;
+  final VoidCallback onTap;
+
+  const _CompactQtyIconButton({
+    required this.icon,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(8),
+        child: SizedBox(
+          width: 40,
+          height: 44,
+          child: Icon(
+            icon,
+            size: 20,
+            color: DesignTokens.primaryGreen,
+          ),
         ),
       ),
     );
