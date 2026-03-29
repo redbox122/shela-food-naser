@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:sixam_mart/common/widgets/custom_image.dart';
+import 'package:shimmer_animation/shimmer_animation.dart';
+import 'package:sixam_mart/common/widgets/circular_ring_avatar.dart';
 import 'package:sixam_mart/common/widgets/title_widget.dart';
 import 'package:sixam_mart/features/splash/controllers/splash_controller.dart';
 import 'package:sixam_mart/features/store/controllers/store_controller.dart';
@@ -10,6 +11,10 @@ import 'package:sixam_mart/helper/route_helper.dart';
 import 'package:sixam_mart/util/dimensions.dart';
 
 class TopRestaurantsViewWidget extends StatelessWidget {
+  static const double _storeLogoDiameter = 72;
+  /// Two rows × three columns (6 stores).
+  static const int _maxStoresOnHome = 6;
+
   const TopRestaurantsViewWidget({super.key});
 
   @override
@@ -53,35 +58,38 @@ class TopRestaurantsViewWidget extends StatelessWidget {
                         const EdgeInsets.all(Dimensions.paddingSizeDefault),
                     gridDelegate:
                         const SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 4,
-                      crossAxisSpacing: 13,
-                      mainAxisSpacing: 13,
+                      crossAxisCount: 3,
+                      crossAxisSpacing: 14,
+                      mainAxisSpacing: 14,
+                      mainAxisExtent: 96,
                     ),
-                    itemCount: storeList.length > 7 ? 7 : storeList.length,
-                    itemBuilder: (context, index) {
-                      return Container(
-                        padding: const EdgeInsets.all(
-                            Dimensions.paddingSizeExtraSmall),
-                        decoration: BoxDecoration(
-                          color: Theme.of(context)
-                              .disabledColor
-                              .withValues(alpha: 0.1),
-                          borderRadius:
-                              BorderRadius.circular(Dimensions.radiusDefault),
-                        ),
+                    itemCount: storeList.length > _maxStoresOnHome
+                        ? _maxStoresOnHome
+                        : storeList.length,
+                    itemBuilder: (BuildContext context, int index) {
+                      final Store store = storeList[index];
+                      return Material(
+                        color: Colors.transparent,
                         child: InkWell(
                           onTap: () => Get.toNamed<void>(
-                              RouteHelper.getStoreRoute(
-                                  id: storeList[index].id, page: 'item'),
-                              arguments: StoreScreen(
-                                  store: storeList[index], fromModule: false)),
-                          child: ClipRRect(
-                            borderRadius:
-                                BorderRadius.circular(Dimensions.radiusDefault),
-                            child: CustomImage(
-                              image: '${storeList[index].logoFullUrl}',
-                              height: 60,
-                              width: 60,
+                            RouteHelper.getStoreRoute(
+                              id: store.id,
+                              page: 'item',
+                            ),
+                            arguments: StoreScreen(
+                              store: store,
+                              fromModule: false,
+                            ),
+                          ),
+                          borderRadius: BorderRadius.circular(999),
+                          child: Center(
+                            child: CircularRingAvatar(
+                              imageUrl: store.logoFullUrl ?? '',
+                              diameter:
+                                  TopRestaurantsViewWidget._storeLogoDiameter,
+                              fit: BoxFit.contain,
+                              imageBackgroundColor:
+                                  Theme.of(context).colorScheme.surface,
                             ),
                           ),
                         ),
@@ -101,7 +109,7 @@ class TopRestaurantsShimmer extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      height: 200, // Fixed height to prevent vertical overflow
+      height: 300,
       child: Column(
         children: [
           Padding(
@@ -148,30 +156,39 @@ class TopRestaurantsShimmer extends StatelessWidget {
               physics: const NeverScrollableScrollPhysics(),
               padding: const EdgeInsets.all(Dimensions.paddingSizeDefault),
               gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 4,
-                crossAxisSpacing: 13,
-                mainAxisSpacing: 13,
+                crossAxisCount: 3,
+                crossAxisSpacing: 14,
+                mainAxisSpacing: 14,
+                mainAxisExtent: 96,
               ),
-              itemCount: 8,
-              itemBuilder: (context, index) {
-                return Container(
-                  padding:
-                      const EdgeInsets.all(Dimensions.paddingSizeExtraSmall),
-                  decoration: BoxDecoration(
-                    color:
-                        Theme.of(context).disabledColor.withValues(alpha: 0.08),
-                    borderRadius:
-                        BorderRadius.circular(Dimensions.radiusDefault),
-                  ),
-                  child: Container(
-                    height: 60,
-                    width: 60,
-                    decoration: BoxDecoration(
-                      color: Theme.of(context)
-                          .disabledColor
-                          .withValues(alpha: 0.15),
-                      borderRadius:
-                          BorderRadius.circular(Dimensions.radiusDefault),
+              itemCount: TopRestaurantsViewWidget._maxStoresOnHome,
+              itemBuilder: (BuildContext context, int index) {
+                return Shimmer(
+                  duration: const Duration(seconds: 2),
+                  child: Center(
+                    child: Container(
+                      width: 86,
+                      height: 86,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: Theme.of(context)
+                            .disabledColor
+                            .withValues(alpha: 0.1),
+                        border: Border.all(
+                          color: Theme.of(context)
+                              .primaryColor
+                              .withValues(alpha: 0.15),
+                          width: 2,
+                        ),
+                      ),
+                      padding: const EdgeInsets.all(4),
+                      child: ClipOval(
+                        child: ColoredBox(
+                          color: Theme.of(context)
+                              .disabledColor
+                              .withValues(alpha: 0.08),
+                        ),
+                      ),
                     ),
                   ),
                 );

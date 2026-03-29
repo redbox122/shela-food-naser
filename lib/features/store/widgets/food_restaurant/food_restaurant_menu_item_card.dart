@@ -33,6 +33,53 @@ class FoodRestaurantMenuItemCard extends StatelessWidget {
     this.isTemporarilyHighlighted = false,
   });
 
+  /// Circular product photo with soft ring + shadow (food / restaurants / cafes).
+  static Widget _circularItemPhoto({
+    required BuildContext context,
+    required double diameter,
+    required String imageUrl,
+    required int cacheSize,
+  }) {
+    final Color primary = Theme.of(context).primaryColor;
+    return Container(
+      padding: const EdgeInsets.all(3),
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: AppColors.backgroundColor,
+        border: Border.all(
+          color: primary.withValues(alpha: 0.22),
+          width: 2,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: primary.withValues(alpha: 0.14),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: ClipOval(
+        child: SizedBox(
+          width: diameter,
+          height: diameter,
+          child: CustomImage(
+            image: imageUrl,
+            fit: BoxFit.cover,
+            width: diameter,
+            height: diameter,
+            cacheWidth: cacheSize,
+            cacheHeight: cacheSize,
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return GetBuilder<StoreController>(
@@ -71,7 +118,7 @@ class FoodRestaurantMenuItemCard extends StatelessWidget {
                   child: Container(
                     decoration: BoxDecoration(
                       color: AppColors.backgroundColor,
-                      borderRadius: BorderRadius.circular(16),
+                      borderRadius: BorderRadius.circular(24),
                       border: Border.all(
                         color: AppColors.gryColor_3,
                         width: 0.5,
@@ -95,21 +142,18 @@ class FoodRestaurantMenuItemCard extends StatelessWidget {
                               height: 140,
                               width: double.infinity,
                               padding: const EdgeInsets.all(12),
-                              decoration: const BoxDecoration(
+                              decoration: BoxDecoration(
                                 color: AppColors.backgroundColor,
-                                borderRadius: BorderRadius.vertical(
-                                  top: Radius.circular(16),
+                                borderRadius: const BorderRadius.vertical(
+                                  top: Radius.circular(24),
                                 ),
                               ),
-                              child: ClipRRect(
-                                borderRadius: BorderRadius.circular(8),
-                                child: CustomImage(
-                                  image: item.displayImage ?? '',
-                                  height: 116,
-                                  width: double.infinity,
-                                  fit: BoxFit.contain,
-                                  cacheWidth: 420,
-                                  cacheHeight: 280,
+                              child: Center(
+                                child: _circularItemPhoto(
+                                  context: context,
+                                  diameter: 110,
+                                  imageUrl: item.displayImage ?? '',
+                                  cacheSize: 420,
                                 ),
                               ),
                             ),
@@ -238,16 +282,17 @@ class FoodRestaurantMenuItemCard extends StatelessWidget {
                     right: 0,
                     child: Container(
                       height: 5,
-                      decoration: const BoxDecoration(
+                      decoration: BoxDecoration(
                         color: Colors.red,
-                        borderRadius:
-                            BorderRadius.vertical(top: Radius.circular(16)),
+                        borderRadius: const BorderRadius.vertical(
+                          top: Radius.circular(24),
+                        ),
                       ),
                     ),
                   ),
                 if (isOutOfStock)
                   _buildOutOfStockOverlay(
-                    borderRadius: BorderRadius.circular(16),
+                    borderRadius: BorderRadius.circular(24),
                     label: 'انتهت الكمية',
                   ),
               ],
@@ -264,6 +309,7 @@ class FoodRestaurantMenuItemCard extends StatelessWidget {
     final finalPrice = itemController.getStartingPrice(item);
     final hasDiscount = item.discount != null && item.discount! > 0;
     final isOutOfStock = _isOutOfStock(item);
+    const double listImageSize = 100;
 
     return GetBuilder<LocalizationController>(
       builder: (localizationController) {
@@ -283,8 +329,7 @@ class FoodRestaurantMenuItemCard extends StatelessWidget {
                         bottom: Dimensions.paddingSizeSmall),
                     decoration: BoxDecoration(
                       color: AppColors.backgroundColor,
-                      borderRadius:
-                          BorderRadius.circular(Dimensions.radiusDefault),
+                      borderRadius: BorderRadius.circular(22),
                       border: Border.all(
                         color: AppColors.gryColor_3,
                         width: 0.5,
@@ -306,23 +351,18 @@ class FoodRestaurantMenuItemCard extends StatelessWidget {
                           children: [
                             Padding(
                               padding: const EdgeInsets.only(left: 17),
-                              child: ClipRRect(
-                                borderRadius: BorderRadius.circular(
-                                    Dimensions.radiusDefault),
-                                child: CustomImage(
-                                  image: item.displayImage ?? '',
-                                  height: 100,
-                                  width: 120,
-                                  cacheWidth: 320,
-                                  cacheHeight: 260,
-                                ),
+                              child: _circularItemPhoto(
+                                context: context,
+                                diameter: listImageSize,
+                                imageUrl: item.displayImage ?? '',
+                                cacheSize: 320,
                               ),
                             ),
                             // Discount Badge - Top left of image
                             if (hasDiscount)
                               Positioned(
                                 top: 8,
-                                left: 20,
+                                left: 22,
                                 child: Container(
                                   padding: const EdgeInsets.symmetric(
                                     horizontal: 6,
@@ -344,7 +384,7 @@ class FoodRestaurantMenuItemCard extends StatelessWidget {
                             // Heart icon on image - top right
                             Positioned(
                               top: 8,
-                              right: 20,
+                              right: 22,
                               child: GetBuilder<FavouriteController>(
                                 builder: (favouriteController) {
                                   final bool isWished = favouriteController
@@ -442,15 +482,13 @@ class FoodRestaurantMenuItemCard extends StatelessWidget {
                       height: 5,
                       decoration: BoxDecoration(
                         color: Colors.red,
-                        borderRadius: BorderRadius.circular(
-                            Dimensions.radiusDefault),
+                        borderRadius: BorderRadius.circular(22),
                       ),
                     ),
                   ),
                 if (isOutOfStock)
                   _buildOutOfStockOverlay(
-                    borderRadius:
-                        BorderRadius.circular(Dimensions.radiusDefault),
+                    borderRadius: BorderRadius.circular(22),
                     label: 'انتهت الكمية',
                     bottomSpacing: Dimensions.paddingSizeSmall,
                   ),

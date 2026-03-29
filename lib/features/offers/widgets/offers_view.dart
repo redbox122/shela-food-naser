@@ -3,6 +3,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
+import 'package:shimmer_animation/shimmer_animation.dart';
 import 'package:sixam_mart/features/offers/controllers/offers_controller.dart';
 import 'package:sixam_mart/features/offers/domain/models/offers_model.dart';
 import 'package:sixam_mart/helper/responsive_helper.dart';
@@ -14,28 +15,24 @@ import '../../../helper/route_helper.dart';
 import '../../../util/app_colors.dart';
 import '../../../util/styles.dart';
 
+const double _kOfferImageExtent = 118.0;
+const double _kOfferCardVerticalMargin = 4.0;
+const double _kOfferListHeight =
+    _kOfferImageExtent + _kOfferCardVerticalMargin * 2;
+
 class OffersView extends StatelessWidget {
   const OffersView({super.key});
 
   @override
   Widget build(BuildContext context) {
     return GetBuilder<Offers_Controller>(
-      builder: (controller) {
-        final offers = controller.offersMode?.data ?? [];
+      builder: (Offers_Controller controller) {
+        final List<Datum> offers = controller.offersMode?.data ?? <Datum>[];
 
         if (controller.isLoading == true && offers.isEmpty) {
-          return SizedBox(
-            height: 140,
-            child: Center(
-              child: CircularProgressIndicator(
-                valueColor: AlwaysStoppedAnimation<Color>(
-                    Theme.of(context).primaryColor),
-              ),
-            ),
-          );
+          return const _OffersLoadingSkeleton();
         }
 
-        // If not loading and no offers, show empty state placeholder
         if (offers.isEmpty) {
           return const EmptyOffersPlaceholder(
             title: 'لا توجد عروض حالياً',
@@ -45,25 +42,11 @@ class OffersView extends StatelessWidget {
 
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
+          children: <Widget>[
             SizedBox(height: Dimensions.fontSizeLarge),
-            Padding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: Dimensions.paddingSizeSmall,
-                vertical: Dimensions.paddingSizeExtraSmall,
-              ),
-              child: Text(
-                'offers'.tr,
-                style: robotoBold.copyWith(
-                  fontSize: ResponsiveHelper.isDesktop(context)
-                      ? Dimensions.fontSizeLarge
-                      : Dimensions.fontSizeLarge,
-                  color: Theme.of(context).textTheme.bodyLarge?.color,
-                ),
-              ),
-            ),
+            const _OffersSectionHeader(),
             SizedBox(
-              height: 140,
+              height: _kOfferListHeight,
               child: AnimationLimiter(
                 child: ListView.builder(
                   shrinkWrap: true,
@@ -72,7 +55,7 @@ class OffersView extends StatelessWidget {
                   padding: const EdgeInsets.symmetric(
                     horizontal: Dimensions.paddingSizeSmall,
                   ),
-                  itemBuilder: (context, index) {
+                  itemBuilder: (BuildContext context, int index) {
                     return AnimationConfiguration.staggeredList(
                       position: index,
                       duration: const Duration(milliseconds: 375),
@@ -82,13 +65,19 @@ class OffersView extends StatelessWidget {
                           child: Offers(
                             offer: offers[index],
                             onTap: () {
-                              Get.toNamed<void>(RouteHelper.getOffersItemScreen(
-                                  offers[index].id, offers[index].name,
-                                  offerDiscount:
-                                      offers[index].discountMax?.toDouble()));
+                              Get.toNamed<void>(
+                                RouteHelper.getOffersItemScreen(
+                                  offers[index].id,
+                                  offers[index].name,
+                                  offerDiscount: offers[index]
+                                      .discountMax
+                                      ?.toDouble(),
+                                ),
+                              );
                               controller.getOffersItemList(
-                                  id: offers[index].id.toString(),
-                                  offset: 1);
+                                id: offers[index].id.toString(),
+                                offset: 1,
+                              );
                             },
                           ),
                         ),
@@ -97,10 +86,122 @@ class OffersView extends StatelessWidget {
                   },
                 ),
               ),
-            )
+            ),
           ],
         );
       },
+    );
+  }
+}
+
+class _OffersSectionHeader extends StatelessWidget {
+  const _OffersSectionHeader();
+
+  @override
+  Widget build(BuildContext context) {
+    final Color primaryColor = Theme.of(context).primaryColor;
+    return Padding(
+      padding: const EdgeInsets.symmetric(
+        horizontal: Dimensions.paddingSizeSmall,
+        vertical: Dimensions.paddingSizeExtraSmall,
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: <Widget>[
+          Container(
+            width: 4,
+            height: 28,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(2),
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: <Color>[
+                  primaryColor,
+                  primaryColor.withValues(alpha: 0.55),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              'offers_and_discounts'.tr,
+              style: robotoBold.copyWith(
+                fontSize: ResponsiveHelper.isDesktop(context)
+                    ? Dimensions.fontSizeExtraLarge
+                    : Dimensions.fontSizeLarge,
+                color: Theme.of(context).textTheme.bodyLarge?.color,
+                height: 1.2,
+              ),
+            ),
+          ),
+          Icon(
+            Icons.local_offer_rounded,
+            size: 26,
+            color: primaryColor.withValues(alpha: 0.88),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _OffersLoadingSkeleton extends StatelessWidget {
+  const _OffersLoadingSkeleton();
+
+  double _cardWidth(BuildContext context) {
+    final double screenW = MediaQuery.sizeOf(context).width;
+    if (ResponsiveHelper.isDesktop(context)) {
+      return 300;
+    }
+    return (screenW * 0.82).clamp(230.0, 300.0);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final double cardW = _cardWidth(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        SizedBox(height: Dimensions.fontSizeLarge),
+        const _OffersSectionHeader(),
+        SizedBox(
+          height: _kOfferListHeight,
+          child: ListView.builder(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(
+              horizontal: Dimensions.paddingSizeSmall,
+            ),
+            itemCount: 4,
+            itemBuilder: (BuildContext context, int index) {
+              return Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 8,
+                  vertical: _kOfferCardVerticalMargin,
+                ),
+                child: Shimmer(
+                  duration: const Duration(seconds: 2),
+                  child: Container(
+                    width: cardW,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(20),
+                      color: Theme.of(context)
+                          .disabledColor
+                          .withValues(alpha: 0.12),
+                      border: Border.all(
+                        color: Theme.of(context)
+                            .primaryColor
+                            .withValues(alpha: 0.08),
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+      ],
     );
   }
 }
@@ -111,115 +212,144 @@ class Offers extends StatelessWidget {
 
   const Offers({super.key, required this.offer, this.onTap});
 
+  double _cardWidth(BuildContext context) {
+    final double screenW = MediaQuery.sizeOf(context).width;
+    if (ResponsiveHelper.isDesktop(context)) {
+      return 300;
+    }
+    return (screenW * 0.82).clamp(230.0, 300.0);
+  }
+
   @override
   Widget build(BuildContext context) {
+    final double cardWidth = _cardWidth(context);
+    final Color primaryColor = Theme.of(context).primaryColor;
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        width: ResponsiveHelper.isDesktop(context) ? 300 : 250, // عرض البطاقة الأفقي
-        margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4), // مسافة بين البطاقات
-        clipBehavior: Clip.hardEdge,
+        width: cardWidth,
+        margin: const EdgeInsets.symmetric(
+          horizontal: 8,
+          vertical: _kOfferCardVerticalMargin,
+        ),
+        clipBehavior: Clip.antiAlias,
         decoration: BoxDecoration(
-          // 🎨 UI IMPROVEMENT: Premium design with shadows and rounded corners
-          borderRadius: BorderRadius.circular(16),
-          color: Colors.white,
-          boxShadow: [
+          borderRadius: BorderRadius.circular(20),
+          color: Theme.of(context).cardColor,
+          border: Border.all(
+            color: primaryColor.withValues(alpha: 0.12),
+            width: 1,
+          ),
+          boxShadow: <BoxShadow>[
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.08),
-              blurRadius: 12,
-              offset: const Offset(0, 4),
+              color: Colors.black.withValues(alpha: 0.06),
+              blurRadius: 16,
+              offset: const Offset(0, 6),
             ),
           ],
         ),
-        child: Row(
-          children: [
-            // الصورة
-            Stack(
-              children: [
-                // 🎨 UI IMPROVEMENT: Rounded image with gradient overlay
-                ClipRRect(
-                  borderRadius: const BorderRadius.only(
-                    topLeft: Radius.circular(16),
-                    bottomLeft: Radius.circular(16),
-                  ),
-                  child: Stack(
-                    children: [
-                      CustomImage(
-                        image: offer.banner ?? '',
-                        width: 120,
-                        height: 120,
-                        placeholder: Images.placeholder,
+        child: SizedBox(
+          height: _kOfferImageExtent,
+          child: Row(
+            children: <Widget>[
+              SizedBox(
+                width: _kOfferImageExtent,
+                height: _kOfferImageExtent,
+                child: Stack(
+                  clipBehavior: Clip.none,
+                  fit: StackFit.expand,
+                  children: <Widget>[
+                    ClipRRect(
+                      borderRadius: const BorderRadiusDirectional.only(
+                        topStart: Radius.circular(20),
+                        bottomStart: Radius.circular(20),
                       ),
-                      // Gradient overlay for premium look
-                      Container(
-                        width: 120,
-                        height: 120,
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            begin: Alignment.topCenter,
-                            end: Alignment.bottomCenter,
-                            colors: [
-                              Colors.transparent,
-                              Colors.black.withValues(alpha: 0.1),
-                            ],
+                      child: Stack(
+                        fit: StackFit.expand,
+                        children: <Widget>[
+                          CustomImage(
+                            image: offer.banner ?? '',
+                            width: _kOfferImageExtent,
+                            height: _kOfferImageExtent,
+                            placeholder: Images.placeholder,
                           ),
+                          DecoratedBox(
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                begin: Alignment.topCenter,
+                                end: Alignment.bottomCenter,
+                                colors: <Color>[
+                                  Colors.transparent,
+                                  Colors.black.withValues(alpha: 0.12),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    PositionedDirectional(
+                      top: 8,
+                      end: 8,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 5,
+                        ),
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(20),
+                          color: AppColors.orangeColor,
+                          boxShadow: <BoxShadow>[
+                            BoxShadow(
+                              color: AppColors.orangeColor.withValues(
+                                alpha: 0.35,
+                              ),
+                              blurRadius: 8,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: Custom_Text(
+                          context,
+                          text: '${offer.discountMax ?? 0}%',
+                          style: font10White400W(context),
                         ),
                       ),
-                    ],
-                  ),
-                ),
-                // 🎨 UI IMPROVEMENT: Enhanced discount badge
-                Positioned(
-                  top: 8,
-                  left: 8,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(8),
-                      color: AppColors.orangeColor,
-                      boxShadow: [
-                        BoxShadow(
-                          color: AppColors.orangeColor.withValues(alpha: 0.3),
-                          blurRadius: 8,
-                          offset: const Offset(0, 2),
-                        ),
-                      ],
-                    ),
-                    child: Custom_Text(
-                      context,
-                      text: '${offer.discountMax ?? 0}%',
-                      style: font10White400W(context),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            // النصوص
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.all(10.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Custom_Text(
-                      context,
-                      text: offer.name ?? '',
-                      textOverFlow: TextOverflow.ellipsis,
-                      maxLines: 1,
-                      style: font10Black600W(context),
-                    ),
-                    const SizedBox(height: 10),
-                    Custom_Text(
-                      context,
-                      text: 'عدد المنتجات: ${offer.itemsCount ?? 0}',
-                      style: font11Grey700W(context),
                     ),
                   ],
                 ),
               ),
-            ),
-          ],
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsetsDirectional.fromSTEB(
+                    12,
+                    10,
+                    12,
+                    10,
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: <Widget>[
+                      Custom_Text(
+                        context,
+                        text: offer.name ?? '',
+                        textOverFlow: TextOverflow.ellipsis,
+                        maxLines: 2,
+                        style: font10Black600W(context),
+                      ),
+                      const SizedBox(height: 8),
+                      Custom_Text(
+                        context,
+                        text: 'عدد المنتجات: ${offer.itemsCount ?? 0}',
+                        style: font11Grey700W(context),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -242,23 +372,9 @@ class EmptyOffersPlaceholder extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
+      children: <Widget>[
         SizedBox(height: Dimensions.fontSizeLarge),
-        Padding(
-          padding: const EdgeInsets.symmetric(
-            horizontal: Dimensions.paddingSizeSmall,
-            vertical: Dimensions.paddingSizeExtraSmall,
-          ),
-          child: Text(
-            'offers'.tr,
-            style: robotoBold.copyWith(
-              fontSize: ResponsiveHelper.isDesktop(context)
-                  ? Dimensions.fontSizeLarge
-                  : Dimensions.fontSizeLarge,
-              color: Theme.of(context).textTheme.bodyLarge?.color,
-            ),
-          ),
-        ),
+        const _OffersSectionHeader(),
         Container(
           margin: const EdgeInsets.symmetric(
             horizontal: Dimensions.paddingSizeSmall,
@@ -268,19 +384,24 @@ class EmptyOffersPlaceholder extends StatelessWidget {
             horizontal: Dimensions.paddingSizeDefault,
           ),
           decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(16),
-            boxShadow: [
+            color: Theme.of(context).cardColor,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: Theme.of(context)
+                  .primaryColor
+                  .withValues(alpha: 0.1),
+            ),
+            boxShadow: <BoxShadow>[
               BoxShadow(
                 color: Colors.black.withValues(alpha: 0.05),
-                blurRadius: 12,
-                offset: const Offset(0, 2),
+                blurRadius: 14,
+                offset: const Offset(0, 4),
               ),
             ],
           ),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
-            children: [
+            children: <Widget>[
               Icon(
                 Icons.local_offer_outlined,
                 size: 48,
@@ -295,7 +416,7 @@ class EmptyOffersPlaceholder extends StatelessWidget {
                 ),
                 textAlign: TextAlign.center,
               ),
-              if (subtitle != null && subtitle!.isNotEmpty) ...[
+              if (subtitle != null && subtitle!.isNotEmpty) ...<Widget>[
                 const SizedBox(height: Dimensions.paddingSizeSmall),
                 Text(
                   subtitle!,

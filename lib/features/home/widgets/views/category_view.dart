@@ -1,7 +1,8 @@
 // ignore_for_file: unnecessary_null_comparison, unused_local_variable, non_constant_identifier_names, prefer_is_empty
 
+import 'package:sixam_mart/common/models/module_model.dart';
+import 'package:sixam_mart/common/widgets/circular_ring_avatar.dart';
 import 'package:sixam_mart/features/category/controllers/category_controller.dart';
-import 'package:sixam_mart/features/language/controllers/language_controller.dart';
 import 'package:sixam_mart/features/splash/controllers/splash_controller.dart';
 import 'package:flutter/foundation.dart';
 import 'package:sixam_mart/helper/responsive_helper.dart';
@@ -55,9 +56,39 @@ Future<void> _writeDebugLogAsync(String location, String message, Map<String, dy
 // #endregion
 
 class CategoryView extends StatelessWidget {
+  /// Compact home grid so four tiles fit without scrolling past clipped labels.
+  static const double _homeCategoryImageSize = 98;
+  static const double _homeCategoryLabelMaxHeight = 44;
+  static const double _homeCategoryGridAspectRatio = 1.12;
+
   final ScrollController? scrollController;
-  
+
   const CategoryView({super.key, this.scrollController});
+
+  /// Toggle off to revert **market/ecommerce only**; food / restaurants / cafes stay circular.
+  static const bool _tryEcommerceCircularCategories = true;
+
+  /// Circular category avatars on home: food modules + optional ecommerce (module 3 / ماركيت).
+  static bool _useCircularCategoryAvatar(SplashController splash) {
+    final ModuleModel? module = splash.module;
+    if (module == null) {
+      return false;
+    }
+    final String type = module.moduleType.toString().toLowerCase().trim();
+    if (type == AppConstants.food ||
+        type == 'restaurant' ||
+        type == 'cafe') {
+      return true;
+    }
+    if (module.id == 9) {
+      return true;
+    }
+    if (_tryEcommerceCircularCategories &&
+        (type == AppConstants.ecommerce || module.id == 3)) {
+      return true;
+    }
+    return false;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -151,91 +182,39 @@ class CategoryView extends StatelessWidget {
     
     // ✅ Show only first 4 categories in a 2x2 grid
     final visibleCategories = categoryList.take(4).toList();
-    
+    final SplashController splashForModule = Get.find<SplashController>();
+    final bool useCircularCategory =
+        CategoryView._useCircularCategoryAvatar(splashForModule);
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
       children: [
-        //
-        SizedBox(height: Dimensions.fontSizeLarge),
+        SizedBox(height: Dimensions.paddingSizeSmall),
         if (visibleCategories.isNotEmpty)
           Padding(
-            padding: EdgeInsets.all(Dimensions.fontSizeSmall),
-            child: GetBuilder<LocalizationController>(
-              builder: (localizationController) {
-                final bool isLtr = localizationController.isLtr;
-                
-                return Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    // Simple: For Arabic, View All on left, Sections on right
-                    // For English, Sections on left, View All on right
-                    if (isLtr) ...[
-                      // English: Sections on left, View All on right
-                      Text(
-                        'sections'.tr,
-                        style: robotoBold.copyWith(
-                          fontSize: ResponsiveHelper.isDesktop(context) ? Dimensions.fontSizeLarge : Dimensions.fontSizeLarge,
-                        ),
-                      ),
-                      GestureDetector(
-                        onTap: () => Get.toNamed(RouteHelper.getCategoryRoute()),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: Dimensions.paddingSizeDefault,
-                            vertical: Dimensions.paddingSizeExtraSmall,
-                          ),
-                          decoration: BoxDecoration(
-                            color: Theme.of(context).primaryColor,
-                            borderRadius:
-                                BorderRadius.circular(Dimensions.radiusSmall),
-                          ),
-                          child: Text(
-                            'see_all'.tr,
-                            style: robotoBold.copyWith(
-                              fontSize: ResponsiveHelper.isDesktop(context)
-                                  ? Dimensions.fontSizeDefault
-                                  : Dimensions.fontSizeDefault,
-                              color: Theme.of(context).cardColor,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ] else ...[
-                      // Arabic: View All on left, Sections on right
-
-                      Text(
-                        'sections'.tr,
-                        style: robotoBold.copyWith(
-                          fontSize: ResponsiveHelper.isDesktop(context) ? Dimensions.fontSizeLarge : Dimensions.fontSizeLarge,
-                        ),
-                      ),
-                      GestureDetector(
-                        onTap: () => Get.toNamed(RouteHelper.getCategoryRoute()),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: Dimensions.paddingSizeDefault,
-                            vertical: Dimensions.paddingSizeExtraSmall,
-                          ),
-                          decoration: BoxDecoration(
-                            color: Theme.of(context).primaryColor,
-                            borderRadius:
-                                BorderRadius.circular(Dimensions.radiusSmall),
-                          ),
-                          child: Text(
-                            'see_all'.tr,
-                            style: robotoBold.copyWith(
-                              fontSize: ResponsiveHelper.isDesktop(context)
-                                  ? Dimensions.fontSizeDefault
-                                  : Dimensions.fontSizeDefault,
-                              color: Theme.of(context).cardColor,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ],
-                );
-              },
+            padding: const EdgeInsets.symmetric(
+              horizontal: Dimensions.paddingSizeSmall,
+              vertical: Dimensions.paddingSizeExtraSmall,
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Expanded(
+                  child: Text(
+                    'sections'.tr,
+                    style: robotoBold.copyWith(
+                      fontSize: ResponsiveHelper.isDesktop(context)
+                          ? Dimensions.fontSizeLarge
+                          : Dimensions.fontSizeLarge,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                const SizedBox(width: Dimensions.paddingSizeSmall),
+                const _CategorySeeAllButton(),
+              ],
             ),
           ),
         RepaintBoundary(
@@ -248,7 +227,7 @@ class CategoryView extends StatelessWidget {
                 crossAxisCount: 2,
                 mainAxisSpacing: Dimensions.paddingSizeSmall,
                 crossAxisSpacing: Dimensions.paddingSizeSmall,
-                childAspectRatio: 0.95,
+                childAspectRatio: CategoryView._homeCategoryGridAspectRatio,
               ),
               itemCount: visibleCategories.length,
               itemBuilder: (context, index) {
@@ -263,34 +242,54 @@ class CategoryView extends StatelessWidget {
                   },
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
+                    mainAxisAlignment: MainAxisAlignment.start,
                     children: [
-                      // ⚡ TASK 3: Replace ClipRRect with BoxDecoration for 120Hz scrolling fluidity
-                      Container(
-                        decoration: const BoxDecoration(
-                          borderRadius: BorderRadius.all(Radius.circular(Dimensions.radiusSmall)),
-                        ),
-                        clipBehavior: Clip.antiAlias,
-                        child: Builder(
-                          builder: (context) {
-                            final imageUrl = visibleCategories[index].imageFullUrl ?? '';
-                            return CustomImage(
-                              image: imageUrl,
-                              height: 110,
-                              width: 110,
-                              placeholder: Images.placeholder,
-                            );
-                          },
-                        ),
+                      Center(
+                        child: useCircularCategory
+                            ? CircularRingAvatar(
+                                imageUrl:
+                                    visibleCategories[index].imageFullUrl ??
+                                        '',
+                                diameter:
+                                    CategoryView._homeCategoryImageSize,
+                              )
+                            : Container(
+                                decoration: const BoxDecoration(
+                                  borderRadius: BorderRadius.all(
+                                    Radius.circular(Dimensions.radiusSmall),
+                                  ),
+                                ),
+                                clipBehavior: Clip.antiAlias,
+                                child: Builder(
+                                  builder: (BuildContext context) {
+                                    final String imageUrl =
+                                        visibleCategories[index]
+                                                .imageFullUrl ??
+                                            '';
+                                    return CustomImage(
+                                      image: imageUrl,
+                                      height: CategoryView
+                                          ._homeCategoryImageSize,
+                                      width: CategoryView
+                                          ._homeCategoryImageSize,
+                                      placeholder: Images.placeholder,
+                                    );
+                                  },
+                                ),
+                              ),
                       ),
-                      const SizedBox(height: Dimensions.paddingSizeExtraSmall),
+                      const SizedBox(height: 4),
                       SizedBox(
-                        height: 48,
+                        height: CategoryView._homeCategoryLabelMaxHeight,
                         child: Text(
                           visibleCategories[index].name ?? '',
                           textAlign: TextAlign.center,
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
-                          style: robotoBold.copyWith(fontSize: Dimensions.fontSizeMedim),
+                          style: robotoBold.copyWith(
+                            fontSize: Dimensions.fontSizeMedim,
+                            height: 1.2,
+                          ),
                         ),
                       ),
                     ],
@@ -301,6 +300,74 @@ class CategoryView extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+/// Pill-style "see all" control for the home categories header.
+class _CategorySeeAllButton extends StatelessWidget {
+  const _CategorySeeAllButton();
+
+  @override
+  Widget build(BuildContext context) {
+    final ThemeData theme = Theme.of(context);
+    final Color primary = theme.primaryColor;
+    final bool isRtl = Directionality.of(context) == TextDirection.rtl;
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () => Get.toNamed(RouteHelper.getCategoryRoute()),
+        borderRadius: BorderRadius.circular(22),
+        splashColor: primary.withValues(alpha: 0.12),
+        highlightColor: primary.withValues(alpha: 0.06),
+        child: Ink(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(22),
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                primary,
+                Color.lerp(primary, Colors.black, 0.12) ?? primary,
+              ],
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: primary.withValues(alpha: 0.32),
+                blurRadius: 10,
+                spreadRadius: 0,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: 14,
+              vertical: 9,
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  'see_all'.tr,
+                  style: robotoBold.copyWith(
+                    fontSize: Dimensions.fontSizeSmall,
+                    color: theme.cardColor,
+                    letterSpacing: 0.15,
+                    height: 1.1,
+                  ),
+                ),
+                const SizedBox(width: 6),
+                Icon(
+                  isRtl ? Icons.arrow_back_rounded : Icons.arrow_forward_rounded,
+                  size: 17,
+                  color: theme.cardColor,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 }
@@ -594,12 +661,12 @@ class CategoryShimmer extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      height: 160,
+      height: 148,
       child: ListView.builder(
         itemCount: 8,
         padding: const EdgeInsets.only(
           left: Dimensions.paddingSizeSmall,
-          top: Dimensions.paddingSizeDefault,
+          top: Dimensions.paddingSizeSmall,
         ),
         physics: const NeverScrollableScrollPhysics(),
         scrollDirection: Axis.horizontal,
@@ -607,17 +674,17 @@ class CategoryShimmer extends StatelessWidget {
           return Padding(
             padding: const EdgeInsets.symmetric(
               horizontal: 1,
-              vertical: Dimensions.paddingSizeDefault,
+              vertical: Dimensions.paddingSizeSmall,
             ),
             child: Shimmer(
               duration: const Duration(seconds: 2),
               child: SizedBox(
-                width: 100,
+                width: 104,
                 child: Column(
                   children: [
                     Container(
-                      height: 90,
-                      width: 90,
+                      height: CategoryView._homeCategoryImageSize,
+                      width: CategoryView._homeCategoryImageSize,
                       margin: EdgeInsets.only(
                         left: index == 0 ? 0 : Dimensions.paddingSizeExtraSmall,
                         right: Dimensions.paddingSizeExtraSmall,

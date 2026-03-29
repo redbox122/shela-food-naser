@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:sixam_mart/common/widgets/custom_image.dart';
+import 'package:sixam_mart/common/widgets/circular_ring_avatar.dart';
 import 'package:sixam_mart/common/widgets/title_widget.dart';
 import 'package:sixam_mart/features/brands/controllers/brands_controller.dart';
 import 'package:sixam_mart/features/brands/widgets/brands_view_shimmer_widget.dart';
@@ -8,6 +8,9 @@ import 'package:sixam_mart/helper/route_helper.dart';
 import 'package:sixam_mart/util/dimensions.dart';
 
 class BrandsViewWidget extends StatelessWidget {
+  /// Matches category ring size feel on home (inner logo area).
+  static const double _brandLogoDiameter = 78;
+
   const BrandsViewWidget({super.key});
 
   @override
@@ -48,45 +51,28 @@ class BrandsViewWidget extends StatelessWidget {
               crossAxisCount: 2,
               crossAxisSpacing: 12,
               mainAxisSpacing: 12,
-              mainAxisExtent: 104,
+              mainAxisExtent: 112,
             ),
             itemCount: visibleBrands.length,
-            itemBuilder: (context, index) {
+            itemBuilder: (BuildContext context, int index) {
               final brand = visibleBrands[index];
-              return Container(
-                padding: const EdgeInsets.all(Dimensions.paddingSizeSmall),
-                decoration: BoxDecoration(
-                  color: Theme.of(context).cardColor,
-                  borderRadius:
-                      BorderRadius.circular(Dimensions.radiusLarge),
-                  border: Border.all(
-                    color: Theme.of(context)
-                        .disabledColor
-                        .withValues(alpha: 0.15),
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.04),
-                      blurRadius: 8,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
-                ),
+              return Material(
+                color: Colors.transparent,
                 child: InkWell(
                   onTap: () => Get.toNamed<void>(
-                      RouteHelper.getBrandsItemScreen(
-                          brand.id!,
-                          brand.name!)),
+                    RouteHelper.getBrandsItemScreen(
+                      brand.id!,
+                      brand.name!,
+                    ),
+                  ),
+                  borderRadius: BorderRadius.circular(999),
                   child: Center(
-                    child: SizedBox(
-                      height: 80,
-                      width: 80,
-                      child: ClipOval(
-                        child: CustomImage(
-                          image: brand.imageFullUrl ?? '',
-                          fit: BoxFit.contain,
-                        ),
-                      ),
+                    child: CircularRingAvatar(
+                      imageUrl: brand.imageFullUrl ?? '',
+                      diameter: BrandsViewWidget._brandLogoDiameter,
+                      fit: BoxFit.contain,
+                      imageBackgroundColor:
+                          Theme.of(context).colorScheme.surface,
                     ),
                   ),
                 ),
