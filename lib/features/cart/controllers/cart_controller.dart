@@ -160,6 +160,12 @@ class CartController extends GetxController implements GetxService {
     // Recalculate totals
     _recalculateTotals();
 
+    if (_cartList.isNotEmpty) {
+      _syncStickyCartBarSnapshotFromCart();
+    } else if (!_isCartDataLoading && !_serverCartListReplaceInProgress) {
+      _clearStickyCartBarSnapshot();
+    }
+
     // Persist to local storage
     _persistCart();
 
@@ -171,6 +177,8 @@ class CartController extends GetxController implements GetxService {
       'cart_count', // 🔥 FIX: Update cart count badges/icons outside cart screen
       'cart_loading', // Ensure empty state replaces cart view after clear
     ]);
+    // GetBuilder widgets WITHOUT an [id] only listen here — e.g. global sticky cart overlay.
+    update();
 
     // Also update hash for release mode compatibility
     final newHash = _getCartListHash();
@@ -396,6 +404,52 @@ class CartController extends GetxController implements GetxService {
   // Separate loading state for cart data operations
   bool _isCartDataLoading = false;
   bool get isCartDataLoading => _isCartDataLoading;
+
+  /// True while [addToCartOnline] / [updateCartOnline] await server and may
+  /// replace [_cartList] — unlike [getCartDataOnline], those do not set
+  /// [_isCartDataLoading], so the sticky cart used to vanish for one frame.
+  bool _serverCartListReplaceInProgress = false;
+  bool get serverCartListReplaceInProgress => _serverCartListReplaceInProgress;
+
+  /// Last non-empty cart totals for sticky bar (survives overlay dispose + list replace).
+  int _stickyCartBarSnapshotQty = 0;
+  double _stickyCartBarSnapshotSubtotal = 0;
+
+  void _syncStickyCartBarSnapshotFromCart() {
+    if (_cartList.isEmpty) {
+      return;
+    }
+    _stickyCartBarSnapshotQty = totalCartQuantity;
+    _stickyCartBarSnapshotSubtotal = _totals.subTotal;
+  }
+
+  void _clearStickyCartBarSnapshot() {
+    _stickyCartBarSnapshotQty = 0;
+    _stickyCartBarSnapshotSubtotal = 0;
+  }
+
+  /// Whether the global sticky cart should paint: any line items **or** a held
+  /// snapshot (covers API list replace / loading gaps without flicker).
+  bool get shouldShowStickyCartBar {
+    if (_cartList.isNotEmpty) {
+      return true;
+    }
+    return _stickyCartBarSnapshotQty > 0;
+  }
+
+  int get stickyCartBarDisplayQuantity {
+    if (_cartList.isNotEmpty) {
+      return totalCartQuantity;
+    }
+    return _stickyCartBarSnapshotQty;
+  }
+
+  double get stickyCartBarDisplaySubtotal {
+    if (_cartList.isNotEmpty) {
+      return subTotal;
+    }
+    return _stickyCartBarSnapshotSubtotal;
+  }
 
   // Loading state for cart operations (add, update, remove)
   final bool _isCartOperationLoading = false;
@@ -1758,6 +1812,10 @@ class CartController extends GetxController implements GetxService {
     debugPrint(
         '✅ Adding to cart - zone validation skipped (will be checked at checkout)');
 
+    _serverCartListReplaceInProgress = true;
+    _syncStickyCartBarSnapshotFromCart();
+    update();
+
     // Backend sync (silent, non-blocking)
     try {
       final List<OnlineCartModel>? onlineCartList =
@@ -1809,10 +1867,11 @@ class CartController extends GetxController implements GetxService {
     } catch (e) {
       debugPrint('❌ Error adding to cart online: $e');
       // Don't throw - let caller handle fallback
+    } finally {
+      _serverCartListReplaceInProgress = false;
+      // 🔥 PHASE 1.2: Use unified mutation handler
+      _onCartMutated(reason: 'addToCartOnline_final');
     }
-
-    // 🔥 PHASE 1.2: Use unified mutation handler
-    _onCartMutated(reason: 'addToCartOnline_final');
 
     return success;
   }
@@ -1847,39 +1906,47 @@ class CartController extends GetxController implements GetxService {
     final OnlineCart normalizedCart =
         _buildOnlineCartWithResolvedIds(cart, resolvedCartId: resolvedCartId);
 
+    _serverCartListReplaceInProgress = true;
+    _syncStickyCartBarSnapshotFromCart();
+    update();
+
     // Backend sync (silent, non-blocking)
-    final List<OnlineCartModel>? onlineCartList =
-        await cartServiceInterface.updateCartOnline(normalizedCart);
-    if (onlineCartList != null) {
-      // Update cart silently
-      _cartList = [];
-      _cartList.addAll(cartServiceInterface.formatOnlineCartToLocalCart(
-          onlineCartModel: onlineCartList));
-      _cartList = _deduplicateCartList(_cartList);
+    try {
+      final List<OnlineCartModel>? onlineCartList =
+          await cartServiceInterface.updateCartOnline(normalizedCart);
+      if (onlineCartList != null) {
+        // Update cart silently
+        _cartList = [];
+        _cartList.addAll(cartServiceInterface.formatOnlineCartToLocalCart(
+            onlineCartModel: onlineCartList));
+        _cartList = _deduplicateCartList(_cartList);
 
-      // 🔒 CRITICAL FIX: Always save cart locally (for both guest and logged-in users)
-      // This ensures cart is preserved even if API fails or network is lost
-      await cartServiceInterface.addSharedPrefCartList(_cartList);
-      debugPrint('💾 Cart items updated locally (${_cartList.length} items)');
+        // 🔒 CRITICAL FIX: Always save cart locally (for both guest and logged-in users)
+        // This ensures cart is preserved even if API fails or network is lost
+        await cartServiceInterface.addSharedPrefCartList(_cartList);
+        debugPrint('💾 Cart items updated locally (${_cartList.length} items)');
 
-      // Also save to Hive for faster loading
-      try {
-        final moduleId = ModuleHelper.getCacheModule()?.id;
-        final cartListJson = _cartList.map((cart) => cart.toJson()).toList();
-        await HiveHomeCacheService().saveCartData(moduleId, cartListJson);
-        debugPrint('💾 Cart items updated in Hive cache');
-      } catch (e) {
-        debugPrint('⚠️ Error updating cart in Hive: $e');
-        // Continue even if Hive save fails
+        // Also save to Hive for faster loading
+        try {
+          final moduleId = ModuleHelper.getCacheModule()?.id;
+          final cartListJson = _cartList.map((cart) => cart.toJson()).toList();
+          await HiveHomeCacheService().saveCartData(moduleId, cartListJson);
+          debugPrint('💾 Cart items updated in Hive cache');
+        } catch (e) {
+          debugPrint('⚠️ Error updating cart in Hive: $e');
+          // Continue even if Hive save fails
+        }
+
+        _onCartMutated(reason: 'updateCartOnline_success');
+        success = true;
+        // Invalidate cache after successful cart modification
+        invalidateCartCache();
       }
-
-      _onCartMutated(reason: 'updateCartOnline_success');
-      success = true;
-      // Invalidate cache after successful cart modification
-      invalidateCartCache();
+    } finally {
+      _serverCartListReplaceInProgress = false;
+      // 🔥 PHASE 1.2: Use unified mutation handler
+      _onCartMutated(reason: 'updateCartOnline_final');
     }
-    // 🔥 PHASE 1.2: Use unified mutation handler
-    _onCartMutated(reason: 'updateCartOnline_final');
 
     return success;
   }
@@ -2010,6 +2077,7 @@ class CartController extends GetxController implements GetxService {
 
     _lastCartOperation = DateTime.now();
     _isCartDataLoading = true;
+    _syncStickyCartBarSnapshotFromCart();
     _currentCartRequestId = requestId;
 
     // 🔒 CRITICAL: Save local cart state before API call

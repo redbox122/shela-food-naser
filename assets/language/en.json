@@ -423,6 +423,7 @@
   "skip_use_app_default_location_hint": "Uses the app's default service location",
   "you_denied_location_permission": "You denied location permission forever. Please allow location permission from your app settings and receive more accurate delivery.",
   "view_cart": "View Cart",
+  "sticky_cart_details_hint": "Tap for cart details",
   "close": "Close",
   "settings": "Settings",
   "service_not_available_in_current_location": "Redirecting you to the nearest service area",

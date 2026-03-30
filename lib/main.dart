@@ -27,6 +27,7 @@ import 'package:sixam_mart/services/secure_token_loader.dart';
 import 'package:sixam_mart/services/cache_manager.dart';
 import 'package:sixam_mart/services/edge_to_edge_service.dart';
 import 'package:sixam_mart/common/utils/app_logger.dart';
+import 'package:sixam_mart/common/widgets/global_sticky_cart_overlay.dart';
 import 'package:sixam_mart/core/logger/app_logger.dart' as logger_package;
 import 'package:sixam_mart/core/cache/hive_home_cache_service.dart';
 import 'package:sixam_mart/core/cache/hive_migration_service.dart';
@@ -433,6 +434,9 @@ class _MyAppState extends State<MyApp> {
         final previousRoute = routing?.previous;
         final isBack = routing?.isBack ?? false;
 
+        StickyCartNavSession.syncRoutingCurrentFromGetCallback(routeName);
+        syncStickyCartOverlayCartRouteFlagFromRouteName(routeName);
+
         if (routeName != null && routeName.trim().isNotEmpty) {
           if (routeName == previousRoute) {
             return;
@@ -460,6 +464,8 @@ class _MyAppState extends State<MyApp> {
             appLogger.logPageEntry(routeName);
             debugPrint('📱 تم الانتقال إلى: $routeName');
           }
+
+          bumpStickyCartRouteTick();
 
           // ðŸ” LEAK TRACKING: Trigger leak check after route change
           if (kDebugMode) {
@@ -491,10 +497,17 @@ class _MyAppState extends State<MyApp> {
       getPages: RouteHelper.routes,
       defaultTransition: Transition.topLevel,
       transitionDuration: const Duration(milliseconds: 500),
-      builder: (BuildContext context, Widget? childWidget) {
+      navigatorObservers: <NavigatorObserver>[
+        stickyCartNavigatorObserver,
+        cartRouteObserverForStickyOverlay,
+      ],
+      // Navigator + global overlays must live inside this builder (not outside
+      // GetMaterialApp) so they share the same element tree, MediaQuery, and theme.
+      builder: (BuildContext context, Widget? child) {
         final TextDirection textDirection = localizeController.isLtr
             ? TextDirection.ltr
             : TextDirection.rtl;
+        final Widget navigatorChild = child ?? const SizedBox.shrink();
         return Directionality(
           textDirection: textDirection,
           child: MediaQuery(
@@ -503,10 +516,12 @@ class _MyAppState extends State<MyApp> {
             ),
             child: Material(
               child: Stack(
-                children: [
-                  if (childWidget != null) childWidget,
-                // âš¡ PERFORMANCE: Cookies view uses specific ID to avoid rebuilding
-                // when other splash data changes
+                fit: StackFit.expand,
+                clipBehavior: Clip.none,
+                children: <Widget>[
+                  Positioned.fill(child: navigatorChild),
+                  // âš¡ PERFORMANCE: Cookies view uses specific ID to avoid rebuilding
+                  // when other splash data changes
                   GetBuilder<SplashController>(
                     id: 'cookies_status',
                     builder: (splashController) {
@@ -524,6 +539,7 @@ class _MyAppState extends State<MyApp> {
                       return const SizedBox();
                     },
                   ),
+                  const GlobalStickyCartOverlay(),
                 ],
               ),
             ),

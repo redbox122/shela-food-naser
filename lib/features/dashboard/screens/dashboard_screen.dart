@@ -363,6 +363,13 @@ class DashboardScreenState extends State<DashboardScreen> {
                 Icons.more_horiz,
               ];
 
+              final bool showBottomChrome = !(ResponsiveHelper.isDesktop(context) ||
+                  (widget.fromSplash &&
+                      Get.find<LocationController>()
+                          .showLocationSuggestion &&
+                      active) ||
+                  keyboardVisible);
+
               return Scaffold(
                 key: _scaffoldKey,
                 body: ExpandableBottomSheet(
@@ -419,12 +426,7 @@ class DashboardScreenState extends State<DashboardScreen> {
                           ),
                         ),
                 ),
-                floatingActionButton: (ResponsiveHelper.isDesktop(context) ||
-                        (widget.fromSplash &&
-                            Get.find<LocationController>()
-                                .showLocationSuggestion &&
-                            active) ||
-                        keyboardVisible)
+                floatingActionButton: !showBottomChrome
                     ? null
                     : FloatingActionButton(
                         // 🔥 FIX: Add unique heroTag to prevent "multiple heroes" error
@@ -461,15 +463,10 @@ class DashboardScreenState extends State<DashboardScreen> {
                       ),
                 floatingActionButtonLocation:
                     FloatingActionButtonLocation.centerDocked,
-                bottomNavigationBar: (ResponsiveHelper.isDesktop(context) ||
-                        (widget.fromSplash &&
-                            Get.find<LocationController>()
-                                .showLocationSuggestion &&
-                            active) ||
-                        keyboardVisible)
+                bottomNavigationBar: !showBottomChrome
                     ? null
                     : GetBuilder<FavouriteController>(
-                        builder: (favController) {
+                        builder: (FavouriteController favController) {
                           final int favCount =
                               (favController.wishItemList?.length ?? 0) +
                                   (favController.wishStoreList?.length ?? 0);
@@ -482,67 +479,66 @@ class DashboardScreenState extends State<DashboardScreen> {
                             right: false,
                             minimum: EdgeInsets.zero,
                             child: AnimatedBottomNavigationBar.builder(
-                            itemCount: iconList.length,
-                            tabBuilder: (index, isActive) {
-                              final Color iconColor = isActive
-                                  ? Theme.of(context).primaryColor
-                                  : Colors.grey.shade400;
-                              final bool isFavTab = !isParcel && index == 1;
-                              return SizedBox(
-                                width: 28,
-                                height: 28,
-                                child: Stack(
-                                  clipBehavior: Clip.none,
-                                  children: [
-                                    Center(
-                                      child: Icon(iconList[index],
-                                          size: 28, color: iconColor),
-                                    ),
-                                    if (isFavTab && showFavBadge)
-                                      Positioned.fill(
-                                        child: Center(
-                                          child: Text(
-                                            favBadgeText,
-                                            textAlign: TextAlign.center,
-                                            style: const TextStyle(
-                                              color: Colors.red,
-                                              fontSize: 9,
-                                              fontWeight: FontWeight.w700,
+                              itemCount: iconList.length,
+                              tabBuilder: (int index, bool isActive) {
+                                final Color iconColor = isActive
+                                    ? Theme.of(context).primaryColor
+                                    : Colors.grey.shade400;
+                                final bool isFavTab = !isParcel && index == 1;
+                                return SizedBox(
+                                  width: 28,
+                                  height: 28,
+                                  child: Stack(
+                                    clipBehavior: Clip.none,
+                                    children: <Widget>[
+                                      Center(
+                                        child: Icon(iconList[index],
+                                            size: 28, color: iconColor),
+                                      ),
+                                      if (isFavTab && showFavBadge)
+                                        Positioned.fill(
+                                          child: Center(
+                                            child: Text(
+                                              favBadgeText,
+                                              textAlign: TextAlign.center,
+                                              style: const TextStyle(
+                                                color: Colors.red,
+                                                fontSize: 9,
+                                                fontWeight: FontWeight.w700,
+                                              ),
                                             ),
                                           ),
                                         ),
-                                      ),
-                                  ],
-                                ),
-                              );
-                            },
-                            activeIndex: navBarIndex,
-                            gapLocation: GapLocation.center,
-                            notchSmoothness: NotchSmoothness.softEdge,
-                            leftCornerRadius: 0,
-                            rightCornerRadius: 0,
-                            backgroundColor: Colors.white,
-                            shadow: BoxShadow(
-                              offset: const Offset(0, 1),
-                              blurRadius: 12,
-                              spreadRadius: 0.5,
-                              color: Colors.grey.withValues(alpha: 0.2),
+                                    ],
+                                  ),
+                                );
+                              },
+                              activeIndex: navBarIndex,
+                              gapLocation: GapLocation.center,
+                              notchSmoothness: NotchSmoothness.softEdge,
+                              leftCornerRadius: 0,
+                              rightCornerRadius: 0,
+                              backgroundColor: Colors.white,
+                              shadow: BoxShadow(
+                                offset: const Offset(0, 1),
+                                blurRadius: 12,
+                                spreadRadius: 0.5,
+                                color: Colors.grey.withValues(alpha: 0.2),
+                              ),
+                              onTap: (int index) {
+                                if (index == 0) {
+                                  Get.offAll<dynamic>(() => MultiModuleHomeScreen(
+                                        key: ValueKey(
+                                            'multi_${Get.find<SplashController>().selectedModule.value?.id}'),
+                                        showBottomNavigation: false,
+                                      ));
+                                  return;
+                                }
+                                final int pageIndex =
+                                    index < 2 ? index : index + 1;
+                                _setPage(pageIndex);
+                              },
                             ),
-                            onTap: (index) {
-                              if (index == 0) {
-                                Get.offAll<dynamic>(() => MultiModuleHomeScreen(
-                                      key: ValueKey(
-                                          'multi_${Get.find<SplashController>().selectedModule.value?.id}'),
-                                      showBottomNavigation: false,
-                                    ));
-                                return;
-                              }
-                              // Map nav bar index back to page index (0,1,2,3 -> 0,1,3,4)
-                              final int pageIndex =
-                                  index < 2 ? index : index + 1;
-                              _setPage(pageIndex);
-                            },
-                          ),
                           );
                         },
                       ),

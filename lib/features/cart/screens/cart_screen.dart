@@ -39,6 +39,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:sixam_mart/common/widgets/error_state_view.dart';
+import 'package:sixam_mart/common/widgets/global_sticky_cart_overlay.dart';
 import 'package:sixam_mart/features/cart/widgets/web_cart_items_widget.dart';
 import 'package:sixam_mart/features/home/screens/home_screen.dart';
 import '../../my_coupon/controllers/my_coupon_controller.dart';
@@ -89,6 +90,11 @@ Future<void> _writeDebugLogAsync(String location, String message,
 // #endregion
 
 bool _isCheckoutFlowInProgress = false;
+
+void _popCartScreen() {
+  Get.back<void>();
+  scheduleStickyCartOverlayRouteResync();
+}
 
 /// Helper function to navigate to checkout with loading dialog
 /// Shows engaging animation while preparing checkout data
@@ -168,7 +174,7 @@ class CartScreen extends StatefulWidget {
   State<CartScreen> createState() => _CartScreenState();
 }
 
-class _CartScreenState extends State<CartScreen> {
+class _CartScreenState extends State<CartScreen> with RouteAware {
   final ScrollController scrollController = ScrollController();
   bool _isFirstDidChangeDependencies = true;
   bool _isRefreshingCart = false;
@@ -181,8 +187,47 @@ class _CartScreenState extends State<CartScreen> {
   }
 
   @override
+  void dispose() {
+    cartRouteObserverForStickyOverlay.unsubscribe(this);
+    StickyCartNavSession.setCartScreenVisibleForOverlay(false);
+    scrollController.dispose();
+    super.dispose();
+  }
+
+  @override
+  void didPush() {
+    StickyCartNavSession.setCartScreenVisibleForOverlay(true);
+  }
+
+  @override
+  void didPopNext() {
+    StickyCartNavSession.setCartScreenVisibleForOverlay(true);
+  }
+
+  @override
+  void didPushNext() {
+    StickyCartNavSession.setCartScreenVisibleForOverlay(false);
+  }
+
+  @override
+  void didPop() {
+    StickyCartNavSession.setCartScreenVisibleForOverlay(false);
+  }
+
+  @override
   void didChangeDependencies() {
     super.didChangeDependencies();
+    final ModalRoute<dynamic>? modalRoute = ModalRoute.of(context);
+    if (modalRoute is PageRoute<dynamic>) {
+      cartRouteObserverForStickyOverlay.subscribe(this, modalRoute);
+    }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) {
+        return;
+      }
+      final bool isCartRouteCurrent = ModalRoute.of(context)?.isCurrent ?? false;
+      StickyCartNavSession.setCartScreenVisibleForOverlay(isCartRouteCurrent);
+    });
     // Cart may stay in widget tree while OTP/login routes are on top.
     // Skip cart refresh logic unless cart route is actually active/current.
     final bool isCurrentRoute = ModalRoute.of(context)?.isCurrent ?? false;
@@ -414,7 +459,14 @@ class _CartScreenState extends State<CartScreen> {
 
     return Directionality(
       textDirection: _isRTL ? TextDirection.rtl : TextDirection.ltr,
-      child: Scaffold(
+      child: PopScope(
+        canPop: true,
+        onPopInvokedWithResult: (bool didPop, Object? result) {
+          if (didPop) {
+            scheduleStickyCartOverlayRouteResync();
+          }
+        },
+        child: Scaffold(
         backgroundColor: Colors.white,
         appBar: _buildModernHeader(),
         endDrawerEnableOpenDragGesture: false,
@@ -816,6 +868,7 @@ class _CartScreenState extends State<CartScreen> {
               });
         }),
         ),
+        ),
       ),
     );
   }
@@ -835,7 +888,7 @@ class _CartScreenState extends State<CartScreen> {
           color: CartColors.white,
           size: 20,
         ),
-        onPressed: () => Get.back<void>(),
+        onPressed: _popCartScreen,
         tooltip: _isRTL ? 'رجوع' : 'Back',
       ),
       title: Row(
@@ -1957,7 +2010,7 @@ class _ModernPaymentButton extends StatelessWidget {
                     borderRadius: BorderRadius.circular(12),
                   ),
                 ),
-                onPressed: () => Get.back<void>(),
+                onPressed: _popCartScreen,
                 child: Text(
                   'complete_shopping'.tr,
                   style: const TextStyle(
@@ -2168,7 +2221,7 @@ class CheckoutButton extends StatelessWidget {
                     borderRadius: BorderRadius.circular(12),
                   ),
                 ),
-                onPressed: () => Get.back<void>(),
+                onPressed: _popCartScreen,
                 child: Text(
                   'complete_shopping'.tr,
                   style: const TextStyle(

@@ -394,6 +394,7 @@
   "skip_use_app_default_location_hint": "يستخدم الموقع الافتراضي للتطبيق",
   "you_denied_location_permission": "لقد رفضت إذن تحديد الموقع إلى الأبد. يرجى السماح بإذن الموقع من إعدادات التطبيق الخاص بك والحصول على تسليم أكثر دقة.",
   "view_cart": "عرض السلة",
+  "sticky_cart_details_hint": "اضغط لتفاصيل السلة",
   "close": "يغلق",
   "settings": "إعدادات",
   "service_not_available_in_current_location": "جاري توجيهك إلى أقرب منطقة تتوفر فيها الخدمة",

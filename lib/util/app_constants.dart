@@ -404,6 +404,13 @@ class AppConstants {
   static const String cacheCountryCode = 'cache_country_code';
   static const String cacheLanguageCode = 'cache_language_code';
   static const String cartList = '6ammart_cart_list';
+  /// v3: default position reset; prefs only apply after 4s-hold + drag.
+  static const String stickyCartBubbleNudgeDx =
+      '6ammart_sticky_cart_bubble_dx_v3';
+  static const String stickyCartBubbleNudgeDy =
+      '6ammart_sticky_cart_bubble_dy_v3';
+  static const String stickyCartBubbleAlignStart =
+      '6ammart_sticky_cart_bubble_align_start_v3';
   static const String userPassword = '6ammart_user_password';
   static const String userAddress = '6ammart_user_address';
   static const String userNumber = '6ammart_user_number';
