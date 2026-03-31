@@ -5,7 +5,6 @@ import 'package:get/get.dart';
 import 'package:sixam_mart/common/widgets/custom_image.dart';
 import 'package:sixam_mart/common/models/module_model.dart';
 import 'package:sixam_mart/features/splash/controllers/splash_controller.dart';
-import 'package:sixam_mart/util/app_colors.dart';
 import 'package:sixam_mart/util/dimensions.dart';
 import 'package:sixam_mart/util/images.dart';
 import 'package:sixam_mart/util/styles.dart';
@@ -51,10 +50,10 @@ class ProfessionalModuleStrip extends StatelessWidget {
         return Container(
           height: 60,
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: Theme.of(context).colorScheme.surface,
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withValues(alpha: 0.06),
+                color: Theme.of(context).shadowColor.withValues(alpha: 0.12),
                 blurRadius: 8,
                 offset: const Offset(0, 2),
               ),
@@ -119,28 +118,32 @@ class ProfessionalModuleStrip extends StatelessWidget {
           color: isDisabled
               ? Colors.grey.withValues(alpha: 0.2)
               : isActive 
-              ? AppColors.primaryColor 
-              : Colors.white,
+              ? Theme.of(context).primaryColor
+              : Theme.of(context).colorScheme.surface,
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
             color: isDisabled
                 ? Colors.grey.withValues(alpha: 0.4)
                 : isActive 
-                ? AppColors.primaryColor 
-                : Colors.grey.withValues(alpha: 0.3),
+                ? Theme.of(context).primaryColor
+                : Theme.of(context).dividerColor.withValues(alpha: 0.7),
             width: isActive && !isDisabled ? 2 : 1.5,
           ),
           boxShadow: isActive && !isDisabled
               ? [
                   BoxShadow(
-                    color: AppColors.primaryColor.withValues(alpha: 0.3),
+                    color: Theme.of(context)
+                        .primaryColor
+                        .withValues(alpha: 0.25),
                     blurRadius: 12,
                     offset: const Offset(0, 4),
                   ),
                 ]
               : [
                   BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.04),
+                    color: Theme.of(context)
+                        .shadowColor
+                        .withValues(alpha: 0.08),
                     blurRadius: 4,
                     offset: const Offset(0, 2),
                   ),
@@ -156,12 +159,17 @@ class ProfessionalModuleStrip extends StatelessWidget {
                 width: 32,
                 height: 32,
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: Theme.of(context).colorScheme.surface,
                   shape: BoxShape.circle,
                   border: Border.all(
                     color: isActive 
-                        ? Colors.white.withValues(alpha: 0.3)
-                        : Colors.grey.withValues(alpha: 0.2),
+                        ? Theme.of(context)
+                            .colorScheme
+                            .onPrimary
+                            .withValues(alpha: 0.35)
+                        : Theme.of(context)
+                            .dividerColor
+                            .withValues(alpha: 0.4),
                     width: 1.5,
                   ),
                 ),
@@ -211,7 +219,7 @@ class ProfessionalModuleStrip extends StatelessWidget {
                           ?.color
                           ?.withValues(alpha: 0.5)
                       : isActive
-                          ? Colors.white
+                          ? Theme.of(context).colorScheme.onPrimary
                           : Theme.of(context).textTheme.bodyLarge?.color,
                 ),
               ),

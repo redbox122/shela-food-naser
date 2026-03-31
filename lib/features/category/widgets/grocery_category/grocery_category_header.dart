@@ -9,6 +9,9 @@ library;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:sixam_mart/common/widgets/custom_snackbar.dart';
+import 'package:sixam_mart/features/favourite/controllers/favourite_controller.dart';
+import 'package:sixam_mart/helper/auth_helper.dart';
 import 'package:sixam_mart/features/language/controllers/language_controller.dart';
 import 'package:sixam_mart/features/store/screens/food_restaurant_search_screen.dart';
 import 'package:sixam_mart/util/app_colors.dart';
@@ -87,26 +90,41 @@ class GroceryCategoryHeader extends StatelessWidget {
                         ],
                       ),
                       // Favorite star
-                      GestureDetector(
-                        onTap: () {
-                          if (kDebugMode) {
-                            debugPrint('📍 [GroceryCategoryHeader] Favorite tapped');
-                          }
-                          // TODO: Implement favorite functionality
+                      GetBuilder<FavouriteController>(
+                        builder: (favouriteController) {
+                          final bool isWished = storeId != null &&
+                              favouriteController.wishStoreIdList.contains(storeId);
+                          return GestureDetector(
+                            onTap: () {
+                              if (kDebugMode) {
+                                debugPrint('[GroceryCategoryHeader] Favorite tapped');
+                              }
+                              if (!AuthHelper.isLoggedIn()) {
+                                showCustomSnackBar('you_are_not_logged_in'.tr);
+                                return;
+                              }
+                              if (storeId == null) return;
+                              if (isWished) {
+                                favouriteController.removeFromFavouriteList(storeId, true);
+                              } else {
+                                favouriteController.addToFavouriteList(null, storeId, true);
+                              }
+                            },
+                            child: Container(
+                              width: 30,
+                              height: 30,
+                              decoration: const BoxDecoration(
+                                color: Colors.white,
+                                shape: BoxShape.circle,
+                              ),
+                              child: Icon(
+                                isWished ? Icons.star : Icons.star_border,
+                                color: const Color(0xFFEBF942),
+                                size: 20,
+                              ),
+                            ),
+                          );
                         },
-                        child: Container(
-                          width: 30,
-                          height: 30,
-                          decoration: const BoxDecoration(
-                            color: Colors.white,
-                            shape: BoxShape.circle,
-                          ),
-                          child: const Icon(
-                            Icons.star_border,
-                            color: Color(0xFFEBF942), // Yellow color
-                            size: 20,
-                          ),
-                        ),
                       ),
                     ],
                   ),
@@ -207,4 +225,5 @@ class GroceryCategoryHeader extends StatelessWidget {
     );
   }
 }
+
 

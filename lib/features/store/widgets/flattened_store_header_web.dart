@@ -20,7 +20,7 @@ class FlattenedStoreHeaderWeb extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      color: const Color(0xFF171A29),
+      color: Theme.of(context).colorScheme.surface,
       padding: const EdgeInsets.all(Dimensions.paddingSizeLarge),
       alignment: Alignment.center,
       child: SizedBox(
@@ -62,7 +62,7 @@ class FlattenedStoreHeaderWeb extends StatelessWidget {
                               '- ${DateConverter.convertTimeToTime(store?.discount?.endTime ?? '')}',
                               style: robotoMedium.copyWith(
                                 fontSize: Dimensions.fontSizeSmall,
-                                color: Colors.black,
+                                color: Theme.of(context).colorScheme.onPrimary,
                               ),
                               textAlign: TextAlign.center,
                               maxLines: 2,

@@ -17,7 +17,7 @@ import 'package:sixam_mart/features/item/domain/models/item_model.dart';
 import 'package:sixam_mart/features/language/controllers/language_controller.dart';
 import 'package:sixam_mart/features/store/controllers/store_controller.dart';
 import 'package:sixam_mart/helper/price_converter.dart';
-import 'package:sixam_mart/util/app_colors.dart';
+import 'package:sixam_mart/theme/app_color_tokens.dart';
 import 'package:sixam_mart/util/dimensions.dart';
 import 'package:sixam_mart/util/styles.dart';
 
@@ -45,7 +45,7 @@ class FoodRestaurantMenuItemCard extends StatelessWidget {
       padding: const EdgeInsets.all(3),
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        color: AppColors.backgroundColor,
+        color: Theme.of(context).colorScheme.surface,
         border: Border.all(
           color: primary.withValues(alpha: 0.22),
           width: 2,
@@ -57,7 +57,7 @@ class FoodRestaurantMenuItemCard extends StatelessWidget {
             offset: const Offset(0, 4),
           ),
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
+            color: Theme.of(context).shadowColor.withValues(alpha: 0.1),
             blurRadius: 6,
             offset: const Offset(0, 2),
           ),
@@ -117,15 +117,15 @@ class FoodRestaurantMenuItemCard extends StatelessWidget {
                   opacity: isOutOfStock ? 0.75 : 1,
                   child: Container(
                     decoration: BoxDecoration(
-                      color: AppColors.backgroundColor,
+                      color: Theme.of(context).colorScheme.surface,
                       borderRadius: BorderRadius.circular(24),
                       border: Border.all(
-                        color: AppColors.gryColor_3,
+                        color: Theme.of(context).extension<AppColorTokens>()!.outlineSoft,
                         width: 0.5,
                       ),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.04),
+                          color: Theme.of(context).shadowColor.withValues(alpha: 0.1),
                           blurRadius: 12,
                           offset: const Offset(0, 2),
                         ),
@@ -143,7 +143,7 @@ class FoodRestaurantMenuItemCard extends StatelessWidget {
                               width: double.infinity,
                               padding: const EdgeInsets.all(12),
                               decoration: BoxDecoration(
-                                color: AppColors.backgroundColor,
+                                color: Theme.of(context).colorScheme.surface,
                                 borderRadius: const BorderRadius.vertical(
                                   top: Radius.circular(24),
                                 ),
@@ -168,11 +168,11 @@ class FoodRestaurantMenuItemCard extends StatelessWidget {
                                     vertical: 6,
                                   ),
                                   decoration: BoxDecoration(
-                                    color: AppColors.redColor,
+                                    color: Theme.of(context).colorScheme.error,
                                     borderRadius: BorderRadius.circular(8),
                                     boxShadow: [
                                       BoxShadow(
-                                        color: AppColors.redColor
+                                        color: Theme.of(context).colorScheme.error
                                             .withValues(alpha: 0.3),
                                         blurRadius: 6,
                                         offset: const Offset(0, 2),
@@ -183,7 +183,7 @@ class FoodRestaurantMenuItemCard extends StatelessWidget {
                                     '${item.discount}% ${'off'.tr}',
                                     style: robotoBold.copyWith(
                                       fontSize: 11,
-                                      color: AppColors.backgroundColor,
+                                      color: Theme.of(context).colorScheme.onError,
                                       letterSpacing: 0.5,
                                     ),
                                   ),
@@ -224,7 +224,7 @@ class FoodRestaurantMenuItemCard extends StatelessWidget {
                                   overflow: TextOverflow.ellipsis,
                                   style: robotoBold.copyWith(
                                     fontSize: 14,
-                                    color: AppColors.textColor,
+                                    color: Theme.of(context).textTheme.bodyLarge?.color,
                                     height: 1.2,
                                     letterSpacing: -0.3,
                                   ),
@@ -243,7 +243,7 @@ class FoodRestaurantMenuItemCard extends StatelessWidget {
                                     overflow: TextOverflow.ellipsis,
                                     style: robotoRegular.copyWith(
                                       fontSize: 11,
-                                      color: AppColors.gryColor_2,
+                                      color: Theme.of(context).disabledColor,
                                       height: 1.3,
                                     ),
                                   ),
@@ -259,7 +259,7 @@ class FoodRestaurantMenuItemCard extends StatelessWidget {
                                     '${PriceConverter.convertPrice(finalPrice)} ${'currency'.tr}',
                                     style: robotoBold.copyWith(
                                       fontSize: 16,
-                                      color: AppColors.textColor,
+                                      color: Theme.of(context).textTheme.bodyLarge?.color,
                                       letterSpacing: -0.5,
                                       fontWeight: FontWeight.w700,
                                     ),
@@ -283,7 +283,7 @@ class FoodRestaurantMenuItemCard extends StatelessWidget {
                     child: Container(
                       height: 5,
                       decoration: BoxDecoration(
-                        color: Colors.red,
+                        color: Theme.of(context).colorScheme.error,
                         borderRadius: const BorderRadius.vertical(
                           top: Radius.circular(24),
                         ),
@@ -292,6 +292,7 @@ class FoodRestaurantMenuItemCard extends StatelessWidget {
                   ),
                 if (isOutOfStock)
                   _buildOutOfStockOverlay(
+                    context: context,
                     borderRadius: BorderRadius.circular(24),
                     label: 'انتهت الكمية',
                   ),
@@ -328,15 +329,15 @@ class FoodRestaurantMenuItemCard extends StatelessWidget {
                     margin: const EdgeInsets.only(
                         bottom: Dimensions.paddingSizeSmall),
                     decoration: BoxDecoration(
-                      color: AppColors.backgroundColor,
+                      color: Theme.of(context).colorScheme.surface,
                       borderRadius: BorderRadius.circular(22),
                       border: Border.all(
-                        color: AppColors.gryColor_3,
+                        color: Theme.of(context).extension<AppColorTokens>()!.outlineSoft,
                         width: 0.5,
                       ),
-                      boxShadow: const [
+                      boxShadow: [
                         BoxShadow(
-                          color: Colors.black12,
+                          color: Theme.of(context).shadowColor.withValues(alpha: 0.12),
                           blurRadius: 5,
                           spreadRadius: 1,
                         ),
@@ -369,14 +370,14 @@ class FoodRestaurantMenuItemCard extends StatelessWidget {
                                     vertical: 3,
                                   ),
                                   decoration: BoxDecoration(
-                                    color: AppColors.redColor,
+                                    color: Theme.of(context).colorScheme.error,
                                     borderRadius: BorderRadius.circular(6),
                                   ),
                                   child: Text(
                                     '${item.discount}% ${'off'.tr}',
                                     style: robotoBold.copyWith(
                                       fontSize: 9,
-                                      color: AppColors.backgroundColor,
+                                      color: Theme.of(context).colorScheme.onError,
                                     ),
                                   ),
                                 ),
@@ -453,7 +454,7 @@ class FoodRestaurantMenuItemCard extends StatelessWidget {
                                         '${PriceConverter.convertPrice(finalPrice)} ${'currency'.tr}',
                                         style: robotoBold.copyWith(
                                           fontSize: Dimensions.fontSizeDefault,
-                                          color: AppColors.textColor,
+                                          color: Theme.of(context).textTheme.bodyLarge?.color,
                                         ),
                                         maxLines: 1,
                                         overflow: TextOverflow.ellipsis,
@@ -481,13 +482,14 @@ class FoodRestaurantMenuItemCard extends StatelessWidget {
                     child: Container(
                       height: 5,
                       decoration: BoxDecoration(
-                        color: Colors.red,
+                        color: Theme.of(context).colorScheme.error,
                         borderRadius: BorderRadius.circular(22),
                       ),
                     ),
                   ),
                 if (isOutOfStock)
                   _buildOutOfStockOverlay(
+                    context: context,
                     borderRadius: BorderRadius.circular(22),
                     label: 'انتهت الكمية',
                     bottomSpacing: Dimensions.paddingSizeSmall,
@@ -506,6 +508,7 @@ class FoodRestaurantMenuItemCard extends StatelessWidget {
   }
 
   Widget _buildOutOfStockOverlay({
+    required BuildContext context,
     required BorderRadius borderRadius,
     required String label,
     double bottomSpacing = 0,
@@ -515,20 +518,20 @@ class FoodRestaurantMenuItemCard extends StatelessWidget {
       child: ClipRRect(
         borderRadius: borderRadius,
         child: Container(
-          color: Colors.black.withValues(alpha: 0.22),
+          color: Theme.of(context).colorScheme.scrim.withValues(alpha: 0.22),
           alignment: Alignment.topCenter,
           padding: const EdgeInsets.only(top: 10),
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
             decoration: BoxDecoration(
-              color: AppColors.redColor.withValues(alpha: 0.95),
+              color: Theme.of(context).colorScheme.error.withValues(alpha: 0.95),
               borderRadius: BorderRadius.circular(999),
             ),
             child: Text(
               label,
               style: robotoBold.copyWith(
                 fontSize: 11,
-                color: Colors.white,
+                color: Theme.of(context).colorScheme.onError,
               ),
             ),
           ),
@@ -537,3 +540,4 @@ class FoodRestaurantMenuItemCard extends StatelessWidget {
     );
   }
 }
+

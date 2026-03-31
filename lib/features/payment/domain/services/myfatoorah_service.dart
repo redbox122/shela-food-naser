@@ -38,4 +38,31 @@ class MyFatoorahService {
       customerEmail: customerEmail,
     );
   }
+
+  /// Process payment without order via backend and return payment_url in response
+  Future<Response> processPaymentWithoutOrder({
+    required double amount,
+    String currency = 'SAR',
+    int? paymentMethodId,
+    String? paymentMethodCode,
+    required String customerName,
+    required String customerPhone,
+    required String customerEmail,
+    String? countryCode,
+    String? callbackUrl,
+    String? errorUrl,
+  }) async {
+    return await repository.processPaymentWithoutOrder(
+      amount: amount,
+      currency: currency,
+      paymentMethodId: paymentMethodId,
+      paymentMethodCode: paymentMethodCode,
+      customerName: customerName,
+      customerPhone: customerPhone,
+      customerEmail: customerEmail,
+      countryCode: countryCode,
+      callbackUrl: callbackUrl,
+      errorUrl: errorUrl,
+    );
+  }
 }

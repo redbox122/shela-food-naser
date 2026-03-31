@@ -333,6 +333,7 @@ class CheckoutController extends GetxController implements GetxService {
   MFCardPaymentView? mfCardView;
   MFApplePayButton mfApplePayButton = MFApplePayButton();
   MFGooglePayButton mfGooglePayButton = const MFGooglePayButton();
+  bool _isMyFatoorahSdkInitialized = false;
 
   int selectedButton = -1; //  تعني أنه لا يوجد زر مختار
 
@@ -468,6 +469,8 @@ class CheckoutController extends GetxController implements GetxService {
       {String? contactNumber}) async {
     debugPrint(
         'Opening MyFatoorah payment (backend-driven) - Amount: $amount');
+    debugPrint(
+        '[Pay][Start] orderId=$_currentOrderId inProgress=$_isPaymentInProgress isOrderPaid=$_isOrderPaid selectedMethod=${select_payment_Methods?.paymentMethodAr} methodId=${select_payment_Methods?.paymentMethodId}');
 
     // CRITICAL: Prevent double payment attempts
     if (_isPaymentInProgress) {
@@ -504,6 +507,8 @@ class CheckoutController extends GetxController implements GetxService {
     // Ensure payment methods are loaded from backend
     if (paymentMethods.isEmpty) {
       await initiatePaymentWithAmount(context, amount);
+      debugPrint(
+          '[Pay][InitMethods] loadedCount=${paymentMethods.length} amount=$parsedAmount');
     }
 
     if (paymentMethods.isEmpty) {
@@ -548,6 +553,8 @@ class CheckoutController extends GetxController implements GetxService {
           profileController.userInfoModel?.email?.trim().isNotEmpty == true
               ? profileController.userInfoModel!.email!.trim()
               : 'no-reply@shelafood.com';
+      debugPrint(
+          '[Pay][Customer] name="$customerName" phone="$customerPhone" email="$customerEmail"');
 
       if (customerPhone.isEmpty) {
         _isPaymentInProgress = false;
@@ -564,6 +571,16 @@ class CheckoutController extends GetxController implements GetxService {
         customerPhone: customerPhone,
         customerEmail: customerEmail,
       );
+      debugPrint(
+          '[Pay][ProcessPayment] status=${response.statusCode} statusText=${response.statusText}');
+      if (response.body is Map) {
+        final Map<String, dynamic> m = response.body as Map<String, dynamic>;
+        debugPrint(
+            '[Pay][ProcessPayment] bodyKeys=${m.keys.toList()} success=${m['success']} message=${m['message']}');
+      } else {
+        debugPrint(
+            '[Pay][ProcessPayment] nonMapBodyType=${response.body.runtimeType}');
+      }
 
       if (response.statusCode != 200 && response.statusCode != 201) {
         debugPrint(
@@ -581,6 +598,8 @@ class CheckoutController extends GetxController implements GetxService {
       final String? paymentUrl = data is Map<String, dynamic>
           ? data['payment_url']?.toString()
           : null;
+      debugPrint(
+          '[Pay][PaymentUrl] hasUrl=${paymentUrl != null && paymentUrl.isNotEmpty} url=${paymentUrl ?? ''}');
 
       if (paymentUrl == null || paymentUrl.isEmpty) {
         debugPrint('? MyFatoorah process returned no payment_url');
@@ -609,6 +628,8 @@ class CheckoutController extends GetxController implements GetxService {
         orderId,
         contactNumber: contactNumber,
       );
+      debugPrint(
+          '[Pay][ConfirmResult] confirmed=$confirmed webResult=$webResult orderId=$orderId');
 
       _isOrderPaid = confirmed;
       _isPaymentInProgress = false;
@@ -624,6 +645,7 @@ class CheckoutController extends GetxController implements GetxService {
       return confirmed;
     } catch (error) {
       debugPrint('? MyFatoorah payment error: $error');
+      debugPrint('[Pay][Exception] type=${error.runtimeType}');
       _isPaymentInProgress = false;
       return false;
     }
@@ -637,6 +659,7 @@ class CheckoutController extends GetxController implements GetxService {
     const int maxTries = 30;
 
     for (int i = 0; i < maxTries; i++) {
+      debugPrint('[Pay][Confirm] try=${i + 1}/$maxTries orderId=$orderId');
       await orderController.trackOrder(
         orderId.toString(),
         null,
@@ -649,6 +672,8 @@ class CheckoutController extends GetxController implements GetxService {
           orderController.trackModel?.paymentStatus?.toLowerCase() ?? '';
       final String orderStatus =
           orderController.trackModel?.orderStatus?.toLowerCase() ?? '';
+      debugPrint(
+          '[Pay][Confirm] paymentStatus="$paymentStatus" orderStatus="$orderStatus"');
 
       if (paymentStatus == 'paid' || paymentStatus == 'partially_paid') {
         return true;
@@ -666,6 +691,7 @@ class CheckoutController extends GetxController implements GetxService {
       await Future.delayed(const Duration(seconds: 2));
     }
 
+    debugPrint('[Pay][Confirm] timeout after $maxTries tries orderId=$orderId');
     return false;
   }
 
@@ -673,11 +699,135 @@ class CheckoutController extends GetxController implements GetxService {
 
   // ==========================================================================================================
 
+  String _mfReadableErrorMessage(Object error) {
+    final List<String?> candidates = <String?>[
+      _safeDynamicField(error, 'message'),
+      _safeDynamicField(error, 'errorMessage'),
+      _safeDynamicField(error, 'reason'),
+      _safeDynamicField(error, 'details'),
+      _safeDynamicField(error, 'statusMessage'),
+      error.toString(),
+    ];
+    for (final String? candidate in candidates) {
+      final String value = (candidate ?? '').trim();
+      if (value.isNotEmpty && value != "Instance of 'MFError'") {
+        return value;
+      }
+    }
+    return error.toString();
+  }
+
+  String _safeDynamicField(Object error, String fieldName) {
+    final dynamic e = error;
+    try {
+      switch (fieldName) {
+        case 'message':
+          return e.message?.toString() ?? '';
+        case 'errorMessage':
+          return e.errorMessage?.toString() ?? '';
+        case 'reason':
+          return e.reason?.toString() ?? '';
+        case 'details':
+          return e.details?.toString() ?? '';
+        case 'statusMessage':
+          return e.statusMessage?.toString() ?? '';
+        case 'code':
+          return e.code?.toString() ?? '';
+        case 'statusCode':
+          return e.statusCode?.toString() ?? '';
+        case 'response':
+          return e.response?.toString() ?? '';
+        default:
+          return '';
+      }
+    } catch (_) {
+      return '';
+    }
+  }
+
+  void _logMyFatoorahError({
+    required String stage,
+    required Object error,
+    required StackTrace stackTrace,
+    MFPaymentMethod? method,
+    String? amount,
+  }) {
+    final String methodName = method?.paymentMethodEn ??
+        method?.paymentMethodAr ??
+        'unknown';
+    final dynamic methodId = method?.paymentMethodId;
+
+    final List<String> details = <String>[
+      'type=${error.runtimeType}',
+      'raw=${error.toString()}',
+      'message=${_safeDynamicField(error, 'message')}',
+      'errorMessage=${_safeDynamicField(error, 'errorMessage')}',
+      'statusMessage=${_safeDynamicField(error, 'statusMessage')}',
+      'code=${_safeDynamicField(error, 'code')}',
+      'statusCode=${_safeDynamicField(error, 'statusCode')}',
+      'reason=${_safeDynamicField(error, 'reason')}',
+      'details=${_safeDynamicField(error, 'details')}',
+      'response=${_safeDynamicField(error, 'response')}',
+      'stage=$stage',
+      'method=$methodName',
+      'methodId=$methodId',
+      'amount=${amount ?? ''}',
+    ];
+
+    final String shortStack = stackTrace
+        .toString()
+        .split('\n')
+        .take(5)
+        .join(' | ');
+
+    debugPrint(
+        '\x1B[31m[MyFatoorah][ERROR] ${details.join(' ; ')} ; stack=$shortStack\x1B[0m');
+  }
+
+  Future<bool> _ensureMyFatoorahSdkInitialized() async {
+    if (_isMyFatoorahSdkInitialized) {
+      return true;
+    }
+    try {
+      final String token = AppConstants.useMyFatoorahTestMode
+          ? AppConstants.myFatoorahTestToken
+          : AppConstants.myFatoorahLiveToken;
+
+      if (token.isEmpty) {
+        debugPrint(
+            '\x1B[31m[MyFatoorah][ERROR] SDK token is empty. Check AppConstants.setMyFatoorahTokens() and env config.\x1B[0m');
+        return false;
+      }
+
+      await MFSDK.init(
+        token,
+        MFCountry.SAUDIARABIA,
+        AppConstants.useMyFatoorahTestMode
+            ? MFEnvironment.TEST
+            : MFEnvironment.LIVE,
+      );
+      _isMyFatoorahSdkInitialized = true;
+      debugPrint(
+          '[MyFatoorah] SDK initialized for direct executePayment flow');
+      return true;
+    } catch (e, st) {
+      debugPrint(
+          '\x1B[31m[MyFatoorah][ERROR] SDK init failed: $e ; stack=${st.toString().split('\n').take(4).join(' | ')}\x1B[0m');
+      return false;
+    }
+  }
+
   /// Process digital wallet payments (Apple Pay, Google Pay)
   /// This method handles payments that don't require card details
   Future<bool> processDigitalWalletPayment(
       MFPaymentMethod paymentMethod, String amount) async {
     try {
+      final bool sdkReady = await _ensureMyFatoorahSdkInitialized();
+      if (!sdkReady) {
+        showCustomSnackBar('فشل تهيئة الدفع: مفتاح MyFatoorah غير مضبوط');
+        return false;
+      }
+
       debugPrint(
           'Processing digital wallet payment: ${paymentMethod.paymentMethodEn}');
 
@@ -705,9 +855,15 @@ class CheckoutController extends GetxController implements GetxService {
       });
 
       return paymentSuccess;
-    } catch (error) {
-      debugPrint('Digital wallet payment error: $error');
-      showCustomSnackBar('فشلت عملية الدفع: ${error.toString()}');
+    } catch (error, stackTrace) {
+      _logMyFatoorahError(
+        stage: 'processDigitalWalletPayment',
+        error: error,
+        stackTrace: stackTrace,
+        method: paymentMethod,
+        amount: amount,
+      );
+      showCustomSnackBar('فشلت عملية الدفع: ${_mfReadableErrorMessage(error)}');
       return false;
     }
   }
@@ -717,6 +873,12 @@ class CheckoutController extends GetxController implements GetxService {
   Future<bool> processDirectPayment(MFPaymentMethod paymentMethod,
       String amount, Map<String, String> cardData) async {
     try {
+      final bool sdkReady = await _ensureMyFatoorahSdkInitialized();
+      if (!sdkReady) {
+        showCustomSnackBar('فشل تهيئة الدفع: مفتاح MyFatoorah غير مضبوط');
+        return false;
+      }
+
       debugPrint(
           'Processing direct card payment: ${paymentMethod.paymentMethodEn}');
       debugPrint(
@@ -747,9 +909,15 @@ class CheckoutController extends GetxController implements GetxService {
       });
 
       return paymentSuccess;
-    } catch (error) {
-      debugPrint('Card payment error: $error');
-      showCustomSnackBar('فشلت عملية الدفع: ${error.toString()}');
+    } catch (error, stackTrace) {
+      _logMyFatoorahError(
+        stage: 'processDirectPayment',
+        error: error,
+        stackTrace: stackTrace,
+        method: paymentMethod,
+        amount: amount,
+      );
+      showCustomSnackBar('فشلت عملية الدفع: ${_mfReadableErrorMessage(error)}');
       return false;
     }
   }

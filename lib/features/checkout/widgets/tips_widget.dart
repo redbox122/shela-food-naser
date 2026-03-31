@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:sixam_mart/helper/responsive_helper.dart';
+import 'package:sixam_mart/theme/app_color_tokens.dart';
 import 'package:sixam_mart/util/dimensions.dart';
 import 'package:sixam_mart/util/styles.dart';
 
@@ -13,6 +14,8 @@ class TipsWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final tokens = theme.extension<AppColorTokens>();
     return Padding(
       padding: const EdgeInsets.only(right: Dimensions.paddingSizeSmall, top: Dimensions.paddingSizeExtraSmall),
       child: Column(children: [
@@ -26,7 +29,16 @@ class TipsWidget extends StatelessWidget {
               color: isSelected ? Theme.of(context).primaryColor : Theme.of(context).cardColor,
               borderRadius: BorderRadius.circular(Dimensions.radiusSmall),
               border: Border.all(color: ResponsiveHelper.isDesktop(context) ? Theme.of(context).primaryColor : Theme.of(context).cardColor),
-              boxShadow: ResponsiveHelper.isDesktop(context) ? [] : const [BoxShadow(color: Colors.black12, spreadRadius: 0.5, blurRadius: 0.5)],
+              boxShadow: ResponsiveHelper.isDesktop(context)
+                  ? []
+                  : [
+                      BoxShadow(
+                        color: (tokens?.outlineSoft ?? theme.dividerColor)
+                            .withValues(alpha: 0.35),
+                        spreadRadius: 0.5,
+                        blurRadius: 0.5,
+                      )
+                    ],
             ),
             child: Column(children: [
               Padding(
@@ -50,7 +62,11 @@ class TipsWidget extends StatelessWidget {
                 ),
                 padding: const EdgeInsets.symmetric(horizontal: Dimensions.paddingSizeExtraSmall, vertical: 3),
                 child: Text(
-                  'most_tipped'.tr, style: robotoRegular.copyWith(color: Colors.white, fontSize: Dimensions.fontSizeOverSmall),
+                  'most_tipped'.tr,
+                  style: robotoRegular.copyWith(
+                    color: theme.colorScheme.surface,
+                    fontSize: Dimensions.fontSizeOverSmall,
+                  ),
                 ),
               ) : SizedBox(height: ResponsiveHelper.isDesktop(context) ? 10 : 0),
             ]),

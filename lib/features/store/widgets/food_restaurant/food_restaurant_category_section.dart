@@ -5,7 +5,6 @@ import 'package:sixam_mart/features/store/widgets/food_restaurant/food_restauran
 import 'package:sixam_mart/features/item/controllers/item_controller.dart';
 import 'package:sixam_mart/features/language/controllers/language_controller.dart';
 import 'package:sixam_mart/features/store/controllers/store_controller.dart';
-import 'package:sixam_mart/util/app_colors.dart';
 import 'package:sixam_mart/util/dimensions.dart';
 import 'package:sixam_mart/util/styles.dart';
 import 'package:get/get.dart';
@@ -32,6 +31,7 @@ class FoodRestaurantCategorySection extends StatelessWidget {
       builder: (localizationController) {
         final bool isLtr = localizationController.isLtr;
         final TextAlign textAlign = isLtr ? TextAlign.left : TextAlign.right;
+        final theme = Theme.of(context);
 
         return GetBuilder<StoreController>(
           builder: (storeController) {
@@ -53,7 +53,7 @@ class FoodRestaurantCategorySection extends StatelessWidget {
                     textAlign: textAlign,
                     style: robotoBold.copyWith(
                       fontSize: 22,
-                      color: AppColors.textColor,
+                      color: theme.textTheme.bodyLarge?.color,
                       letterSpacing: -0.6,
                       height: 1.2,
                     ),
@@ -76,7 +76,7 @@ class FoodRestaurantCategorySection extends StatelessWidget {
                         textAlign: TextAlign.center,
                         style: robotoRegular.copyWith(
                           fontSize: 14,
-                          color: AppColors.gryColor_2,
+                          color: theme.disabledColor,
                         ),
                       ),
                     ),

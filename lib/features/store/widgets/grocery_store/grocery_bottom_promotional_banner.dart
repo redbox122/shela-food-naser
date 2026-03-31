@@ -9,6 +9,7 @@ library;
 import 'package:flutter/material.dart';
 import 'package:sixam_mart/common/widgets/smart_image.dart';
 import 'package:sixam_mart/features/store/domain/models/store_banner_model.dart';
+import 'package:sixam_mart/theme/app_color_tokens.dart';
 import 'package:sixam_mart/util/dimensions.dart';
 import 'package:sixam_mart/util/styles.dart';
 
@@ -47,11 +48,12 @@ class GroceryBottomPromotionalBanner extends StatelessWidget {
   }
 
   Widget _buildDefaultBanner(BuildContext context, StoreBannerModel? banner) {
+    final tokens = Theme.of(context).extension<AppColorTokens>()!;
     return Container(
       width: double.infinity,
       height: 120,
       decoration: BoxDecoration(
-        color: const Color(0xFFFF8C42),
+        color: tokens.warningText.withValues(alpha: 0.8),
         borderRadius: BorderRadius.circular(Dimensions.radiusDefault),
       ),
       child: Stack(
@@ -69,14 +71,14 @@ class GroceryBottomPromotionalBanner extends StatelessWidget {
                       vertical: 6,
                     ),
                     decoration: BoxDecoration(
-                      color: Colors.red,
+                      color: Theme.of(context).colorScheme.error,
                       borderRadius: BorderRadius.circular(4),
                     ),
                     child: Text(
                       'تخفيضات',
                       style: robotoBold.copyWith(
                         fontSize: 12,
-                        color: Colors.white,
+                        color: Theme.of(context).colorScheme.onPrimary,
                       ),
                     ),
                   ),
@@ -90,7 +92,7 @@ class GroceryBottomPromotionalBanner extends StatelessWidget {
                       textAlign: TextAlign.center,
                       style: robotoBold.copyWith(
                         fontSize: 16,
-                        color: Colors.white,
+                        color: Theme.of(context).colorScheme.onPrimary,
                         height: 1.4,
                       ),
                       maxLines: 2,
@@ -106,3 +108,4 @@ class GroceryBottomPromotionalBanner extends StatelessWidget {
     );
   }
 }
+

@@ -490,6 +490,7 @@ class CheckoutScreenState extends State<CheckoutScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     final Module? module =
         Get.find<SplashController>().configModel!.moduleConfig!.module;
     final bool guestCheckoutPermission = AuthHelper.isGuestLoggedIn() &&
@@ -511,7 +512,8 @@ class CheckoutScreenState extends State<CheckoutScreen> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Icon(Icons.location_off, size: 64, color: Colors.grey),
+                  Icon(Icons.location_off,
+                      size: 64, color: theme.colorScheme.onSurfaceVariant),
                   const SizedBox(height: 16),
                   Text(
                     'no_address_selected'.tr,
@@ -521,7 +523,7 @@ class CheckoutScreenState extends State<CheckoutScreen> {
                   const SizedBox(height: 8),
                   Text(
                     'please_select_delivery_address'.tr,
-                    style: const TextStyle(color: Colors.grey),
+                    style: TextStyle(color: theme.colorScheme.onSurfaceVariant),
                   ),
                   const SizedBox(height: 24),
                   ElevatedButton(
@@ -563,8 +565,8 @@ class CheckoutScreenState extends State<CheckoutScreen> {
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            const Icon(Icons.shopping_cart_outlined,
-                                size: 64, color: Colors.grey),
+                            Icon(Icons.shopping_cart_outlined,
+                                size: 64, color: theme.colorScheme.onSurfaceVariant),
                             const SizedBox(height: 16),
                             Text('cart_is_empty'.tr,
                                 style: const TextStyle(fontSize: 18)),

@@ -2,12 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:sixam_mart/common/widgets/custom_image.dart';
 import 'package:sixam_mart/features/cart/controllers/cart_controller.dart';
+import 'package:sixam_mart/features/favourite/controllers/favourite_controller.dart';
 import 'package:sixam_mart/features/language/controllers/language_controller.dart';
 import 'package:sixam_mart/features/store/screens/food_restaurant_search_screen.dart';
+import 'package:sixam_mart/helper/auth_helper.dart';
 import 'package:sixam_mart/helper/route_helper.dart';
-import 'package:sixam_mart/util/app_colors.dart';
+import 'package:sixam_mart/theme/app_color_tokens.dart';
 import 'package:sixam_mart/util/dimensions.dart';
 import 'package:sixam_mart/util/styles.dart';
+import 'package:sixam_mart/common/widgets/custom_snackbar.dart';
 
 class FoodRestaurantHeader extends StatelessWidget {
   final String coverPhotoUrl;
@@ -27,11 +30,12 @@ class FoodRestaurantHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Container(
       height: 167,
       width: double.infinity,
       decoration: BoxDecoration(
-        color: Colors.black.withValues(alpha: 0.2),
+        color: theme.colorScheme.scrim.withValues(alpha: 0.2),
       ),
       child: Stack(
         clipBehavior: Clip.none,
@@ -43,7 +47,7 @@ class FoodRestaurantHeader extends StatelessWidget {
                 return Container(
                   width: heroSize.width,
                   height: heroSize.height,
-                  color: Colors.black.withValues(alpha: 0.3),
+                  color: theme.colorScheme.scrim.withValues(alpha: 0.3),
                   child: child,
                 );
               },
@@ -54,7 +58,7 @@ class FoodRestaurantHeader extends StatelessWidget {
           ),
           Container(
             decoration: BoxDecoration(
-              color: Colors.black.withValues(alpha: 0.2),
+              color: theme.colorScheme.scrim.withValues(alpha: 0.2),
             ),
           ),
           // Logo positioned at bottom center, overlaying the banner
@@ -67,11 +71,11 @@ class FoodRestaurantHeader extends StatelessWidget {
                 width: 80,
                 height: 80,
                 decoration: BoxDecoration(
-                  color: AppColors.backgroundColor,
+                  color: theme.colorScheme.surface,
                   borderRadius: BorderRadius.circular(16),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.15),
+                      color: theme.shadowColor.withValues(alpha: 0.18),
                       blurRadius: 12,
                       offset: const Offset(0, 4),
                     ),
@@ -85,7 +89,7 @@ class FoodRestaurantHeader extends StatelessWidget {
                       return Container(
                         width: heroSize.width,
                         height: heroSize.height,
-                        color: AppColors.backgroundColor.withValues(alpha: 0.3),
+                        color: theme.colorScheme.surface.withValues(alpha: 0.3),
                         child: child,
                       );
                     },
@@ -115,14 +119,38 @@ class FoodRestaurantHeader extends StatelessWidget {
                       // Left side: Favorite, Search, and Cart icons (always on left)
                       Row(
                         children: [
-                          _buildActionButton(
-                            icon: Icons.favorite_border,
-                            onTap: () {
-                              // TODO: Implement favorite functionality
+                          GetBuilder<FavouriteController>(
+                            builder: (favouriteController) {
+                              final bool isWished = storeId != null &&
+                                  favouriteController.wishStoreIdList
+                                      .contains(storeId);
+                              return _buildActionButton(
+                                context: context,
+                                icon: isWished
+                                    ? Icons.favorite
+                                    : Icons.favorite_border,
+                                onTap: () {
+                                  if (!AuthHelper.isLoggedIn()) {
+                                    showCustomSnackBar(
+                                        'you_are_not_logged_in'.tr);
+                                    return;
+                                  }
+                                  if (storeId == null) return;
+                                  if (isWished) {
+                                    favouriteController
+                                        .removeFromFavouriteList(
+                                            storeId, true);
+                                  } else {
+                                    favouriteController.addToFavouriteList(
+                                        null, storeId, true);
+                                  }
+                                },
+                              );
                             },
                           ),
                           const SizedBox(width: Dimensions.paddingSizeDefault),
                           _buildActionButton(
+                            context: context,
                             icon: Icons.search,
                             onTap: () {
                               if (storeId != null) {
@@ -137,6 +165,7 @@ class FoodRestaurantHeader extends StatelessWidget {
                       ),
                       // Right side: Back button (arrow direction based on language)
                       _buildActionButton(
+                        context: context,
                         icon: isLtr
                             ? Icons.arrow_back_ios
                             : Icons.arrow_forward_ios,
@@ -156,6 +185,7 @@ class FoodRestaurantHeader extends StatelessWidget {
   }
 
   Widget _buildCartActionButton(BuildContext context) {
+    final tokens = Theme.of(context).extension<AppColorTokens>()!;
     return GestureDetector(
       onTap: () => Get.toNamed<void>(RouteHelper.getCartRoute()),
       child: Stack(
@@ -165,14 +195,14 @@ class FoodRestaurantHeader extends StatelessWidget {
             width: 28,
             height: 29,
             alignment: Alignment.center,
-            decoration: const BoxDecoration(
-              color: AppColors.wtColor_2,
+            decoration: BoxDecoration(
+              color: tokens.surfaceSoft,
               shape: BoxShape.circle,
             ),
-            child: const Icon(
+            child: Icon(
               Icons.shopping_cart_outlined,
               size: 20,
-              color: AppColors.textColor,
+              color: Theme.of(context).textTheme.bodyLarge?.color,
             ),
           ),
           GetBuilder<CartController>(
@@ -199,7 +229,7 @@ class FoodRestaurantHeader extends StatelessWidget {
                     countLabel,
                     style: robotoRegular.copyWith(
                       fontSize: countLabel.length > 2 ? 8 : 10,
-                      color: Colors.white,
+                      color: Theme.of(context).colorScheme.onError,
                     ),
                   ),
                 ),
@@ -214,20 +244,22 @@ class FoodRestaurantHeader extends StatelessWidget {
   Widget _buildActionButton({
     required IconData icon,
     required VoidCallback onTap,
+    required BuildContext context,
   }) {
+    final tokens = Theme.of(context).extension<AppColorTokens>()!;
     return GestureDetector(
       onTap: onTap,
       child: Container(
         width: 28,
         height: 29,
-        decoration: const BoxDecoration(
-          color: AppColors.wtColor_2,
+        decoration: BoxDecoration(
+          color: tokens.surfaceSoft,
           shape: BoxShape.circle,
         ),
         child: Icon(
           icon,
           size: 20,
-          color: AppColors.textColor,
+          color: Theme.of(context).textTheme.bodyLarge?.color,
         ),
       ),
     );

@@ -10,6 +10,7 @@ import 'package:sixam_mart/helper/route_helper.dart';
 import 'package:sixam_mart/features/search/domain/models/popular_categories_model.dart';
 import 'package:sixam_mart/features/search/widgets/search_suggestions_dropdown.dart';
 import 'package:sixam_mart/util/design_tokens.dart';
+import 'package:sixam_mart/theme/app_color_tokens.dart';
 import 'package:sixam_mart/features/splash/controllers/splash_controller.dart';
 import 'package:sixam_mart/common/models/module_model.dart';
 import 'package:sixam_mart/util/app_constants.dart';
@@ -414,17 +415,19 @@ class SearchScreenState extends State<SearchScreen>
     required bool isComingSoon,
     required VoidCallback onTap,
   }) {
+    final theme = Theme.of(context);
+    final tokens = theme.extension<AppColorTokens>()!;
     if (isComingSoon) {
       return SizedBox(
         width: 150,
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
           decoration: BoxDecoration(
-            color: const Color(0xFFE9E9E9),
+            color: tokens.surfaceSoft,
             borderRadius: BorderRadius.circular(12),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withValues(alpha: 0.1),
+                color: theme.shadowColor.withValues(alpha: 0.25),
                 blurRadius: 8,
                 offset: const Offset(0, 2),
               ),
@@ -436,7 +439,7 @@ class SearchScreenState extends State<SearchScreen>
                 child: Text(
                   module.moduleName ?? '',
                   style: TextStyle(
-                    color: Colors.grey.shade700,
+                    color: theme.textTheme.bodyLarge?.color,
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
                   ),
@@ -453,7 +456,7 @@ class SearchScreenState extends State<SearchScreen>
                     height: 28,
                     padding: const EdgeInsets.all(3),
                     decoration: BoxDecoration(
-                      color: Colors.grey.shade500,
+                      color: theme.disabledColor,
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: CustomImage(
@@ -471,14 +474,14 @@ class SearchScreenState extends State<SearchScreen>
                       padding: const EdgeInsets.symmetric(
                           horizontal: 3, vertical: 1),
                       decoration: BoxDecoration(
-                        color: Colors.black87,
+                        color: theme.colorScheme.inverseSurface,
                         borderRadius: BorderRadius.circular(5),
                       ),
                       child: Text(
                         'coming_soon'.tr,
                         textAlign: TextAlign.center,
-                        style: const TextStyle(
-                          color: Colors.white,
+                        style: TextStyle(
+                          color: theme.colorScheme.onInverseSurface,
                           fontSize: 7,
                           fontWeight: FontWeight.w700,
                           height: 1.0,
@@ -520,7 +523,9 @@ class SearchScreenState extends State<SearchScreen>
                     child: Text(
                       module.moduleName ?? '',
                       style: TextStyle(
-                        color: isActive ? Colors.red : Colors.grey.shade600,
+                        color: isActive
+                            ? theme.primaryColor
+                            : theme.textTheme.bodyMedium?.color,
                         fontSize: 13,
                         fontWeight: FontWeight.w600,
                         letterSpacing: -0.1,
@@ -539,7 +544,7 @@ class SearchScreenState extends State<SearchScreen>
                     height: 2,
                     width: 34,
                     decoration: BoxDecoration(
-                      color: Colors.red,
+                      color: theme.primaryColor,
                       borderRadius: BorderRadius.circular(1),
                     ),
                   ),
@@ -874,8 +879,8 @@ class SearchScreenState extends State<SearchScreen>
                             isEcommerce ? 'item'.tr : 'item'.tr,
                             style: TextStyle(
                               color: (isEcommerce ? !isStoreTab : !isStoreTab)
-                                  ? Colors.red
-                                  : Colors.grey.shade600,
+                                  ? Theme.of(context).primaryColor
+                                  : Theme.of(context).textTheme.bodyMedium?.color,
                               fontSize: 14,
                               fontWeight: FontWeight.w600,
                               letterSpacing: -0.1,
@@ -886,7 +891,7 @@ class SearchScreenState extends State<SearchScreen>
                           Container(
                             height: 2,
                             decoration: BoxDecoration(
-                              color: Colors.red,
+                              color: Theme.of(context).primaryColor,
                               borderRadius: BorderRadius.circular(1),
                             ),
                           ),
@@ -920,8 +925,8 @@ class SearchScreenState extends State<SearchScreen>
                                     : 'stores'.tr),
                             style: TextStyle(
                               color: (isEcommerce ? false : isStoreTab)
-                                  ? Colors.red
-                                  : Colors.grey.shade600,
+                                  ? Theme.of(context).primaryColor
+                                  : Theme.of(context).textTheme.bodyMedium?.color,
                               fontSize: 14,
                               fontWeight: FontWeight.w600,
                               letterSpacing: -0.1,
@@ -933,7 +938,7 @@ class SearchScreenState extends State<SearchScreen>
                           Container(
                             height: 2,
                             decoration: BoxDecoration(
-                              color: Colors.red,
+                              color: Theme.of(context).primaryColor,
                               borderRadius: BorderRadius.circular(1),
                             ),
                           ),
@@ -2034,7 +2039,7 @@ class _MostSearchedTile extends StatelessWidget {
                       borderRadius: radius,
                       gradient: LinearGradient(
                         colors: [
-                          Colors.black.withValues(alpha: 0.4),
+                          Theme.of(context).colorScheme.scrim.withValues(alpha: 0.4),
                           Colors.transparent,
                         ],
                       ),
@@ -2050,13 +2055,13 @@ class _MostSearchedTile extends StatelessWidget {
                     child: Text(
                       tile.title as String,
                       style: TextStyle(
-                        color: Colors.white,
+                        color: Theme.of(context).colorScheme.onSurface,
                         fontSize: 20,
                         fontWeight: FontWeight.w700,
                         letterSpacing: -0.3,
                         shadows: [
                           Shadow(
-                            color: Colors.black.withValues(alpha: 0.4),
+                            color: Theme.of(context).colorScheme.scrim.withValues(alpha: 0.4),
                             blurRadius: 8,
                             offset: const Offset(0, 2),
                           ),

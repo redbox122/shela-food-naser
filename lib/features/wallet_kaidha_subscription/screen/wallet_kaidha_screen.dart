@@ -10,6 +10,7 @@ import 'package:sixam_mart/features/checkout/controllers/checkout_controller.dar
 import 'package:sixam_mart/features/profile/controllers/profile_controller.dart';
 import 'package:sixam_mart/features/wallet_kaidha_subscription/controllers/kaidhaSub_controller.dart';
 import 'package:sixam_mart/features/wallet_kaidha_subscription/widget/available_balance.dart';
+import 'package:sixam_mart/theme/app_color_tokens.dart';
 import 'package:sixam_mart/util/dimensions.dart';
 import 'package:sixam_mart/util/images.dart';
 import 'package:sixam_mart/util/styles.dart';
@@ -274,6 +275,9 @@ class _WalletKaidhaScreenState extends State<WalletKaidhaScreen> {
   /// Build payment method selector UI
   /// Displays available payment methods (VISA, mada, STC Pay, etc.)
   Widget _buildPaymentMethodSelector(KaidhaSubscription_Controller controller) {
+    final theme = Theme.of(context);
+    final tokens = theme.extension<AppColorTokens>();
+
     if (controller.isLoadingPaymentMethods) {
       return Container(
         height: 100,
@@ -294,16 +298,20 @@ class _WalletKaidhaScreenState extends State<WalletKaidhaScreen> {
         height: 100,
         alignment: Alignment.center,
         decoration: BoxDecoration(
-          color: Colors.grey.shade100,
+          color: tokens?.surfaceSoft ?? theme.colorScheme.surface,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.grey.shade300),
+          border: Border.all(
+            color: tokens?.outlineSoft ?? theme.colorScheme.outlineVariant,
+          ),
         ),
-        child: const Column(
+        child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.payment, size: 40, color: Colors.grey),
+            Icon(Icons.payment,
+                size: 40, color: theme.colorScheme.onSurfaceVariant),
             SizedBox(height: 8),
-            Text('لا توجد طرق دفع متاحة', style: TextStyle(color: Colors.grey)),
+            Text('لا توجد طرق دفع متاحة',
+                style: TextStyle(color: theme.colorScheme.onSurfaceVariant)),
           ],
         ),
       );
@@ -334,17 +342,22 @@ class _WalletKaidhaScreenState extends State<WalletKaidhaScreen> {
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
                 color: isSelected
-                    ? Colors.green.withValues(alpha: 0.2)
-                    : Colors.white,
+                    ? (tokens?.successSoft ??
+                        theme.colorScheme.primary.withValues(alpha: 0.16))
+                    : theme.colorScheme.surface,
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(
-                  color: isSelected ? Colors.green : Colors.grey.shade300,
+                  color: isSelected
+                      ? theme.colorScheme.primary
+                      : (tokens?.outlineSoft ??
+                          theme.colorScheme.outlineVariant),
                   width: 2,
                 ),
                 boxShadow: isSelected
                     ? [
                         BoxShadow(
-                          color: Colors.green.withValues(alpha: 0.3),
+                          color:
+                              theme.colorScheme.primary.withValues(alpha: 0.25),
                           blurRadius: 8,
                           offset: const Offset(0, 2),
                         )
@@ -368,7 +381,9 @@ class _WalletKaidhaScreenState extends State<WalletKaidhaScreen> {
                     paymentMethod.paymentMethodAr ?? '',
                     style: TextStyle(
                       fontSize: 12,
-                      color: isSelected ? Colors.green : Colors.black,
+                      color: isSelected
+                          ? theme.colorScheme.primary
+                          : theme.colorScheme.onSurface,
                       fontWeight:
                           isSelected ? FontWeight.bold : FontWeight.normal,
                     ),
@@ -387,8 +402,10 @@ class _WalletKaidhaScreenState extends State<WalletKaidhaScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final tokens = theme.extension<AppColorTokens>();
     return Scaffold(
-      backgroundColor: AppColors.wtColor,
+      backgroundColor: theme.colorScheme.surface,
       appBar: custom_AppBar(context,
           title: 'kiadha_wallet'.tr,
           icon: Icons.arrow_back_sharp,
@@ -442,16 +459,21 @@ class _WalletKaidhaScreenState extends State<WalletKaidhaScreen> {
                                       width: double.infinity,
                                       padding: const EdgeInsets.all(16),
                                       decoration: BoxDecoration(
-                                        color: Colors.orange.shade50,
+                                        color: tokens?.warningSoft ??
+                                            theme.colorScheme.errorContainer
+                                                .withValues(alpha: 0.28),
                                         borderRadius: BorderRadius.circular(12),
                                         border: Border.all(
-                                            color: Colors.orange.shade200),
+                                            color: (tokens?.warningText ??
+                                                    theme.colorScheme.error)
+                                                .withValues(alpha: 0.35)),
                                       ),
                                       child: Column(
                                         children: [
                                           Icon(
                                             Icons.info_outline,
-                                            color: Colors.orange.shade600,
+                                            color: tokens?.warningText ??
+                                                theme.colorScheme.error,
                                             size: 32,
                                           ),
                                           const SizedBox(height: 12),
@@ -463,7 +485,8 @@ class _WalletKaidhaScreenState extends State<WalletKaidhaScreen> {
                                             style: TextStyle(
                                               fontSize: 16,
                                               fontWeight: FontWeight.w600,
-                                              color: Colors.orange.shade800,
+                                              color: tokens?.warningText ??
+                                                  theme.colorScheme.error,
                                             ),
                                             textAlign: TextAlign.center,
                                           ),
@@ -475,7 +498,9 @@ class _WalletKaidhaScreenState extends State<WalletKaidhaScreen> {
                                                     .toLowerCase()),
                                             style: TextStyle(
                                               fontSize: 14,
-                                              color: Colors.orange.shade700,
+                                              color: (tokens?.warningText ??
+                                                      theme.colorScheme.error)
+                                                  .withValues(alpha: 0.92),
                                             ),
                                             textAlign: TextAlign.center,
                                           ),
@@ -511,8 +536,10 @@ class _WalletKaidhaScreenState extends State<WalletKaidhaScreen> {
                                             color: KaidhaSubController
                                                         .selectedPaymentOption ==
                                                     2
-                                                ? Colors.orange
-                                                : Colors.grey.shade300,
+                                                ? theme.colorScheme.primary
+                                                : (tokens?.outlineSoft ??
+                                                    theme.colorScheme
+                                                        .outlineVariant),
                                             width: KaidhaSubController
                                                         .selectedPaymentOption ==
                                                     2
@@ -524,8 +551,9 @@ class _WalletKaidhaScreenState extends State<WalletKaidhaScreen> {
                                                   2
                                               ? [
                                                   BoxShadow(
-                                                    color: Colors.orange
-                                                        .withValues(alpha: 0.3),
+                                                    color: theme
+                                                        .colorScheme.primary
+                                                        .withValues(alpha: 0.25),
                                                     blurRadius: 8,
                                                     offset: const Offset(0, 2),
                                                   )

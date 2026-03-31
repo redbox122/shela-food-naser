@@ -17,7 +17,7 @@ class MyFatoorahRepository {
     required double amount,
     String currency = 'KWD',
   }) async {
-    const String uri = '/api/v1/payment/myfatoorah/payment-methods';
+    const String uri = '/api/v1/payment/myfatoorah/payment-methods-with-ids';
     
     // Build query parameters - always include amount, conditionally include currency
     final StringBuffer queryBuffer = StringBuffer('amount=${Uri.encodeComponent(amount.toString())}');
@@ -171,6 +171,48 @@ class MyFatoorahRepository {
       'customer_phone': customerPhone,
       'customer_email': customerEmail,
     };
+
+    return await apiClient.postData(uri, body);
+  }
+
+  /// Process payment without order via backend and return payment_url
+  Future<Response> processPaymentWithoutOrder({
+    required double amount,
+    String currency = 'SAR',
+    int? paymentMethodId,
+    String? paymentMethodCode,
+    required String customerName,
+    required String customerPhone,
+    required String customerEmail,
+    String? countryCode,
+    String? callbackUrl,
+    String? errorUrl,
+  }) async {
+    const String uri = '/api/v1/payment/myfatoorah/process-without-order';
+
+    final Map<String, dynamic> body = <String, dynamic>{
+      'amount': amount,
+      'currency': currency,
+      'customer_name': customerName,
+      'customer_phone': customerPhone,
+      'customer_email': customerEmail,
+    };
+
+    if (paymentMethodCode != null && paymentMethodCode.isNotEmpty) {
+      body['payment_method_code'] = paymentMethodCode;
+    } else if (paymentMethodId != null) {
+      body['payment_method_id'] = paymentMethodId;
+    }
+
+    if (countryCode != null && countryCode.isNotEmpty) {
+      body['country_code'] = countryCode;
+    }
+    if (callbackUrl != null && callbackUrl.isNotEmpty) {
+      body['callback_url'] = callbackUrl;
+    }
+    if (errorUrl != null && errorUrl.isNotEmpty) {
+      body['error_url'] = errorUrl;
+    }
 
     return await apiClient.postData(uri, body);
   }

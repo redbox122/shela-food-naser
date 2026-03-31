@@ -120,15 +120,20 @@ class ModulesViewWidget extends StatelessWidget {
                                           child: Container(
                                             decoration: BoxDecoration(
                                               color: isTapDisabled
-                                                  ? Colors.grey
-                                                      .withValues(alpha: 0.15)
-                                                  : Colors.white,
+                                                  ? Theme.of(context)
+                                                      .colorScheme
+                                                      .onSurface
+                                                      .withValues(alpha: 0.10)
+                                                  : Theme.of(context)
+                                                      .colorScheme
+                                                      .surface,
                                               borderRadius:
                                                   BorderRadius.circular(16),
                                               boxShadow: [
                                                 BoxShadow(
-                                                  color: Colors.black
-                                                      .withValues(alpha: 0.05),
+                                                  color: Theme.of(context)
+                                                      .shadowColor
+                                                      .withValues(alpha: 0.08),
                                                   blurRadius: 12,
                                                   offset: const Offset(0, 2),
                                                 ),
@@ -243,7 +248,10 @@ class ModulesViewWidget extends StatelessWidget {
                             Positioned.fill(
                               child: Container(
                                 decoration: BoxDecoration(
-                                  color: Colors.black.withValues(alpha: 0.18),
+                                  color: Theme.of(context)
+                                      .colorScheme
+                                      .scrim
+                                      .withValues(alpha: 0.18),
                                   borderRadius: BorderRadius.circular(12),
                                 ),
                                 child: Center(
@@ -253,7 +261,9 @@ class ModulesViewWidget extends StatelessWidget {
                                       vertical: 10,
                                     ),
                                     decoration: BoxDecoration(
-                                      color: Colors.white,
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .surface,
                                       borderRadius: BorderRadius.circular(10),
                                     ),
                                     child: const Row(

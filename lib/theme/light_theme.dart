@@ -1,6 +1,7 @@
 // ignore_for_file: deprecated_member_use, non_constant_identifier_names
 
 import 'package:flutter/material.dart';
+import 'package:sixam_mart/theme/app_color_tokens.dart';
 import 'package:sixam_mart/util/app_constants.dart';
 
 ThemeData light({Color color = const Color(0xFF31A342)}) => ThemeData(
@@ -49,6 +50,13 @@ ThemeData light({Color color = const Color(0xFF31A342)}) => ThemeData(
       //
 
       extensions: <ThemeExtension<dynamic>>[
+        const AppColorTokens(
+          surfaceSoft: Color(0xFFF5F7FA),
+          outlineSoft: Color(0xFFDADFE5),
+          successSoft: Color(0x2231A342),
+          warningSoft: Color(0xFFFFF3E0),
+          warningText: Color(0xFF8A4B00),
+        ),
         CustomThemeExtension(
           yellow_Color: const Color(0xFFFA9D2B),
           white_Color: Colors.white,

@@ -10,6 +10,7 @@ import 'package:sixam_mart/features/category/controllers/category_controller.dar
 import 'package:sixam_mart/features/category/domain/models/category_model.dart';
 import 'package:sixam_mart/features/store/controllers/store_controller.dart';
 import 'package:sixam_mart/features/store/domain/models/store_model.dart';
+import 'package:sixam_mart/theme/app_color_tokens.dart';
 import 'package:sixam_mart/util/images.dart';
 import 'package:sixam_mart/features/search/controllers/search_controller.dart'
     as search;
@@ -262,21 +263,21 @@ class _ProductFilterScreenState extends State<ProductFilterScreen> {
                                       borderRadius: BorderRadius.circular(10)),
                                 ),
                                 child: Text('reset'.tr,
-                                    style:
-                                        const TextStyle(color: Colors.black)),
+                                    style: TextStyle(
+                                        color: Theme.of(context).textTheme.bodyLarge?.color ?? Theme.of(context).colorScheme.onSurface)),
                               ),
                             ),
                             const SizedBox(width: 10),
                             Expanded(
                               child: ElevatedButton(
                                 style: ElevatedButton.styleFrom(
-                                  backgroundColor: Colors.green,
+                                  backgroundColor: Theme.of(context).primaryColor,
                                   shape: RoundedRectangleBorder(
                                       borderRadius: BorderRadius.circular(10)),
                                 ),
                                 child: Text('apply'.tr,
                                     style:
-                                        const TextStyle(color: Colors.white)),
+                                        TextStyle(color: Theme.of(context).colorScheme.onPrimary)),
                                 onPressed: () async {
                                   //
 
@@ -342,6 +343,7 @@ class ChoiceChipsRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final tokens = Theme.of(context).extension<AppColorTokens>()!;
     return Wrap(
       spacing: 8,
       children: options.map((option) {
@@ -351,15 +353,17 @@ class ChoiceChipsRow extends StatelessWidget {
         return ChoiceChip(
           selected: isSelected,
           onSelected: (_) => onSelected(option),
-          selectedColor: Colors.green,
-          backgroundColor: Colors.grey[300],
+          selectedColor: Theme.of(context).primaryColor,
+          backgroundColor: tokens.surfaceSoft,
           label: parts.length == 2
               ? Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(parts[0],
                         style: TextStyle(
-                            color: isSelected ? Colors.white : Colors.black)),
+                            color: isSelected
+                                ? Theme.of(context).colorScheme.onPrimary
+                                : Theme.of(context).textTheme.bodyLarge?.color ?? Theme.of(context).colorScheme.onSurface)),
                     const SizedBox(width: 4),
                     Image.asset(
                       Images.sar,
@@ -371,11 +375,15 @@ class ChoiceChipsRow extends StatelessWidget {
                     const SizedBox(width: 6),
                     Text('-',
                         style: TextStyle(
-                            color: isSelected ? Colors.white : Colors.black)),
+                            color: isSelected
+                                ? Theme.of(context).colorScheme.onPrimary
+                                : Theme.of(context).textTheme.bodyLarge?.color ?? Theme.of(context).colorScheme.onSurface)),
                     const SizedBox(width: 6),
                     Text(parts[1],
                         style: TextStyle(
-                            color: isSelected ? Colors.white : Colors.black)),
+                            color: isSelected
+                                ? Theme.of(context).colorScheme.onPrimary
+                                : Theme.of(context).textTheme.bodyLarge?.color ?? Theme.of(context).colorScheme.onSurface)),
                     const SizedBox(width: 4),
                     Image.asset(
                       Images.sar,
@@ -388,7 +396,9 @@ class ChoiceChipsRow extends StatelessWidget {
                 )
               : Text(option,
                   style: TextStyle(
-                      color: isSelected ? Colors.white : Colors.black)),
+                      color: isSelected
+                          ? Theme.of(context).colorScheme.onPrimary
+                          : Theme.of(context).textTheme.bodyLarge?.color ?? Theme.of(context).colorScheme.onSurface)),
         );
       }).toList(),
     );
@@ -409,18 +419,19 @@ class CustomTextField extends StatelessWidget {
       controller: controller,
       decoration: InputDecoration(
         hintText: hint,
-        hintStyle: const TextStyle(color: Colors.grey),
+        hintStyle: TextStyle(color: Theme.of(context).disabledColor),
         contentPadding:
             const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         filled: true,
-        fillColor: const Color(0xFFE8F5E9),
+        fillColor: Theme.of(context).extension<AppColorTokens>()!.surfaceSoft,
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide.none,
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Colors.green, width: 1.5),
+          borderSide:
+              BorderSide(color: Theme.of(context).primaryColor, width: 1.5),
         ),
       ),
     );
@@ -443,6 +454,7 @@ class Choice_Category_Row<T> extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final tokens = Theme.of(context).extension<AppColorTokens>()!;
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
       child: Row(
@@ -453,13 +465,15 @@ class Choice_Category_Row<T> extends StatelessWidget {
             child: ChoiceChip(
               label: Text(
                 labelBuilder(option),
-                style:
-                    TextStyle(color: isSelected ? Colors.white : Colors.black),
+                style: TextStyle(
+                    color: isSelected
+                        ? Theme.of(context).colorScheme.onPrimary
+                        : Theme.of(context).textTheme.bodyLarge?.color ?? Theme.of(context).colorScheme.onSurface),
               ),
               selected: isSelected,
               onSelected: (_) => onSelected(option),
-              selectedColor: Colors.green,
-              backgroundColor: Colors.grey[300],
+              selectedColor: Theme.of(context).primaryColor,
+              backgroundColor: tokens.surfaceSoft,
             ),
           );
         }).toList(),
@@ -467,3 +481,4 @@ class Choice_Category_Row<T> extends StatelessWidget {
     );
   }
 }
+

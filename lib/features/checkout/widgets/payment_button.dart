@@ -1,5 +1,6 @@
 import 'package:sixam_mart/util/dimensions.dart';
 import 'package:sixam_mart/util/styles.dart';
+import 'package:sixam_mart/theme/app_color_tokens.dart';
 import 'package:flutter/material.dart';
 
 class PaymentButton extends StatelessWidget {
@@ -12,6 +13,8 @@ class PaymentButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final tokens = theme.extension<AppColorTokens>();
     return Padding(
       padding: const EdgeInsets.only(bottom: Dimensions.paddingSizeSmall),
       child: InkWell(
@@ -20,9 +23,16 @@ class PaymentButton extends StatelessWidget {
           children: [
             Container(
               decoration: BoxDecoration(
-                color: Theme.of(context).cardColor,
+                color: theme.cardColor,
                 borderRadius: BorderRadius.circular(Dimensions.radiusSmall),
-                boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 5, spreadRadius: 1)],
+                boxShadow: [
+                  BoxShadow(
+                    color: (tokens?.outlineSoft ?? theme.dividerColor)
+                        .withValues(alpha: 0.35),
+                    blurRadius: 5,
+                    spreadRadius: 1,
+                  )
+                ],
               ),
               child: ListTile(
                 contentPadding: const EdgeInsets.symmetric(horizontal: Dimensions.paddingSizeExtraSmall),

@@ -14,7 +14,7 @@ import 'package:sixam_mart/features/language/controllers/language_controller.dar
 import 'package:sixam_mart/features/store/controllers/store_controller.dart';
 import 'package:sixam_mart/features/store/widgets/food_restaurant/food_restaurant_menu_item_card.dart';
 import 'package:sixam_mart/common/widgets/error_state_view.dart';
-import 'package:sixam_mart/util/app_colors.dart';
+import 'package:sixam_mart/theme/app_color_tokens.dart';
 import 'package:sixam_mart/util/dimensions.dart';
 import 'package:sixam_mart/util/styles.dart';
 
@@ -55,16 +55,18 @@ class _FoodRestaurantSearchScreenState extends State<FoodRestaurantSearchScreen>
     return GetBuilder<LocalizationController>(
       builder: (localizationController) {
         final bool isLtr = localizationController.isLtr;
+        final theme = Theme.of(context);
+        final tokens = theme.extension<AppColorTokens>()!;
         
         return Scaffold(
-          backgroundColor: AppColors.gryColor_8,
+          backgroundColor: theme.scaffoldBackgroundColor,
           appBar: AppBar(
-            backgroundColor: AppColors.backgroundColor,
+            backgroundColor: theme.colorScheme.surface,
             elevation: 0,
             leading: IconButton(
               icon: Icon(
                 isLtr ? Icons.arrow_back_ios : Icons.arrow_forward_ios,
-                color: AppColors.textColor,
+                color: theme.textTheme.bodyLarge?.color,
               ),
               onPressed: () => Get.back(),
             ),
@@ -72,7 +74,7 @@ class _FoodRestaurantSearchScreenState extends State<FoodRestaurantSearchScreen>
               'search_items'.tr,
               style: robotoBold.copyWith(
                 fontSize: 18,
-                color: AppColors.textColor,
+                color: theme.textTheme.bodyLarge?.color,
               ),
             ),
             centerTitle: true,
@@ -86,7 +88,7 @@ class _FoodRestaurantSearchScreenState extends State<FoodRestaurantSearchScreen>
                 children: [
                   // Search Bar Section
                   Container(
-                    color: AppColors.backgroundColor,
+                    color: theme.colorScheme.surface,
                     padding: const EdgeInsets.all(Dimensions.paddingSizeDefault),
                     child: TextField(
                       controller: _searchController,
@@ -94,23 +96,23 @@ class _FoodRestaurantSearchScreenState extends State<FoodRestaurantSearchScreen>
                       textDirection: isLtr ? TextDirection.ltr : TextDirection.rtl,
                       style: robotoRegular.copyWith(
                         fontSize: Dimensions.fontSizeDefault,
-                        color: AppColors.textColor,
+                        color: theme.textTheme.bodyLarge?.color,
                       ),
                       decoration: InputDecoration(
                         hintText: 'search_item_in_store'.tr,
                         hintStyle: robotoRegular.copyWith(
                           fontSize: Dimensions.fontSizeDefault,
-                          color: AppColors.gryColor_2,
+                          color: theme.disabledColor,
                         ),
-                        prefixIcon: const Icon(
+                        prefixIcon: Icon(
                           Icons.search,
-                          color: AppColors.primaryColor,
+                          color: theme.primaryColor,
                         ),
                         suffixIcon: _searchController.text.isNotEmpty
                             ? IconButton(
-                                icon: const Icon(
+                                icon: Icon(
                                   Icons.clear,
-                                  color: AppColors.gryColor_2,
+                                  color: theme.disabledColor,
                                 ),
                                 onPressed: () {
                                   _searchController.clear();
@@ -119,23 +121,23 @@ class _FoodRestaurantSearchScreenState extends State<FoodRestaurantSearchScreen>
                               )
                             : null,
                         filled: true,
-                        fillColor: AppColors.backgroundColor,
+                        fillColor: tokens.surfaceSoft,
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
-                          borderSide: const BorderSide(
-                            color: AppColors.gryColor_3,
+                          borderSide: BorderSide(
+                            color: tokens.outlineSoft,
                           ),
                         ),
                         enabledBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
-                          borderSide: const BorderSide(
-                            color: AppColors.gryColor_3,
+                          borderSide: BorderSide(
+                            color: tokens.outlineSoft,
                           ),
                         ),
                         focusedBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
-                          borderSide: const BorderSide(
-                            color: AppColors.primaryColor,
+                          borderSide: BorderSide(
+                            color: theme.primaryColor,
                             width: 2,
                           ),
                         ),
@@ -163,6 +165,7 @@ class _FoodRestaurantSearchScreenState extends State<FoodRestaurantSearchScreen>
                   // Results Section
                   Expanded(
                     child: _buildSearchResults(
+                      context,
                       searchResults,
                       isSearching,
                       _searchController.text,
@@ -179,24 +182,27 @@ class _FoodRestaurantSearchScreenState extends State<FoodRestaurantSearchScreen>
   }
 
   Widget _buildSearchResults(
+      BuildContext context,
       List<dynamic> results, bool isSearching, String searchText, bool hasError) {
+    final theme = Theme.of(context);
+    final tokens = theme.extension<AppColorTokens>()!;
     // Empty search state
     if (searchText.isEmpty) {
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(
+            Icon(
               Icons.search,
               size: 80,
-              color: AppColors.gryColor_3,
+              color: tokens.outlineSoft,
             ),
             const SizedBox(height: Dimensions.paddingSizeDefault),
             Text(
               'search_for_items'.tr,
               style: robotoMedium.copyWith(
                 fontSize: 16,
-                color: AppColors.gryColor_2,
+                color: theme.disabledColor,
               ),
             ),
           ],
@@ -206,9 +212,9 @@ class _FoodRestaurantSearchScreenState extends State<FoodRestaurantSearchScreen>
 
     // Loading state
     if (isSearching) {
-      return const Center(
+      return Center(
         child: CircularProgressIndicator(
-          color: AppColors.primaryColor,
+          color: theme.primaryColor,
         ),
       );
     }
@@ -228,17 +234,17 @@ class _FoodRestaurantSearchScreenState extends State<FoodRestaurantSearchScreen>
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(
+            Icon(
               Icons.search_off,
               size: 80,
-              color: AppColors.gryColor_3,
+              color: tokens.outlineSoft,
             ),
             const SizedBox(height: Dimensions.paddingSizeDefault),
             Text(
               'no_items_found'.tr,
               style: robotoMedium.copyWith(
                 fontSize: 16,
-                color: AppColors.gryColor_2,
+                color: theme.disabledColor,
               ),
             ),
           ],

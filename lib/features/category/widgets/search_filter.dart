@@ -6,6 +6,7 @@ import 'package:sixam_mart/features/category/controllers/category_controller.dar
 import 'package:sixam_mart/features/category/domain/models/category_model.dart';
 import 'package:sixam_mart/features/store/controllers/store_controller.dart';
 import 'package:sixam_mart/features/store/domain/models/store_model.dart';
+import 'package:sixam_mart/theme/app_color_tokens.dart';
 import 'package:sixam_mart/util/images.dart';
 
 class Search_Filter extends StatefulWidget {
@@ -85,7 +86,8 @@ class _Search_FilterState extends State<Search_Filter> {
 
   @override
   Widget build(BuildContext context) {
-    const Color selectedChipColor = Color(0xFFC8E6C9);
+    final tokens = Theme.of(context).extension<AppColorTokens>()!;
+    final Color selectedChipColor = tokens.successSoft;
     return Directionality(
       textDirection: TextDirection.rtl,
       child:
@@ -187,15 +189,15 @@ class _Search_FilterState extends State<Search_Filter> {
                                   shape: RoundedRectangleBorder(
                                       borderRadius: BorderRadius.circular(10)),
                                 ),
-                                child: const Text('إعادة تعيين',
-                                    style: TextStyle(color: Colors.black)),
+                                child: Text('إعادة تعيين',
+                                    style: TextStyle(color: Theme.of(context).textTheme.bodyLarge?.color ?? Colors.black)),
                               ),
                             ),
                             const SizedBox(width: 10),
                             Expanded(
                               child: ElevatedButton(
                                 style: ElevatedButton.styleFrom(
-                                  backgroundColor: Colors.green,
+                                  backgroundColor: Theme.of(context).primaryColor,
                                   shape: RoundedRectangleBorder(
                                       borderRadius: BorderRadius.circular(10)),
                                 ),
@@ -265,6 +267,7 @@ class ChoiceChipsRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final tokens = Theme.of(context).extension<AppColorTokens>()!;
     return Wrap(
       spacing: 8,
       children: options.map((option) {
@@ -275,14 +278,14 @@ class ChoiceChipsRow extends StatelessWidget {
           selected: isSelected,
           onSelected: (_) => onSelected(option),
           selectedColor: selectedColor,
-          backgroundColor: Colors.grey[300],
+          backgroundColor: tokens.surfaceSoft,
           label: parts.length == 2
               ? Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(parts[0],
                         style: TextStyle(
-                            color: isSelected ? Colors.white : Colors.black)),
+                            color: isSelected ? Colors.white : Theme.of(context).textTheme.bodyLarge?.color ?? Colors.black)),
                     const SizedBox(width: 4),
                     Image.asset(
                       Images.sar,
@@ -294,11 +297,11 @@ class ChoiceChipsRow extends StatelessWidget {
                     const SizedBox(width: 6),
                     Text('-',
                         style: TextStyle(
-                            color: isSelected ? Colors.white : Colors.black)),
+                            color: isSelected ? Colors.white : Theme.of(context).textTheme.bodyLarge?.color ?? Colors.black)),
                     const SizedBox(width: 6),
                     Text(parts[1],
                         style: TextStyle(
-                            color: isSelected ? Colors.white : Colors.black)),
+                            color: isSelected ? Colors.white : Theme.of(context).textTheme.bodyLarge?.color ?? Colors.black)),
                     const SizedBox(width: 4),
                     Image.asset(
                       Images.sar,
@@ -311,7 +314,7 @@ class ChoiceChipsRow extends StatelessWidget {
                 )
               : Text(option,
                   style: TextStyle(
-                      color: isSelected ? Colors.white : Colors.black)),
+                      color: isSelected ? Colors.white : Theme.of(context).textTheme.bodyLarge?.color ?? Colors.black)),
         );
       }).toList(),
     );
@@ -336,14 +339,14 @@ class CustomTextField extends StatelessWidget {
         contentPadding:
             const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         filled: true,
-        fillColor: const Color(0xFFE8F5E9),
+        fillColor: Theme.of(context).extension<AppColorTokens>()!.surfaceSoft,
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide.none,
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Colors.green, width: 1.5),
+          borderSide: BorderSide(color: Theme.of(context).primaryColor, width: 1.5),
         ),
       ),
     );
@@ -366,7 +369,8 @@ class Choice_Category_Row<T> extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const Color selectedChipColor = Color(0xFFC8E6C9);
+    final tokens = Theme.of(context).extension<AppColorTokens>()!;
+    final Color selectedChipColor = tokens.successSoft;
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
       child: Row(
@@ -378,12 +382,12 @@ class Choice_Category_Row<T> extends StatelessWidget {
               label: Text(
                 labelBuilder(option),
                 style: TextStyle(
-                    color: isSelected ? const Color(0xFF1B5E20) : Colors.black),
+                    color: isSelected ? Theme.of(context).primaryColor : Theme.of(context).textTheme.bodyLarge?.color ?? Colors.black),
               ),
               selected: isSelected,
               onSelected: (_) => onSelected(option),
               selectedColor: selectedChipColor,
-              backgroundColor: Colors.grey[300],
+              backgroundColor: tokens.surfaceSoft,
             ),
           );
         }).toList(),
@@ -391,3 +395,4 @@ class Choice_Category_Row<T> extends StatelessWidget {
     );
   }
 }
+

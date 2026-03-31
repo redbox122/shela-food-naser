@@ -312,7 +312,7 @@ class _StoreScreenState extends State<StoreScreen> {
                                                     width: double.infinity,
                                                     decoration: BoxDecoration(
                                                       color:
-                                                          Colors.red.shade900,
+                                                          Theme.of(context).colorScheme.error,
                                                       borderRadius: const BorderRadius
                                                           .vertical(
                                                           top: Radius.circular(
@@ -335,7 +335,7 @@ class _StoreScreenState extends State<StoreScreen> {
                                                           robotoBold.copyWith(
                                                         fontSize: Dimensions
                                                             .fontSizeSmall,
-                                                        color: Colors.yellow,
+                                                        color: Theme.of(context).colorScheme.onError,
                                                       ),
                                                       textAlign:
                                                           TextAlign.center,
@@ -709,7 +709,7 @@ class _StoreScreenState extends State<StoreScreen> {
                                             filter: ui.ImageFilter.blur(
                                                 sigmaX: 20.0, sigmaY: 20.0),
                                             child: Container(
-                                                color: Colors.black
+                                                color: Theme.of(context).colorScheme.scrim
                                                     .withValues(alpha: 0.1)),
                                           ),
                                           Center(
@@ -749,7 +749,7 @@ class _StoreScreenState extends State<StoreScreen> {
                                         filter: ui.ImageFilter.blur(
                                             sigmaX: 20.0, sigmaY: 20.0),
                                         child: Container(
-                                            color: Colors.black
+                                            color: Theme.of(context).colorScheme.scrim
                                                 .withValues(alpha: 0.1)),
                                       ),
                                       Center(
@@ -995,12 +995,19 @@ class _StoreScreenState extends State<StoreScreen> {
                                                         .paddingSizeSmall),
                                                 InkWell(
                                                   onTap: () {
-                                                    // Navigate to deep search mode for this store
-                                                    // TODO: Implement deep search mode navigation
-                                                    // For now, show a snackbar
-                                                    showCustomSnackBar(
-                                                        'browse_complete_catalog'
-                                                            .tr);
+                                                    final int? storeId =
+                                                        displayStore?.id;
+                                                    if (storeId == null) {
+                                                      showCustomSnackBar(
+                                                          'something_went_wrong'
+                                                              .tr);
+                                                      return;
+                                                    }
+                                                    Get.toNamed(
+                                                      RouteHelper
+                                                          .getSearchStoreItemRoute(
+                                                              storeId),
+                                                    );
                                                   },
                                                   child: Container(
                                                     padding: const EdgeInsets
@@ -1042,9 +1049,9 @@ class _StoreScreenState extends State<StoreScreen> {
                                                       mainAxisSize:
                                                           MainAxisSize.min,
                                                       children: [
-                                                        const Icon(
+                                                        Icon(
                                                           Icons.search,
-                                                          color: Colors.white,
+                                                          color: Theme.of(context).colorScheme.onPrimary,
                                                           size: 18,
                                                         ),
                                                         const SizedBox(
@@ -1056,7 +1063,7 @@ class _StoreScreenState extends State<StoreScreen> {
                                                               .copyWith(
                                                             fontSize: Dimensions
                                                                 .fontSizeSmall,
-                                                            color: Colors.white,
+                                                            color: Theme.of(context).colorScheme.onPrimary,
                                                           ),
                                                         ),
                                                       ],
@@ -1696,9 +1703,9 @@ class _StoreScreenState extends State<StoreScreen> {
                                         width: Dimensions.webMaxWidth,
                                         decoration: BoxDecoration(
                                           color: Theme.of(context).cardColor,
-                                          boxShadow: const [
+                                          boxShadow: [
                                             BoxShadow(
-                                                color: Colors.black12,
+                                                color: Theme.of(context).shadowColor.withValues(alpha: 0.12),
                                                 blurRadius: 5,
                                                 spreadRadius: 1)
                                           ],
@@ -2207,11 +2214,11 @@ class _StoreScreenState extends State<StoreScreen> {
                                 padding: const EdgeInsets.all(
                                     Dimensions.paddingSizeDefault),
                                 decoration: BoxDecoration(
-                                  color: Colors.orange.shade100,
+                                  color: Theme.of(context).colorScheme.errorContainer.withValues(alpha: 0.35),
                                   borderRadius: BorderRadius.circular(
                                       Dimensions.radiusDefault),
                                   border: Border.all(
-                                    color: Colors.orange.shade300,
+                                    color: Theme.of(context).colorScheme.error.withValues(alpha: 0.6),
                                     width: 1,
                                   ),
                                 ),
@@ -2219,7 +2226,7 @@ class _StoreScreenState extends State<StoreScreen> {
                                   children: [
                                     Icon(
                                       Icons.lock_outline,
-                                      color: Colors.orange.shade700,
+                                      color: Theme.of(context).colorScheme.error,
                                       size: 20,
                                     ),
                                     const SizedBox(
@@ -2229,7 +2236,7 @@ class _StoreScreenState extends State<StoreScreen> {
                                         'المتجر مغلق حالياً، يمكنك التصفح فقط',
                                         style: robotoMedium.copyWith(
                                           fontSize: Dimensions.fontSizeSmall,
-                                          color: Colors.orange.shade900,
+                                          color: Theme.of(context).colorScheme.onErrorContainer,
                                         ),
                                       ),
                                     ),
@@ -2411,9 +2418,9 @@ class _StoreScreenState extends State<StoreScreen> {
                                             color: Theme.of(context).cardColor,
                                             borderRadius: BorderRadius.circular(
                                                 Dimensions.radiusSmall),
-                                            boxShadow: const [
+                                            boxShadow: [
                                               BoxShadow(
-                                                  color: Colors.black12,
+                                                  color: Theme.of(context).shadowColor.withValues(alpha: 0.12),
                                                   blurRadius: 5,
                                                   spreadRadius: 1)
                                             ],
@@ -2578,3 +2585,5 @@ class CategoryProduct {
   List<Item> products;
   CategoryProduct(this.category, this.products);
 }
+
+

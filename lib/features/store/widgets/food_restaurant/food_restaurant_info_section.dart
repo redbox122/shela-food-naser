@@ -14,7 +14,7 @@ import 'package:sixam_mart/features/splash/controllers/splash_controller.dart';
 import 'package:sixam_mart/features/store/domain/models/store_model.dart';
 import 'package:sixam_mart/helper/price_converter.dart';
 import 'package:sixam_mart/helper/route_helper.dart';
-import 'package:sixam_mart/util/app_colors.dart';
+import 'package:sixam_mart/theme/app_color_tokens.dart';
 import 'package:sixam_mart/util/dimensions.dart';
 import 'package:sixam_mart/util/images.dart';
 import 'package:sixam_mart/util/styles.dart';
@@ -48,6 +48,8 @@ class FoodRestaurantInfoSection extends StatelessWidget {
     return GetBuilder<LocalizationController>(
       builder: (localizationController) {
         final bool isLtr = localizationController.isLtr;
+        final theme = Theme.of(context);
+        final tokens = theme.extension<AppColorTokens>()!;
 
         return Container(
           width: double.infinity,
@@ -63,7 +65,7 @@ class FoodRestaurantInfoSection extends StatelessWidget {
                 textAlign: TextAlign.center,
                 style: robotoBold.copyWith(
                   fontSize: 24,
-                  color: AppColors.textColor,
+                  color: theme.textTheme.bodyLarge?.color,
                   height: 1.3,
                   letterSpacing: -0.8,
                 ),
@@ -82,7 +84,7 @@ class FoodRestaurantInfoSection extends StatelessWidget {
                       'delivery_fee'.tr,
                       style: robotoRegular.copyWith(
                         fontSize: 14,
-                        color: AppColors.gryColor_2,
+                        color: theme.disabledColor,
                         height: 1.4,
                       ),
                     ),
@@ -91,14 +93,14 @@ class FoodRestaurantInfoSection extends StatelessWidget {
                       Images.fastDelivery,
                       width: 18,
                       height: 18,
-                      colorFilter: const ColorFilter.mode(
-                        AppColors.gryColor_2,
+                      colorFilter: ColorFilter.mode(
+                        theme.disabledColor,
                         BlendMode.srcIn,
                       ),
                     ),
                     const SizedBox(width: 6),
                     // ⚡ TASK 2: Animated delivery fee with bounce effect
-                    _buildAnimatedDeliveryFee(deliveryFee),
+                    _buildAnimatedDeliveryFee(context, deliveryFee),
                   ],
                 ),
               ],
@@ -118,9 +120,10 @@ class FoodRestaurantInfoSection extends StatelessWidget {
                         store.distance! > 0 &&
                         store.distance! != -1) ...[
                       _buildInfoChip(
+                        context: context,
                         label: 'distance'.tr,
                         value: '', // Empty - valueWidget will handle animation
-                        valueWidget: _buildAnimatedDistance(store.distance!),
+                        valueWidget: _buildAnimatedDistance(context, store.distance!),
                         isLtr: isLtr,
                         showLocationIcon: true,
                         onLocationTap: () {
@@ -146,9 +149,10 @@ class FoodRestaurantInfoSection extends StatelessWidget {
                           ));
                         },
                       ),
-                      _buildDivider(),
+                      _buildDivider(context),
                     ],
                     _buildInfoChip(
+                      context: context,
                       label: 'min_delivery_time'.tr,
                       value: (store.deliveryTime != null &&
                               store.deliveryTime!.isNotEmpty)
@@ -156,8 +160,9 @@ class FoodRestaurantInfoSection extends StatelessWidget {
                           : '30-15',
                       isLtr: isLtr,
                     ),
-                    _buildDivider(),
+                    _buildDivider(context),
                     _buildInfoChip(
+                      context: context,
                       label: 'rating'.tr,
                       value: store.avgRating != null
                           ? store.avgRating!.toStringAsFixed(1)
@@ -175,6 +180,7 @@ class FoodRestaurantInfoSection extends StatelessWidget {
   }
 
   Widget _buildInfoChip({
+    required BuildContext context,
     required String label,
     required String value,
     required bool isLtr,
@@ -183,6 +189,7 @@ class FoodRestaurantInfoSection extends StatelessWidget {
     VoidCallback? onLocationTap, // Callback when location icon is tapped
   }) {
     const TextAlign textAlign = TextAlign.center;
+    final theme = Theme.of(context);
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 6), // ✅ Reduced from 8
@@ -207,7 +214,7 @@ class FoodRestaurantInfoSection extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                       style: robotoBold.copyWith(
                         fontSize: 15, // ✅ Reduced from 17
-                        color: AppColors.textColor,
+                        color: theme.textTheme.bodyLarge?.color,
                         height: 1.2,
                         letterSpacing: -0.5,
                       ),
@@ -221,7 +228,7 @@ class FoodRestaurantInfoSection extends StatelessWidget {
                   child: Icon(
                     Icons.location_on,
                     size: 16, // ✅ Reduced from 18
-                    color: AppColors.textColor.withValues(alpha: 0.7),
+                    color: theme.textTheme.bodyLarge?.color?.withValues(alpha: 0.7),
                   ),
                 ),
               ],
@@ -238,7 +245,7 @@ class FoodRestaurantInfoSection extends StatelessWidget {
               overflow: TextOverflow.ellipsis,
               style: robotoRegular.copyWith(
                 fontSize: 12, // ✅ Reduced from 14
-                color: AppColors.gryColor_2,
+                color: theme.disabledColor,
                 height: 1.2,
               ),
             ),
@@ -248,7 +255,8 @@ class FoodRestaurantInfoSection extends StatelessWidget {
     );
   }
 
-  Widget _buildDivider() {
+  Widget _buildDivider(BuildContext context) {
+    final tokens = Theme.of(context).extension<AppColorTokens>()!;
     return Container(
       width: 0.8, // ✅ Reduced from 1
       height: 25, // ✅ Reduced from 30
@@ -258,9 +266,9 @@ class FoodRestaurantInfoSection extends StatelessWidget {
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
           colors: [
-            AppColors.gryColor_3.withValues(alpha: 0.3),
-            AppColors.gryColor_3,
-            AppColors.gryColor_3.withValues(alpha: 0.3),
+            tokens.outlineSoft.withValues(alpha: 0.3),
+            tokens.outlineSoft,
+            tokens.outlineSoft.withValues(alpha: 0.3),
           ],
         ),
       ),
@@ -269,8 +277,9 @@ class FoodRestaurantInfoSection extends StatelessWidget {
 
   /// ⚡ TASK 2: Animated distance counter (0.0 -> actual value with bounce)
   /// Animates from 0.0 to the final distance value over 600ms with easeOutBack curve
-  Widget _buildAnimatedDistance(double distanceInMeters) {
+  Widget _buildAnimatedDistance(BuildContext context, double distanceInMeters) {
     final targetDistance = distanceInMeters / 1000;
+    final theme = Theme.of(context);
 
     return TweenAnimationBuilder<double>(
       tween: Tween<double>(begin: 0.0, end: targetDistance),
@@ -282,7 +291,7 @@ class FoodRestaurantInfoSection extends StatelessWidget {
           textAlign: TextAlign.center,
           style: robotoBold.copyWith(
             fontSize: 15,
-            color: AppColors.textColor,
+            color: theme.textTheme.bodyLarge?.color,
             height: 1.2,
             letterSpacing: -0.5,
           ),
@@ -293,7 +302,7 @@ class FoodRestaurantInfoSection extends StatelessWidget {
 
   /// ⚡ TASK 2: Animated delivery fee counter with bounce effect
   /// Animates from 0.0 to the final delivery fee value over 600ms with easeOutBack curve
-  Widget _buildAnimatedDeliveryFee(double targetFee) {
+  Widget _buildAnimatedDeliveryFee(BuildContext context, double targetFee) {
     return TweenAnimationBuilder<double>(
       tween: Tween<double>(begin: 0.0, end: targetFee),
       duration: const Duration(milliseconds: 600),
@@ -303,7 +312,7 @@ class FoodRestaurantInfoSection extends StatelessWidget {
           animatedValue,
           textStyle: robotoRegular.copyWith(
             fontSize: 14,
-            color: AppColors.gryColor_2,
+            color: Theme.of(context).disabledColor,
             height: 1.4,
           ),
         );

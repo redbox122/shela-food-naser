@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:sixam_mart/features/category/controllers/category_controller.dart';
 import 'package:sixam_mart/features/store/controllers/store_controller.dart';
+import 'package:sixam_mart/theme/app_color_tokens.dart';
 import 'package:sixam_mart/util/dimensions.dart';
 import 'package:sixam_mart/util/styles.dart';
 
@@ -15,17 +16,19 @@ class FoodRestaurantCategoriesScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final tokens = theme.extension<AppColorTokens>()!;
     return Scaffold(
       appBar: AppBar(
         title: Text('categories'.tr),
-        backgroundColor: Colors.white,
+        backgroundColor: theme.scaffoldBackgroundColor,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Color(0xFF2D3633)),
+          icon: Icon(Icons.arrow_back, color: theme.textTheme.bodyLarge?.color),
           onPressed: () => Navigator.of(context).pop(),
         ),
       ),
-      backgroundColor: Colors.white,
+      backgroundColor: theme.scaffoldBackgroundColor,
       body: GetBuilder<StoreController>(
         builder: (storeController) {
           return GetBuilder<CategoryController>(
@@ -46,7 +49,7 @@ class FoodRestaurantCategoriesScreen extends StatelessWidget {
                     'no_categories_available'.tr,
                     style: robotoRegular.copyWith(
                       fontSize: 14,
-                      color: const Color(0xFF787878),
+                      color: theme.disabledColor,
                     ),
                   ),
                 );
@@ -78,14 +81,14 @@ class FoodRestaurantCategoriesScreen extends StatelessWidget {
                               decoration: BoxDecoration(
                                 borderRadius: BorderRadius.circular(8),
                                 border: Border.all(
-                                  color: const Color(0xFFF1EFEF),
+                                  color: tokens.outlineSoft,
                                 ),
                               ),
                               child: Container(
-                                color: const Color(0xFFF1EFEF),
-                                child: const Icon(
+                                color: tokens.surfaceSoft,
+                                child: Icon(
                                   Icons.all_inclusive,
-                                  color: Color(0xFF787878),
+                                  color: theme.disabledColor,
                                   size: 40,
                                 ),
                               ),
@@ -99,7 +102,7 @@ class FoodRestaurantCategoriesScreen extends StatelessWidget {
                             overflow: TextOverflow.ellipsis,
                             style: robotoRegular.copyWith(
                               fontSize: 12,
-                              color: const Color(0xFF2D3633),
+                              color: theme.textTheme.bodyLarge?.color,
                               height: 1.5,
                             ),
                           ),
@@ -124,14 +127,14 @@ class FoodRestaurantCategoriesScreen extends StatelessWidget {
                             decoration: BoxDecoration(
                               borderRadius: BorderRadius.circular(8),
                               border: Border.all(
-                                color: const Color(0xFFF1EFEF),
+                                color: tokens.outlineSoft,
                               ),
                             ),
                             child: Container(
-                              color: const Color(0xFFF1EFEF),
-                              child: const Icon(
+                              color: tokens.surfaceSoft,
+                              child: Icon(
                                 Icons.category,
-                                color: Color(0xFF787878),
+                                color: theme.disabledColor,
                                 size: 40,
                               ),
                             ),
@@ -145,7 +148,7 @@ class FoodRestaurantCategoriesScreen extends StatelessWidget {
                           overflow: TextOverflow.ellipsis,
                           style: robotoRegular.copyWith(
                             fontSize: 12,
-                            color: const Color(0xFF2D3633),
+                            color: theme.textTheme.bodyLarge?.color,
                             height: 1.5,
                           ),
                         ),
@@ -161,4 +164,3 @@ class FoodRestaurantCategoriesScreen extends StatelessWidget {
     );
   }
 }
-

@@ -139,7 +139,7 @@ class _MultiModuleHomeScreenState extends State<MultiModuleHomeScreen> {
               child: WebMenuBar(),
             )
           : null,
-      backgroundColor: const Color(0xFFF5F5F5),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: GetBuilder<SplashController>(
         builder: (splashController) {
           final modules = splashController.moduleList;
@@ -348,7 +348,10 @@ class _MultiModuleHomeScreenState extends State<MultiModuleHomeScreen> {
                   onPressed: () {
                     Get.toNamed<dynamic>(RouteHelper.getCartRoute());
                   },
-                  child: const CartWidget(color: Colors.white, size: 22),
+                  child: CartWidget(
+                    color: Theme.of(context).colorScheme.onPrimary,
+                    size: 22,
+                  ),
                 ),
       floatingActionButtonLocation: widget.showBottomNavigation
           ? FloatingActionButtonLocation.centerDocked
@@ -386,7 +389,10 @@ class _MultiModuleHomeScreenState extends State<MultiModuleHomeScreen> {
                     tabBuilder: (index, isActive) {
                       final Color iconColor = isActive
                           ? Theme.of(context).primaryColor
-                          : Colors.grey.shade400;
+                          : Theme.of(context)
+                              .colorScheme
+                              .onSurface
+                              .withValues(alpha: 0.55);
                       final bool isFavTab = !isParcel && index == 1;
                       return SizedBox(
                         width: 28,
@@ -404,8 +410,10 @@ class _MultiModuleHomeScreenState extends State<MultiModuleHomeScreen> {
                                   child: Text(
                                     favBadgeText,
                                     textAlign: TextAlign.center,
-                                    style: const TextStyle(
-                                      color: Colors.red,
+                                    style: TextStyle(
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .error,
                                       fontSize: 9,
                                       fontWeight: FontWeight.w700,
                                     ),
@@ -421,12 +429,14 @@ class _MultiModuleHomeScreenState extends State<MultiModuleHomeScreen> {
                     notchSmoothness: NotchSmoothness.softEdge,
                     leftCornerRadius: 0,
                     rightCornerRadius: 0,
-                    backgroundColor: Colors.white,
+                    backgroundColor: Theme.of(context).colorScheme.surface,
                     shadow: BoxShadow(
                       offset: const Offset(0, 1),
                       blurRadius: 12,
                       spreadRadius: 0.5,
-                      color: Colors.grey.withValues(alpha: 0.2),
+                      color: Theme.of(context)
+                          .shadowColor
+                          .withValues(alpha: 0.16),
                     ),
                     onTap: (index) {
                       if (index == 0) {

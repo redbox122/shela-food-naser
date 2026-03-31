@@ -23,6 +23,7 @@ import 'package:sixam_mart/common/widgets/footer_view.dart';
 import 'package:sixam_mart/common/widgets/not_logged_in_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:sixam_mart/theme/app_color_tokens.dart';
 
 class UpdateProfileScreen extends StatefulWidget {
   const UpdateProfileScreen({super.key});
@@ -86,10 +87,11 @@ class _UpdateProfileScreenState extends State<UpdateProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     final bool isLoggedIn = Get.find<AuthController>().isLoggedIn();
     return Scaffold(
       appBar: ResponsiveHelper.isDesktop(context) ? const WebMenuBar() : null,
-      backgroundColor: Theme.of(context).colorScheme.surface,
+      backgroundColor: theme.colorScheme.surface,
       body: SafeArea(
         top: !ResponsiveHelper.isDesktop(context),
         bottom: true,
@@ -142,17 +144,17 @@ class _UpdateProfileScreenState extends State<UpdateProfileScreen> {
                               onTap: () => profileController.pickImage(),
                               child: Container(
                                 decoration: BoxDecoration(
-                                  color: Colors.black.withValues(alpha: 0.3),
+                                  color: theme.colorScheme.scrim.withValues(alpha: 0.30),
                                   shape: BoxShape.circle,
                                   border: Border.all(color: Theme.of(context).primaryColor),
                                 ),
                                 child: Container(
                                   margin: const EdgeInsets.all(25),
                                   decoration: BoxDecoration(
-                                    border: Border.all(width: 2, color: Colors.white),
+                                    border: Border.all(width: 2, color: theme.colorScheme.surface),
                                     shape: BoxShape.circle,
                                   ),
-                                  child: const Icon(Icons.camera_alt, color: Colors.white),
+                                  child: Icon(Icons.camera_alt, color: theme.colorScheme.surface),
                                 ),
                               ),
                             ),
@@ -269,6 +271,8 @@ class _UpdateProfileScreenState extends State<UpdateProfileScreen> {
   }
 
   Widget webView(ProfileController profileController, bool isLoggedIn) {
+    final theme = Theme.of(context);
+    final tokens = theme.extension<AppColorTokens>();
     return SingleChildScrollView(
       controller: scrollController,
       child: FooterView(
@@ -307,7 +311,12 @@ class _UpdateProfileScreenState extends State<UpdateProfileScreen> {
                     borderRadius: const BorderRadius.vertical(
                         top: Radius.circular(Dimensions.radiusExtraLarge), bottom: Radius.circular(Dimensions.radiusDefault)),
                     boxShadow: [
-                      BoxShadow(color: Colors.grey.withValues(alpha: 0.1), spreadRadius: 1, blurRadius: 10, offset: const Offset(0, 1))
+                      BoxShadow(
+                        color: (tokens?.outlineSoft ?? theme.dividerColor).withValues(alpha: 0.35),
+                        spreadRadius: 1,
+                        blurRadius: 10,
+                        offset: const Offset(0, 1),
+                      )
                     ],
                   ),
                 ),
@@ -340,16 +349,16 @@ class _UpdateProfileScreenState extends State<UpdateProfileScreen> {
                           onTap: () => profileController.pickImage(),
                           child: Container(
                             decoration: BoxDecoration(
-                              color: Colors.black.withValues(alpha: 0.3),
+                              color: theme.colorScheme.scrim.withValues(alpha: 0.30),
                               shape: BoxShape.circle,
                             ),
                             child: Container(
                               margin: const EdgeInsets.all(25),
                               decoration: BoxDecoration(
-                                border: Border.all(width: 2, color: Colors.white),
+                                border: Border.all(width: 2, color: theme.colorScheme.surface),
                                 shape: BoxShape.circle,
                               ),
-                              child: const Icon(Icons.camera_alt, color: Colors.white),
+                              child: Icon(Icons.camera_alt, color: theme.colorScheme.surface),
                             ),
                           ),
                         ),

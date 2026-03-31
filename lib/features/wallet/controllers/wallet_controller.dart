@@ -189,7 +189,7 @@ class WalletController extends GetxController implements GetxService {
   }
 
   /// Filter payment methods based on platform
-  /// Android: Show Mada, STC, Visa, Mastercard (hide Apple Pay)
+  /// Apple Pay remains enabled
   /// iOS: Show Apple Pay + other methods (hide Google Pay)
   List<MFPaymentMethod> _filterPaymentMethodsByPlatform(
       List<MFPaymentMethod> paymentMethods) {
@@ -198,18 +198,8 @@ class WalletController extends GetxController implements GetxService {
       final methodEn = method.paymentMethodEn?.toLowerCase() ?? '';
       final methodAr = method.paymentMethodAr?.toLowerCase() ?? '';
 
-      // On Android, hide Apple Pay methods but show Google Pay
+      // On Android, keep all methods visible (including Apple Pay).
       if (Platform.isAndroid) {
-        final isApplePay = methodCode.contains('ap') ||
-            methodEn.contains('apple') ||
-            methodAr.contains('أبل') ||
-            methodAr.contains('apple');
-
-        if (isApplePay) {
-          debugPrint(
-              '🚫 Android: Hiding Apple Pay - ${method.paymentMethodAr}');
-          return false;
-        }
         return true;
       }
 

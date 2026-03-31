@@ -24,7 +24,13 @@ class BottomCartWidget extends StatelessWidget {
         ),
         decoration: BoxDecoration(
           color: Theme.of(context).cardColor,
-          boxShadow: [BoxShadow(color: const Color(0xFF2A2A2A).withValues(alpha: 0.1), blurRadius: 10, offset: const Offset(0, -5))],
+          boxShadow: [
+            BoxShadow(
+              color: Theme.of(context).shadowColor.withValues(alpha: 0.15),
+              blurRadius: 10,
+              offset: const Offset(0, -5),
+            )
+          ],
         ),
         child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
           Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisAlignment: MainAxisAlignment.center, children: [

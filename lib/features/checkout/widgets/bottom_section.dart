@@ -9,6 +9,7 @@ import 'package:sixam_mart/features/checkout/controllers/checkout_controller.dar
 import 'package:sixam_mart/helper/auth_helper.dart';
 import 'package:sixam_mart/helper/price_converter.dart';
 import 'package:sixam_mart/helper/responsive_helper.dart';
+import 'package:sixam_mart/theme/app_color_tokens.dart';
 import 'package:sixam_mart/util/dimensions.dart';
 import 'package:sixam_mart/util/styles.dart';
 import 'package:sixam_mart/features/checkout/widgets/condition_check_box.dart';
@@ -67,6 +68,8 @@ class BottomSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final tokens = theme.extension<AppColorTokens>();
     final bool takeAway = checkoutController.orderType == 'take_away';
     final bool isDesktop = ResponsiveHelper.isDesktop(context);
     final bool isGuestLoggedIn = AuthHelper.isGuestLoggedIn();
@@ -76,8 +79,13 @@ class BottomSection extends StatelessWidget {
           ? BoxDecoration(
               color: Theme.of(context).cardColor,
               borderRadius: BorderRadius.circular(Dimensions.radiusSmall),
-              boxShadow: const [
-                BoxShadow(color: Colors.black12, blurRadius: 5, spreadRadius: 1)
+              boxShadow: [
+                BoxShadow(
+                  color: (tokens?.outlineSoft ?? theme.dividerColor)
+                      .withValues(alpha: 0.35),
+                  blurRadius: 5,
+                  spreadRadius: 1,
+                )
               ],
             )
           : null,
@@ -352,7 +360,9 @@ class BottomSection extends StatelessWidget {
                                   ? Text(
                                       'calculating'.tr,
                                       style: robotoRegular.copyWith(
-                                          color: Colors.orange),
+                                          color: Theme.of(context)
+                                              .colorScheme
+                                              .error),
                                     )
                                   : isFree
                                       ? Text(
@@ -370,7 +380,9 @@ class BottomSection extends StatelessWidget {
                                           : Text(
                                               'calculating'.tr,
                                               style: robotoRegular.copyWith(
-                                                  color: Colors.orange),
+                                                  color: Theme.of(context)
+                                                      .colorScheme
+                                                      .error),
                                             ),
                             ],
                           );

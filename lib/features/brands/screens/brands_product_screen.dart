@@ -13,6 +13,7 @@ import 'package:sixam_mart/features/brands/controllers/brands_controller.dart';
 import 'package:sixam_mart/features/category/controllers/category_controller.dart';
 import 'package:sixam_mart/features/splash/controllers/splash_controller.dart';
 import 'package:sixam_mart/helper/responsive_helper.dart';
+import 'package:sixam_mart/theme/app_color_tokens.dart';
 import 'package:sixam_mart/util/dimensions.dart';
 import 'package:sixam_mart/util/styles.dart';
 import 'package:sixam_mart/features/item/domain/models/item_model.dart';
@@ -340,7 +341,10 @@ class _BrandsItemScreenState extends State<BrandsItemScreen> {
             GetBuilder<BrandsController>(
               id: 'filter_controls', // 🎯 PERFORMANCE: Rebuild only filter controls
               builder: (brandsController) {
-                const Color selectedChipColor = Color(0xFFC8E6C9);
+                final theme = Theme.of(context);
+                final tokens = theme.extension<AppColorTokens>()!;
+                final Color selectedChipColor = tokens.successSoft;
+                final Color selectedChipTextColor = theme.primaryColor;
                 final bool hasActiveFilters =
                     _selectedSort != 'popular' ||
                     (_minPrice.isNotEmpty && _minPrice != '0') ||
@@ -438,7 +442,7 @@ class _BrandsItemScreenState extends State<BrandsItemScreen> {
                                     Icons.filter_list,
                                     size: 20,
                                     color: hasActiveFilters
-                                        ? const Color(0xFF1B5E20)
+                                        ? selectedChipTextColor
                                         : Theme.of(context).primaryColor,
                                   ),
                                   const SizedBox(width: 4),
@@ -447,7 +451,7 @@ class _BrandsItemScreenState extends State<BrandsItemScreen> {
                                     style: robotoMedium.copyWith(
                                       fontSize: Dimensions.fontSizeSmall,
                                       color: hasActiveFilters
-                                          ? const Color(0xFF1B5E20)
+                                          ? selectedChipTextColor
                                           : Theme.of(context).primaryColor,
                                     ),
                                   ),

@@ -30,6 +30,7 @@ class TimeSlotSection extends StatelessWidget {
   });
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     final bool isGuestLoggedIn = AuthHelper.isGuestLoggedIn();
     final store = checkoutController.store;
     final cartItem = cartList != null && cartList!.isNotEmpty ? cartList![0] : null;
@@ -65,7 +66,7 @@ class TimeSlotSection extends StatelessWidget {
                     Text('preference_time'.tr, style: robotoMedium),
                     const SizedBox(width: Dimensions.paddingSizeExtraSmall),
                     JustTheTooltip(
-                      backgroundColor: Colors.black87,
+                      backgroundColor: theme.colorScheme.scrim.withValues(alpha: 0.92),
                       controller: tooltipController2,
                       preferredDirection: AxisDirection.right,
                       tailLength: 14,
@@ -74,7 +75,7 @@ class TimeSlotSection extends StatelessWidget {
                         padding: const EdgeInsets.all(8.0),
                         child: Text(
                           'schedule_time_tool_tip'.tr,
-                          style: robotoRegular.copyWith(color: Colors.white),
+                          style: robotoRegular.copyWith(color: theme.colorScheme.surface),
                         ),
                       ),
                       child: InkWell(
@@ -113,7 +114,7 @@ class TimeSlotSection extends StatelessWidget {
                     child: Container(
                       decoration: BoxDecoration(
                         border: Border.all(
-                          color: Theme.of(context).primaryColor,
+                          color: theme.primaryColor,
                           width: 0.3,
                         ),
                         borderRadius: BorderRadius.circular(Dimensions.radiusDefault),
@@ -137,7 +138,7 @@ class TimeSlotSection extends StatelessWidget {
                           const Icon(Icons.arrow_drop_down, size: 28),
                           Icon(
                             Icons.access_time_filled_outlined,
-                            color: Theme.of(context).primaryColor,
+                            color: theme.primaryColor,
                           ),
                           const SizedBox(width: Dimensions.paddingSizeExtraSmall),
                         ],

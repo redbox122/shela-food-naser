@@ -17,6 +17,7 @@ import 'package:sixam_mart/features/checkout/controllers/checkout_controller.dar
 import 'package:sixam_mart/helper/auth_helper.dart';
 import 'package:sixam_mart/helper/price_converter.dart';
 import 'package:sixam_mart/helper/responsive_helper.dart';
+import 'package:sixam_mart/theme/app_color_tokens.dart';
 import 'package:sixam_mart/util/dimensions.dart';
 import 'package:sixam_mart/util/styles.dart';
 import 'package:sixam_mart/common/widgets/custom_dropdown.dart';
@@ -110,6 +111,8 @@ class TopSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final tokens = theme.extension<AppColorTokens>();
     final bool isDesktop = ResponsiveHelper.isDesktop(context);
     final bool isGuestLoggedIn = AuthHelper.isGuestLoggedIn();
 
@@ -189,10 +192,15 @@ class TopSection extends StatelessWidget {
         return Container(
           decoration: ResponsiveHelper.isDesktop(context)
               ? BoxDecoration(
-                  color: Theme.of(context).cardColor,
+                  color: theme.cardColor,
                   borderRadius: BorderRadius.circular(Dimensions.radiusSmall),
-                  boxShadow: const [
-                    BoxShadow(color: Colors.black12, blurRadius: 5, spreadRadius: 1)
+                  boxShadow: [
+                    BoxShadow(
+                      color: (tokens?.outlineSoft ?? theme.dividerColor)
+                          .withValues(alpha: 0.35),
+                      blurRadius: 5,
+                      spreadRadius: 1,
+                    )
                   ],
                 )
               : null,
@@ -219,7 +227,7 @@ class TopSection extends StatelessWidget {
                               Text('your_prescription'.tr, style: robotoMedium),
                               const SizedBox(width: Dimensions.paddingSizeExtraSmall),
                               JustTheTooltip(
-                                backgroundColor: Colors.black87,
+                                backgroundColor: theme.colorScheme.scrim.withValues(alpha: 0.92),
                                 controller: tooltipController1,
                                 preferredDirection: AxisDirection.right,
                                 tailLength: 14,
@@ -227,7 +235,7 @@ class TopSection extends StatelessWidget {
                                 content: Padding(
                                   padding: const EdgeInsets.all(8.0),
                                   child: Text('prescription_tool_tip'.tr,
-                                      style: robotoRegular.copyWith(color: Colors.white)),
+                                      style: robotoRegular.copyWith(color: theme.colorScheme.surface)),
                                 ),
                                 child: InkWell(
                                   onTap: () => tooltipController1.showTooltip(),

@@ -14,6 +14,7 @@ import 'package:sixam_mart/features/category/screens/grocery_category_detail_scr
 import 'package:sixam_mart/features/store/controllers/store_controller.dart';
 import 'package:sixam_mart/features/splash/controllers/splash_controller.dart';
 import 'package:sixam_mart/helper/route_helper.dart';
+import 'package:sixam_mart/theme/app_color_tokens.dart';
 import 'package:sixam_mart/util/dimensions.dart';
 import 'package:sixam_mart/util/images.dart';
 import 'package:sixam_mart/util/styles.dart';
@@ -60,6 +61,8 @@ class GroceryCategoriesGrid extends StatelessWidget {
 
   Widget _buildCategoryCard(
       BuildContext context, CategoryModel category, double size) {
+    final theme = Theme.of(context);
+    final tokens = theme.extension<AppColorTokens>()!;
     return Material(
       color: Colors.transparent,
       child: InkWell(
@@ -105,11 +108,11 @@ class GroceryCategoriesGrid extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
         child: Container(
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: theme.cardColor,
             borderRadius: BorderRadius.circular(16),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withValues(alpha: 0.08),
+                color: theme.shadowColor.withValues(alpha: 0.35),
                 blurRadius: 12,
                 offset: const Offset(0, 4),
               ),
@@ -126,7 +129,7 @@ class GroceryCategoriesGrid extends StatelessWidget {
                   margin: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(12),
-                    color: Colors.grey[50],
+                    color: tokens.surfaceSoft,
                   ),
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(12),
@@ -149,7 +152,7 @@ class GroceryCategoriesGrid extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                     style: robotoMedium.copyWith(
                       fontSize: 14,
-                      color: const Color(0xFF2D3633),
+                      color: theme.textTheme.bodyLarge?.color,
                       height: 1.4,
                       letterSpacing: -0.2,
                     ),

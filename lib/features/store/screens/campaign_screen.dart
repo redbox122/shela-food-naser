@@ -39,7 +39,7 @@ class _CampaignScreenState extends State<CampaignScreen> {
             ResponsiveHelper.isDesktop(context)
                 ? SliverToBoxAdapter(
                     child: Container(
-                      color: const Color(0xFF171A29),
+                      color: Theme.of(context).colorScheme.surface,
                       padding: const EdgeInsets.symmetric(
                           horizontal: Dimensions.paddingSizeLarge, vertical: Dimensions.paddingSizeExtraLarge),
                       alignment: Alignment.center,
@@ -70,7 +70,7 @@ class _CampaignScreenState extends State<CampaignScreen> {
                                             Text(
                                               campaignController.basicCampaign!.title!,
                                               style:
-                                                  robotoMedium.copyWith(fontSize: Dimensions.fontSizeOverLarge, color: Colors.white),
+                                                  robotoMedium.copyWith(fontSize: Dimensions.fontSizeOverLarge, color: Theme.of(context).textTheme.bodyLarge?.color),
                                               maxLines: 1,
                                               overflow: TextOverflow.ellipsis,
                                             ),
@@ -85,12 +85,12 @@ class _CampaignScreenState extends State<CampaignScreen> {
                                             const SizedBox(height: Dimensions.paddingSizeExtraLarge),
                                             campaignController.basicCampaign!.startTime != null
                                                 ? Row(children: [
-                                                    Image.asset(Images.announcement, height: 15, width: 15, color: Colors.white),
+                                                    Image.asset(Images.announcement, height: 15, width: 15, color: Theme.of(context).textTheme.bodyLarge?.color),
                                                     const SizedBox(width: Dimensions.paddingSizeExtraSmall),
                                                     Text('${'campaign_schedule'.tr}:',
                                                         style: robotoRegular.copyWith(
                                                           fontSize: Dimensions.fontSizeExtraSmall,
-                                                          color: Colors.white,
+                                                          color: Theme.of(context).textTheme.bodyLarge?.color,
                                                         )),
                                                     const SizedBox(width: Dimensions.paddingSizeExtraSmall),
                                                     Text(
@@ -105,12 +105,12 @@ class _CampaignScreenState extends State<CampaignScreen> {
                                             const SizedBox(height: Dimensions.paddingSizeDefault),
                                             campaignController.basicCampaign!.startTime != null
                                                 ? Row(children: [
-                                                    const Icon(Icons.access_time_filled, size: 16, color: Colors.white),
+                                                    Icon(Icons.access_time_filled, size: 16, color: Theme.of(context).textTheme.bodyLarge?.color),
                                                     const SizedBox(width: Dimensions.paddingSizeExtraSmall),
                                                     Text('${'daily_time'.tr}:',
                                                         style: robotoRegular.copyWith(
                                                           fontSize: Dimensions.fontSizeExtraSmall,
-                                                          color: Colors.white,
+                                                          color: Theme.of(context).textTheme.bodyLarge?.color,
                                                         )),
                                                     const SizedBox(width: Dimensions.paddingSizeExtraSmall),
                                                     Text(
@@ -136,13 +136,16 @@ class _CampaignScreenState extends State<CampaignScreen> {
                     expandedHeight: 140,
                     toolbarHeight: 50,
                     pinned: true,
-                    backgroundColor: Colors.white,
+                    backgroundColor: Theme.of(context).colorScheme.surface,
                     leading: Container(
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
                         color: Theme.of(context).primaryColor,
                       ),
-                      child: IconButton(icon: const Icon(Icons.chevron_left, color: Colors.white), onPressed: () => Get.back()),
+                      child: IconButton(
+                        icon: Icon(Icons.chevron_left, color: Theme.of(context).colorScheme.onPrimary),
+                        onPressed: () => Get.back(),
+                      ),
                     ),
                     flexibleSpace: FlexibleSpaceBar(
                       // title: Text(

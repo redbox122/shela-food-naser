@@ -2,11 +2,11 @@
 
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:sixam_mart/common/controllers/theme_controller.dart';
 import 'package:sixam_mart/features/checkout/controllers/checkout_controller.dart';
 import 'package:sixam_mart/features/wallet_kaidha_subscription/controllers/kaidhaSub_controller.dart';
 import 'package:sixam_mart/helper/price_converter.dart';
 import 'package:sixam_mart/helper/responsive_helper.dart';
+import 'package:sixam_mart/theme/app_color_tokens.dart';
 import 'package:sixam_mart/util/dimensions.dart';
 import 'package:sixam_mart/util/images.dart';
 import 'package:sixam_mart/util/styles.dart';
@@ -24,12 +24,13 @@ class _Kaidha_Wallet_Pay_BottomSheetState
     extends State<Kaidha_Wallet_Pay_BottomSheet> {
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final tokens = theme.extension<AppColorTokens>();
     return AnimatedContainer(
       duration: const Duration(seconds: 2),
       decoration: BoxDecoration(
-        color: Get.find<ThemeController>().darkTheme
-            ? Theme.of(context).primaryColor.withValues(alpha: 0.2)
-            : Theme.of(context).primaryColor.withValues(alpha: 0.05),
+        color:
+            tokens?.successSoft ?? theme.colorScheme.primary.withValues(alpha: 0.10),
         border: Border.all(color: Theme.of(context).primaryColor, width: 0.5),
         borderRadius: BorderRadius.circular(Dimensions.radiusDefault),
         image: !ResponsiveHelper.isDesktop(context)

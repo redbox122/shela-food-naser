@@ -9,6 +9,7 @@ library;
 import 'package:flutter/material.dart';
 import 'package:sixam_mart/common/widgets/smart_image.dart';
 import 'package:sixam_mart/features/store/domain/models/store_banner_model.dart';
+import 'package:sixam_mart/theme/app_color_tokens.dart';
 import 'package:sixam_mart/util/dimensions.dart';
 import 'package:sixam_mart/util/styles.dart';
 
@@ -30,7 +31,7 @@ class GroceryPromotionalBanner extends StatelessWidget {
       width: double.infinity,
       height: 140,
       decoration: BoxDecoration(
-        color: const Color(0xFF30A14E), // Green color from design
+        color: Theme.of(context).primaryColor,
         borderRadius: BorderRadius.circular(Dimensions.radiusDefault),
       ),
       child: Stack(
@@ -66,7 +67,7 @@ class GroceryPromotionalBanner extends StatelessWidget {
                             'تعرف على آخر عروض متجر سوبر ماركت اون لاين',
                         style: robotoBold.copyWith(
                           fontSize: 16,
-                          color: Colors.white,
+                          color: Theme.of(context).colorScheme.onPrimary,
                           height: 1.4,
                         ),
                         maxLines: 2,
@@ -78,7 +79,7 @@ class GroceryPromotionalBanner extends StatelessWidget {
                         'Learn about the latest offers Supermarket online',
                         style: robotoRegular.copyWith(
                           fontSize: 12,
-                          color: Colors.white.withValues(alpha: 0.9),
+                          color: Theme.of(context).colorScheme.onPrimary.withValues(alpha: 0.9),
                           height: 1.3,
                         ),
                         maxLines: 2,
@@ -88,11 +89,11 @@ class GroceryPromotionalBanner extends StatelessWidget {
                       // Pagination dots
                       Row(
                         children: [
-                          _buildDot(true),
+                          _buildDot(context, true),
                           const SizedBox(width: 6),
-                          _buildDot(false),
+                          _buildDot(context, false),
                           const SizedBox(width: 6),
-                          _buildDot(false),
+                          _buildDot(context, false),
                         ],
                       ),
                     ],
@@ -107,17 +108,17 @@ class GroceryPromotionalBanner extends StatelessWidget {
                     vertical: 4,
                   ),
                   decoration: BoxDecoration(
-                    color: Colors.white,
+                    color: Theme.of(context).colorScheme.onPrimary,
                     borderRadius: BorderRadius.circular(4),
                   ),
-                  child: Text(
-                    'Sale',
-                    style: robotoBold.copyWith(
-                      fontSize: 12,
-                      color: const Color(0xFF30A14E),
-                    ),
+                child: Text(
+                  'Sale',
+                  style: robotoBold.copyWith(
+                    fontSize: 12,
+                    color: Theme.of(context).primaryColor,
                   ),
                 ),
+              ),
               ],
             ),
           ),
@@ -126,14 +127,18 @@ class GroceryPromotionalBanner extends StatelessWidget {
     );
   }
 
-  Widget _buildDot(bool isActive) {
+  Widget _buildDot(BuildContext context, bool isActive) {
     return Container(
       width: 6,
       height: 6,
       decoration: BoxDecoration(
-        color: isActive ? Colors.white : Colors.white.withValues(alpha: 0.5),
+        color: isActive
+            ? Theme.of(context).colorScheme.onPrimary
+            : Theme.of(context).extension<AppColorTokens>()!.outlineSoft,
         shape: BoxShape.circle,
       ),
     );
   }
 }
+
+

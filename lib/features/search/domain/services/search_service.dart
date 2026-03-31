@@ -46,7 +46,7 @@ class SearchService implements SearchServiceInterface {
   }
 
   // ❌ REMOVED: sortItemSearchList - filtering now handled by API via ItemRepository.searchItems()
-  // ❌ REMOVED: sortStoreSearchList - filtering now handled by API (TODO: implement store search API)
+  // ❌ REMOVED: sortStoreSearchList - filtering now handled by API (NOTE: store search API integration pending backend endpoint)
 
   @override
   Future<SearchSuggestionModel?> getSearchSuggestions(String searchText) async {
@@ -63,3 +63,4 @@ class SearchService implements SearchServiceInterface {
     return await searchRepositoryInterface.getTrendingCategories();
   }
 }
+

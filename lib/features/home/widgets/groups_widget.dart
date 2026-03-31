@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:sixam_mart/features/splash/controllers/splash_controller.dart';
+import 'package:sixam_mart/theme/app_color_tokens.dart';
 import 'package:sixam_mart/util/dimensions.dart';
 import 'package:sixam_mart/util/styles.dart';
 
@@ -63,6 +64,7 @@ class _GroupsState extends State<Groups> {
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
     final scaleFactor = screenWidth / 570.0; // Base design width from Figma
+    final theme = Theme.of(context);
     final splashController = Get.find<SplashController>();
     return Obx(() {
       final moduleName = (splashController.selectedModule.value?.moduleName ??
@@ -101,7 +103,7 @@ class _GroupsState extends State<Groups> {
                     titleText,
                     style: robotoBold.copyWith(
                       fontSize: Dimensions.fontSizeLarge * 1.2,
-                      color: const Color(0xFF4A4B4C),
+                      color: theme.textTheme.bodyLarge?.color,
                     ),
                   ),
 
@@ -122,6 +124,9 @@ class _GroupsState extends State<Groups> {
   }
 
   Widget _buildIconButton(BuildContext context, double scaleFactor) {
+    final theme = Theme.of(context);
+    final tokens = theme.extension<AppColorTokens>()!;
+
     return InkWell(
       onTap: widget.onIconButtonTap ?? () {},
       borderRadius: BorderRadius.circular(Dimensions.radiusDefault),
@@ -129,10 +134,10 @@ class _GroupsState extends State<Groups> {
         width: 95 * scaleFactor,
         height: 43 * scaleFactor,
         decoration: BoxDecoration(
-          color: const Color(0xFFFEFEFE),
+          color: theme.cardColor,
           borderRadius: BorderRadius.circular(Dimensions.radiusDefault),
           border: Border.all(
-            color: const Color(0xFFE1DFDF),
+            color: tokens.outlineSoft,
           ),
         ),
         child: Row(
@@ -204,6 +209,7 @@ class _GroupsState extends State<Groups> {
     List<IconData>? leadingIcons,
     VoidCallback? onTap,
   }) {
+    final tokens = Theme.of(context).extension<AppColorTokens>()!;
     return InkWell(
       onTap: onTap ?? () {},
       borderRadius: BorderRadius.circular(20 * scaleFactor),
@@ -215,12 +221,12 @@ class _GroupsState extends State<Groups> {
         decoration: BoxDecoration(
           color: isSelected
               ? Theme.of(context).primaryColor
-              : const Color(0xFFF5F5F5),
+              : tokens.surfaceSoft,
           borderRadius: BorderRadius.circular(20 * scaleFactor),
           border: Border.all(
             color: isSelected
                 ? Theme.of(context).primaryColor
-                : const Color(0xFFE0E0E0),
+                : tokens.outlineSoft,
           ),
         ),
         child: Row(
@@ -240,7 +246,7 @@ class _GroupsState extends State<Groups> {
                       size: 18 * scaleFactor,
                       color: isSelected
                           ? Colors.white
-                          : const Color(0xFF848484),
+                          : Theme.of(context).disabledColor,
                     ),
                   )),
             // Text
@@ -251,7 +257,7 @@ class _GroupsState extends State<Groups> {
                   fontSize: Dimensions.fontSizeSmall,
                   color: isSelected
                       ? Colors.white
-                      : const Color(0xFF7B7C7C),
+                      : Theme.of(context).textTheme.bodyMedium?.color,
                 ),
                 overflow: TextOverflow.ellipsis,
               ),

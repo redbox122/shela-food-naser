@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:sixam_mart/theme/app_color_tokens.dart';
 import 'package:sixam_mart/theme/light_theme.dart';
 import 'package:sixam_mart/util/app_constants.dart';
 
@@ -48,6 +49,13 @@ ThemeData dark({Color color = const Color(0xFF31A342)}) => ThemeData(
       // ===============
 
       extensions: <ThemeExtension<dynamic>>[
+        const AppColorTokens(
+          surfaceSoft: Color(0xFF232634),
+          outlineSoft: Color(0xFF3B3F52),
+          successSoft: Color(0x2231A342),
+          warningSoft: Color(0x332D1E05),
+          warningText: Color(0xFFFFC980),
+        ),
         CustomThemeExtension(
           yellow_Color: const Color(0xFFFA9D2B),
           white_Color: Colors.white,

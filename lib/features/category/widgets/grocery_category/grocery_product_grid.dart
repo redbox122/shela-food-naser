@@ -132,8 +132,11 @@ class GroceryProductGrid extends StatelessWidget {
                           debugPrint(
                               '📍 [GroceryProductGrid] Add to cart tapped: ${item.name}');
                         }
-                        // TODO: Implement add to cart functionality
-                        // Get.toNamed(RouteHelper.getCartRoute());
+                        Get.find<ItemController>().navigateToItemPage(
+                          item,
+                          context,
+                          inStore: true,
+                        );
                       },
                       child: Container(
                         width: 30,
@@ -209,4 +212,5 @@ class GroceryProductGrid extends StatelessWidget {
     );
   }
 }
+
 

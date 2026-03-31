@@ -280,13 +280,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                           ])
                                         : const SizedBox(),
                                     const SizedBox(height: Dimensions.paddingSizeDefault),
-                                    ProfileButtonWidget(
-                                        icon: Icons.tonality_outlined,
-                                        title: 'dark_mode'.tr,
-                                        isButtonActive: Get.isDarkMode,
-                                        onTap: () {
-                                          Get.find<ThemeController>().toggleTheme();
-                                        }),
+                                    GetBuilder<ThemeController>(
+                                      builder: (ThemeController themeController) {
+                                        return ProfileButtonWidget(
+                                          icon: Icons.tonality_outlined,
+                                          title: 'dark_mode'.tr,
+                                          isButtonActive: themeController.darkTheme,
+                                          onTap: themeController.toggleTheme,
+                                        );
+                                      },
+                                    ),
                                     const SizedBox(height: Dimensions.paddingSizeSmall),
                                     isLoggedIn
                                         ? GetBuilder<AuthController>(builder: (authController) {

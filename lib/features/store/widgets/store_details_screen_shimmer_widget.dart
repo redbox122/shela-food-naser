@@ -251,7 +251,7 @@ class StoreDetailsScreenShimmerWidget extends StatelessWidget {
                 duration: const Duration(seconds: 2),
                 child: Container(
                   height: 250,
-                  color: Colors.black54,
+                  color: Theme.of(context).colorScheme.scrim.withValues(alpha: 0.6),
                   padding: const EdgeInsets.symmetric(vertical: Dimensions.paddingSizeLarge),
                   child: Center(
                     child: SizedBox(
@@ -262,7 +262,7 @@ class StoreDetailsScreenShimmerWidget extends StatelessWidget {
                             child: Container(
                               height: 200,
                               decoration: BoxDecoration(
-                                color: Colors.grey[300],
+                                color: Theme.of(context).disabledColor.withValues(alpha: 0.25),
                                 borderRadius: BorderRadius.circular(Dimensions.radiusLarge),
                               ),
                             ),
@@ -420,7 +420,7 @@ class StoreDetailsScreenShimmerWidget extends StatelessWidget {
                                         height: 150,
                                         width: double.infinity,
                                         decoration: BoxDecoration(
-                                          color: Colors.grey[300],
+                                          color: Theme.of(context).disabledColor.withValues(alpha: 0.25),
                                           borderRadius: BorderRadius.circular(Dimensions.radiusLarge),
                                         ),
                                       ),
@@ -430,19 +430,19 @@ class StoreDetailsScreenShimmerWidget extends StatelessWidget {
                                           Container(
                                             height: 20,
                                             width: 100,
-                                            color: Colors.grey[300],
+                                            color: Theme.of(context).disabledColor.withValues(alpha: 0.25),
                                           ),
                                           const SizedBox(height: Dimensions.paddingSizeSmall),
                                           Container(
                                             height: 20,
                                             width: 200,
-                                            color: Colors.grey[300],
+                                            color: Theme.of(context).disabledColor.withValues(alpha: 0.25),
                                           ),
                                           const SizedBox(height: Dimensions.paddingSizeSmall),
                                           Container(
                                             height: 20,
                                             width: 100,
-                                            color: Colors.grey[300],
+                                            color: Theme.of(context).disabledColor.withValues(alpha: 0.25),
                                           ),
                                         ]),
                                       ),
@@ -492,7 +492,7 @@ class StoreDetailsScreenShimmerWidget extends StatelessWidget {
                                 height: 150,
                                 width: double.infinity,
                                 decoration: BoxDecoration(
-                                  color: Colors.grey[300],
+                                  color: Theme.of(context).disabledColor.withValues(alpha: 0.25),
                                   borderRadius: BorderRadius.circular(Dimensions.radiusLarge),
                                 ),
                               ),
@@ -502,19 +502,19 @@ class StoreDetailsScreenShimmerWidget extends StatelessWidget {
                                   Container(
                                     height: 20,
                                     width: 100,
-                                    color: Colors.grey[300],
+                                    color: Theme.of(context).disabledColor.withValues(alpha: 0.25),
                                   ),
                                   const SizedBox(height: Dimensions.paddingSizeSmall),
                                   Container(
                                     height: 20,
                                     width: 200,
-                                    color: Colors.grey[300],
+                                    color: Theme.of(context).disabledColor.withValues(alpha: 0.25),
                                   ),
                                   const SizedBox(height: Dimensions.paddingSizeSmall),
                                   Container(
                                     height: 20,
                                     width: 100,
-                                    color: Colors.grey[300],
+                                    color: Theme.of(context).disabledColor.withValues(alpha: 0.25),
                                   ),
                                 ]),
                               ),
@@ -530,3 +530,4 @@ class StoreDetailsScreenShimmerWidget extends StatelessWidget {
     );
   }
 }
+

@@ -22,6 +22,7 @@ class StoreDescriptionViewWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     final currentStore = store;
     if (currentStore == null || currentStore.active == null) {
       return const SizedBox.shrink();
@@ -29,7 +30,7 @@ class StoreDescriptionViewWidget extends StatelessWidget {
     // ✅ FRONTEND ONLY: Use store.isOpen from API only (no time calculations)
     // ❌ NO DateTime, NO schedule checks, NO time logic
     final bool isAvailable = currentStore.isOpen == true;
-    final Color? textColor = ResponsiveHelper.isDesktop(context) ? Colors.white : null;
+    final Color? textColor = ResponsiveHelper.isDesktop(context) ? theme.colorScheme.onSurface : null;
     // Module? moduleData;
     // for(ZoneData zData in AddressHelper.getUserAddressFromSharedPref()!.zoneData!) {
     //   for(Modules m in zData.modules!) {
@@ -61,12 +62,15 @@ class StoreDescriptionViewWidget extends StatelessWidget {
                             alignment: Alignment.center,
                             decoration: BoxDecoration(
                               borderRadius: const BorderRadius.vertical(bottom: Radius.circular(Dimensions.radiusSmall)),
-                              color: Colors.black.withValues(alpha: 0.6),
+                              color: Theme.of(context).colorScheme.scrim.withValues(alpha: 0.6),
                             ),
                             child: Text(
                               'closed_now'.tr,
                               textAlign: TextAlign.center,
-                              style: robotoRegular.copyWith(color: Colors.white, fontSize: Dimensions.fontSizeSmall),
+                              style: robotoRegular.copyWith(
+                                color: Theme.of(context).colorScheme.onSurface,
+                                fontSize: Dimensions.fontSizeSmall,
+                              ),
                             ),
                           ),
                         ),
@@ -111,15 +115,15 @@ class StoreDescriptionViewWidget extends StatelessWidget {
                               padding: const EdgeInsets.all(Dimensions.paddingSizeExtraSmall),
                               decoration: BoxDecoration(
                                   borderRadius: BorderRadius.circular(Dimensions.radiusSmall),
-                                  border: Border.all(color: Colors.white)),
+                                  border: Border.all(color: theme.colorScheme.onSurface)),
                               child: Center(
                                 child: Row(
                                   children: [
-                                    Icon(isWished ? Icons.favorite : Icons.favorite_border, color: Colors.white, size: 14),
+                                    Icon(isWished ? Icons.favorite : Icons.favorite_border, color: theme.colorScheme.onSurface, size: 14),
                                     const SizedBox(width: Dimensions.paddingSizeExtraSmall),
                                     Text('wish_list'.tr,
                                         style: robotoRegular.copyWith(
-                                            fontWeight: FontWeight.w200, color: Colors.white, fontSize: Dimensions.fontSizeSmall)),
+                                            fontWeight: FontWeight.w200, color: theme.colorScheme.onSurface, fontSize: Dimensions.fontSizeSmall)),
                                   ],
                                 ),
                               ),
@@ -152,7 +156,7 @@ class StoreDescriptionViewWidget extends StatelessWidget {
                               borderRadius: BorderRadius.circular(Dimensions.radiusDefault),
                             ),
                             padding: const EdgeInsets.all(Dimensions.paddingSizeExtraSmall),
-                            child: const Icon(Icons.share, size: 24, color: Colors.white),
+                            child: Icon(Icons.share, size: 24, color: theme.colorScheme.onPrimary),
                           ),
                         )
                       : const SizedBox(),
@@ -202,7 +206,7 @@ class StoreDescriptionViewWidget extends StatelessWidget {
                   ]),
                 ),
                 const Expanded(child: SizedBox()),
-                const VerticalDivider(color: Colors.white, thickness: 1),
+                VerticalDivider(color: theme.dividerColor.withValues(alpha: 0.6), thickness: 1),
                 const Expanded(child: SizedBox()),
                 // 🔧 FIX: Hide location row if coordinates are null
                 if (currentStore.latitude != null && currentStore.longitude != null) ...[
@@ -229,7 +233,7 @@ class StoreDescriptionViewWidget extends StatelessWidget {
                     ]),
                   ),
                   const Expanded(child: SizedBox()),
-                  const VerticalDivider(color: Colors.white, thickness: 1),
+                  VerticalDivider(color: theme.dividerColor.withValues(alpha: 0.6), thickness: 1),
                   const Expanded(child: SizedBox()),
                 ], // Hide location row and divider if coordinates are null
                 // ✅ DATA-DRIVEN: Only show delivery time if delivery is enabled AND time exists
@@ -242,7 +246,7 @@ class StoreDescriptionViewWidget extends StatelessWidget {
                     Text(currentStore.deliveryTime!, style: robotoMedium.copyWith(fontSize: Dimensions.fontSizeSmall, color: textColor)),
                   ]),
                   const Expanded(child: SizedBox()),
-                  const VerticalDivider(color: Colors.white, thickness: 1),
+                  VerticalDivider(color: theme.dividerColor.withValues(alpha: 0.6), thickness: 1),
                   const Expanded(child: SizedBox()),
                 ],
                 // ✅ DATA-DRIVEN: Only show free delivery if both delivery and freeDelivery are true
@@ -257,7 +261,7 @@ class StoreDescriptionViewWidget extends StatelessWidget {
                 // ✅ DATA-DRIVEN: Only show prescription order badge if prescriptionOrder is true
                 if (currentStore.prescriptionOrder == true) ...[
                   if ((currentStore.delivery ?? false) && (currentStore.freeDelivery ?? false)) ...[
-                    const VerticalDivider(color: Colors.white, thickness: 1),
+                    VerticalDivider(color: theme.dividerColor.withValues(alpha: 0.6), thickness: 1),
                     const Expanded(child: SizedBox()),
                   ],
                   Column(children: [

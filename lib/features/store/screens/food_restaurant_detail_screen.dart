@@ -19,7 +19,6 @@ import 'package:sixam_mart/features/store/widgets/food_restaurant/food_restauran
 import 'package:sixam_mart/features/store/widgets/food_restaurant/food_restaurant_category_section.dart';
 import 'package:sixam_mart/features/store/screens/food_restaurant_categories_bottom_sheet.dart';
 import 'package:sixam_mart/features/store/widgets/store_details_screen_shimmer_widget.dart';
-import 'package:sixam_mart/util/app_colors.dart';
 import 'package:sixam_mart/util/dimensions.dart';
 import 'package:sixam_mart/common/utils/app_logger.dart';
 
@@ -1100,7 +1099,7 @@ class _FoodRestaurantDetailScreenState
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.gryColor_8,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: GetBuilder<StoreController>(
         builder: (storeController) {
           return GetBuilder<CategoryController>(
@@ -1124,8 +1123,7 @@ class _FoodRestaurantDetailScreenState
                       mainAxisSize: MainAxisSize.min,
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        const Icon(Icons.error_outline,
-                            size: 64, color: Colors.red),
+                        Icon(Icons.error_outline, size: 64, color: Theme.of(context).colorScheme.error),
                         const SizedBox(height: 16),
                         const Text(
                           'Failed to load store details',
@@ -1164,8 +1162,8 @@ class _FoodRestaurantDetailScreenState
               if (displayStore == null) {
                 // If we have absolutely no store data, show minimal loading
                 // But this should rarely happen since widget.store is passed from navigation
-                return const Scaffold(
-                  backgroundColor: AppColors.gryColor_8,
+                return Scaffold(
+                  backgroundColor: Theme.of(context).scaffoldBackgroundColor,
                   body:
                       StoreDetailsScreenShimmerWidget(), // ⚡ TASK 2: Instant skeleton morphing
                 );
@@ -1184,7 +1182,7 @@ class _FoodRestaurantDetailScreenState
                 if (isTimeoutOrNetworkError) {
                   // Show retry UI for timeout/network errors
                   return Scaffold(
-                    backgroundColor: AppColors.gryColor_8,
+                    backgroundColor: Theme.of(context).scaffoldBackgroundColor,
                     appBar: AppBar(
                       title: Text(widget.store!.name ?? ''),
                     ),
@@ -1197,8 +1195,7 @@ class _FoodRestaurantDetailScreenState
                           mainAxisSize: MainAxisSize.min,
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            const Icon(Icons.wifi_off,
-                                size: 64, color: Colors.orange),
+                            Icon(Icons.wifi_off, size: 64, color: Theme.of(context).colorScheme.error),
                             const SizedBox(height: 16),
                             Text(
                               widget.store!.name ?? '',
@@ -1206,17 +1203,9 @@ class _FoodRestaurantDetailScreenState
                                   fontSize: 20, fontWeight: FontWeight.bold),
                             ),
                             const SizedBox(height: 8),
-                            const Text(
-                              'Connection Timeout',
-                              style:
-                                  TextStyle(fontSize: 16, color: Colors.grey),
-                            ),
+                            Text('Connection Timeout', style: TextStyle(fontSize: 16, color: Theme.of(context).disabledColor),),
                             const SizedBox(height: 8),
-                            const Text(
-                              'Please check your connection and try again',
-                              style:
-                                  TextStyle(fontSize: 14, color: Colors.grey),
-                            ),
+                            Text('Please check your connection and try again', style: TextStyle(fontSize: 14, color: Theme.of(context).disabledColor),),
                             const SizedBox(height: 24),
                             ElevatedButton.icon(
                               onPressed: () {
@@ -1242,7 +1231,7 @@ class _FoodRestaurantDetailScreenState
                 } else {
                   // Show "out of coverage" only for actual coverage errors (not timeouts)
                   return Scaffold(
-                    backgroundColor: AppColors.gryColor_8,
+                    backgroundColor: Theme.of(context).scaffoldBackgroundColor,
                     appBar: AppBar(
                       title: Text(widget.store!.name ?? ''),
                     ),
@@ -1255,8 +1244,7 @@ class _FoodRestaurantDetailScreenState
                           mainAxisSize: MainAxisSize.min,
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            const Icon(Icons.location_off,
-                                size: 64, color: Colors.orange),
+                            Icon(Icons.location_off, size: 64, color: Theme.of(context).colorScheme.error),
                             const SizedBox(height: 16),
                             Text(
                               widget.store!.name ?? '',
@@ -1264,17 +1252,9 @@ class _FoodRestaurantDetailScreenState
                                   fontSize: 20, fontWeight: FontWeight.bold),
                             ),
                             const SizedBox(height: 8),
-                            const Text(
-                              'Out of Coverage',
-                              style:
-                                  TextStyle(fontSize: 16, color: Colors.grey),
-                            ),
+                            Text('Out of Coverage', style: TextStyle(fontSize: 16, color: Theme.of(context).disabledColor),),
                             const SizedBox(height: 8),
-                            const Text(
-                              'This store is not available in your area',
-                              style:
-                                  TextStyle(fontSize: 14, color: Colors.grey),
-                            ),
+                            Text('This store is not available in your area', style: TextStyle(fontSize: 14, color: Theme.of(context).disabledColor),),
                           ],
                         ),
                       ),
@@ -1612,7 +1592,7 @@ class _FoodRestaurantDetailScreenState
                 height: 140,
                 padding: const EdgeInsets.all(Dimensions.paddingSizeDefault),
                 decoration: BoxDecoration(
-                  color: Colors.grey[300],
+                  color: Get.theme.disabledColor.withValues(alpha: 0.25),
                   borderRadius: BorderRadius.circular(Dimensions.radiusDefault),
                 ),
                 child: Row(
@@ -1622,7 +1602,7 @@ class _FoodRestaurantDetailScreenState
                       width: 100,
                       height: 88,
                       decoration: BoxDecoration(
-                        color: Colors.grey[400],
+                        color: Get.theme.disabledColor.withValues(alpha: 0.4),
                         borderRadius:
                             BorderRadius.circular(Dimensions.radiusSmall),
                       ),
@@ -1638,7 +1618,7 @@ class _FoodRestaurantDetailScreenState
                             height: 16,
                             width: double.infinity,
                             decoration: BoxDecoration(
-                              color: Colors.grey[400],
+                              color: Get.theme.disabledColor.withValues(alpha: 0.4),
                               borderRadius: BorderRadius.circular(4),
                             ),
                           ),
@@ -1647,7 +1627,7 @@ class _FoodRestaurantDetailScreenState
                             height: 14,
                             width: 150,
                             decoration: BoxDecoration(
-                              color: Colors.grey[400],
+                              color: Get.theme.disabledColor.withValues(alpha: 0.4),
                               borderRadius: BorderRadius.circular(4),
                             ),
                           ),
@@ -1656,7 +1636,7 @@ class _FoodRestaurantDetailScreenState
                             height: 14,
                             width: 100,
                             decoration: BoxDecoration(
-                              color: Colors.grey[400],
+                              color: Get.theme.disabledColor.withValues(alpha: 0.4),
                               borderRadius: BorderRadius.circular(4),
                             ),
                           ),
@@ -1691,7 +1671,7 @@ class _FoodRestaurantDetailScreenState
             child: Container(
               height: 50,
               decoration: BoxDecoration(
-                color: Colors.grey[300],
+                color: Get.theme.disabledColor.withValues(alpha: 0.25),
                 borderRadius: BorderRadius.circular(Dimensions.radiusDefault),
               ),
             ),
@@ -1714,7 +1694,7 @@ class _FoodRestaurantDetailScreenState
                 height: 140,
                 padding: const EdgeInsets.all(Dimensions.paddingSizeDefault),
                 decoration: BoxDecoration(
-                  color: Colors.grey[300],
+                  color: Get.theme.disabledColor.withValues(alpha: 0.25),
                   borderRadius: BorderRadius.circular(Dimensions.radiusDefault),
                 ),
                 child: Row(
@@ -1724,7 +1704,7 @@ class _FoodRestaurantDetailScreenState
                       width: 100,
                       height: 88,
                       decoration: BoxDecoration(
-                        color: Colors.grey[400],
+                        color: Get.theme.disabledColor.withValues(alpha: 0.4),
                         borderRadius:
                             BorderRadius.circular(Dimensions.radiusSmall),
                       ),
@@ -1740,7 +1720,7 @@ class _FoodRestaurantDetailScreenState
                             height: 16,
                             width: double.infinity,
                             decoration: BoxDecoration(
-                              color: Colors.grey[400],
+                              color: Get.theme.disabledColor.withValues(alpha: 0.4),
                               borderRadius: BorderRadius.circular(4),
                             ),
                           ),
@@ -1749,7 +1729,7 @@ class _FoodRestaurantDetailScreenState
                             height: 14,
                             width: 150,
                             decoration: BoxDecoration(
-                              color: Colors.grey[400],
+                              color: Get.theme.disabledColor.withValues(alpha: 0.4),
                               borderRadius: BorderRadius.circular(4),
                             ),
                           ),
@@ -1758,7 +1738,7 @@ class _FoodRestaurantDetailScreenState
                             height: 14,
                             width: 100,
                             decoration: BoxDecoration(
-                              color: Colors.grey[400],
+                              color: Get.theme.disabledColor.withValues(alpha: 0.4),
                               borderRadius: BorderRadius.circular(4),
                             ),
                           ),
@@ -1775,4 +1755,5 @@ class _FoodRestaurantDetailScreenState
     ];
   }
 }
+
 

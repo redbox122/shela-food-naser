@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:sixam_mart/features/checkout/controllers/checkout_controller.dart';
+import 'package:sixam_mart/theme/app_color_tokens.dart';
 import 'package:sixam_mart/util/app_constants.dart';
 import 'package:sixam_mart/util/dimensions.dart';
 import 'package:sixam_mart/util/styles.dart';
@@ -17,15 +18,17 @@ class _WebDeliveryInstructionViewState extends State<WebDeliveryInstructionView>
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final tokens = theme.extension<AppColorTokens>();
 
     return Padding (
       padding: const EdgeInsets.symmetric(horizontal: Dimensions.paddingSizeLarge),
       child: Container(
         decoration: BoxDecoration(
-          color: Theme.of(context).cardColor,
+          color: theme.cardColor,
           // boxShadow: [BoxShadow(color: Theme.of(context).primaryColor.withValues(alpha: 0.05), blurRadius: 10)],
           borderRadius: BorderRadius.circular(Dimensions.radiusSmall),
-          border: Border.all(color: Theme.of(context).primaryColor.withValues(alpha: 0.20)),
+          border: Border.all(color: theme.primaryColor.withValues(alpha: 0.20)),
         ),
         padding: const EdgeInsets.symmetric(horizontal: Dimensions.paddingSizeLarge, vertical: Dimensions.paddingSizeExtraSmall),
         child: GetBuilder<CheckoutController>(
@@ -65,9 +68,11 @@ class _WebDeliveryInstructionViewState extends State<WebDeliveryInstructionView>
                       child: Container(
                         padding: const EdgeInsets.all(Dimensions.paddingSizeExtraSmall),
                         decoration: BoxDecoration(
-                          color: isSelected ? Theme.of(context).primaryColor.withValues(alpha: 0.05) : Colors.grey[200],
+                          color: isSelected
+                              ? theme.primaryColor.withValues(alpha: 0.05)
+                              : (tokens?.surfaceSoft ?? theme.colorScheme.surfaceContainerHighest),
                           borderRadius: BorderRadius.circular(Dimensions.radiusSmall),
-                          border: Border.all(color: isSelected ?  Theme.of(context).primaryColor : Colors.transparent),
+                          border: Border.all(color: isSelected ?  theme.primaryColor : Colors.transparent),
                         ),
                         child: Row(
                           children: [

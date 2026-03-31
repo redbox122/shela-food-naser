@@ -9,7 +9,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:sixam_mart/features/category/domain/models/category_model.dart';
 import 'package:sixam_mart/features/language/controllers/language_controller.dart';
-import 'package:sixam_mart/util/app_colors.dart';
+import 'package:sixam_mart/theme/app_color_tokens.dart';
 import 'package:sixam_mart/util/dimensions.dart';
 import 'package:sixam_mart/util/styles.dart';
 
@@ -39,6 +39,8 @@ class _FoodRestaurantCategoryTabsState
     return GetBuilder<LocalizationController>(
       builder: (localizationController) {
         final bool isLtr = localizationController.isLtr;
+        final theme = Theme.of(context);
+        final tokens = theme.extension<AppColorTokens>()!;
 
         return Directionality(
           textDirection: isLtr ? TextDirection.ltr : TextDirection.rtl,
@@ -63,23 +65,23 @@ class _FoodRestaurantCategoryTabsState
                         width: 44,
                         height: 44,
                         decoration: BoxDecoration(
-                          color: AppColors.gryColor_6,
+                          color: tokens.surfaceSoft,
                           borderRadius: BorderRadius.circular(22),
                           border: Border.all(
-                            color: AppColors.gryColor_4,
+                            color: tokens.outlineSoft,
                           ),
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.05),
+                              color: theme.shadowColor.withValues(alpha: 0.1),
                               blurRadius: 4,
                               offset: const Offset(0, 2),
                             ),
                           ],
                         ),
-                        child: const Icon(
+                        child: Icon(
                           Icons.list_rounded,
                           size: 22,
-                          color: AppColors.textColor,
+                          color: theme.textTheme.bodyLarge?.color,
                         ),
                       ),
                     ),
@@ -117,6 +119,8 @@ class _FoodRestaurantCategoryTabsState
     required bool isLtr,
     required VoidCallback onTap,
   }) {
+    final theme = Theme.of(context);
+    final tokens = theme.extension<AppColorTokens>()!;
     return GestureDetector(
       onTap: onTap,
       child: Container(
@@ -126,14 +130,14 @@ class _FoodRestaurantCategoryTabsState
           vertical: 10,
         ),
         decoration: BoxDecoration(
-          color: isSelected ? AppColors.primaryColor : AppColors.gryColor_6,
+          color: isSelected ? theme.primaryColor : tokens.surfaceSoft,
           borderRadius: BorderRadius.circular(22),
           border: Border.all(
-            color: isSelected ? AppColors.primaryColor : AppColors.gryColor_4,
+            color: isSelected ? theme.primaryColor : tokens.outlineSoft,
           ),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: isSelected ? 0.15 : 0.05),
+              color: theme.shadowColor.withValues(alpha: isSelected ? 0.2 : 0.08),
               blurRadius: isSelected ? 12 : 4,
               offset: Offset(0, isSelected ? 4 : 2),
             ),
@@ -144,7 +148,9 @@ class _FoodRestaurantCategoryTabsState
           textAlign: TextAlign.center,
           style: robotoMedium.copyWith(
             fontSize: 14,
-            color: isSelected ? AppColors.backgroundColor : AppColors.textColor,
+            color: isSelected
+                ? theme.colorScheme.onPrimary
+                : theme.textTheme.bodyLarge?.color,
             letterSpacing: -0.2,
           ),
         ),

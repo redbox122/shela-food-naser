@@ -5,7 +5,7 @@ import 'package:get/get.dart';
 import 'package:sixam_mart/features/category/controllers/category_controller.dart';
 import 'package:sixam_mart/features/category/domain/models/category_model.dart';
 import 'package:sixam_mart/features/store/controllers/store_controller.dart';
-import 'package:sixam_mart/features/store/domain/models/store_model.dart';
+import 'package:sixam_mart/theme/app_color_tokens.dart';
 import 'package:sixam_mart/util/images.dart';
 
 class Store_Search_Filter_Widget extends StatefulWidget {
@@ -20,23 +20,16 @@ class Store_Search_Filter_Widget extends StatefulWidget {
 
 class _Store_Search_Filter_WidgetState
     extends State<Store_Search_Filter_Widget> {
-  // Controllers
   final TextEditingController nameController = TextEditingController();
 
-  // Filters
   bool hasDiscount = false;
   CategoryModel? selectedCategory;
-  Store? selectedStore;
-
   String selectedSort = 'popular';
-
   String selectedPriceLabel = 'الكل';
   String min = '';
   String max = '';
 
-  // Data
   late List<CategoryModel> categoryList;
-  late List<Store> storesList;
 
   final Map<String, String> sortOptions = {
     'الأكثر مبيعًا': 'popular',
@@ -62,17 +55,9 @@ class _Store_Search_Filter_WidgetState
     super.initState();
     selectedSort = sortOptions.values.first;
     selectedPriceLabel = priceRanges[0]['label']!;
-
-    storesList = Get.find<StoreController>().storeModel!.stores!;
-
-    categoryList = Get.find<CategoryController>().categoryList!;
+    categoryList = Get.find<CategoryController>().categoryList ?? <CategoryModel>[];
     if (categoryList.isNotEmpty) {
       selectedCategory = categoryList.first;
-    }
-
-    storesList = Get.find<StoreController>().storeModel!.stores!;
-    if (storesList.isNotEmpty) {
-      selectedStore = storesList.first;
     }
   }
 
@@ -82,168 +67,146 @@ class _Store_Search_Filter_WidgetState
       selectedSort = sortOptions.values.first;
       selectedPriceLabel = priceRanges[0]['label']!;
       selectedCategory = null;
-      selectedStore = null;
       hasDiscount = false;
+      min = '';
+      max = '';
     });
   }
 
   @override
   Widget build(BuildContext context) {
+    final tokens = Theme.of(context).extension<AppColorTokens>()!;
     return Directionality(
       textDirection: TextDirection.rtl,
-      child:
-          //
-
-          categoryList.isEmpty || storesList.isEmpty
-              ? const Center(
-                  child: CircularProgressIndicator(),
-                )
-              : Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: SingleChildScrollView(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+      child: categoryList.isEmpty
+          ? const Center(child: CircularProgressIndicator())
+          : Padding(
+              padding: const EdgeInsets.all(16),
+              child: SingleChildScrollView(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const SectionTitle(title: 'البحث حسب'),
+                    const SizedBox(height: 10),
+                    ChoiceChipsRow(
+                      options: sortOptions.keys.toList(),
+                      selected: sortOptions.entries
+                          .firstWhere((e) => e.value == selectedSort,
+                              orElse: () => const MapEntry('', ''))
+                          .key,
+                      onSelected: (selectedArabicLabel) {
+                        setState(() {
+                          selectedSort = sortOptions[selectedArabicLabel]!;
+                        });
+                      },
+                    ),
+                    const SizedBox(height: 20),
+                    const Text('الفئة',
+                        style:
+                            TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                    const SizedBox(height: 10),
+                    Choice_Category_Row<CategoryModel>(
+                      options: categoryList,
+                      selected: selectedCategory,
+                      labelBuilder: (category) => category.name ?? '',
+                      onSelected: (value) =>
+                          setState(() => selectedCategory = value),
+                    ),
+                    const SizedBox(height: 20),
+                    const SectionTitle(title: 'اسم المنتج'),
+                    const SizedBox(height: 10),
+                    CustomTextField(controller: nameController, hint: 'example'.tr),
+                    const SizedBox(height: 10),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        const SectionTitle(title: 'البحث حسب'),
-
-                        const SizedBox(height: 10),
-                        ChoiceChipsRow(
-                          options: sortOptions.keys.toList(),
-                          selected: sortOptions.entries
-                              .firstWhere((e) => e.value == selectedSort,
-                                  orElse: () => const MapEntry('', ''))
-                              .key,
-                          onSelected: (selectedArabicLabel) {
-                            setState(() {
-                              selectedSort = sortOptions[selectedArabicLabel]!;
-                            });
-                          },
-                        ),
-
-                        const SizedBox(height: 20),
-
-                        // Category  ========================================================================
-
-                        const Text('الفئة',
-                            style: TextStyle(
-                                fontWeight: FontWeight.bold, fontSize: 16)),
-
-                        const SizedBox(height: 10),
-
-                        Choice_Category_Row<CategoryModel>(
-                          options: categoryList,
-                          selected: selectedCategory,
-                          labelBuilder: (category) => category.name ?? '',
-                          onSelected: (value) =>
-                              setState(() => selectedCategory = value),
-                        ),
-
-                        //
-
-                        const SizedBox(height: 20),
-
-                        const SectionTitle(title: 'اسم المنتج'),
-
-                        const SizedBox(height: 10),
-
-                        CustomTextField(
-                            controller: nameController, hint: 'example'.tr),
-
-                        const SizedBox(height: 10),
-
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            const Text('هل تريد خصم؟',
-                                style: TextStyle(fontWeight: FontWeight.bold)),
-                            Switch(
-                              value: hasDiscount,
-                              onChanged: (value) =>
-                                  setState(() => hasDiscount = value),
-                            ),
-                          ],
-                        ),
-
-                        const SizedBox(height: 20),
-
-                        const SectionTitle(title: 'نطاق السعر'),
-
-                        ChoiceChipsRow(
-                          options: priceRanges
-                              .map((e) => e['label'].toString())
-                              .toList(),
-                          selected: selectedPriceLabel,
-                          onSelected: (value) {
-                            final found = priceRanges
-                                .firstWhere((e) => e['label'] == value);
-                            setState(() {
-                              selectedPriceLabel = value;
-                              min = found['min']!;
-                              max = found['max']!;
-                            });
-                          },
-                        ),
-
-                        const SizedBox(height: 30),
-
-                        Row(
-                          children: [
-                            Expanded(
-                              child: OutlinedButton(
-                                onPressed: resetFilters,
-                                style: OutlinedButton.styleFrom(
-                                  side: const BorderSide(),
-                                  shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(10)),
-                                ),
-                                child: const Text('إعادة تعيين',
-                                    style: TextStyle(color: Colors.black)),
-                              ),
-                            ),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: ElevatedButton(
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: Colors.green,
-                                  shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(10)),
-                                ),
-                                child: const Text('تطبيق',
-                                    style: TextStyle(color: Colors.white)),
-                                onPressed: () async {
-                                  //
-
-                                  Get.find<StoreController>().applyFilters(
-                                    research_Name:
-                                        nameController.text.isNotEmpty
-                                            ? nameController.text
-                                            : ' ',
-                                    product_arrangement: selectedSort,
-                                    id_category: selectedCategory == null
-                                        ? ''
-                                        : selectedCategory!.id!.toString(),
-                                    id_stores: widget.storeID,
-                                    min: min.toString(),
-                                    max: max.toString(),
-                                    discount: hasDiscount,
-                                    fromHome: true,
-                                  );
-
-                                  Get.back<void>();
-                                },
-                              ),
-                            ),
-                          ],
+                        const Text('هل تريد خصم؟',
+                            style: TextStyle(fontWeight: FontWeight.bold)),
+                        Switch(
+                          value: hasDiscount,
+                          onChanged: (value) =>
+                              setState(() => hasDiscount = value),
                         ),
                       ],
                     ),
-                  ),
+                    const SizedBox(height: 20),
+                    const SectionTitle(title: 'نطاق السعر'),
+                    ChoiceChipsRow(
+                      options:
+                          priceRanges.map((e) => e['label'].toString()).toList(),
+                      selected: selectedPriceLabel,
+                      onSelected: (value) {
+                        final found =
+                            priceRanges.firstWhere((e) => e['label'] == value);
+                        setState(() {
+                          selectedPriceLabel = value;
+                          min = found['min']!;
+                          max = found['max']!;
+                        });
+                      },
+                    ),
+                    const SizedBox(height: 30),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton(
+                            onPressed: resetFilters,
+                            style: OutlinedButton.styleFrom(
+                              side: const BorderSide(),
+                              shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(10)),
+                            ),
+                            child: Text(
+                              'إعادة تعيين',
+                              style: TextStyle(
+                                color: Theme.of(context).textTheme.bodyLarge?.color ?? Theme.of(context).colorScheme.onSurface,
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: ElevatedButton(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Theme.of(context).primaryColor,
+                              shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(10)),
+                            ),
+                            child: Text('تطبيق',
+                                style: TextStyle(color: Theme.of(context).colorScheme.onPrimary)),
+                            onPressed: () async {
+                              Get.find<StoreController>().applyFilters(
+                                research_Name:
+                                    nameController.text.isNotEmpty
+                                        ? nameController.text
+                                        : ' ',
+                                product_arrangement: selectedSort,
+                                id_category: selectedCategory == null
+                                    ? ''
+                                    : selectedCategory!.id!.toString(),
+                                id_stores: widget.storeID,
+                                min: min.toString(),
+                                max: max.toString(),
+                                discount: hasDiscount,
+                                fromHome: true,
+                              );
+
+                              Get.back<void>();
+                            },
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Divider(color: tokens.outlineSoft),
+                  ],
                 ),
+              ),
+            ),
     );
   }
 }
 
-/// عنوان قسم
 class SectionTitle extends StatelessWidget {
   final String title;
   const SectionTitle({super.key, required this.title});
@@ -257,7 +220,6 @@ class SectionTitle extends StatelessWidget {
   }
 }
 
-/// صف
 class ChoiceChipsRow extends StatelessWidget {
   final List<String> options;
   final String selected;
@@ -272,6 +234,7 @@ class ChoiceChipsRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final tokens = Theme.of(context).extension<AppColorTokens>()!;
     return Wrap(
       spacing: 8,
       children: options.map((option) {
@@ -281,15 +244,17 @@ class ChoiceChipsRow extends StatelessWidget {
         return ChoiceChip(
           selected: isSelected,
           onSelected: (_) => onSelected(option),
-          selectedColor: Colors.green,
-          backgroundColor: Colors.grey[300],
+          selectedColor: Theme.of(context).primaryColor,
+          backgroundColor: tokens.surfaceSoft,
           label: parts.length == 2
               ? Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(parts[0],
                         style: TextStyle(
-                            color: isSelected ? Colors.white : Colors.black)),
+                            color: isSelected
+                                ? Theme.of(context).colorScheme.onPrimary
+                                : Theme.of(context).textTheme.bodyLarge?.color ?? Theme.of(context).colorScheme.onSurface)),
                     const SizedBox(width: 4),
                     Image.asset(
                       Images.sar,
@@ -301,11 +266,15 @@ class ChoiceChipsRow extends StatelessWidget {
                     const SizedBox(width: 6),
                     Text('-',
                         style: TextStyle(
-                            color: isSelected ? Colors.white : Colors.black)),
+                            color: isSelected
+                                ? Theme.of(context).colorScheme.onPrimary
+                                : Theme.of(context).textTheme.bodyLarge?.color ?? Theme.of(context).colorScheme.onSurface)),
                     const SizedBox(width: 6),
                     Text(parts[1],
                         style: TextStyle(
-                            color: isSelected ? Colors.white : Colors.black)),
+                            color: isSelected
+                                ? Theme.of(context).colorScheme.onPrimary
+                                : Theme.of(context).textTheme.bodyLarge?.color ?? Theme.of(context).colorScheme.onSurface)),
                     const SizedBox(width: 4),
                     Image.asset(
                       Images.sar,
@@ -318,14 +287,15 @@ class ChoiceChipsRow extends StatelessWidget {
                 )
               : Text(option,
                   style: TextStyle(
-                      color: isSelected ? Colors.white : Colors.black)),
+                      color: isSelected
+                          ? Theme.of(context).colorScheme.onPrimary
+                          : Theme.of(context).textTheme.bodyLarge?.color ?? Theme.of(context).colorScheme.onSurface)),
         );
       }).toList(),
     );
   }
 }
 
-/// حقل إدخال مخصص
 class CustomTextField extends StatelessWidget {
   final TextEditingController controller;
   final String hint;
@@ -339,18 +309,19 @@ class CustomTextField extends StatelessWidget {
       controller: controller,
       decoration: InputDecoration(
         hintText: hint,
-        hintStyle: const TextStyle(color: Colors.grey),
+        hintStyle: TextStyle(color: Theme.of(context).disabledColor),
         contentPadding:
             const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         filled: true,
-        fillColor: const Color(0xFFE8F5E9),
+        fillColor: Theme.of(context).extension<AppColorTokens>()!.surfaceSoft,
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide.none,
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Colors.green, width: 1.5),
+          borderSide:
+              BorderSide(color: Theme.of(context).primaryColor, width: 1.5),
         ),
       ),
     );
@@ -373,6 +344,7 @@ class Choice_Category_Row<T> extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final tokens = Theme.of(context).extension<AppColorTokens>()!;
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
       child: Row(
@@ -383,13 +355,15 @@ class Choice_Category_Row<T> extends StatelessWidget {
             child: ChoiceChip(
               label: Text(
                 labelBuilder(option),
-                style:
-                    TextStyle(color: isSelected ? Colors.white : Colors.black),
+                style: TextStyle(
+                    color: isSelected
+                        ? Theme.of(context).colorScheme.onPrimary
+                        : Theme.of(context).textTheme.bodyLarge?.color ?? Theme.of(context).colorScheme.onSurface),
               ),
               selected: isSelected,
               onSelected: (_) => onSelected(option),
-              selectedColor: Colors.green,
-              backgroundColor: Colors.grey[300],
+              selectedColor: Theme.of(context).primaryColor,
+              backgroundColor: tokens.surfaceSoft,
             ),
           );
         }).toList(),
@@ -397,3 +371,5 @@ class Choice_Category_Row<T> extends StatelessWidget {
     );
   }
 }
+
+

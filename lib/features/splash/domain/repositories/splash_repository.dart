@@ -108,11 +108,13 @@ class SplashRepository implements SplashRepositoryInterface {
       await sharedPreferences.setInt(
           installKey, DateTime.now().millisecondsSinceEpoch);
       await sharedPreferences.setBool(AppConstants.intro, true);
+      // Ensure the very first run starts in light mode by default.
+      await sharedPreferences.setBool(AppConstants.theme, false);
       debugPrint('🆕 Fresh install detected - onboarding will be shown');
     }
 
     if (!sharedPreferences.containsKey(AppConstants.theme)) {
-      sharedPreferences.setBool(AppConstants.theme, false);
+      await sharedPreferences.setBool(AppConstants.theme, false);
     }
     if (!sharedPreferences.containsKey(AppConstants.countryCode)) {
       sharedPreferences.setString(

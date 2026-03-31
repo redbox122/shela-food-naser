@@ -26,6 +26,7 @@ import 'package:myfatoorah_flutter/myfatoorah_flutter.dart';
 import 'package:sixam_mart/features/payment/domain/services/myfatoorah_service.dart';
 import 'package:sixam_mart/features/payment/domain/repositories/myfatoorah_repository.dart';
 import 'package:sixam_mart/features/payment/domain/utils/myfatoorah_mapper.dart';
+import 'package:sixam_mart/features/payment/screens/myfatoorah_payment_webview_screen.dart';
 import 'package:sixam_mart/api/api_client.dart';
 import 'package:sixam_mart/util/app_constants.dart';
 import 'package:sixam_mart/core/cache/hive_home_cache_service.dart';
@@ -1394,6 +1395,18 @@ class KaidhaSubscription_Controller extends GetxController
           final List<MFPaymentMethod> allMethods = 
               MyFatoorahMapper.mapBackendResponseToPaymentMethods(backendMethods);
 
+          final int inspectCount = allMethods.length < backendMethods.length
+              ? allMethods.length
+              : backendMethods.length;
+          for (int i = 0; i < inspectCount; i++) {
+            final dynamic raw = backendMethods[i];
+            final MFPaymentMethod mapped = allMethods[i];
+            if ((mapped.imageUrl ?? '').trim().isEmpty && raw is Map<String, dynamic>) {
+              debugPrint(
+                  '[QidhaPay][MethodMap] Missing logo for methodId=${mapped.paymentMethodId} keys=${raw.keys.toList()}');
+            }
+          }
+
           // Filter payment methods based on platform
           qidhaPaymentMethods = _filterPaymentMethodsByPlatform(allMethods);
           qidhaPaymentMethodsSelected =
@@ -1436,10 +1449,9 @@ class KaidhaSubscription_Controller extends GetxController
       update();
     }
   }
-
-  /// Filter payment methods based on platform
-  /// Android: Hide Apple Pay methods
-  /// iOS: Hide Google Pay methods
+  /// Filter payment methods based on platform.
+  /// Apple Pay remains enabled.
+  /// iOS: hide Google Pay methods.
   List<MFPaymentMethod> _filterPaymentMethodsByPlatform(
       List<MFPaymentMethod> paymentMethods) {
     return paymentMethods.where((method) {
@@ -1447,40 +1459,26 @@ class KaidhaSubscription_Controller extends GetxController
       final methodEn = method.paymentMethodEn?.toLowerCase() ?? '';
       final methodAr = method.paymentMethodAr?.toLowerCase() ?? '';
 
-      // On Android, hide Apple Pay methods
+      // Keep all methods visible on Android (including Apple Pay).
       if (Platform.isAndroid) {
-        final isApplePay = methodCode.contains('ap') ||
-            methodEn.contains('apple') ||
-            methodAr.contains('أبل') ||
-            methodAr.contains('apple');
-
-        if (isApplePay) {
-          debugPrint(
-              '🚫 Android: Hiding Apple Pay - ${method.paymentMethodAr}');
-          return false;
-        }
         return true;
       }
 
-      // On iOS, hide Google Pay methods
+      // On iOS, hide Google Pay methods.
       if (Platform.isIOS) {
         final isGooglePay = methodCode.contains('gp') ||
             methodEn.contains('google') ||
-            methodAr.contains('جوجل') ||
             methodAr.contains('google');
-
         if (isGooglePay) {
-          debugPrint('🚫 iOS: Hiding Google Pay - ${method.paymentMethodAr}');
+          debugPrint('iOS: Hiding Google Pay - ${method.paymentMethodAr}');
           return false;
         }
         return true;
       }
 
-      // For other platforms, show all methods
       return true;
     }).toList();
   }
-
   /// Select a payment method for Qidha wallet payment
   /// @param index - The index of the selected payment method
   void selectQidhaPaymentMethod(int index) {
@@ -1500,9 +1498,121 @@ class KaidhaSubscription_Controller extends GetxController
     }
   }
 
-  // شحن  =================================================
+  Future<String> _processQidhaPaymentWithoutOrder(
+    BuildContext context, {
+    required double amount,
+    required MFPaymentMethod paymentMethod,
+  }) async {
+    try {
+      final apiClient = Get.find<ApiClient>();
+      final repository = MyFatoorahRepository(apiClient: apiClient);
+      final service = MyFatoorahService(repository: repository);
+      final profileController = Get.find<ProfileController>();
 
-  Future Send_Pay_Credit(context, double total) async {
+      final String customerName =
+          profileController.userInfoModel?.fName?.trim().isNotEmpty == true
+              ? '${profileController.userInfoModel?.fName ?? ''} ${profileController.userInfoModel?.lName ?? ''}'
+                  .trim()
+              : ((profileController.userInfoModel?.lName ?? '')
+                      .trim()
+                      .isNotEmpty
+                  ? (profileController.userInfoModel?.lName ?? '').trim()
+                  : 'Customer');
+      final String customerPhone = _getUserPhoneForForm().trim();
+      final String customerEmail =
+          profileController.userInfoModel?.email?.trim().isNotEmpty == true
+              ? profileController.userInfoModel!.email!.trim()
+              : 'no-reply@shelafood.com';
+
+      if (customerPhone.isEmpty) {
+        showCustomSnackBar('رقم الهاتف مطلوب لبدء الدفع');
+        return 'error';
+      }
+
+      final String? backendMethodCode =
+          MyFatoorahMapper.normalizeBackendPaymentMethodCode(
+        paymentMethod.paymentMethodCode,
+        methodEn: paymentMethod.paymentMethodEn,
+        methodAr: paymentMethod.paymentMethodAr,
+      );
+      final int? backendMethodId = paymentMethod.paymentMethodId;
+      debugPrint(
+          '[QidhaPay][NoOrder] payload: methodCode=$backendMethodCode methodId=$backendMethodId amount=$amount');
+      if ((backendMethodCode == null || backendMethodCode.isEmpty) &&
+          backendMethodId == null) {
+        showCustomSnackBar('طريقة الدفع غير مدعومة حالياً');
+        return 'error';
+      }
+
+      final Response response = await service.processPaymentWithoutOrder(
+        amount: amount,
+        currency: 'SAR',
+        paymentMethodId: backendMethodId,
+        paymentMethodCode: backendMethodCode,
+        customerName: customerName,
+        customerPhone: customerPhone,
+        customerEmail: customerEmail,
+        callbackUrl: '${AppConstants.baseUrl}/api/v1/payment/myfatoorah/success',
+        errorUrl: '${AppConstants.baseUrl}/api/v1/payment/myfatoorah/error',
+      );
+
+      debugPrint(
+          '[QidhaPay][NoOrder] processWithoutOrder status=${response.statusCode}');
+
+      if (response.statusCode != 200 && response.statusCode != 201) {
+        String backendMessage = 'فشل بدء الدفع';
+        final Map<String, dynamic>? errorBody = response.body is Map
+            ? Map<String, dynamic>.from(response.body as Map)
+            : null;
+        if (errorBody != null) {
+          backendMessage = (errorBody['message'] as String?) ?? backendMessage;
+        }
+        showCustomSnackBar(backendMessage);
+        return 'error';
+      }
+
+      final Map<String, dynamic> body =
+          response.body is Map<String, dynamic>
+              ? response.body as Map<String, dynamic>
+              : <String, dynamic>{};
+      final dynamic data = body['data'];
+      final String? paymentUrl = data is Map<String, dynamic>
+          ? data['payment_url']?.toString()
+          : null;
+
+      if (paymentUrl == null || paymentUrl.isEmpty) {
+        showCustomSnackBar('فشل بدء الدفع - لم يتم استلام رابط الدفع');
+        return 'error';
+      }
+
+      final String? webResult = await Get.to(
+        () => MyFatoorahPaymentWebViewScreen(
+          initialUrl: paymentUrl,
+          successUrlContains:
+              '${AppConstants.baseUrl}/api/v1/payment/myfatoorah/success',
+          errorUrlContains:
+              '${AppConstants.baseUrl}/api/v1/payment/myfatoorah/error',
+        ),
+      );
+
+      debugPrint('[QidhaPay][NoOrder] webResult=$webResult');
+      if (webResult == 'success') {
+        return 'success';
+      }
+      if (webResult == 'cancelled') {
+        return 'cancelled';
+      }
+      return 'error';
+    } catch (error, stackTrace) {
+      debugPrint(
+          '[QidhaPay][NoOrder][ERROR] $error ; stack=${stackTrace.toString().split('\n').take(5).join(' | ')}');
+      showCustomSnackBar('فشلت عملية الدفع: ${error.toString()}');
+      return 'error';
+    }
+  }
+
+  // شحن  =================================================
+  Future Send_Pay_Credit(BuildContext context, double total) async {
     // Validate payment method selection
     if (selectedQidhaPaymentMethod == null) {
       showCustomSnackBar('يرجى اختيار طريقة الدفع أولاً');
@@ -1512,32 +1622,108 @@ class KaidhaSubscription_Controller extends GetxController
     _isLoading = true;
     update();
 
-    final CheckoutController checkoutController = Get.find<CheckoutController>();
+    final CheckoutController checkoutController =
+        Get.find<CheckoutController>();
+    final double normalizedTotal = double.parse(total.toStringAsFixed(2));
+    final String paymentAmount = normalizedTotal.toStringAsFixed(2);
 
-    // Set the pre-selected payment method to checkout controller
-    checkoutController.select_payment_Methods = selectedQidhaPaymentMethod;
+    // Load methods for exact selected amount, then bind selected method by ID.
+    await checkoutController.initiatePaymentWithAmount(context, paymentAmount);
+    if (!context.mounted) {
+      _isLoading = false;
+      update();
+      return;
+    }
+
+    if (checkoutController.paymentMethods.isEmpty) {
+      showCustomSnackBar('لا توجد طرق دفع متاحة للمبلغ المختار');
+      _isLoading = false;
+      update();
+      return;
+    }
+    debugPrint(
+        '[QidhaPay] availableMethodIds=${checkoutController.paymentMethods.map((m) => m.paymentMethodId).toList()}');
+
+    final int selectedMethodId =
+        selectedQidhaPaymentMethod!.paymentMethodId ?? -1;
+    final int matchedIndex = checkoutController.paymentMethods.indexWhere(
+      (method) => method.paymentMethodId == selectedMethodId,
+    );
+
+    if (matchedIndex < 0) {
+      showCustomSnackBar('طريقة الدفع المختارة غير متاحة لهذا المبلغ');
+      _isLoading = false;
+      update();
+      return;
+    }
+
+    checkoutController.isSelected =
+        List<bool>.filled(checkoutController.paymentMethods.length, false);
+    checkoutController.isSelected[matchedIndex] = true;
+    checkoutController.select_payment_Methods =
+        checkoutController.paymentMethods[matchedIndex];
     checkoutController.selectedButton = 1;
 
     debugPrint(
-        '💳 Processing Qidha wallet payment with ${selectedQidhaPaymentMethod!.paymentMethodAr}');
-    debugPrint('💰 Amount: $total SAR');
+        'Processing Qidha wallet payment with ${checkoutController.select_payment_Methods!.paymentMethodAr}');
+    debugPrint('Amount: $paymentAmount SAR');
+    debugPrint(
+        'PaymentMethodId: ${checkoutController.select_payment_Methods!.paymentMethodId}');
 
-    // Directly call Pay() without showing bottom sheet
-    final bool isPaymentSuccessful = await checkoutController.Pay(context as BuildContext, '$total');
+    // Qidha credit payment does not always have an order context.
+    // If no order exists, use direct MyFatoorah execution with selected method.
+    bool isPaymentSuccessful = false;
+    bool isPaymentCancelled = false;
+    if (checkoutController.currentOrderId == null) {
+      debugPrint(
+          '[QidhaPay] No checkout order context. Using backend process-without-order flow.');
+      final String noOrderResult = await _processQidhaPaymentWithoutOrder(
+        context,
+        amount: normalizedTotal,
+        paymentMethod: checkoutController.select_payment_Methods!,
+      );
+      if (!context.mounted) {
+        _isLoading = false;
+        update();
+        return;
+      }
+      isPaymentSuccessful = noOrderResult == 'success';
+      isPaymentCancelled = noOrderResult == 'cancelled';
+    } else {
+      debugPrint(
+          '[QidhaPay] Using checkout order-linked payment flow. orderId=${checkoutController.currentOrderId}');
+      // Order-linked payment flow (backend-driven)
+      isPaymentSuccessful =
+          await checkoutController.Pay(context, paymentAmount);
+      if (!context.mounted) {
+        _isLoading = false;
+        update();
+        return;
+      }
+    }
 
     if (isPaymentSuccessful == false) {
+      if (isPaymentCancelled) {
+        showCustomSnackBar('تم إلغاء عملية الدفع', isError: false);
+      } else {
       showCustomSnackBar('فشلت عملية الشحن قم بالمحاولة ثانيا ');
+      }
       _isLoading = false;
       update();
       return;
     } else {
       // Payment successful, call backend to update Qidha wallet
-      await kaidhaSubServiceInterface.send_Pay_credit(context, total);
+      await kaidhaSubServiceInterface.send_Pay_credit(context, normalizedTotal);
+      if (!context.mounted) {
+        _isLoading = false;
+        update();
+        return;
+      }
 
       // Refresh wallet data
       await get_Wallet_Kaidh();
 
-      debugPrint('✅ Qidha wallet credit payment completed successfully');
+      debugPrint('Qidha wallet credit payment completed successfully');
     }
 
     _isLoading = false;
@@ -1545,7 +1731,6 @@ class KaidhaSubscription_Controller extends GetxController
   }
 
   // شراء   =============================================
-
   Future<bool> Send_Pay_Bebit(context, double total, {String? orderId}) async {
     return await kaidhaSubServiceInterface.send_Pay_debit(context, total,
         orderId: orderId);

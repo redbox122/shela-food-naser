@@ -37,6 +37,7 @@ class _DeliveryManTipsSectionState extends State<DeliveryManTipsSection> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     double total = widget.totalPrice;
     return GetBuilder<CheckoutController>(builder: (checkoutController) {
       return Column(
@@ -52,7 +53,7 @@ class _DeliveryManTipsSectionState extends State<DeliveryManTipsSection> {
                     Row(children: [
                       Text('delivery_man_tips'.tr, style: robotoMedium),
                       JustTheTooltip(
-                        backgroundColor: Colors.black87,
+                        backgroundColor: theme.colorScheme.scrim.withValues(alpha: 0.92),
                         controller: widget.tooltipController3,
                         preferredDirection: AxisDirection.right,
                         tailLength: 14,
@@ -60,7 +61,7 @@ class _DeliveryManTipsSectionState extends State<DeliveryManTipsSection> {
                         content: Padding(
                           padding: const EdgeInsets.all(8.0),
                           child: Text('it_s_a_great_way_to_show_your_appreciation_for_their_hard_work'.tr,
-                              style: robotoRegular.copyWith(color: Colors.white)),
+                              style: robotoRegular.copyWith(color: theme.colorScheme.surface)),
                         ),
                         child: InkWell(
                           onTap: () => widget.tooltipController3.showTooltip(),

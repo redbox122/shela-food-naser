@@ -4,6 +4,7 @@ import 'package:sixam_mart/common/widgets/custom_text_field.dart';
 import 'package:sixam_mart/features/checkout/controllers/checkout_controller.dart';
 import 'package:sixam_mart/helper/responsive_helper.dart';
 import 'package:sixam_mart/helper/validate_check.dart';
+import 'package:sixam_mart/theme/app_color_tokens.dart';
 import 'package:sixam_mart/util/dimensions.dart';
 import 'package:sixam_mart/util/styles.dart';
 
@@ -20,13 +21,29 @@ class GuestCreateAccount extends StatelessWidget {
   Widget build(BuildContext context) {
 
     final bool isDesktop = ResponsiveHelper.isDesktop(context);
+    final theme = Theme.of(context);
+    final tokens = theme.extension<AppColorTokens>();
 
     return GetBuilder<CheckoutController>(builder: (checkoutController) {
       return Container(
         decoration: BoxDecoration(
-          color: Theme.of(context).cardColor,
+          color: theme.cardColor,
           borderRadius: BorderRadius.circular(Dimensions.radiusSmall),
-          boxShadow: fromParcel ? [const BoxShadow(color: Colors.black12, blurRadius: 5, spreadRadius: 1)] : [BoxShadow(color: Theme.of(context).primaryColor.withValues(alpha: 0.05), blurRadius: 10)],
+          boxShadow: fromParcel
+              ? [
+                  BoxShadow(
+                    color: (tokens?.outlineSoft ?? theme.dividerColor)
+                        .withValues(alpha: 0.35),
+                    blurRadius: 5,
+                    spreadRadius: 1,
+                  )
+                ]
+              : [
+                  BoxShadow(
+                    color: theme.primaryColor.withValues(alpha: 0.05),
+                    blurRadius: 10,
+                  )
+                ],
         ),
         padding: const EdgeInsets.symmetric(horizontal: Dimensions.paddingSizeLarge, vertical: Dimensions.paddingSizeLarge),
         child: Column(children: [

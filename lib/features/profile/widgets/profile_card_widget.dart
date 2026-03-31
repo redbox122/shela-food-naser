@@ -25,12 +25,28 @@ class ProfileCardWidget extends StatelessWidget {
 
         Text(
           data, textDirection: TextDirection.ltr,
-          style: robotoMedium.copyWith(fontSize: ResponsiveHelper.isDesktop(context) ? Dimensions.fontSizeDefault : Dimensions.fontSizeExtraLarge),
+          style: robotoMedium.copyWith(
+            fontSize: ResponsiveHelper.isDesktop(context)
+                ? Dimensions.fontSizeDefault
+                : Dimensions.fontSizeExtraLarge,
+            color: Theme.of(context)
+                .colorScheme
+                .onSurface
+                .withValues(alpha: 0.92),
+          ),
         ),
         const SizedBox(height: Dimensions.paddingSizeSmall),
-        Text(title, style: robotoRegular.copyWith(
-          fontSize: Dimensions.fontSizeExtraSmall, color: Theme.of(context).disabledColor,
-        )),
+        Text(
+          title,
+          style: robotoRegular.copyWith(
+            fontSize: Dimensions.fontSizeExtraSmall,
+            fontWeight: FontWeight.w500,
+            color: Theme.of(context)
+                .colorScheme
+                .onSurface
+                .withValues(alpha: 0.92),
+          ),
+        ),
       ]),
     );
   }

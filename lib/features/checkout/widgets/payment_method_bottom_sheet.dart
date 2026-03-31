@@ -8,6 +8,7 @@ import 'package:sixam_mart/features/checkout/controllers/checkout_controller.dar
 import 'package:sixam_mart/features/wallet_kaidha_subscription/controllers/kaidhaSub_controller.dart';
 import 'package:sixam_mart/helper/price_converter.dart';
 import 'package:sixam_mart/helper/responsive_helper.dart';
+import 'package:sixam_mart/theme/app_color_tokens.dart';
 import 'package:sixam_mart/util/dimensions.dart';
 import 'package:sixam_mart/util/styles.dart';
 
@@ -87,6 +88,7 @@ class _PaymentMethodBottomSheetState extends State<PaymentMethodBottomSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     final double sheetMaxHeight = MediaQuery.sizeOf(context).height * 0.9;
     return SafeArea(
       top: false,
@@ -104,7 +106,7 @@ class _PaymentMethodBottomSheetState extends State<PaymentMethodBottomSheet> {
               width: double.infinity,
               padding: const EdgeInsets.all(Dimensions.paddingSizeLarge),
               decoration: BoxDecoration(
-                color: Theme.of(context).cardColor,
+                color: theme.cardColor,
                 borderRadius: BorderRadius.vertical(
                   top: const Radius.circular(Dimensions.radiusLarge),
                   bottom: Radius.circular(
@@ -154,8 +156,10 @@ class _PaymentMethodBottomSheetState extends State<PaymentMethodBottomSheet> {
 
   Widget _buildDigitalPaymentMethodsList(
       CheckoutController checkoutController) {
+    final theme = Theme.of(context);
+    final tokens = theme.extension<AppColorTokens>();
     if (_isLoadingPaymentMethods) {
-      return const Center(
+      return Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -168,13 +172,14 @@ class _PaymentMethodBottomSheetState extends State<PaymentMethodBottomSheet> {
     }
 
     if (checkoutController.paymentMethods.isEmpty) {
-      return const Center(
+      return Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.payment, size: 48, color: Colors.grey),
-            SizedBox(height: 16),
-            Text('لا توجد طرق دفع متاحة'),
+            Icon(Icons.payment, size: 48, color: theme.colorScheme.onSurfaceVariant),
+            const SizedBox(height: 16),
+            Text('لا توجد طرق دفع متاحة',
+                style: TextStyle(color: theme.colorScheme.onSurfaceVariant)),
           ],
         ),
       );
@@ -215,7 +220,7 @@ class _PaymentMethodBottomSheetState extends State<PaymentMethodBottomSheet> {
             decoration: BoxDecoration(
               color: isSelected
                   ? Theme.of(context).primaryColor.withValues(alpha: 0.12)
-                  : Theme.of(context).cardColor,
+                  : (tokens?.surfaceSoft ?? Theme.of(context).cardColor),
               borderRadius: BorderRadius.circular(Dimensions.radiusDefault),
               border: Border.all(
                 color: isSelected
@@ -270,7 +275,7 @@ class _PaymentMethodBottomSheetState extends State<PaymentMethodBottomSheet> {
             child: Text(
               'إلغاء',
               style: robotoMedium.copyWith(
-                color: Colors.grey[600],
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
                 fontSize: Dimensions.fontSizeLarge,
               ),
             ),
@@ -323,7 +328,7 @@ class _PaymentMethodBottomSheetState extends State<PaymentMethodBottomSheet> {
   }
 
   /// Filter payment methods based on platform
-  /// Android: Hide Apple Pay methods
+  /// Apple Pay remains enabled
   /// iOS: Hide Google Pay methods (if any)
   List<MFPaymentMethod> _filterPaymentMethodsByPlatform(
       List<MFPaymentMethod> paymentMethods) {
@@ -331,9 +336,9 @@ class _PaymentMethodBottomSheetState extends State<PaymentMethodBottomSheet> {
       final methodCode = method.paymentMethodCode?.toLowerCase() ?? '';
       final methodEn = method.paymentMethodEn?.toLowerCase() ?? '';
 
-      // On Android, hide Apple Pay methods
+      // On Android, keep all methods visible (including Apple Pay).
       if (Platform.isAndroid) {
-        return !methodCode.contains('ap') && !methodEn.contains('apple');
+        return true;
       }
 
       // On iOS, hide Google Pay methods (if any)

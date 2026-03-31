@@ -119,7 +119,7 @@ class _SearchFilterBarState extends State<SearchFilterBar> {
         color: Theme.of(context).cardColor,
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withValues(alpha: 0.1),
+            color: Theme.of(context).shadowColor.withValues(alpha: 0.12),
             blurRadius: 4,
             offset: const Offset(0, 2),
           ),
@@ -371,7 +371,7 @@ class _SearchFilterBarState extends State<SearchFilterBar> {
                       ),
                       child: Text(
                         'apply'.tr,
-                        style: const TextStyle(color: Colors.white),
+                        style: TextStyle(color: Theme.of(context).colorScheme.onPrimary),
                       ),
                     ),
                   ),

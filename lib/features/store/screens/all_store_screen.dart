@@ -188,7 +188,11 @@ class _AllStoreScreenState extends State<AllStoreScreen> {
                         vertical: Dimensions.paddingSizeExtraSmall),
                     child: Row(
                       children: [
-                        const Icon(Icons.tune, size: 18, color: Colors.black54),
+                        Icon(
+                          Icons.tune,
+                          size: 18,
+                          color: Theme.of(context).disabledColor,
+                        ),
                         const SizedBox(width: Dimensions.paddingSizeExtraSmall),
                         Expanded(
                           child: Text(

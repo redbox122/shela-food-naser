@@ -17,7 +17,6 @@ import 'package:sixam_mart/features/store/widgets/grocery_store/grocery_store_he
 import 'package:sixam_mart/features/store/widgets/grocery_store/grocery_store_info_section.dart';
 import 'package:sixam_mart/features/store/widgets/grocery_store/grocery_categories_grid.dart';
 import 'package:sixam_mart/features/store/widgets/store_details_screen_shimmer_widget.dart';
-import 'package:sixam_mart/util/app_colors.dart';
 import 'package:sixam_mart/util/dimensions.dart';
 import 'package:sixam_mart/common/utils/app_logger.dart';
 
@@ -281,7 +280,7 @@ class _GroceryStoreDetailScreenState extends State<GroceryStoreDetailScreen> {
     appLogger.debug('GroceryStoreDetailScreen: build() called');
 
     return Scaffold(
-      backgroundColor: AppColors.backgroundColor,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: GetBuilder<StoreController>(
         builder: (storeController) {
           return GetBuilder<CategoryController>(

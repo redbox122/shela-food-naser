@@ -3,12 +3,12 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:sixam_mart/features/splash/controllers/splash_controller.dart';
-import 'package:sixam_mart/common/controllers/theme_controller.dart';
 import 'package:sixam_mart/features/profile/controllers/profile_controller.dart';
 import 'package:sixam_mart/features/checkout/controllers/checkout_controller.dart';
 import 'package:sixam_mart/features/wallet_kaidha_subscription/controllers/kaidhaSub_controller.dart';
 import 'package:sixam_mart/helper/price_converter.dart';
 import 'package:sixam_mart/helper/responsive_helper.dart';
+import 'package:sixam_mart/theme/app_color_tokens.dart';
 import 'package:sixam_mart/util/dimensions.dart';
 import 'package:sixam_mart/util/images.dart';
 import 'package:sixam_mart/util/styles.dart';
@@ -18,6 +18,8 @@ Widget PartialPayView(BuildContext context, {required totalPrice, required isPre
   return GetBuilder<CheckoutController>(
     id: 'payment', // ✅ استخدام ID لتحديث جزئي
     builder: (checkoutController) {
+      final theme = Theme.of(context);
+      final tokens = theme.extension<AppColorTokens>();
       // ✅ FIX: Removed !(isPrescription) condition - wallet payment should be available for all orders
       // The isPrescription flag was incorrectly blocking wallet view for normal orders (storeId != null)
       final profileController = Get.find<ProfileController>();
@@ -30,9 +32,8 @@ Widget PartialPayView(BuildContext context, {required totalPrice, required isPre
           ? AnimatedContainer(
               duration: const Duration(seconds: 2),
               decoration: BoxDecoration(
-                color: Get.find<ThemeController>().darkTheme
-                    ? Theme.of(context).primaryColor.withValues(alpha: 0.2)
-                    : Theme.of(context).primaryColor.withValues(alpha: 0.05),
+                color: tokens?.successSoft ??
+                    theme.colorScheme.primary.withValues(alpha: 0.10),
                 border: Border.all(color: Theme.of(context).primaryColor, width: 0.5),
                 borderRadius: BorderRadius.circular(Dimensions.radiusDefault),
                 image: !ResponsiveHelper.isDesktop(context)
@@ -224,7 +225,9 @@ Widget PartialPayView(BuildContext context, {required totalPrice, required isPre
                                   label: 'حالة الدفع',
                                   value: checkoutController.paymentMethodIndex == 1 ? 'مفعل' : 'غير مفعل',
                                   icon: checkoutController.paymentMethodIndex == 1 ? Icons.check_circle : Icons.pending,
-                                  valueColor: checkoutController.paymentMethodIndex == 1 ? Colors.green : Colors.orange,
+                                  valueColor: checkoutController.paymentMethodIndex == 1
+                                      ? Colors.green
+                                      : theme.colorScheme.error,
                                 ),
                               ],
                             ),

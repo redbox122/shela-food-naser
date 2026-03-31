@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:lottie/lottie.dart';
+import 'package:sixam_mart/theme/app_color_tokens.dart';
 
 /// Loading dialog shown while preparing checkout data
 /// Shows an engaging animation with progress messages
@@ -42,6 +43,8 @@ class _CheckoutLoadingDialogState extends State<CheckoutLoadingDialog> {
   Widget build(BuildContext context) {
     final Size size = MediaQuery.of(context).size;
     final bool isRTL = Get.locale?.languageCode == 'ar';
+    final theme = Theme.of(context);
+    final tokens = theme.extension<AppColorTokens>();
 
     return PopScope(
       canPop: false, // Prevent back button from closing
@@ -51,11 +54,12 @@ class _CheckoutLoadingDialogState extends State<CheckoutLoadingDialog> {
         child: Container(
           padding: const EdgeInsets.all(24),
           decoration: BoxDecoration(
-            color: Theme.of(context).cardColor,
+            color: theme.cardColor,
             borderRadius: BorderRadius.circular(24),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withValues(alpha: 0.1),
+                color: (tokens?.outlineSoft ?? theme.dividerColor)
+                    .withValues(alpha: 0.35),
                 blurRadius: 20,
                 offset: const Offset(0, 10),
               ),
@@ -85,7 +89,7 @@ class _CheckoutLoadingDialogState extends State<CheckoutLoadingDialog> {
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w500,
-                    color: Theme.of(context).textTheme.bodyLarge?.color,
+                    color: theme.textTheme.bodyLarge?.color,
                   ),
                 ),
               ),
@@ -97,9 +101,9 @@ class _CheckoutLoadingDialogState extends State<CheckoutLoadingDialog> {
                 width: 120,
                 child: LinearProgressIndicator(
                   backgroundColor:
-                      Theme.of(context).primaryColor.withValues(alpha: 0.2),
+                      theme.primaryColor.withValues(alpha: 0.2),
                   valueColor: AlwaysStoppedAnimation<Color>(
-                    Theme.of(context).primaryColor,
+                    theme.primaryColor,
                   ),
                 ),
               ),
@@ -135,7 +139,7 @@ Future<void> showCheckoutLoadingDialog(BuildContext context) {
   return Get.dialog<void>(
     const CheckoutLoadingDialog(),
     barrierDismissible: false,
-    barrierColor: Colors.black54,
+    barrierColor: Theme.of(context).colorScheme.scrim.withValues(alpha: 0.54),
   ).whenComplete(() {
     _isCheckoutLoadingDialogVisible = false;
   });

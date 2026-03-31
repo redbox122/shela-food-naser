@@ -9,9 +9,14 @@ library;
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:sixam_mart/common/widgets/custom_image.dart';
+import 'package:sixam_mart/features/favourite/controllers/favourite_controller.dart';
 import 'package:sixam_mart/features/language/controllers/language_controller.dart';
+import 'package:sixam_mart/features/store/controllers/store_controller.dart';
 import 'package:sixam_mart/features/store/screens/food_restaurant_search_screen.dart';
+import 'package:sixam_mart/helper/auth_helper.dart';
+import 'package:sixam_mart/theme/app_color_tokens.dart';
 import 'package:sixam_mart/util/styles.dart';
+import 'package:sixam_mart/common/widgets/custom_snackbar.dart';
 
 class GroceryStoreHeader extends StatelessWidget {
   final String coverPhotoUrl;
@@ -27,6 +32,8 @@ class GroceryStoreHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final tokens = theme.extension<AppColorTokens>()!;
     final screenWidth = MediaQuery.of(context).size.width;
     const headerHeight = 162.0;
     const imageHeight = 146.0;
@@ -65,7 +72,7 @@ class GroceryStoreHeader extends StatelessWidget {
                         borderRadius: BorderRadius.circular(8),
                       ),
                     ),
-                    child: Hero(
+                      child: Hero(
                       tag:
                           heroBannerTag ?? 'store_image_header_${storeId ?? 0}',
                       child: coverPhotoUrl.isNotEmpty
@@ -75,7 +82,7 @@ class GroceryStoreHeader extends StatelessWidget {
                               width: screenWidth - 16,
                             )
                           : Container(
-                              color: Colors.grey[300],
+                              color: tokens.surfaceSoft,
                             ),
                     ),
                   ),
@@ -89,7 +96,7 @@ class GroceryStoreHeader extends StatelessWidget {
                   width: screenWidth - 16,
                   height: imageHeight,
                   decoration: BoxDecoration(
-                    color: Colors.black.withValues(alpha: 0.2),
+                    color: theme.colorScheme.scrim.withValues(alpha: 0.2),
                     borderRadius: BorderRadius.circular(8),
                   ),
                 ),
@@ -123,7 +130,7 @@ class GroceryStoreHeader extends StatelessWidget {
                                   '07 : 00',
                                   textAlign: TextAlign.center,
                                   style: robotoBold.copyWith(
-                                    color: Colors.white,
+                                    color: theme.colorScheme.onPrimary,
                                     fontSize: 14,
                                     height: 1.50,
                                     letterSpacing: -0.28,
@@ -138,17 +145,17 @@ class GroceryStoreHeader extends StatelessWidget {
                                   mainAxisAlignment: MainAxisAlignment.end,
                                   children: [
                                     // Signal bars
-                                    _buildSignalBars(),
+                                    _buildSignalBars(context),
                                     const SizedBox(width: 8),
                                     // WiFi icon
-                                    const Icon(
+                                    Icon(
                                       Icons.wifi,
-                                      color: Colors.white,
+                                      color: theme.colorScheme.onPrimary,
                                       size: 12,
                                     ),
                                     const SizedBox(width: 8),
                                     // Battery icon
-                                    _buildBatteryIcon(),
+                                    _buildBatteryIcon(context),
                                   ],
                                 ),
                               ),
@@ -174,21 +181,49 @@ class GroceryStoreHeader extends StatelessWidget {
                                     ? TextDirection.ltr
                                     : TextDirection.rtl,
                                 children: [
-                                  _buildActionButton(
-                                    icon: Icons.favorite_border,
-                                    onTap: () {
-                                      // TODO: Implement favorite functionality
+                                  GetBuilder<FavouriteController>(
+                                    builder: (favouriteController) {
+                                      final bool isWished = storeId != null &&
+                                          favouriteController.wishStoreIdList
+                                              .contains(storeId);
+                                      return _buildActionButton(
+                                        context: context,
+                                        icon: isWished
+                                            ? Icons.favorite
+                                            : Icons.favorite_border,
+                                        onTap: () {
+                                          if (!AuthHelper.isLoggedIn()) {
+                                            showCustomSnackBar(
+                                                'you_are_not_logged_in'.tr);
+                                            return;
+                                          }
+                                          if (storeId == null) return;
+                                          if (isWished) {
+                                            favouriteController
+                                                .removeFromFavouriteList(
+                                                    storeId, true);
+                                          } else {
+                                            favouriteController
+                                                .addToFavouriteList(
+                                                    null, storeId, true);
+                                          }
+                                        },
+                                      );
                                     },
                                   ),
                                   const SizedBox(width: 16),
                                   _buildActionButton(
+                                    context: context,
                                     icon: Icons.share,
                                     onTap: () {
-                                      // TODO: Implement share functionality
+                                      final storeController =
+                                          Get.find<StoreController>();
+                                      storeController.shareStore();
                                     },
                                   ),
                                   const SizedBox(width: 16),
                                   _buildActionButton(
+                                    context: context,
                                     icon: Icons.search,
                                     onTap: () {
                                       if (storeId != null) {
@@ -201,6 +236,7 @@ class GroceryStoreHeader extends StatelessWidget {
                               ),
                               // Right side: Arrow button
                               _buildActionButton(
+                                context: context,
                                 icon: isLtr
                                     ? Icons.arrow_forward_ios
                                     : Icons.arrow_back_ios,
@@ -224,6 +260,7 @@ class GroceryStoreHeader extends StatelessWidget {
   }
 
   Widget _buildActionButton({
+    required BuildContext context,
     required IconData icon,
     required VoidCallback onTap,
   }) {
@@ -232,35 +269,38 @@ class GroceryStoreHeader extends StatelessWidget {
       child: Container(
         width: 28,
         height: 29,
-        decoration: const ShapeDecoration(
-          color: Color(0xFFD9D9D9), // Grey circle
+        decoration: ShapeDecoration(
+          color: Theme.of(context).extension<AppColorTokens>()!.surfaceSoft,
           shape: OvalBorder(),
         ),
         child: Icon(
           icon,
           size: 20,
-          color: const Color(0xFF2D3633), // Dark grey icon
+          color: Theme.of(context).textTheme.bodyLarge?.color,
         ),
       ),
     );
   }
 
-  Widget _buildSignalBars() {
+  Widget _buildSignalBars(BuildContext context) {
     return SizedBox(
       width: 17.5,
       height: 12,
       child: CustomPaint(
-        painter: SignalBarsPainter(),
+        painter: SignalBarsPainter(fillColor: Theme.of(context).colorScheme.onPrimary),
       ),
     );
   }
 
-  Widget _buildBatteryIcon() {
+  Widget _buildBatteryIcon(BuildContext context) {
     return SizedBox(
       width: 24.5,
       height: 12,
       child: CustomPaint(
-        painter: BatteryIconPainter(),
+        painter: BatteryIconPainter(
+          fillColor: Theme.of(context).colorScheme.onPrimary,
+          outlineColor: Theme.of(context).colorScheme.outlineVariant,
+        ),
       ),
     );
   }
@@ -268,10 +308,13 @@ class GroceryStoreHeader extends StatelessWidget {
 
 // Custom painter for signal bars
 class SignalBarsPainter extends CustomPainter {
+  final Color fillColor;
+  SignalBarsPainter({required this.fillColor});
+
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
-      ..color = Colors.white
+      ..color = fillColor
       ..style = PaintingStyle.fill;
 
     // Draw 4 signal bars with exact positioning from design
@@ -320,16 +363,20 @@ class SignalBarsPainter extends CustomPainter {
 
 // Custom painter for battery icon
 class BatteryIconPainter extends CustomPainter {
+  final Color fillColor;
+  final Color outlineColor;
+  BatteryIconPainter({required this.fillColor, required this.outlineColor});
+
   @override
   void paint(Canvas canvas, Size size) {
     // Battery outline (grey)
     final outlinePaint = Paint()
-      ..color = const Color(0xFFDADADA)
+      ..color = outlineColor
       ..style = PaintingStyle.fill;
 
     // Battery fill (white)
     final fillPaint = Paint()
-      ..color = Colors.white
+      ..color = fillColor
       ..style = PaintingStyle.fill;
 
     // Main battery body

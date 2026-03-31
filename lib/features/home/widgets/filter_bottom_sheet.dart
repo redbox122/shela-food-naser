@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:sixam_mart/theme/app_color_tokens.dart';
 import 'package:sixam_mart/util/dimensions.dart';
 import 'package:sixam_mart/util/styles.dart';
 
@@ -90,7 +91,7 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
                     'التصنيفات',
                     style: robotoMedium.copyWith(
                       fontSize: Dimensions.fontSizeLarge * 1.37, // ~21.90
-                      color: const Color(0xFF5C5D5E),
+                      color: Theme.of(context).textTheme.bodyLarge?.color,
                     ),
                   ),
                 ],
@@ -147,7 +148,7 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
           'نوع الطعام',
           style: robotoMedium.copyWith(
             fontSize: Dimensions.fontSizeLarge * 1.43, // ~22.90
-            color: const Color(0xFF535456),
+            color: Theme.of(context).textTheme.bodyLarge?.color,
           ),
         ),
         const SizedBox(height: Dimensions.paddingSizeDefault),
@@ -155,7 +156,7 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
           scaleFactor,
           'الكل',
           'all',
-          const Color(0xFF5C5C5C),
+          Theme.of(context).textTheme.bodyMedium?.color ?? Theme.of(context).disabledColor,
           Dimensions.fontSizeLarge * 1.06, // ~17.00
           FontWeight.w300,
         ),
@@ -163,7 +164,7 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
           scaleFactor,
           'نباتي',
           'veg',
-          const Color(0xFF6F6F6F),
+          Theme.of(context).textTheme.bodyMedium?.color ?? Theme.of(context).disabledColor,
           Dimensions.fontSizeLarge * 1.05, // ~16.80
           FontWeight.w400,
         ),
@@ -171,7 +172,7 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
           scaleFactor,
           'غير نباتي',
           'non_veg',
-          const Color(0xFF575757),
+          Theme.of(context).textTheme.bodyMedium?.color ?? Theme.of(context).disabledColor,
           Dimensions.fontSizeLarge * 1.05, // ~16.80
           FontWeight.w400,
         ),
@@ -232,7 +233,7 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
               _recentlyAdded = value ?? false;
             });
           },
-          const Color(0xFF696969),
+          Theme.of(context).textTheme.bodyMedium?.color ?? Theme.of(context).disabledColor,
           Dimensions.fontSizeLarge * 1.22, // ~19.50
         ),
         _buildCheckboxOption(
@@ -244,7 +245,7 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
               _highestRated = value ?? false;
             });
           },
-          const Color(0xFF616161),
+          Theme.of(context).textTheme.bodyMedium?.color ?? Theme.of(context).disabledColor,
           Dimensions.fontSizeLarge * 1.31, // ~20.90
         ),
         _buildCheckboxOption(
@@ -256,7 +257,7 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
               _fastestDelivery = value ?? false;
             });
           },
-          const Color(0xFF666666),
+          Theme.of(context).textTheme.bodyMedium?.color ?? Theme.of(context).disabledColor,
           Dimensions.fontSizeLarge * 1.26, // ~20.10
         ),
       ],
@@ -309,7 +310,7 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
           'نطاق السعر ريال سعودي',
           style: robotoMedium.copyWith(
             fontSize: Dimensions.fontSizeLarge * 1.54, // ~24.60
-            color: const Color(0xFF5C5D5E),
+            color: Theme.of(context).textTheme.bodyLarge?.color,
           ),
         ),
         const SizedBox(height: Dimensions.paddingSizeDefault),
@@ -338,14 +339,14 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
               '${_priceRange.start.round()} ريال',
               style: robotoRegular.copyWith(
                 fontSize: Dimensions.fontSizeDefault,
-                color: const Color(0xFF787878),
+                color: Theme.of(context).disabledColor,
               ),
             ),
             Text(
               '${_priceRange.end.round()} ريال',
               style: robotoRegular.copyWith(
                 fontSize: Dimensions.fontSizeDefault,
-                color: const Color(0xFF787878),
+                color: Theme.of(context).disabledColor,
               ),
             ),
           ],
@@ -363,7 +364,7 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
           'فرز حسب',
           style: robotoMedium.copyWith(
             fontSize: Dimensions.fontSizeLarge * 1.43, // ~22.90
-            color: const Color(0xFF535456),
+            color: Theme.of(context).textTheme.bodyLarge?.color,
           ),
         ),
         const SizedBox(height: Dimensions.paddingSizeDefault),
@@ -373,7 +374,7 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
           scaleFactor,
           'الموصى به',
           'recommended',
-          const Color(0xFF5C5C5C),
+          Theme.of(context).textTheme.bodyMedium?.color ?? Theme.of(context).disabledColor,
           Dimensions.fontSizeLarge * 1.06, // ~17
           FontWeight.w300,
         ),
@@ -381,7 +382,7 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
           scaleFactor,
           'المسافة',
           'distance',
-          const Color(0xFF6F6F6F),
+          Theme.of(context).textTheme.bodyMedium?.color ?? Theme.of(context).disabledColor,
           Dimensions.fontSizeLarge * 1.05, // ~16.80
           FontWeight.w400,
         ),
@@ -389,7 +390,7 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
           scaleFactor,
           'التقييمات من الأعلى إلى الأقل',
           'ratings_desc',
-          const Color(0xFF575757),
+          Theme.of(context).textTheme.bodyMedium?.color ?? Theme.of(context).disabledColor,
           Dimensions.fontSizeLarge * 1.28, // ~20.50
           FontWeight.w400,
         ),
@@ -397,7 +398,7 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
           scaleFactor,
           'وقت التوصيل من الأقل إلى الأعلى',
           'delivery_time_asc',
-          const Color(0xFF555555),
+          Theme.of(context).textTheme.bodyMedium?.color ?? Theme.of(context).disabledColor,
           Dimensions.fontSizeLarge * 1.28, // ~20.50
           FontWeight.w400,
         ),
@@ -458,13 +459,15 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
   }
 
   Widget _buildActionButtons(double scaleFactor) {
+    final theme = Theme.of(context);
+    final tokens = theme.extension<AppColorTokens>()!;
     return Container(
       padding: const EdgeInsets.all(Dimensions.paddingSizeDefault),
       decoration: BoxDecoration(
-        color: Theme.of(context).cardColor,
+        color: theme.cardColor,
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
+            color: theme.shadowColor.withValues(alpha: 0.25),
             blurRadius: 10,
             offset: const Offset(0, -2),
           ),
@@ -501,7 +504,7 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
               child: Container(
                 height: 75 * scaleFactor,
                 decoration: BoxDecoration(
-                  color: const Color(0xFFFEEA00),
+                  color: tokens.warningSoft,
                   borderRadius: BorderRadius.only(
                     topLeft: Radius.circular(12 * scaleFactor),
                     topRight: Radius.circular(7 * scaleFactor),
@@ -509,7 +512,7 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
                     bottomRight: Radius.circular(6 * scaleFactor),
                   ),
                   border: Border.all(
-                    color: const Color(0xFFF7EC4F),
+                    color: tokens.warningText.withValues(alpha: 0.35),
                   ),
                 ),
                 child: Center(
@@ -517,7 +520,7 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
                     'تطبيق',
                     style: robotoMedium.copyWith(
                       fontSize: Dimensions.fontSizeLarge * 1.24, // ~19.80
-                      color: const Color(0xFF51450A),
+                      color: tokens.warningText,
                     ),
                   ),
                 ),
@@ -545,7 +548,7 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
               width: 197 * scaleFactor,
               height: 75 * scaleFactor,
               decoration: BoxDecoration(
-                color: const Color(0xFFEAEBEC),
+                color: tokens.surfaceSoft,
                 borderRadius: BorderRadius.circular(9 * scaleFactor),
               ),
               child: Center(
@@ -553,7 +556,7 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
                   'مسح الكل',
                   style: robotoMedium.copyWith(
                     fontSize: Dimensions.fontSizeLarge * 1.31, // ~20.90
-                    color: const Color(0xFFB5BABD),
+                    color: theme.disabledColor,
                   ),
                 ),
               ),
@@ -564,3 +567,5 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
     );
   }
 }
+
+

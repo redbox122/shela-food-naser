@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import 'package:sixam_mart/common/utils/app_logger.dart';
 import 'package:sixam_mart/features/category/controllers/category_controller.dart';
 import 'package:sixam_mart/features/splash/controllers/splash_controller.dart';
+import 'package:sixam_mart/theme/app_color_tokens.dart';
 import 'package:sixam_mart/util/app_constants.dart';
 import 'package:sixam_mart/util/dimensions.dart';
 import 'package:sixam_mart/util/styles.dart';
@@ -153,7 +154,10 @@ class _CategoryFilterBarState extends State<CategoryFilterBar> {
       builder: (categoryController) {
         _syncLocalStateIfControllerReset(categoryController);
 
-        const Color selectedChipColor = Color(0xFFC8E6C9);
+        final theme = Theme.of(context);
+        final tokens = theme.extension<AppColorTokens>()!;
+        final Color selectedChipColor = tokens.successSoft;
+        final Color selectedChipTextColor = theme.primaryColor;
         final bool hasActiveFilters = _selectedSort != 'popular' ||
             (_minPrice.isNotEmpty && _minPrice != '0') ||
             (_maxPrice.isNotEmpty && _maxPrice != '0') ||
@@ -252,7 +256,7 @@ class _CategoryFilterBarState extends State<CategoryFilterBar> {
                         Icons.filter_list,
                         size: 20,
                         color: hasActiveFilters
-                            ? const Color(0xFF1B5E20)
+                            ? selectedChipTextColor
                             : Theme.of(context).primaryColor,
                       ),
                       const SizedBox(width: 4),
@@ -261,7 +265,7 @@ class _CategoryFilterBarState extends State<CategoryFilterBar> {
                         style: robotoMedium.copyWith(
                           fontSize: Dimensions.fontSizeSmall,
                           color: hasActiveFilters
-                              ? const Color(0xFF1B5E20)
+                              ? selectedChipTextColor
                               : Theme.of(context).primaryColor,
                         ),
                       ),
@@ -455,7 +459,10 @@ class _CategoryFilterBarState extends State<CategoryFilterBar> {
   }
 
   Widget _buildSortOptions({StateSetter? modalSetState}) {
-    const Color selectedChipColor = Color(0xFFC8E6C9);
+    final theme = Theme.of(context);
+    final tokens = theme.extension<AppColorTokens>()!;
+    final Color selectedChipColor = tokens.successSoft;
+    final Color selectedChipTextColor = theme.primaryColor;
 
     return Wrap(
       spacing: Dimensions.paddingSizeSmall,
@@ -469,7 +476,7 @@ class _CategoryFilterBarState extends State<CategoryFilterBar> {
           label: Text(label),
           selected: isSelected,
           showCheckmark: true,
-          checkmarkColor: const Color(0xFF1B5E20),
+          checkmarkColor: selectedChipTextColor,
           onSelected: (selected) {
             if (selected) {
               final updater = modalSetState ?? setState;
@@ -483,7 +490,7 @@ class _CategoryFilterBarState extends State<CategoryFilterBar> {
           selectedColor: selectedChipColor,
           labelStyle: TextStyle(
             color: isSelected
-                ? const Color(0xFF1B5E20)
+                ? selectedChipTextColor
                 : Theme.of(context).textTheme.bodyLarge?.color,
           ),
         );
@@ -492,7 +499,10 @@ class _CategoryFilterBarState extends State<CategoryFilterBar> {
   }
 
   Widget _buildPriceRangeChips({StateSetter? modalSetState}) {
-    const Color selectedChipColor = Color(0xFFC8E6C9);
+    final theme = Theme.of(context);
+    final tokens = theme.extension<AppColorTokens>()!;
+    final Color selectedChipColor = tokens.successSoft;
+    final Color selectedChipTextColor = theme.primaryColor;
 
     return Wrap(
       spacing: Dimensions.paddingSizeSmall,
@@ -505,7 +515,7 @@ class _CategoryFilterBarState extends State<CategoryFilterBar> {
           label: Text(label),
           selected: isSelected,
           showCheckmark: true,
-          checkmarkColor: const Color(0xFF1B5E20),
+          checkmarkColor: selectedChipTextColor,
           onSelected: (selected) {
             if (selected) {
               final updater = modalSetState ?? setState;
@@ -522,7 +532,7 @@ class _CategoryFilterBarState extends State<CategoryFilterBar> {
           selectedColor: selectedChipColor,
           labelStyle: TextStyle(
             color: isSelected
-                ? const Color(0xFF1B5E20)
+                ? selectedChipTextColor
                 : Theme.of(context).textTheme.bodyLarge?.color,
           ),
         );

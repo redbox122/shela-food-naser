@@ -955,7 +955,7 @@ class _HomeScreenState extends State<HomeScreen> {
             isScrollControlled: true,
             useRootNavigator: true,
             context: Get.context!,
-            backgroundColor: Colors.white,
+            backgroundColor: Theme.of(context).colorScheme.surface,
             shape: const RoundedRectangleBorder(
               borderRadius: BorderRadius.only(
                   topLeft: Radius.circular(Dimensions.radiusExtraLarge),
@@ -1036,7 +1036,7 @@ class _HomeScreenState extends State<HomeScreen> {
               '🏗️ [Module-First] HomeScreen: Module is null - showing skeleton (defensive layer)');
         }
         return Scaffold(
-          backgroundColor: Colors.white,
+          backgroundColor: Theme.of(context).colorScheme.surface,
           body: Center(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -1125,7 +1125,7 @@ class _HomeScreenState extends State<HomeScreen> {
         }
         // Show skeleton while waiting for module selection
         return Scaffold(
-          backgroundColor: Colors.white,
+          backgroundColor: Theme.of(context).colorScheme.surface,
           body: Center(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,

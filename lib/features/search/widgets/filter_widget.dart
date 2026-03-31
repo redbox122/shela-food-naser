@@ -90,7 +90,7 @@ class FilterWidget extends StatelessWidget {
                         textAlign: TextAlign.center,
                         style: robotoMedium.copyWith(
                           color: (isStore ? searchController.storeSortIndex == index : searchController.sortIndex == index)
-                              ? Colors.white
+                              ? Theme.of(context).colorScheme.onPrimary
                               : Theme.of(context).hintColor,
                         ),
                         maxLines: 1,

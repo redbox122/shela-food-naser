@@ -1,86 +1,176 @@
 import 'package:myfatoorah_flutter/MFModels.dart';
 
-/// Maps backend payment methods response to MFPaymentMethod objects
-/// This allows us to use backend endpoint instead of direct SDK calls
 class MyFatoorahMapper {
-  /// Convert backend response data to List<MFPaymentMethod>
-  /// 
-  /// Backend response format:
-  /// {
-  ///   "success": true,
-  ///   "data": [
-  ///     {
-  ///       "PaymentMethodId": 1,
-  ///       "PaymentMethodEn": "VISA/MASTER",
-  ///       "PaymentMethodAr": "فيزا/ماستر",
-  ///       "ImageUrl": "https://sa.myfatoorah.com/imgs/payment-methods/vm.png",
-  ///       "PaymentMethodCode": "vm",
-  ///       "IsDirectPayment": true,
-  ///       "ServiceCharge": 0.0,
-  ///       "TotalAmount": 4724.88
-  ///     }
-  ///   ]
-  /// }
   static List<MFPaymentMethod> mapBackendResponseToPaymentMethods(
     List<dynamic> backendData,
   ) {
-    return backendData.map((item) {
+    final List<MFPaymentMethod> mapped = backendData.map((item) {
       return _mapSinglePaymentMethod(item as Map<String, dynamic>);
     }).toList();
+
+    return _normalizeAndDedupe(mapped);
   }
 
-  /// Map a single payment method from backend format to MFPaymentMethod
   static MFPaymentMethod _mapSinglePaymentMethod(Map<String, dynamic> data) {
-    // Create MFPaymentMethod using the SDK's structure
-    // Backend response uses PascalCase, SDK uses camelCase properties
-    // ✅ FIX: Backend sends 'ImageUrl' (not 'PaymentMethodLogoUrl')
+    final int? paymentMethodId = (data['id'] ?? data['PaymentMethodId']) as int?;
+    final String? paymentMethodEn =
+        (data['name_en'] ?? data['PaymentMethodEn']) as String?;
+    final String? paymentMethodAr =
+        (data['name_ar'] ?? data['PaymentMethodAr']) as String?;
+    final String? imageUrl = _extractImageUrl(data);
+    final bool? isDirectPayment =
+        (data['is_direct_payment'] ?? data['IsDirectPayment']) as bool?;
+    final num? serviceCharge =
+        (data['service_charge'] ?? data['ServiceCharge']) as num?;
+    final num? totalAmount = (data['total_amount'] ?? data['TotalAmount']) as num?;
+    final String? backendCode =
+        (data['payment_method_code'] ?? data['PaymentMethodCode']) as String?;
+
+    final String? normalizedCode = normalizeBackendPaymentMethodCode(
+          backendCode,
+          methodEn: paymentMethodEn,
+          methodAr: paymentMethodAr,
+        ) ??
+        _extractFallbackPaymentMethodCode(paymentMethodEn, paymentMethodAr);
+
     return MFPaymentMethod(
-      paymentMethodId: data['PaymentMethodId'] as int?,
-      paymentMethodEn: data['PaymentMethodEn'] as String?,
-      paymentMethodAr: data['PaymentMethodAr'] as String?,
-      imageUrl: data['ImageUrl'] as String?, // ✅ FIX: Backend field is 'ImageUrl'
-      isDirectPayment: data['IsDirectPayment'] as bool?,
-      serviceCharge: data['ServiceCharge'] as num?,
-      totalAmount: data['TotalAmount'] as num?,
-      // Map payment method code - prefer backend field, fallback to extraction
-      paymentMethodCode: data['PaymentMethodCode'] as String? ?? 
-        _extractPaymentMethodCode(
-          data['PaymentMethodEn'] as String?,
-          data['PaymentMethodAr'] as String?,
-        ),
+      paymentMethodId: paymentMethodId,
+      paymentMethodEn: paymentMethodEn,
+      paymentMethodAr: paymentMethodAr,
+      imageUrl: imageUrl ?? _defaultLogoForCode(normalizedCode),
+      isDirectPayment: isDirectPayment,
+      serviceCharge: serviceCharge,
+      totalAmount: totalAmount,
+      paymentMethodCode: normalizedCode,
     );
   }
 
-  /// Extract payment method code from name for filtering purposes
-  /// This helps identify Apple Pay, Google Pay, etc.
-  static String? _extractPaymentMethodCode(
+  // Canonical backend values:
+  // VISA_MASTER | MADA | STC_PAY | APPLE_PAY
+  static String? normalizeBackendPaymentMethodCode(
+    String? code, {
     String? methodEn,
     String? methodAr,
-  ) {
-    if (methodEn == null && methodAr == null) return null;
+  }) {
+    final String rawCode = (code ?? '').trim().toUpperCase();
+    final String en = (methodEn ?? '').toUpperCase();
+    final String ar = (methodAr ?? '').toUpperCase();
+    final String all = '$rawCode $en $ar';
 
-    final String combined = '${methodEn ?? ''} ${methodAr ?? ''}'.toLowerCase();
-
-    // Common payment method codes
-    if (combined.contains('apple') || combined.contains('أبل')) {
-      return 'AP';
+    if (all.contains('APPLE_PAY') || all.contains('APPLE') || rawCode == 'AP') {
+      return 'APPLE_PAY';
     }
-    if (combined.contains('google') || combined.contains('جوجل')) {
-      return 'GP';
-    }
-    if (combined.contains('visa') || combined.contains('فيزا')) {
-      return 'VISA';
-    }
-    if (combined.contains('master') || combined.contains('ماستر')) {
-      return 'MASTER';
-    }
-    if (combined.contains('mada') || combined.contains('مدى')) {
+    if (all.contains('MADA') || rawCode == 'MD') {
       return 'MADA';
     }
-    if (combined.contains('stc') || combined.contains('stc pay')) {
-      return 'STC';
+    if (all.contains('STC_PAY') || all.contains('STC')) {
+      return 'STC_PAY';
+    }
+    if (all.contains('VISA_MASTER') ||
+        all.contains('VISA') ||
+        all.contains('MASTER') ||
+        rawCode == 'VM') {
+      return 'VISA_MASTER';
     }
 
     return null;
+  }
+
+  static String? _extractFallbackPaymentMethodCode(
+    String? methodEn,
+    String? methodAr,
+  ) {
+    final String all = '${methodEn ?? ''} ${methodAr ?? ''}'.toUpperCase();
+    if (all.contains('APPLE')) return 'APPLE_PAY';
+    if (all.contains('MADA')) return 'MADA';
+    if (all.contains('STC')) return 'STC_PAY';
+    if (all.contains('VISA') || all.contains('MASTER')) return 'VISA_MASTER';
+    return null;
+  }
+
+  static String? _extractImageUrl(Map<String, dynamic> data) {
+    final List<String> possibleKeys = <String>[
+      'logo_url',
+      'image_url',
+      'image',
+      'ImageUrl',
+      'PaymentMethodLogoUrl',
+      'payment_method_logo_url',
+    ];
+
+    for (final key in possibleKeys) {
+      final dynamic value = data[key];
+      if (value is String && value.trim().isNotEmpty) {
+        return value.trim();
+      }
+    }
+
+    final dynamic logo = data['logo'];
+    if (logo is Map<String, dynamic>) {
+      final dynamic nestedUrl = logo['url'] ?? logo['image_url'] ?? logo['image'];
+      if (nestedUrl is String && nestedUrl.trim().isNotEmpty) {
+        return nestedUrl.trim();
+      }
+    }
+
+    return null;
+  }
+
+  static String? _defaultLogoForCode(String? normalizedCode) {
+    switch ((normalizedCode ?? '').toUpperCase()) {
+      case 'VISA_MASTER':
+        return 'https://sa.myfatoorah.com/imgs/payment-methods/vm.png';
+      case 'MADA':
+        return 'https://sa.myfatoorah.com/imgs/payment-methods/md.png';
+      case 'STC_PAY':
+        // STC icon on MyFatoorah is usually `stc.png` (not `stcpay.png`).
+        return 'https://sa.myfatoorah.com/imgs/payment-methods/stc.png';
+      case 'APPLE_PAY':
+        return 'https://sa.myfatoorah.com/imgs/payment-methods/ap.png';
+      default:
+        return null;
+    }
+  }
+
+  static List<MFPaymentMethod> _normalizeAndDedupe(
+    List<MFPaymentMethod> methods,
+  ) {
+    final bool hasRegularMada = methods.any(
+      (method) => !_isAppleMethod(method) && _isMadaMethod(method),
+    );
+
+    final List<MFPaymentMethod> filtered = <MFPaymentMethod>[];
+    bool applePayAdded = false;
+
+    for (final method in methods) {
+      if (_isAppleMethod(method)) {
+        // Keep one Apple Pay only. If "Apple Pay (MADA)" exists with regular MADA,
+        // regular MADA remains and duplicate Apple entries are removed.
+        if (hasRegularMada && _isMadaMethod(method)) {
+          continue;
+        }
+        if (applePayAdded) {
+          continue;
+        }
+        applePayAdded = true;
+      }
+      filtered.add(method);
+    }
+
+    return filtered;
+  }
+
+  static bool _isAppleMethod(MFPaymentMethod method) {
+    final String code = (method.paymentMethodCode ?? '').toUpperCase();
+    final String en = (method.paymentMethodEn ?? '').toUpperCase();
+    final String ar = (method.paymentMethodAr ?? '').toUpperCase();
+    return code == 'APPLE_PAY' || code == 'AP' || en.contains('APPLE') || ar.contains('APPLE');
+  }
+
+  static bool _isMadaMethod(MFPaymentMethod method) {
+    final String code = (method.paymentMethodCode ?? '').toUpperCase();
+    final String en = (method.paymentMethodEn ?? '').toUpperCase();
+    final String ar = (method.paymentMethodAr ?? '').toUpperCase();
+    return code == 'MADA' || code == 'MD' || en.contains('MADA') || ar.contains('MADA');
   }
 }

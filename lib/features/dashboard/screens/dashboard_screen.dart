@@ -369,6 +369,15 @@ class DashboardScreenState extends State<DashboardScreen> {
                           .showLocationSuggestion &&
                       active) ||
                   keyboardVisible);
+              final bool shouldShowRunningOrdersSheet = !((widget.fromSplash &&
+                      Get.find<LocationController>()
+                          .showLocationSuggestion &&
+                      active &&
+                      !ResponsiveHelper.isDesktop(context)) ||
+                  !_isLogin ||
+                  runningOrder.isEmpty ||
+                  !orderController.showBottomSheet ||
+                  !_shouldShowRunningOrdersBar(reversOrder));
 
               return Scaffold(
                 key: _scaffoldKey,
@@ -381,14 +390,9 @@ class DashboardScreenState extends State<DashboardScreen> {
                       itemBuilder: (context, index) => _screens[index],
                     ),
                   ]),
-                  persistentContentHeight: (widget.fromSplash &&
-                          Get.find<LocationController>()
-                              .showLocationSuggestion &&
-                          active)
-                      ? 0
-                      : GetPlatform.isIOS
-                          ? 110
-                          : 100,
+                  persistentContentHeight: shouldShowRunningOrdersSheet
+                      ? (GetPlatform.isIOS ? 110 : 100)
+                      : 0,
                   onIsContractedCallback: () {
                     if (!orderController.showOneOrder) {
                       orderController.showOrders();
@@ -400,17 +404,8 @@ class DashboardScreenState extends State<DashboardScreen> {
                     }
                   },
                   enableToggle: true,
-                  expandableContent: (widget.fromSplash &&
-                              Get.find<LocationController>()
-                                  .showLocationSuggestion &&
-                              active &&
-                              !ResponsiveHelper.isDesktop(context)) ||
-                          !_isLogin ||
-                          runningOrder.isEmpty ||
-                          !orderController.showBottomSheet ||
-                          !_shouldShowRunningOrdersBar(reversOrder)
-                      ? const SizedBox()
-                      : Dismissible(
+                  expandableContent: shouldShowRunningOrdersSheet
+                      ? Dismissible(
                           key: UniqueKey(),
                           onDismissed: (direction) =>
                               orderController.showRunningOrders(),
@@ -424,7 +419,8 @@ class DashboardScreenState extends State<DashboardScreen> {
                               orderController.showRunningOrders();
                             },
                           ),
-                        ),
+                        )
+                      : const SizedBox(),
                 ),
                 floatingActionButton: !showBottomChrome
                     ? null
@@ -435,13 +431,22 @@ class DashboardScreenState extends State<DashboardScreen> {
                         backgroundColor: Theme.of(context).primaryColor,
                         shape: const CircleBorder(),
                         child: isTaxiWithCache
-                            ? const TaxiCartWidget(
-                                color: Colors.white, size: 22)
+                            ? TaxiCartWidget(
+                                color: Theme.of(context).colorScheme.onPrimary,
+                                size: 22,
+                              )
                             : isParcel
-                                ? const Icon(CupertinoIcons.add,
-                                    size: 28, color: Colors.white)
-                                : const CartWidget(
-                                    color: Colors.white, size: 22),
+                                ? Icon(
+                                    CupertinoIcons.add,
+                                    size: 28,
+                                    color:
+                                        Theme.of(context).colorScheme.onPrimary,
+                                  )
+                                : CartWidget(
+                                    color:
+                                        Theme.of(context).colorScheme.onPrimary,
+                                    size: 22,
+                                  ),
                         onPressed: () {
                           // Handle cart navigation
                           if (isParcel) {
@@ -483,7 +488,10 @@ class DashboardScreenState extends State<DashboardScreen> {
                               tabBuilder: (int index, bool isActive) {
                                 final Color iconColor = isActive
                                     ? Theme.of(context).primaryColor
-                                    : Colors.grey.shade400;
+                                    : Theme.of(context)
+                                        .colorScheme
+                                        .onSurface
+                                        .withValues(alpha: 0.55);
                                 final bool isFavTab = !isParcel && index == 1;
                                 return SizedBox(
                                   width: 28,
@@ -501,8 +509,10 @@ class DashboardScreenState extends State<DashboardScreen> {
                                             child: Text(
                                               favBadgeText,
                                               textAlign: TextAlign.center,
-                                              style: const TextStyle(
-                                                color: Colors.red,
+                                              style: TextStyle(
+                                                color: Theme.of(context)
+                                                    .colorScheme
+                                                    .error,
                                                 fontSize: 9,
                                                 fontWeight: FontWeight.w700,
                                               ),
@@ -518,12 +528,15 @@ class DashboardScreenState extends State<DashboardScreen> {
                               notchSmoothness: NotchSmoothness.softEdge,
                               leftCornerRadius: 0,
                               rightCornerRadius: 0,
-                              backgroundColor: Colors.white,
+                              backgroundColor:
+                                  Theme.of(context).colorScheme.surface,
                               shadow: BoxShadow(
                                 offset: const Offset(0, 1),
                                 blurRadius: 12,
                                 spreadRadius: 0.5,
-                                color: Colors.grey.withValues(alpha: 0.2),
+                                color: Theme.of(context)
+                                    .shadowColor
+                                    .withValues(alpha: 0.16),
                               ),
                               onTap: (int index) {
                                 if (index == 0) {

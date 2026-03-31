@@ -12,6 +12,7 @@ import 'package:sixam_mart/features/item/domain/models/item_model.dart';
 import 'package:sixam_mart/features/category/controllers/category_controller.dart';
 import 'package:sixam_mart/features/splash/controllers/splash_controller.dart';
 import 'package:sixam_mart/helper/responsive_helper.dart';
+import 'package:sixam_mart/theme/app_color_tokens.dart';
 import 'package:sixam_mart/util/dimensions.dart';
 import 'package:sixam_mart/util/styles.dart';
 
@@ -233,7 +234,10 @@ class _OffersItemScreen extends State<OffersItemScreen> {
           );
         }
         return GetBuilder<CategoryController>(builder: (categoryController) {
-          const Color selectedChipColor = Color(0xFFC8E6C9);
+          final theme = Theme.of(context);
+          final tokens = theme.extension<AppColorTokens>()!;
+          final Color selectedChipColor = tokens.successSoft;
+          final Color selectedChipTextColor = theme.primaryColor;
           final bool hasActiveFilters =
               _selectedSort != 'popular' ||
               (_minPrice.isNotEmpty && _minPrice != '0') ||
@@ -350,7 +354,7 @@ class _OffersItemScreen extends State<OffersItemScreen> {
                                           Icons.filter_list,
                                           size: 20,
                                           color: hasActiveFilters
-                                              ? const Color(0xFF1B5E20)
+                                              ? selectedChipTextColor
                                               : Theme.of(context).primaryColor,
                                         ),
                                         const SizedBox(width: 4),
@@ -359,7 +363,7 @@ class _OffersItemScreen extends State<OffersItemScreen> {
                                           style: robotoMedium.copyWith(
                                             fontSize: Dimensions.fontSizeSmall,
                                             color: hasActiveFilters
-                                                ? const Color(0xFF1B5E20)
+                                                ? selectedChipTextColor
                                                 : Theme.of(context).primaryColor,
                                           ),
                                         ),
@@ -670,7 +674,10 @@ class _OffersItemScreen extends State<OffersItemScreen> {
   }
 
   Widget _buildSortChips({StateSetter? modalSetState}) {
-    const Color selectedChipColor = Color(0xFFC8E6C9);
+    final theme = Theme.of(context);
+    final tokens = theme.extension<AppColorTokens>()!;
+    final Color selectedChipColor = tokens.successSoft;
+    final Color selectedChipTextColor = theme.primaryColor;
     const values = <String>['popular', 'ascending', 'descending'];
     return Wrap(
       spacing: Dimensions.paddingSizeSmall,
@@ -686,7 +693,7 @@ class _OffersItemScreen extends State<OffersItemScreen> {
           label: Text(label),
           selected: isSelected,
           showCheckmark: true,
-          checkmarkColor: const Color(0xFF1B5E20),
+          checkmarkColor: selectedChipTextColor,
           onSelected: (selected) {
             if (!selected) return;
             final updater = modalSetState ?? setState;
@@ -697,7 +704,7 @@ class _OffersItemScreen extends State<OffersItemScreen> {
           selectedColor: selectedChipColor,
           labelStyle: TextStyle(
             color: isSelected
-                ? const Color(0xFF1B5E20)
+                ? selectedChipTextColor
                 : Theme.of(context).textTheme.bodyLarge?.color,
           ),
         );
@@ -706,7 +713,10 @@ class _OffersItemScreen extends State<OffersItemScreen> {
   }
 
   Widget _buildPriceRangeChips({StateSetter? modalSetState}) {
-    const Color selectedChipColor = Color(0xFFC8E6C9);
+    final theme = Theme.of(context);
+    final tokens = theme.extension<AppColorTokens>()!;
+    final Color selectedChipColor = tokens.successSoft;
+    final Color selectedChipTextColor = theme.primaryColor;
     return Wrap(
       spacing: Dimensions.paddingSizeSmall,
       runSpacing: Dimensions.paddingSizeSmall,
@@ -718,7 +728,7 @@ class _OffersItemScreen extends State<OffersItemScreen> {
           label: Text(label),
           selected: isSelected,
           showCheckmark: true,
-          checkmarkColor: const Color(0xFF1B5E20),
+          checkmarkColor: selectedChipTextColor,
           onSelected: (selected) {
             if (!selected) return;
             final updater = modalSetState ?? setState;
@@ -731,7 +741,7 @@ class _OffersItemScreen extends State<OffersItemScreen> {
           selectedColor: selectedChipColor,
           labelStyle: TextStyle(
             color: isSelected
-                ? const Color(0xFF1B5E20)
+                ? selectedChipTextColor
                 : Theme.of(context).textTheme.bodyLarge?.color,
           ),
         );
@@ -751,7 +761,10 @@ class _OffersItemScreen extends State<OffersItemScreen> {
       );
     }
 
-    const Color selectedChipColor = Color(0xFFC8E6C9);
+    final theme = Theme.of(context);
+    final tokens = theme.extension<AppColorTokens>()!;
+    final Color selectedChipColor = tokens.successSoft;
+    final Color selectedChipTextColor = theme.primaryColor;
     return Wrap(
       spacing: Dimensions.paddingSizeSmall,
       runSpacing: Dimensions.paddingSizeSmall,
@@ -763,7 +776,7 @@ class _OffersItemScreen extends State<OffersItemScreen> {
           label: Text(category.name ?? ''),
           selected: isSelected,
           showCheckmark: true,
-          checkmarkColor: const Color(0xFF1B5E20),
+          checkmarkColor: selectedChipTextColor,
           onSelected: (_) {
             controller.toggleCategorySelection(categoryId);
             final updater = modalSetState ?? setState;
@@ -772,7 +785,7 @@ class _OffersItemScreen extends State<OffersItemScreen> {
           selectedColor: selectedChipColor,
           labelStyle: TextStyle(
             color: isSelected
-                ? const Color(0xFF1B5E20)
+                ? selectedChipTextColor
                 : Theme.of(context).textTheme.bodyLarge?.color,
           ),
         );

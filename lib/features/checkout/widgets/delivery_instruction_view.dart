@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:sixam_mart/features/checkout/controllers/checkout_controller.dart';
+import 'package:sixam_mart/theme/app_color_tokens.dart';
 import 'package:sixam_mart/util/app_constants.dart';
 import 'package:sixam_mart/util/dimensions.dart';
 import 'package:sixam_mart/util/styles.dart';
@@ -17,11 +18,13 @@ class _DeliveryInstructionViewState extends State<DeliveryInstructionView> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final tokens = theme.extension<AppColorTokens>();
 
     return Container(
       decoration: BoxDecoration(
-        color: Theme.of(context).cardColor,
-        boxShadow: [BoxShadow(color: Theme.of(context).primaryColor.withValues(alpha: 0.05), blurRadius: 10)],
+        color: theme.cardColor,
+        boxShadow: [BoxShadow(color: theme.primaryColor.withValues(alpha: 0.05), blurRadius: 10)],
       ),
       padding: const EdgeInsets.symmetric(horizontal: Dimensions.paddingSizeLarge, vertical: Dimensions.paddingSizeExtraSmall),
       child: GetBuilder<CheckoutController>(
@@ -55,7 +58,9 @@ class _DeliveryInstructionViewState extends State<DeliveryInstructionView> {
                       },
                       child: Container(
                         decoration: BoxDecoration(
-                          color: isSelected ? Theme.of(context).primaryColor.withValues(alpha: 0.5) : Colors.grey[200],
+                          color: isSelected
+                              ? theme.primaryColor.withValues(alpha: 0.5)
+                              : (tokens?.surfaceSoft ?? theme.colorScheme.surfaceContainerHighest),
                           borderRadius: BorderRadius.circular(Dimensions.radiusSmall),
                           // boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 5, spreadRadius: 1)],
                         ),

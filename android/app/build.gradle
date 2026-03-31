@@ -29,9 +29,22 @@ if (keystorePropertiesFile.exists()) {
     keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
 }
 
-// MyFatoorah tokens
+// MyFatoorah tokens (priority: key.properties -> local.properties -> ENV)
 def myFatoorahLiveToken = keystoreProperties.getProperty('MYFATOORAH_LIVE_TOKEN', '')
+if (!myFatoorahLiveToken) {
+    myFatoorahLiveToken = localProperties.getProperty('MYFATOORAH_LIVE_TOKEN', '')
+}
+if (!myFatoorahLiveToken) {
+    myFatoorahLiveToken = System.getenv('MYFATOORAH_LIVE_TOKEN') ?: ''
+}
+
 def myFatoorahTestToken = keystoreProperties.getProperty('MYFATOORAH_TEST_TOKEN', '')
+if (!myFatoorahTestToken) {
+    myFatoorahTestToken = localProperties.getProperty('MYFATOORAH_TEST_TOKEN', '')
+}
+if (!myFatoorahTestToken) {
+    myFatoorahTestToken = System.getenv('MYFATOORAH_TEST_TOKEN') ?: ''
+}
 
 android {
     namespace "com.food.shala"

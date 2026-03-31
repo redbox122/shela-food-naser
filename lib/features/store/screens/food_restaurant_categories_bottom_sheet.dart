@@ -10,7 +10,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:sixam_mart/features/category/domain/models/category_model.dart';
 import 'package:sixam_mart/features/language/controllers/language_controller.dart';
-import 'package:sixam_mart/util/app_colors.dart';
+import 'package:sixam_mart/theme/app_color_tokens.dart';
 import 'package:sixam_mart/util/dimensions.dart';
 import 'package:sixam_mart/util/styles.dart';
 
@@ -33,10 +33,12 @@ class FoodRestaurantCategoriesBottomSheet extends StatelessWidget {
     return GetBuilder<LocalizationController>(
       builder: (localizationController) {
         final bool isLtr = localizationController.isLtr;
+        final theme = Theme.of(context);
+        final tokens = theme.extension<AppColorTokens>()!;
         
         return Container(
-          decoration: const BoxDecoration(
-            color: AppColors.backgroundColor,
+          decoration: BoxDecoration(
+            color: theme.colorScheme.surface,
             borderRadius: BorderRadius.vertical(
               top: Radius.circular(24),
             ),
@@ -50,7 +52,7 @@ class FoodRestaurantCategoriesBottomSheet extends StatelessWidget {
                 width: 40,
                 height: 4,
                 decoration: BoxDecoration(
-                  color: AppColors.gryColor_4,
+                  color: tokens.outlineSoft,
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
@@ -61,11 +63,11 @@ class FoodRestaurantCategoriesBottomSheet extends StatelessWidget {
                   'categories'.tr,
                   style: robotoBold.copyWith(
                     fontSize: 20,
-                    color: AppColors.textColor,
+                    color: theme.textTheme.bodyLarge?.color,
                   ),
                 ),
               ),
-              const Divider(height: 1, color: AppColors.gryColor_3),
+              Divider(height: 1, color: tokens.outlineSoft),
               // Categories List
               Flexible(
                 child: ListView.separated(
@@ -90,13 +92,13 @@ class FoodRestaurantCategoriesBottomSheet extends StatelessWidget {
                         ),
                         decoration: BoxDecoration(
                           color: isSelected 
-                              ? AppColors.lightBlue 
-                              : AppColors.gryColor_8,
+                              ? theme.primaryColor.withValues(alpha: 0.12)
+                              : tokens.surfaceSoft,
                           borderRadius: BorderRadius.circular(12),
                           border: Border.all(
                             color: isSelected 
-                                ? AppColors.primaryColor 
-                                : AppColors.gryColor_3,
+                                ? theme.primaryColor
+                                : tokens.outlineSoft,
                             width: isSelected ? 2 : 1,
                           ),
                         ),
@@ -112,8 +114,8 @@ class FoodRestaurantCategoriesBottomSheet extends StatelessWidget {
                                 style: robotoBold.copyWith(
                                   fontSize: 16,
                                   color: isSelected 
-                                      ? AppColors.primaryColor 
-                                      : AppColors.textColor,
+                                      ? theme.primaryColor
+                                      : theme.textTheme.bodyLarge?.color,
                                 ),
                               ),
                             ),
@@ -125,8 +127,8 @@ class FoodRestaurantCategoriesBottomSheet extends StatelessWidget {
                               ),
                               decoration: BoxDecoration(
                                 color: isSelected 
-                                    ? AppColors.primaryColor 
-                                    : AppColors.gryColor_3,
+                                    ? theme.primaryColor
+                                    : tokens.outlineSoft,
                                 borderRadius: BorderRadius.circular(12),
                               ),
                               child: Text(
@@ -134,8 +136,8 @@ class FoodRestaurantCategoriesBottomSheet extends StatelessWidget {
                                 style: robotoBold.copyWith(
                                   fontSize: 14,
                                   color: isSelected 
-                                      ? AppColors.backgroundColor 
-                                      : AppColors.textColor,
+                                      ? theme.colorScheme.onPrimary
+                                      : theme.textTheme.bodyLarge?.color,
                                 ),
                               ),
                             ),
@@ -153,7 +155,6 @@ class FoodRestaurantCategoriesBottomSheet extends StatelessWidget {
     );
   }
 }
-
 
 
 

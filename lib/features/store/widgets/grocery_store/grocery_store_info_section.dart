@@ -13,6 +13,7 @@ import 'package:sixam_mart/common/widgets/custom_image.dart';
 import 'package:sixam_mart/features/language/controllers/language_controller.dart';
 import 'package:sixam_mart/features/store/domain/models/store_model.dart';
 import 'package:sixam_mart/helper/price_converter.dart';
+import 'package:sixam_mart/theme/app_color_tokens.dart';
 import 'package:sixam_mart/util/dimensions.dart';
 import 'package:sixam_mart/util/images.dart';
 import 'package:sixam_mart/util/styles.dart';
@@ -37,6 +38,8 @@ class _GroceryStoreInfoSectionState extends State<GroceryStoreInfoSection> {
 
     return GetBuilder<LocalizationController>(
       builder: (localizationController) {
+        final theme = Theme.of(context);
+        final tokens = theme.extension<AppColorTokens>()!;
         final bool isLtr = localizationController.isLtr;
         final cardWidth = MediaQuery.of(context).size.width -
             (Dimensions.paddingSizeDefault * 2);
@@ -63,10 +66,10 @@ class _GroceryStoreInfoSectionState extends State<GroceryStoreInfoSection> {
                     height: cardHeight,
                     clipBehavior: Clip.antiAlias,
                     decoration: ShapeDecoration(
-                      color: const Color(0xFFFCFCFC),
+                      color: theme.cardColor,
                       shape: RoundedRectangleBorder(
-                        side: const BorderSide(
-                          color: Color(0xFFEBEBEB),
+                        side: BorderSide(
+                          color: tokens.outlineSoft,
                         ),
                         borderRadius: BorderRadius.circular(8),
                       ),
@@ -82,7 +85,7 @@ class _GroceryStoreInfoSectionState extends State<GroceryStoreInfoSection> {
                             store.name ?? '',
                             textAlign: TextAlign.center,
                             style: robotoMedium.copyWith(
-                              color: const Color(0xFF2D3633),
+                              color: theme.textTheme.bodyLarge?.color,
                               fontSize: 14,
                               height: 1.50,
                             ),
@@ -97,7 +100,7 @@ class _GroceryStoreInfoSectionState extends State<GroceryStoreInfoSection> {
                             _formatDeliveryHours(store),
                             textAlign: TextAlign.center,
                             style: robotoRegular.copyWith(
-                              color: const Color(0xFF2D3633),
+                              color: theme.textTheme.bodyLarge?.color,
                               fontSize: 10,
                               height: 1.50,
                             ),
@@ -112,7 +115,7 @@ class _GroceryStoreInfoSectionState extends State<GroceryStoreInfoSection> {
                             'سوبر ماركت',
                             textAlign: TextAlign.center,
                             style: robotoRegular.copyWith(
-                              color: const Color(0xFFFA9D2B),
+                              color: tokens.warningText,
                               fontSize: 10,
                               height: 1.50,
                             ),
@@ -133,7 +136,7 @@ class _GroceryStoreInfoSectionState extends State<GroceryStoreInfoSection> {
                               'قيمة التوصيل',
                               textAlign: TextAlign.center,
                               style: robotoRegular.copyWith(
-                                color: const Color(0xFF2D3633),
+                                color: theme.textTheme.bodyLarge?.color,
                                 fontSize: 10,
                                 height: 1.50,
                               ),
@@ -148,7 +151,7 @@ class _GroceryStoreInfoSectionState extends State<GroceryStoreInfoSection> {
                               'المسافة',
                               textAlign: TextAlign.center,
                               style: robotoRegular.copyWith(
-                                color: const Color(0xFF2D3633),
+                                color: theme.textTheme.bodyLarge?.color,
                                 fontSize: 10,
                                 height: 1.50,
                               ),
@@ -161,11 +164,11 @@ class _GroceryStoreInfoSectionState extends State<GroceryStoreInfoSection> {
                             child: Container(
                               width: cardWidth,
                               height: 1,
-                              decoration: const ShapeDecoration(
+                              decoration: ShapeDecoration(
                                 shape: RoundedRectangleBorder(
                                   side: BorderSide(
                                     strokeAlign: BorderSide.strokeAlignCenter,
-                                    color: Color(0xFFE5E5E5),
+                                    color: tokens.outlineSoft,
                                   ),
                                 ),
                               ),
@@ -255,7 +258,7 @@ class _GroceryStoreInfoSectionState extends State<GroceryStoreInfoSection> {
           '${animatedValue.toStringAsFixed(1)} كم',
           textAlign: TextAlign.center,
           style: robotoRegular.copyWith(
-            color: const Color(0xFF787878),
+            color: Theme.of(context).disabledColor,
             fontSize: 10,
             height: 1.50,
           ),
@@ -271,7 +274,7 @@ class _GroceryStoreInfoSectionState extends State<GroceryStoreInfoSection> {
         'free'.tr,
         textAlign: TextAlign.center,
         style: robotoRegular.copyWith(
-          color: const Color(0xFFFA9D2B),
+          color: Theme.of(context).extension<AppColorTokens>()!.warningText,
           fontSize: 10,
           height: 1.50,
         ),
@@ -284,7 +287,7 @@ class _GroceryStoreInfoSectionState extends State<GroceryStoreInfoSection> {
         'N/A',
         textAlign: TextAlign.center,
         style: robotoRegular.copyWith(
-          color: const Color(0xFFFA9D2B),
+          color: Theme.of(context).extension<AppColorTokens>()!.warningText,
           fontSize: 10,
           height: 1.50,
         ),
@@ -302,7 +305,7 @@ class _GroceryStoreInfoSectionState extends State<GroceryStoreInfoSection> {
           PriceConverter.convertPrice(animatedValue),
           textAlign: TextAlign.center,
           style: robotoRegular.copyWith(
-            color: const Color(0xFFFA9D2B),
+            color: Theme.of(context).extension<AppColorTokens>()!.warningText,
             fontSize: 10,
             height: 1.50,
           ),
