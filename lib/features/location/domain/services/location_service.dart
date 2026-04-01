@@ -90,21 +90,13 @@ class LocationService implements LocationServiceInterface {
       else if (distance > 1000) {
         debugPrint(
             '⚠️ LocationService: Detected location is ${distance.toStringAsFixed(2)}km from service area, using default coordinates');
-        myPosition = Position(
-          latitude: defaultLatLng != null
+        myPosition = LocationController.positionFromLatLng(
+          defaultLatLng != null
               ? defaultLatLng.latitude
               : configLatLng.latitude,
-          longitude: defaultLatLng != null
+          defaultLatLng != null
               ? defaultLatLng.longitude
               : configLatLng.longitude,
-          timestamp: DateTime.now(),
-          accuracy: 1,
-          altitude: 1,
-          heading: 1,
-          speed: 1,
-          speedAccuracy: 1,
-          altitudeAccuracy: 1,
-          headingAccuracy: 1,
         );
       } else {
         debugPrint(
@@ -113,21 +105,11 @@ class LocationService implements LocationServiceInterface {
       }
     } catch (e) {
       debugPrint('❌ LocationService: Error getting position: $e');
-      myPosition = Position(
-        latitude: defaultLatLng != null
-            ? defaultLatLng.latitude
-            : configLatLng.latitude,
-        longitude: defaultLatLng != null
+      myPosition = LocationController.positionFromLatLng(
+        defaultLatLng != null ? defaultLatLng.latitude : configLatLng.latitude,
+        defaultLatLng != null
             ? defaultLatLng.longitude
             : configLatLng.longitude,
-        timestamp: DateTime.now(),
-        accuracy: 1,
-        altitude: 1,
-        heading: 1,
-        speed: 1,
-        speedAccuracy: 1,
-        altitudeAccuracy: 1,
-        headingAccuracy: 1,
       );
     }
     debugPrint(
@@ -246,10 +228,12 @@ class LocationService implements LocationServiceInterface {
     if (response.statusCode == 200 && response.body['status'] == 'OK') {
       predictionList = [];
       for (var prediction in (response.body['predictions'] as List)) {
-        predictionList.add(PredictionModel.fromJson(prediction as Map<String, dynamic>));
+        predictionList
+            .add(PredictionModel.fromJson(prediction as Map<String, dynamic>));
       }
     } else {
-      showCustomSnackBar((response.body['error_message'] as String?) ?? response.bodyString);
+      showCustomSnackBar(
+          (response.body['error_message'] as String?) ?? response.bodyString);
     }
     return predictionList;
   }
@@ -313,31 +297,37 @@ class LocationService implements LocationServiceInterface {
       // 🔥 CRITICAL GUARD: Don't redirect before zones are loaded
       if (Get.isRegistered<LocationController>()) {
         final locationController = Get.find<LocationController>();
-        
+
         // Check if zones are required but not loaded
-        if (!locationController.zonesLoaded && locationController.zones.isEmpty) {
-          debugPrint('⏸️ authorizeNavigation: Zones not loaded yet - allowing navigation');
+        if (!locationController.zonesLoaded &&
+            locationController.zones.isEmpty) {
+          debugPrint(
+              '⏸️ authorizeNavigation: Zones not loaded yet - allowing navigation');
           debugPrint('   → This is normal navigation (user has no addresses)');
           // Allow navigation - this is normal flow when user has no addresses
         }
-        
+
         // 🎯 POLYGONS ARE OPTIONAL (UX): Polygons are visual only - zone validation uses API
         // If zones exist but no polygons, it's okay - user can still proceed if API confirms location
-        if (locationController.zones.isNotEmpty && locationController.zonePolygons.isEmpty) {
-          debugPrint('⚠️ Zones exist but no polygons - polygons are optional (visual only)');
-          debugPrint('ℹ️ Zone validation uses API (get-zone-id) - not polygons');
+        if (locationController.zones.isNotEmpty &&
+            locationController.zonePolygons.isEmpty) {
+          debugPrint(
+              '⚠️ Zones exist but no polygons - polygons are optional (visual only)');
+          debugPrint(
+              'ℹ️ Zone validation uses API (get-zone-id) - not polygons');
           // Don't block - polygons are optional, API validation is what matters
         }
-        
+
         // 🔥 SIMPLIFIED FLOW: Navigate directly to PickMapScreen
         final String targetRoute = RouteHelper.getPickMapRoute(page, false);
         final String currentRoute = Get.currentRoute;
-        
+
         if (currentRoute == targetRoute) {
-          debugPrint('⏸️ authorizeNavigation: Already on target route ($targetRoute) - skipping navigation');
+          debugPrint(
+              '⏸️ authorizeNavigation: Already on target route ($targetRoute) - skipping navigation');
           return;
         }
-        
+
         // Normal navigation flow - direct to PickMapScreen
         if (offNamed) {
           Get.offNamed(targetRoute);

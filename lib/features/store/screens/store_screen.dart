@@ -2,7 +2,7 @@ import 'dart:ui' as ui;
 import 'dart:math' as math;
 import 'package:flutter/foundation.dart';
 import 'package:sixam_mart/features/cart/controllers/cart_controller.dart';
-import 'package:sixam_mart/features/category/controllers/category_controller.dart';
+
 import 'package:sixam_mart/features/item/controllers/item_controller.dart';
 import 'package:sixam_mart/features/language/controllers/language_controller.dart';
 import 'package:sixam_mart/features/store/controllers/store_controller.dart';
@@ -195,7 +195,6 @@ class _StoreScreenState extends State<StoreScreen> {
         endDrawerEnableOpenDragGesture: false,
         backgroundColor: Theme.of(context).colorScheme.surface,
         body: GetBuilder<StoreController>(builder: (storeController) {
-          return GetBuilder<CategoryController>(builder: (categoryController) {
             // ⚡ INSTANT UI: Use widget.store for immediate render, fallback to storeController.store
             // This achieves 0ms perceived load time by showing header immediately
             // ✅ FIX: Prefer storeController.store if available (has full data including cover photo)
@@ -2470,7 +2469,6 @@ class _StoreScreenState extends State<StoreScreen> {
                     ],
                   )
                 : const LoadingWidget();
-          });
         }),
         floatingActionButton:
             GetBuilder<StoreController>(builder: (storeController) {

@@ -6,6 +6,7 @@
 /// File: grocery_store_header.dart
 library;
 
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:sixam_mart/common/widgets/custom_image.dart';
@@ -64,7 +65,7 @@ class GroceryStoreHeader extends StatelessWidget {
                     decoration: ShapeDecoration(
                       image: coverPhotoUrl.isNotEmpty
                           ? DecorationImage(
-                              image: NetworkImage(coverPhotoUrl),
+                              image: CachedNetworkImageProvider(coverPhotoUrl),
                               fit: BoxFit.cover,
                             )
                           : null,

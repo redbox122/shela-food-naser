@@ -95,6 +95,7 @@ class CustomTextField extends StatefulWidget {
 
 class CustomTextFieldState extends State<CustomTextField> {
   bool _obscureText = true;
+  bool _isFocused = false;
 
   @override
   void initState() {
@@ -104,7 +105,12 @@ class CustomTextFieldState extends State<CustomTextField> {
 
   void _handleFocusChange() {
     if (!mounted) return;
-    setState(() {});
+    final hasFocus = widget.focusNode?.hasFocus ?? false;
+    if (_isFocused != hasFocus) {
+      setState(() {
+        _isFocused = hasFocus;
+      });
+    }
   }
 
   @override
@@ -115,6 +121,7 @@ class CustomTextFieldState extends State<CustomTextField> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     final bool hasLabelText = (widget.labelText?.trim().isNotEmpty ?? false);
     final bool shouldShowNonChangeableHint = widget.isEnabled == false;
     final bool shouldBuildLabel =
@@ -151,7 +158,7 @@ class CustomTextFieldState extends State<CustomTextField> {
             style: robotoRegular.copyWith(fontSize: Dimensions.fontSizeLarge),
             textInputAction: widget.inputAction,
             keyboardType: widget.isAmount ? TextInputType.number : widget.inputType,
-            cursorColor: Theme.of(context).primaryColor,
+            cursorColor: theme.primaryColor,
             textCapitalization: widget.capitalization,
             enabled: widget.isEnabled,
             obscureText: widget.isPassword ? _obscureText : false,
@@ -168,37 +175,37 @@ class CustomTextFieldState extends State<CustomTextField> {
                 borderSide: BorderSide(
                     style: widget.showBorder ? BorderStyle.solid : BorderStyle.none,
                     width: ResponsiveHelper.isDesktop(context) ? 0.7 : 0.3,
-                    color: Theme.of(context).disabledColor),
+                    color: theme.disabledColor),
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(Dimensions.radiusDefault),
                 borderSide: BorderSide(
-                    style: widget.showBorder ? BorderStyle.solid : BorderStyle.none, color: Theme.of(context).primaryColor),
+                    style: widget.showBorder ? BorderStyle.solid : BorderStyle.none, color: theme.primaryColor),
               ),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(Dimensions.radiusDefault),
                 borderSide: BorderSide(
                     style: widget.showBorder ? BorderStyle.solid : BorderStyle.none,
                     width: 0.3,
-                    color: Theme.of(context).primaryColor),
+                    color: theme.primaryColor),
               ),
               errorBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(Dimensions.radiusDefault),
                 borderSide: BorderSide(
-                    style: widget.showBorder ? BorderStyle.solid : BorderStyle.none, color: Theme.of(context).colorScheme.error),
+                    style: widget.showBorder ? BorderStyle.solid : BorderStyle.none, color: theme.colorScheme.error),
               ),
               focusedErrorBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(Dimensions.radiusDefault),
                 borderSide: BorderSide(
-                    style: widget.showBorder ? BorderStyle.solid : BorderStyle.none, color: Theme.of(context).colorScheme.error),
+                    style: widget.showBorder ? BorderStyle.solid : BorderStyle.none, color: theme.colorScheme.error),
               ),
               isDense: true,
               hintText: widget.hintText.isEmpty || !ResponsiveHelper.isDesktop(context) ? widget.titleText : widget.hintText,
-              fillColor: Theme.of(context).cardColor,
-              hintStyle: robotoRegular.copyWith(fontSize: Dimensions.fontSizeLarge, color: Theme.of(context).hintColor),
+              fillColor: theme.cardColor,
+              hintStyle: robotoRegular.copyWith(fontSize: Dimensions.fontSizeLarge, color: theme.hintColor),
               filled: true,
               labelStyle: widget.showLabelText
-                  ? robotoRegular.copyWith(fontSize: Dimensions.fontSizeDefault, color: Theme.of(context).hintColor)
+                  ? robotoRegular.copyWith(fontSize: Dimensions.fontSizeDefault, color: theme.hintColor)
                   : null,
               errorStyle: robotoRegular.copyWith(fontSize: Dimensions.fontSizeSmall),
               label: shouldBuildLabel
@@ -208,22 +215,22 @@ class CustomTextFieldState extends State<CustomTextField> {
                           text: widget.labelText!.trim(),
                           style: robotoRegular.copyWith(
                             fontSize: widget.labelTextSize ?? Dimensions.fontSizeLarge,
-                            color: ((widget.focusNode?.hasFocus == true || widget.controller?.text.isNotEmpty == true) &&
+                            color: ((_isFocused || widget.controller?.text.isNotEmpty == true) &&
                                     widget.isEnabled)
-                                ? Theme.of(context).textTheme.bodyLarge?.color
-                                : Theme.of(context).hintColor.withValues(alpha: 0.75),
+                                ? theme.textTheme.bodyLarge?.color
+                                : theme.hintColor.withValues(alpha: 0.75),
                           ),
                         ),
                       if (widget.required && hasLabelText)
                         TextSpan(
                             text: ' *',
                             style: robotoRegular.copyWith(
-                                color: Theme.of(context).colorScheme.error, fontSize: Dimensions.fontSizeLarge)),
+                                color: theme.colorScheme.error, fontSize: Dimensions.fontSizeLarge)),
                       if (shouldShowNonChangeableHint)
                         TextSpan(
                             text: hasLabelText ? ' (${'non_changeable'.tr})' : '(${ 'non_changeable'.tr})',
                             style: robotoRegular.copyWith(
-                                fontSize: Dimensions.fontSizeLarge, color: Theme.of(context).colorScheme.error)),
+                                fontSize: Dimensions.fontSizeLarge, color: theme.colorScheme.error)),
                     ]))
                   : null,
               prefixIcon: (widget.isPhone || widget.countryDialCode != null)
@@ -249,10 +256,10 @@ class CustomTextFieldState extends State<CustomTextField> {
                               initialSelection: widget.countryDialCode,
                               favorite: [widget.countryDialCode ?? ''],
                               enabled: Get.find<SplashController>().configModel?.countryPickerStatus,
-                              dialogBackgroundColor: Theme.of(context).cardColor,
+                              dialogBackgroundColor: theme.cardColor,
                               textStyle: robotoRegular.copyWith(
                                 fontSize: Dimensions.fontSizeDefault,
-                                color: Theme.of(context).textTheme.bodyMedium!.color,
+                                color: theme.textTheme.bodyMedium!.color,
                               ),
                             ),
                           ),
@@ -260,7 +267,7 @@ class CustomTextFieldState extends State<CustomTextField> {
                         Container(
                           height: 20,
                           width: 2,
-                          color: Theme.of(context).disabledColor,
+                          color: theme.disabledColor,
                         )
                       ]),
                     )
@@ -271,21 +278,21 @@ class CustomTextFieldState extends State<CustomTextField> {
                           child: CustomAssetImageWidget(widget.prefixImage!,
                               height: 10,
                               width: 10,
-                              color: widget.focusNode?.hasFocus == true
-                                  ? Theme.of(context).primaryColor
-                                  : Theme.of(context).hintColor.withValues(alpha: 0.7)),
+                              color: _isFocused
+                                  ? theme.primaryColor
+                                  : theme.hintColor.withValues(alpha: 0.7)),
                         )
                       : widget.prefixImage == null && widget.prefixIcon != null
                           ? Icon(widget.prefixIcon,
                               size: widget.iconSize,
-                              color: widget.focusNode?.hasFocus == true
-                                  ? Theme.of(context).primaryColor
-                                  : Theme.of(context).hintColor.withValues(alpha: 0.7))
+                              color: _isFocused
+                                  ? theme.primaryColor
+                                  : theme.hintColor.withValues(alpha: 0.7))
                           : null,
               suffixIcon: widget.isPassword
                   ? IconButton(
                       icon: Icon(_obscureText ? Icons.visibility_off : Icons.visibility,
-                          color: Theme.of(context).hintColor.withValues(alpha: 0.3)),
+                          color: theme.hintColor.withValues(alpha: 0.3)),
                       onPressed: _toggle,
                     )
                   : widget.suffixImage != null

@@ -215,18 +215,6 @@ class RouteHelper {
 
   static const String Contract_Review = '/contract_review_screen';
 
-  // static const String newHome = '/new-home';
-  // static const String taxiModuleLocation = '/texi-module-location';
-  // static const String taxiLocationResult = '/texi-module-location-result';
-  // static const String selectVehicle = '/select-vehicle';
-  // static const String searchVehicle = '/search-vehicle';
-  // static const String cartVehicle = '/cart-vehicle';
-  // static const String texiCheckout = '/texi-checkout';
-  // static const String taxiOrderPage = '/taxi-order-page';
-  // static const String vehicleDetails = '/vehicle-details';
-  // static const String vehicleProviderDetails = '/vehicle-provider-details';
-  // static const String reviewDetailsScreen = '/review-details-screen';
-
   static String getInitialRoute(
       {bool fromSplash = false, bool skipSplash = false}) {
     // Build route string for fromSplash (backward compatibility)
@@ -249,14 +237,6 @@ class RouteHelper {
   static String getSignInRoute(String page) => '$signIn?page=$page';
   static String getSignUpRoute() => signUp;
 
-  /*static String getVerificationRoute(String? number, String? token, String page, String pass, {String? session}) {
-    String? authSession;
-    if(session != null) {
-      authSession = base64Url.encode(utf8.encode(session));
-    }
-    return '$verification?page=$page&number=$number&token=$token&pass=$pass&session=$authSession';
-  }*/
-
   static String getVerificationRoute(String? number, String? email,
       String? token, String page, String? pass, String loginType,
       {String? session, UpdateUserModel? updateUserModel, String? nextPage}) {
@@ -264,27 +244,27 @@ class RouteHelper {
 
     // Add number only if not null and not empty
     if (number != null && number.isNotEmpty) {
-      params.add('number=$number');
+      params.add('number=${Uri.encodeQueryComponent(number)}');
     }
 
     // Add email only if not null and not empty
     if (email != null && email.isNotEmpty) {
-      params.add('email=$email');
+      params.add('email=${Uri.encodeQueryComponent(email)}');
     }
 
     // Add token only if not null and not empty
     if (token != null && token.isNotEmpty) {
-      params.add('token=$token');
+      params.add('token=${Uri.encodeQueryComponent(token)}');
     }
 
     // Add pass only if not null and not empty
     if (pass != null && pass.isNotEmpty) {
-      params.add('pass=$pass');
+      params.add('pass=${Uri.encodeQueryComponent(pass)}');
     }
 
     // Add login_type only if not empty
     if (loginType.isNotEmpty) {
-      params.add('login_type=$loginType');
+      params.add('login_type=${Uri.encodeQueryComponent(loginType)}');
     }
 
     // Add session only if not null
@@ -326,22 +306,15 @@ class RouteHelper {
   static String getInterestRoute() => interest;
   static String getMainRoute(String page) => '$main?page=$page';
   static String getModuleHomeRoute(int moduleId) => '/module/$moduleId';
-  /*static String getForgotPassRoute(bool fromSocialLogin, SocialLogInBody? socialLogInBody) {
-    String? data;
-    if(fromSocialLogin) {
-      data = base64Encode(utf8.encode(jsonEncode(socialLogInBody!.toJson())));
-    }
-    return '$forgotPassword?page=${fromSocialLogin ? 'social-login' : 'forgot-password'}&data=${fromSocialLogin ? data : 'null'}';
-  }*/
 
   static String getForgotPassRoute() => forgotPassword;
 
   static String getResetPasswordRoute(
           String? phone, String token, String page) =>
-      '$resetPassword?phone=$phone&token=$token&page=$page';
+      '$resetPassword?phone=${Uri.encodeQueryComponent(phone ?? '')}&token=${Uri.encodeQueryComponent(token)}&page=$page';
 
   static String getSearchRoute({String? queryText}) =>
-      '$search?query=${queryText ?? ''}';
+      '$search?query=${Uri.encodeQueryComponent(queryText ?? '')}';
 
   static String getStoreRoute({
     required int? id,
@@ -366,12 +339,12 @@ class RouteHelper {
 
   static String getOrderDetailsRoute(int? orderID,
       {bool? fromNotification, bool? fromOffline, String? contactNumber}) {
-    return '$orderDetails?id=$orderID&from=${fromNotification.toString()}&from_offline=$fromOffline&contact=$contactNumber';
+    return '$orderDetails?id=$orderID&from=${fromNotification.toString()}&from_offline=$fromOffline&contact=${Uri.encodeQueryComponent(contactNumber ?? '')}';
   }
 
   static String getOrderDetailsRouteBypass(int? orderID,
       {bool? fromNotification, bool? fromOffline, String? contactNumber}) {
-    return '$orderDetails?id=$orderID&from=${fromNotification.toString()}&from_offline=$fromOffline&contact=$contactNumber&bypass=true';
+    return '$orderDetails?id=$orderID&from=${fromNotification.toString()}&from_offline=$fromOffline&contact=${Uri.encodeQueryComponent(contactNumber ?? '')}&bypass=true';
   }
 
   static String getProfileRoute() => profile;
@@ -389,12 +362,12 @@ class RouteHelper {
   static String getAddressRoute() => address;
   static String getOrderSuccessRoute(String orderID, String? contactNumber,
       {bool? createAccount, String guestId = ''}) {
-    return '$orderSuccess?id=$orderID&contact_number=$contactNumber&create_account=$createAccount&guest_id=$guestId';
+    return '$orderSuccess?id=$orderID&contact_number=${Uri.encodeQueryComponent(contactNumber ?? '')}&create_account=$createAccount&guest_id=${Uri.encodeQueryComponent(guestId)}';
   }
 
   static String getOffersItemScreen(int? offerId, String? offerName,
           {double? offerDiscount}) =>
-      '$offersItemScreen?offerId=$offerId&offerName=$offerName&offerDiscount=${offerDiscount ?? ''}';
+      '$offersItemScreen?offerId=$offerId&offerName=${Uri.encodeQueryComponent(offerName ?? '')}&offerDiscount=${offerDiscount ?? ''}';
   static String getStatistics() => statistics;
 
   static String getQr_screen() => qr_screen;
@@ -426,7 +399,7 @@ class RouteHelper {
           int? storeId,
           bool? createAccount,
           int? createUserId}) =>
-      '$payment?id=$id&user=$user&type=$type&amount=$amount&cod-delivery=$codDelivery&add-fund-url=$addFundUrl&payment-method=$paymentMethod&guest-id=$guestId&number=$contactNumber&subscription-url=$subscriptionUrl&store_id=$storeId&create_account=$createAccount&create_user_id=$createUserId';
+      '$payment?id=$id&user=$user&type=$type&amount=$amount&cod-delivery=$codDelivery&add-fund-url=${Uri.encodeQueryComponent(addFundUrl ?? '')}&payment-method=${Uri.encodeQueryComponent(paymentMethod ?? '')}&guest-id=${Uri.encodeQueryComponent(guestId)}&number=${Uri.encodeQueryComponent(contactNumber ?? '')}&subscription-url=${Uri.encodeQueryComponent(subscriptionUrl ?? '')}&store_id=$storeId&create_account=$createAccount&create_user_id=$createUserId';
 
   /// Navigate to checkout screen
   ///
@@ -482,7 +455,7 @@ class RouteHelper {
   }
 
   static String getOrderTrackingRoute(int? id, String? contactNumber) =>
-      '$orderTracking?id=$id&number=$contactNumber';
+      '$orderTracking?id=$id&number=${Uri.encodeQueryComponent(contactNumber ?? '')}';
   static String getBasicCampaignRoute(BasicCampaignModel basicCampaignModel) {
     final String data =
         base64Encode(utf8.encode(jsonEncode(basicCampaignModel.toJson())));
@@ -525,7 +498,7 @@ class RouteHelper {
       int? storeID, String? storeName, Store store) {
     final String data =
         base64Url.encode(utf8.encode(jsonEncode(store.toJson())));
-    return '$storeReview?storeID=$storeID&storeName=$storeName&store=$data';
+    return '$storeReview?storeID=$storeID&storeName=${Uri.encodeQueryComponent(storeName ?? '')}&store=$data';
   }
 
   static String getAllStoreRoute(String page, {bool isNearbyStore = false}) =>
@@ -617,11 +590,11 @@ class RouteHelper {
   static String getFlashSaleDetailsScreen(int id) =>
       '$flashSaleDetailsScreen?id=$id';
   static String getGuestTrackOrderScreen(String orderId, String number) =>
-      '$guestTrackOrderScreen?order_id=$orderId&number=$number';
+      '$guestTrackOrderScreen?order_id=$orderId&number=${Uri.encodeQueryComponent(number)}';
   static String getFavouriteScreen() => favourite;
   static String getBrandsScreen() => brands;
   static String getBrandsItemScreen(int brandId, String brandName) =>
-      '$brandsItemScreen?brandId=$brandId&brandName=$brandName';
+      '$brandsItemScreen?brandId=$brandId&brandName=${Uri.encodeQueryComponent(brandName)}';
 
   static String getSubscriptionSuccessRoute(
           {String? status, required bool fromSubscription, int? storeId}) =>
@@ -635,7 +608,7 @@ class RouteHelper {
       required String loginType,
       required String? phone,
       required String? email}) {
-    return '$newUserSetupScreen?name=$name&login_type=$loginType&phone=$phone&email=$email';
+    return '$newUserSetupScreen?name=${Uri.encodeQueryComponent(name)}&login_type=${Uri.encodeQueryComponent(loginType)}&phone=${Uri.encodeQueryComponent(phone ?? '')}&email=${Uri.encodeQueryComponent(email ?? '')}';
   }
 
   static String getSuccsessfly_createdRoute() => succsessflycreated;
@@ -737,19 +710,6 @@ class RouteHelper {
               pageName: 'SignUpScreen',
               child: SignUpScreen(),
             )),
-
-    /*GetPage(name: verification, page: () {
-      List<int> decode = base64Decode(Get.parameters['pass']!.replaceAll(' ', '+'));
-      String data = utf8.decode(decode);
-      String? session;
-      if(Get.parameters['session'] != null && Get.parameters['session'] != 'null') {
-        session = utf8.decode(base64Url.decode(Get.parameters['session'] ?? ''));
-      }
-      return VerificationScreen(
-        number: Get.parameters['number'], fromSignUp: Get.parameters['page'] == signUp, token: Get.parameters['token'],
-        password: data, firebaseSession: session,
-      );
-    }),*/
 
     GetPage(
         name: verification,
@@ -883,15 +843,6 @@ class RouteHelper {
       },
     ),
 
-    /*GetPage(name: forgotPassword, page: () {
-      SocialLogInBody? data;
-      if(Get.parameters['page'] == 'social-login') {
-        List<int> decode = base64Decode(Get.parameters['data']!.replaceAll(' ', '+'));
-        data = SocialLogInBody.fromJson(jsonDecode(utf8.decode(decode)) as Map<String, dynamic>);
-      }
-      return ForgetPassScreen(fromSocialLogin: Get.parameters['page'] == 'social-login', socialLogInBody: data);
-    }),*/
-
     GetPage(name: forgotPassword, page: () => const ForgetPassScreen()),
 
     GetPage(
@@ -1012,7 +963,8 @@ class RouteHelper {
               OrderSuccessfulScreen(
                 orderID: Get.parameters['id'],
                 contactPersonNumber: Get.parameters['contact_number'] != null &&
-                        Get.parameters['contact_number'] != 'null'
+                        Get.parameters['contact_number'] != 'null' &&
+                        Get.parameters['contact_number']!.isNotEmpty
                     ? Get.parameters['contact_number']
                     : AuthHelper.isGuestLoggedIn()
                         ? Get.find<AuthController>().getGuestNumber()
@@ -1035,11 +987,13 @@ class RouteHelper {
           String subscriptionUrl = '';
           final String paymentMethod = Get.parameters['payment-method']!;
           if (Get.parameters['add-fund-url'] != null &&
-              Get.parameters['add-fund-url'] != 'null') {
+              Get.parameters['add-fund-url'] != 'null' &&
+              Get.parameters['add-fund-url']!.isNotEmpty) {
             addFundUrl = Get.parameters['add-fund-url']!;
           }
           if (Get.parameters['subscription-url'] != null &&
-              Get.parameters['subscription-url'] != 'null') {
+              Get.parameters['subscription-url'] != 'null' &&
+              Get.parameters['subscription-url']!.isNotEmpty) {
             subscriptionUrl = Get.parameters['subscription-url']!;
           }
           final String guestId = Get.parameters['guest-id']!;
@@ -1419,37 +1373,6 @@ class RouteHelper {
                   ? Get.parameters['email']!.replaceAll(' ', '+')
                   : null,
             )),
-
-    // GetPage(name: newHome, page: () => getRoute(const TaxiHomeScreen())),
-    // GetPage(name: taxiModuleLocation, page: () {
-    //   AddressModel? addressModel;
-    //   if(Get.parameters['address'] != 'null') {
-    //     addressModel = AddressModel.fromJson(jsonDecode(utf8.decode(base64Url.decode(Get.parameters['address']!.replaceAll(' ', '+')))));
-    //   }
-    //   return getRoute(TaxiLocationScreen(
-    //     riderType: jsonDecode(utf8.decode(base64Url.decode(Get.parameters['rider_type']!.replaceAll(' ', '+')))),
-    //     fromAddress: addressModel,
-    //   ));
-    // }),
-    // GetPage(name: taxiLocationResult, page: () => getRoute(const TaxiLocationResultScreen())),
-    // GetPage(name: selectVehicle, page: () {
-    //   AddressModel? from;
-    //   AddressModel? to;
-    //   if(Get.parameters['from'] != 'null') {
-    //     from = AddressModel.fromJson(jsonDecode(utf8.decode(base64Url.decode(Get.parameters['from']!.replaceAll(' ', '+')))));
-    //   }
-    //   if(Get.parameters['to'] != 'null') {
-    //     from = AddressModel.fromJson(jsonDecode(utf8.decode(base64Url.decode(Get.parameters['to']!.replaceAll(' ', '+')))));
-    //   }
-    //
-    //   return getRoute(SelectVehicleScreen(fromAddress: from, toAddress: to));
-    // }),
-    // GetPage(name: searchVehicle, page: () => const SearchVehicleScreen()),
-    // GetPage(name: cartVehicle, page: () => getRoute(const TaxiCartScreen())),
-    // GetPage(name: texiCheckout, page: () => getRoute(const TaxiCheckoutScreen())),
-    // GetPage(name: taxiOrderPage, page: () => getRoute(const TaxiOrderDetailsScreen(isOrderScreen: true,))),
-    // GetPage(name: vehicleDetails, page: () => getRoute(const VehicleDetailsScreen(vehicleId: null,))),
-    // GetPage(name: vehicleProviderDetails, page: () => getRoute(const VendorDetailScreen(vendorId: null,))),
   ];
 
   static bool _shouldBypassAddressCheck() {
@@ -1557,4 +1480,3 @@ class RouteHelper {
                 : navigateTo;
   }
 }
-

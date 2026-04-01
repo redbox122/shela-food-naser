@@ -24,6 +24,7 @@ import 'package:sixam_mart/features/location/domain/models/zone_response_model.d
 import 'package:sixam_mart/features/address/domain/models/address_model.dart';
 import 'package:sixam_mart/features/location/domain/services/location_service_interface.dart';
 import 'package:sixam_mart/features/location/widgets/module_dialog_widget.dart';
+import 'package:sixam_mart/features/location/widgets/service_area_dialog_widget.dart';
 import 'package:sixam_mart/features/rental_module/rental_cart_screen/controllers/taxi_cart_controller.dart';
 import 'package:sixam_mart/helper/address_helper.dart';
 import 'package:sixam_mart/helper/auth_helper.dart';
@@ -56,6 +57,23 @@ class LocationController extends GetxController implements GetxService {
     46.60091131925583, // Default longitude
   );
 
+  /// Create a Position from latitude/longitude with default placeholder values
+  /// for fields not relevant to geocoding (altitude, heading, speed, etc.).
+  static Position positionFromLatLng(double latitude, double longitude) {
+    return Position(
+      latitude: latitude,
+      longitude: longitude,
+      timestamp: DateTime.now(),
+      accuracy: 1,
+      altitude: 1,
+      heading: 1,
+      speed: 1,
+      speedAccuracy: 1,
+      altitudeAccuracy: 1,
+      headingAccuracy: 1,
+    );
+  }
+
 //
 
   LocationDeliveryModel? _LocationDelivery_man_Model;
@@ -64,30 +82,10 @@ class LocationController extends GetxController implements GetxService {
 
 //
 
-  Position _position = Position(
-      longitude: 0,
-      latitude: 0,
-      timestamp: DateTime.now(),
-      accuracy: 1,
-      altitude: 1,
-      heading: 1,
-      speed: 1,
-      speedAccuracy: 1,
-      altitudeAccuracy: 1,
-      headingAccuracy: 1);
+  Position _position = positionFromLatLng(0, 0);
   Position get position => _position;
 
-  Position _pickPosition = Position(
-      longitude: 0,
-      latitude: 0,
-      timestamp: DateTime.now(),
-      accuracy: 1,
-      altitude: 1,
-      heading: 1,
-      speed: 1,
-      speedAccuracy: 1,
-      altitudeAccuracy: 1,
-      headingAccuracy: 1);
+  Position _pickPosition = positionFromLatLng(0, 0);
   Position get pickPosition => _pickPosition;
 
   bool _loading = false;
@@ -282,18 +280,9 @@ class LocationController extends GetxController implements GetxService {
   }
 
   void setUpdateAddress(AddressModel address) {
-    _position = Position(
-      latitude: double.parse(address.latitude!),
-      longitude: double.parse(address.longitude!),
-      timestamp: DateTime.now(),
-      altitude: 1,
-      heading: 1,
-      speed: 1,
-      speedAccuracy: 1,
-      floor: 1,
-      accuracy: 1,
-      altitudeAccuracy: 1,
-      headingAccuracy: 1,
+    _position = positionFromLatLng(
+      double.parse(address.latitude!),
+      double.parse(address.longitude!),
     );
     _address = address.address;
     _addressTypeIndex = _addressTypeList.indexOf(address.addressType);
@@ -327,17 +316,9 @@ class LocationController extends GetxController implements GetxService {
       }
 
       // Update pick position directly
-      _pickPosition = Position(
-        latitude: latLng.latitude,
-        longitude: latLng.longitude,
-        timestamp: DateTime.now(),
-        heading: 1,
-        accuracy: 1,
-        altitude: 1,
-        speedAccuracy: 1,
-        speed: 1,
-        altitudeAccuracy: 1,
-        headingAccuracy: 1,
+      _pickPosition = positionFromLatLng(
+        latLng.latitude,
+        latLng.longitude,
       );
 
       // Get address from geocode (UI display only - no zone check)
@@ -717,115 +698,7 @@ class LocationController extends GetxController implements GetxService {
 
   void showServiceAreaDialog() {
     Get.dialog(
-      Material(
-        type: MaterialType.transparency,
-        child: Dialog(
-          elevation: 8,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-          ),
-          child: Container(
-            constraints: const BoxConstraints(maxWidth: 400),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // Shella delivery image
-                Container(
-                  decoration: const BoxDecoration(
-                    color: Colors.white,
-                    borderRadius:
-                        BorderRadius.vertical(top: Radius.circular(20)),
-                  ),
-                  padding: const EdgeInsets.all(16),
-                  child: ClipRRect(
-                    borderRadius:
-                        const BorderRadius.vertical(top: Radius.circular(20)),
-                    child: SizedBox(
-                      height: 240,
-                      width: double.infinity,
-                      child: Image.asset(
-                        'assets/image/shella.png',
-                        fit: BoxFit.contain,
-                        errorBuilder: (context, error, stackTrace) {
-                          return Container(
-                            color: Theme.of(Get.context!)
-                                .primaryColor
-                                .withValues(alpha: 0.1),
-                            child: Icon(
-                              Icons.delivery_dining,
-                              size: 80,
-                              color: Theme.of(Get.context!).primaryColor,
-                            ),
-                          );
-                        },
-                      ),
-                    ),
-                  ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.all(24),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      // Title
-                      Text(
-                        'location_is_outside_service_area'.tr,
-                        style: TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                          color:
-                              Theme.of(Get.context!).textTheme.bodyLarge?.color,
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                      const SizedBox(height: 12),
-                      // Message
-                      Text(
-                        'location_outside_message'.tr,
-                        style: TextStyle(
-                          fontSize: 15,
-                          color: Theme.of(Get.context!)
-                              .textTheme
-                              .bodyMedium
-                              ?.color,
-                          height: 1.5,
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                      const SizedBox(height: 20),
-                      // OK Button
-                      SizedBox(
-                        width: double.infinity,
-                        child: ElevatedButton(
-                          onPressed: () {
-                            Get.back(); // Close dialog
-                          },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor:
-                                Theme.of(Get.context!).primaryColor,
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(vertical: 16),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                          ),
-                          child: Text(
-                            'ok'.tr,
-                            style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
+      const ServiceAreaDialogWidget(),
     );
   }
 
@@ -934,121 +807,12 @@ class LocationController extends GetxController implements GetxService {
 
         // Show dialog with Shella delivery image
         Get.dialog(
-          Material(
-            type: MaterialType.transparency,
-            child: Dialog(
-              elevation: 8,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: Container(
-                constraints: const BoxConstraints(maxWidth: 400),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    // Shella delivery image
-                    Container(
-                      decoration: const BoxDecoration(
-                        color: Colors.white,
-                        borderRadius:
-                            BorderRadius.vertical(top: Radius.circular(20)),
-                      ),
-                      padding: const EdgeInsets.all(16),
-                      child: ClipRRect(
-                        borderRadius: const BorderRadius.vertical(
-                            top: Radius.circular(20)),
-                        child: SizedBox(
-                          height: 240,
-                          width: double.infinity,
-                          child: Image.asset(
-                            'assets/image/shella.png',
-                            fit: BoxFit.contain,
-                            errorBuilder: (context, error, stackTrace) {
-                              return Container(
-                                color: Theme.of(Get.context!)
-                                    .primaryColor
-                                    .withValues(alpha: 0.1),
-                                child: Icon(
-                                  Icons.delivery_dining,
-                                  size: 80,
-                                  color: Theme.of(Get.context!).primaryColor,
-                                ),
-                              );
-                            },
-                          ),
-                        ),
-                      ),
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.all(24),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          // Title
-                          Text(
-                            'location_is_outside_service_area'.tr,
-                            style: TextStyle(
-                              fontSize: 20,
-                              fontWeight: FontWeight.bold,
-                              color: Theme.of(Get.context!)
-                                  .textTheme
-                                  .bodyLarge
-                                  ?.color,
-                            ),
-                            textAlign: TextAlign.center,
-                          ),
-                          const SizedBox(height: 12),
-                          // Message
-                          Text(
-                            'location_outside_message'.tr,
-                            style: TextStyle(
-                              fontSize: 15,
-                              color: Theme.of(Get.context!)
-                                  .textTheme
-                                  .bodyMedium
-                                  ?.color,
-                              height: 1.5,
-                            ),
-                            textAlign: TextAlign.center,
-                          ),
-                          const SizedBox(height: 20),
-                          // OK Button
-                          SizedBox(
-                            width: double.infinity,
-                            child: ElevatedButton(
-                              onPressed: () async {
-                                Get.back(); // Close dialog
-                                await Future.delayed(
-                                    const Duration(milliseconds: 300));
-                                moveToDefaultLocation(); // Move camera back to default
-                              },
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor:
-                                    Theme.of(Get.context!).primaryColor,
-                                foregroundColor: Colors.white,
-                                padding:
-                                    const EdgeInsets.symmetric(vertical: 14),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(10),
-                                ),
-                                elevation: 0,
-                              ),
-                              child: Text(
-                                'ok'.tr,
-                                style: const TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
+          ServiceAreaDialogWidget(
+            onConfirm: () async {
+              Get.back(); // Close dialog
+              await Future.delayed(const Duration(milliseconds: 300));
+              moveToDefaultLocation(); // Move camera back to default
+            },
           ),
         );
 
@@ -1060,30 +824,14 @@ class LocationController extends GetxController implements GetxService {
       debugPrint('✅ Location is inside service zone (API validated)');
 
       if (fromAddress) {
-        _position = Position(
-          latitude: position.target.latitude,
-          longitude: position.target.longitude,
-          timestamp: DateTime.now(),
-          heading: 1,
-          accuracy: 1,
-          altitude: 1,
-          speedAccuracy: 1,
-          speed: 1,
-          altitudeAccuracy: 1,
-          headingAccuracy: 1,
+        _position = positionFromLatLng(
+          position.target.latitude,
+          position.target.longitude,
         );
       } else {
-        _pickPosition = Position(
-          latitude: position.target.latitude,
-          longitude: position.target.longitude,
-          timestamp: DateTime.now(),
-          heading: 1,
-          accuracy: 1,
-          altitude: 1,
-          speedAccuracy: 1,
-          speed: 1,
-          altitudeAccuracy: 1,
-          headingAccuracy: 1,
+        _pickPosition = positionFromLatLng(
+          position.target.latitude,
+          position.target.longitude,
         );
       }
       // ⚡ TASK 3: We already have API response from validation above
@@ -1329,9 +1077,9 @@ class LocationController extends GetxController implements GetxService {
 
         apiClient.updateHeader(
           apiClient.token,
-          address.zoneIds,   // real zone IDs from the chosen location
-          address.areaIds,   // real area IDs
-          null,              // keep current language
+          address.zoneIds, // real zone IDs from the chosen location
+          address.areaIds, // real area IDs
+          null, // keep current language
           resolvedModuleId, // force module-id sync before any home reload
           address.latitude,
           address.longitude,
@@ -1342,8 +1090,7 @@ class LocationController extends GetxController implements GetxService {
           debugPrint(
               '✅ LocationController: API headers synced after address save '
               '(zoneIds=${address.zoneIds}, moduleId=$resolvedModuleId)');
-          debugPrint(
-              '[Diag] LocationController: Headers now => '
+          debugPrint('[Diag] LocationController: Headers now => '
               'module-id=${headers[AppConstants.moduleId]}, '
               'zone-id=${headers[AppConstants.zoneId]}, '
               'latitude=${headers[AppConstants.latitude]}, '
@@ -1433,17 +1180,9 @@ class LocationController extends GetxController implements GetxService {
 
     final LatLng latLng = await locationServiceInterface.getLatLng(placeID);
 
-    _pickPosition = Position(
-      latitude: latLng.latitude,
-      longitude: latLng.longitude,
-      timestamp: DateTime.now(),
-      accuracy: 1,
-      altitude: 1,
-      heading: 1,
-      speed: 1,
-      speedAccuracy: 1,
-      altitudeAccuracy: 1,
-      headingAccuracy: 1,
+    _pickPosition = positionFromLatLng(
+      latLng.latitude,
+      latLng.longitude,
     );
 
     _pickAddress = address;
@@ -1621,17 +1360,9 @@ class LocationController extends GetxController implements GetxService {
   }
 
   Future<void> setStoreAddressToUserAddress(LatLng storeAddress) async {
-    final Position storePosition = Position(
-      latitude: storeAddress.latitude,
-      longitude: storeAddress.longitude,
-      timestamp: DateTime.now(),
-      accuracy: 1,
-      altitude: 1,
-      heading: 1,
-      speed: 1,
-      speedAccuracy: 1,
-      altitudeAccuracy: 1,
-      headingAccuracy: 1,
+    final Position storePosition = positionFromLatLng(
+      storeAddress.latitude,
+      storeAddress.longitude,
     );
     final String addressFromGeocode = await getAddressFromGeocode(
         LatLng(storeAddress.latitude, storeAddress.longitude));

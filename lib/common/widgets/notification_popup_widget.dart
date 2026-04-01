@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:sixam_mart/features/notification/domain/models/notification_model.dart';
@@ -100,7 +101,7 @@ class NotificationPopupWidget extends StatelessWidget {
                           borderRadius:
                               BorderRadius.circular(Dimensions.radiusDefault),
                           image: DecorationImage(
-                            image: NetworkImage(notification.imageFullUrl!),
+                            image: CachedNetworkImageProvider(notification.imageFullUrl!),
                             fit: BoxFit.cover,
                           ),
                         ),

@@ -4,6 +4,7 @@
 /// Features smooth animations, gradient accents, and intuitive UX
 library;
 
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:sixam_mart/features/store/controllers/store_controller.dart';
@@ -658,7 +659,7 @@ class _StoreFilterBottomSheetState extends State<StoreFilterBottomSheet>
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(DesignTokens.radiusSmall),
                     image: DecorationImage(
-                      image: NetworkImage(category.image!),
+                      image: CachedNetworkImageProvider(category.image!),
                       fit: BoxFit.cover,
                     ),
                   ),

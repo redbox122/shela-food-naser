@@ -1,5 +1,6 @@
 // ignore_for_file: prefer_const_constructors, unnecessary_null_comparison
 
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:photo_view/photo_view.dart';
@@ -991,7 +992,7 @@ void openDialog(BuildContext context, String imageUrl) => showDialog(
               borderRadius: BorderRadius.circular(Dimensions.radiusLarge),
               child: PhotoView(
                 tightMode: true,
-                imageProvider: NetworkImage(imageUrl),
+                imageProvider: CachedNetworkImageProvider(imageUrl),
                 heroAttributes: PhotoViewHeroAttributes(tag: imageUrl),
               ),
             ),

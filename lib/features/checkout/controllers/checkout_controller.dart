@@ -30,7 +30,6 @@ import 'package:sixam_mart/features/checkout/domain/models/place_order_body_mode
 import 'package:sixam_mart/features/checkout/domain/models/timeslote_model.dart';
 import 'package:sixam_mart/features/checkout/domain/models/payment_flow_state.dart';
 import 'package:sixam_mart/features/checkout/domain/models/checkout_error_response.dart';
-//import 'package:sixam_mart/features/checkout/utils/checkout_data_sanitizer.dart';
 import 'package:sixam_mart/features/checkout/domain/services/checkout_service_interface.dart';
 import 'package:sixam_mart/features/checkout/widgets/order_successfull_dialog.dart';
 import 'package:sixam_mart/features/checkout/widgets/partial_pay_dialog_widget.dart';
@@ -1451,10 +1450,10 @@ class CheckoutController extends GetxController implements GetxService {
     if (isDuration) {
       // For duration, still use Google Maps API to get actual driving time
       _distance = -1;
-      print('بدا ياخذالبيانات');
+      debugPrint('📏 getDistanceInKM: fetching duration data');
       final Response response = await checkoutServiceInterface
           .getDistanceInMeterNew(originLatLng, destinationLatLng);
-      print('كمل ياخذالبيانات');
+      debugPrint('📏 getDistanceInKM: duration data received');
       try {
         if (response.statusCode == 200 && response.body['status'] == 'OK') {
           _distance =

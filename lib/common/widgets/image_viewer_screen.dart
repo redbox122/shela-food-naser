@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:photo_view/photo_view.dart';
@@ -40,7 +41,7 @@ class ImageViewerScreen extends StatelessWidget {
               pageController: pageController,
               builder: (BuildContext context, int index) {
                 return PhotoViewGalleryPageOptions(
-                  imageProvider: NetworkImage('${imageList[index]}'),
+                  imageProvider: CachedNetworkImageProvider('${imageList[index]}'),
                   initialScale: PhotoViewComputedScale.contained,
                   heroAttributes: PhotoViewHeroAttributes(tag: index.toString()),
                 );

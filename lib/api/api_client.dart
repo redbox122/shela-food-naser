@@ -189,7 +189,8 @@ class ApiClient extends GetxService {
     // Certificate pinning لا يعمل على الويب، والـ headers تسبب مشاكل CORS
     if (kIsWeb) {
       if (kDebugMode) {
-        debugPrint('⚠️ Secure HTTP Client disabled on web platform (CORS and certificate pinning issues)');
+        debugPrint(
+            '⚠️ Secure HTTP Client disabled on web platform (CORS and certificate pinning issues)');
       }
       _useSecureClient = false;
       return;
@@ -288,9 +289,7 @@ class ApiClient extends GetxService {
         sharedPreferences.getString(AppConstants.cacheModuleId) != null) {
       resolvedModuleId =
           '${moduleID ?? ModuleModel.fromJson(jsonDecode(sharedPreferences.getString(AppConstants.cacheModuleId)!) as Map<String, dynamic>).id}';
-      header.addAll({
-        AppConstants.moduleId: resolvedModuleId
-      });
+      header.addAll({AppConstants.moduleId: resolvedModuleId});
     }
 
     header.addAll({
@@ -348,6 +347,18 @@ class ApiClient extends GetxService {
   }
 
   Map<String, String> getHeader() => _mainHeaders;
+
+  /// Merge custom headers with default headers and apply aliases.
+  /// Custom headers override defaults, but defaults provide moduleId, zoneId, etc.
+  Map<String, String> _prepareFinalHeaders(Map<String, String>? customHeaders) {
+    final Map<String, String> finalHeaders =
+        Map<String, String>.from(_mainHeaders);
+    if (customHeaders != null) {
+      finalHeaders.addAll(customHeaders);
+    }
+    _addHeaderAliases(finalHeaders);
+    return finalHeaders;
+  }
 
   void resetHeaders() {
     _mainHeaders = {};
@@ -525,8 +536,7 @@ class ApiClient extends GetxService {
       debugPrint(
           '[HeaderGuard] blocked | syncAttempted=$syncAttempted | module=$moduleId | zone=$zoneId | path=$uri');
     }
-    appLogger.warning(
-        'ApiClient: $method $uri blocked - invalid home headers '
+    appLogger.warning('ApiClient: $method $uri blocked - invalid home headers '
         '(module-id=$moduleId, zone-id=$zoneId)');
 
     return Response(
@@ -598,12 +608,7 @@ class ApiClient extends GetxService {
 
       // ⚠️ CRITICAL: Merge custom headers with default headers to ensure moduleId is always included
       // Custom headers override defaults, but defaults provide moduleId, zoneId, etc.
-      final Map<String, String> finalHeaders =
-          Map<String, String>.from(_mainHeaders);
-      if (headers != null) {
-        finalHeaders.addAll(headers); // Custom headers override defaults
-      }
-      _addHeaderAliases(finalHeaders);
+      final Map<String, String> finalHeaders = _prepareFinalHeaders(headers);
       if (!useEtag) {
         // Signal SecureHttpClient to skip ETag for this request
         finalHeaders['X-Disable-ETag'] = 'true';
@@ -687,8 +692,8 @@ class ApiClient extends GetxService {
         }
       }
 
-      final blockedResponse = await _ensureHomeHeadersOrBlock(uri, finalHeaders,
-          method: 'GET');
+      final blockedResponse =
+          await _ensureHomeHeadersOrBlock(uri, finalHeaders, method: 'GET');
       if (blockedResponse != null) {
         return blockedResponse;
       }
@@ -948,7 +953,7 @@ class ApiClient extends GetxService {
       if (kDebugMode) {
         appLogger.error(
             '[ApiClient] FALLBACK ERROR | requestId=${requestId ?? 'n/a'} | uri=$fullUriOnError | error=$e');
-        
+
         // ⚠️ WEB FIX: معلومات إضافية للأخطاء على الويب
         if (kIsWeb) {
           appLogger.error(
@@ -974,14 +979,10 @@ class ApiClient extends GetxService {
       ValidateStatus? validateStatus}) async {
     try {
       // ⚠️ CRITICAL: Merge custom headers with default headers to ensure moduleId is always included
-      final Map<String, String> finalHeaders =
-          Map<String, String>.from(_mainHeaders);
-      if (headers != null) {
-        finalHeaders.addAll(headers); // Custom headers override defaults
-      }
+      final Map<String, String> finalHeaders = _prepareFinalHeaders(headers);
 
-      final blockedResponse = await _ensureHomeHeadersOrBlock(uri, finalHeaders,
-          method: 'POST');
+      final blockedResponse =
+          await _ensureHomeHeadersOrBlock(uri, finalHeaders, method: 'POST');
       if (blockedResponse != null) {
         return blockedResponse;
       }
@@ -1082,11 +1083,7 @@ class ApiClient extends GetxService {
       {Map<String, String>? headers, bool handleError = true}) async {
     try {
       // ⚠️ CRITICAL: Merge custom headers with default headers
-      final Map<String, String> finalHeaders =
-          Map<String, String>.from(_mainHeaders);
-      if (headers != null) {
-        finalHeaders.addAll(headers);
-      }
+      final Map<String, String> finalHeaders = _prepareFinalHeaders(headers);
 
       final blockedResponse = await _ensureHomeHeadersOrBlock(uri, finalHeaders,
           method: 'POST_MULTIPART');
@@ -1159,14 +1156,15 @@ class ApiClient extends GetxService {
     debugPrint('\x1B[35m🔥🔥🔥 apiClient.postFormData() CALLED 🔥🔥🔥\x1B[0m');
     debugPrint('\x1B[35m - URI: $uri\x1B[0m');
     debugPrint('\x1B[35m - formData type: ${formData.runtimeType}\x1B[0m');
-    
+
     try {
       // ⚠️ CRITICAL: Merge custom headers with default headers
-      final Map<String, dynamic> finalHeaders = Map<String, dynamic>.from(_mainHeaders);
+      final Map<String, dynamic> finalHeaders =
+          Map<String, dynamic>.from(_mainHeaders);
       if (headers != null) {
         finalHeaders.addAll(headers);
       }
-      
+
       // 🔥 مهم: إزالة Content-Type header للسماح لـ dio بضبطه تلقائياً
       final Map<String, String> guardHeaders =
           finalHeaders.map((key, value) => MapEntry(key, value.toString()));
@@ -1179,39 +1177,44 @@ class ApiClient extends GetxService {
 
       finalHeaders.remove('Content-Type');
       debugPrint('\x1B[35m - Content-Type removed (will be set by dio)\x1B[0m');
-      
+
       // Convert to Map<String, String> for logging
-      final Map<String, String> logHeaders = finalHeaders.map((key, value) => MapEntry(key, value.toString()));
-      
+      final Map<String, String> logHeaders =
+          finalHeaders.map((key, value) => MapEntry(key, value.toString()));
+
       // Log API call start
       appLogger.logApiCallStart('POST (FormData)', uri, headers: logHeaders);
-      
+
       // Try to get files count if formData is FormData
       try {
         // Use runtimeType check instead of 'is' to avoid import conflict
         if (formData.runtimeType.toString().contains('FormData')) {
           final formDataRef = formData as dynamic;
           if (formDataRef.files != null) {
-            debugPrint('\x1B[35m - FormData files count: ${formDataRef.files.length}\x1B[0m');
+            debugPrint(
+                '\x1B[35m - FormData files count: ${formDataRef.files.length}\x1B[0m');
           }
           if (formDataRef.fields != null) {
-            debugPrint('\x1B[35m - FormData fields count: ${formDataRef.fields.length}\x1B[0m');
+            debugPrint(
+                '\x1B[35m - FormData fields count: ${formDataRef.fields.length}\x1B[0m');
           }
         }
       } catch (e) {
         debugPrint('\x1B[35m - Could not get FormData info: $e\x1B[0m');
       }
-      
+
       final stopwatch = Stopwatch()..start();
-      
+
       // Use secure client if available and token is valid
       if (_useSecureClient && await _isSecureTokenValid()) {
         try {
-          debugPrint('\x1B[35m🔥 Using Secure Client (Dio) for FormData\x1B[0m');
+          debugPrint(
+              '\x1B[35m🔥 Using Secure Client (Dio) for FormData\x1B[0m');
           debugPrint('\x1B[35m - URI: $uri\x1B[0m');
           debugPrint('\x1B[35m - Headers: $finalHeaders\x1B[0m');
-          debugPrint('\x1B[35m - Content-Type in headers: ${finalHeaders.containsKey('Content-Type')}\x1B[0m');
-          
+          debugPrint(
+              '\x1B[35m - Content-Type in headers: ${finalHeaders.containsKey('Content-Type')}\x1B[0m');
+
           final response = await _secureHttpClient.dio.post<dynamic>(
             uri,
             data: formData,
@@ -1221,30 +1224,36 @@ class ApiClient extends GetxService {
               validateStatus: (int? status) => status != null && status < 500,
             ),
           );
-          
+
           debugPrint('\x1B[35m✅ Secure Client Response:\x1B[0m');
           debugPrint('\x1B[35m - Status: ${response.statusCode}\x1B[0m');
           debugPrint('\x1B[35m - Headers: ${response.headers}\x1B[0m');
-          
+
           stopwatch.stop();
-          appLogger.logApiCallSuccess(
-              'POST (FormData)', uri, response.statusCode ?? 0, stopwatch.elapsed);
-          
+          appLogger.logApiCallSuccess('POST (FormData)', uri,
+              response.statusCode ?? 0, stopwatch.elapsed);
+
           return _convertDioResponseToGetResponse(response, uri);
         } on DioException catch (e) {
           stopwatch.stop();
-          debugPrint('\x1B[31m❌❌❌ DioException in postFormData (Secure Client):\x1B[0m');
-          debugPrint('\x1B[31m - Status Code: ${e.response?.statusCode}\x1B[0m');
-          debugPrint('\x1B[31m - Status Message: ${e.response?.statusMessage}\x1B[0m');
+          debugPrint(
+              '\x1B[31m❌❌❌ DioException in postFormData (Secure Client):\x1B[0m');
+          debugPrint(
+              '\x1B[31m - Status Code: ${e.response?.statusCode}\x1B[0m');
+          debugPrint(
+              '\x1B[31m - Status Message: ${e.response?.statusMessage}\x1B[0m');
           debugPrint('\x1B[31m - Response Data: ${e.response?.data}\x1B[0m');
-          debugPrint('\x1B[31m - Response Headers: ${e.response?.headers}\x1B[0m');
+          debugPrint(
+              '\x1B[31m - Response Headers: ${e.response?.headers}\x1B[0m');
           if (e.response?.data is Map) {
             final errorData = e.response!.data as Map;
             if (errorData.containsKey('errors')) {
-              debugPrint('\x1B[31m - Validation Errors: ${errorData['errors']}\x1B[0m');
+              debugPrint(
+                  '\x1B[31m - Validation Errors: ${errorData['errors']}\x1B[0m');
             }
             if (errorData.containsKey('message')) {
-              debugPrint('\x1B[31m - Error Message: ${errorData['message']}\x1B[0m');
+              debugPrint(
+                  '\x1B[31m - Error Message: ${errorData['message']}\x1B[0m');
             }
           }
           appLogger.logApiCallError('POST (FormData)', uri, e.toString(),
@@ -1252,29 +1261,31 @@ class ApiClient extends GetxService {
           _useSecureClient = false;
         } catch (e) {
           stopwatch.stop();
-          debugPrint('\x1B[31m❌❌❌ General Exception in postFormData (Secure Client):\x1B[0m');
+          debugPrint(
+              '\x1B[31m❌❌❌ General Exception in postFormData (Secure Client):\x1B[0m');
           debugPrint('\x1B[31m - Error: $e\x1B[0m');
           appLogger.logApiCallError('POST (FormData)', uri, e.toString(),
               duration: stopwatch.elapsed);
           _useSecureClient = false;
         }
       }
-      
+
       // Fallback: Create new Dio instance for multipart
       debugPrint('\x1B[35m🔥 Using Fallback Dio Client for FormData\x1B[0m');
       debugPrint('\x1B[35m - Base URL: $appBaseUrl\x1B[0m');
       debugPrint('\x1B[35m - URI: $uri\x1B[0m');
       debugPrint('\x1B[35m - Full URL: $appBaseUrl$uri\x1B[0m');
       debugPrint('\x1B[35m - Headers: $finalHeaders\x1B[0m');
-      debugPrint('\x1B[35m - Content-Type in headers: ${finalHeaders.containsKey('Content-Type')}\x1B[0m');
-      
+      debugPrint(
+          '\x1B[35m - Content-Type in headers: ${finalHeaders.containsKey('Content-Type')}\x1B[0m');
+
       final dioClient = Dio(BaseOptions(
         baseUrl: appBaseUrl,
         connectTimeout: Duration(seconds: timeoutInSeconds),
         receiveTimeout: Duration(seconds: timeoutInSeconds),
         headers: finalHeaders,
       ));
-      
+
       try {
         debugPrint('\x1B[35m🔥 Sending Dio POST request...\x1B[0m');
         final response = await dioClient.post<dynamic>(
@@ -1285,19 +1296,21 @@ class ApiClient extends GetxService {
             validateStatus: (int? status) => status != null && status < 500,
           ),
         );
-        
+
         debugPrint('\x1B[35m✅ Dio Response received:\x1B[0m');
         debugPrint('\x1B[35m - Status: ${response.statusCode}\x1B[0m');
-        debugPrint('\x1B[35m - Request Headers: ${response.requestOptions.headers}\x1B[0m');
+        debugPrint(
+            '\x1B[35m - Request Headers: ${response.requestOptions.headers}\x1B[0m');
         debugPrint('\x1B[35m - Response Headers: ${response.headers}\x1B[0m');
-        
+
         stopwatch.stop();
-        
+
         // Log response details
         debugPrint('\x1B[35m✅ postFormData Response:\x1B[0m');
         debugPrint('\x1B[35m - Status Code: ${response.statusCode}\x1B[0m');
-        debugPrint('\x1B[35m - Status Message: ${response.statusMessage}\x1B[0m');
-        
+        debugPrint(
+            '\x1B[35m - Status Message: ${response.statusMessage}\x1B[0m');
+
         // If error response (422, 400, etc), log the body
         if (response.statusCode != null && response.statusCode! >= 400) {
           debugPrint('\x1B[31m❌ ERROR RESPONSE BODY:\x1B[0m');
@@ -1305,21 +1318,23 @@ class ApiClient extends GetxService {
           if (response.data is Map) {
             final errorData = response.data as Map;
             if (errorData.containsKey('errors')) {
-              debugPrint('\x1B[31m - Validation Errors: ${errorData['errors']}\x1B[0m');
+              debugPrint(
+                  '\x1B[31m - Validation Errors: ${errorData['errors']}\x1B[0m');
             }
             if (errorData.containsKey('message')) {
-              debugPrint('\x1B[31m - Error Message: ${errorData['message']}\x1B[0m');
+              debugPrint(
+                  '\x1B[31m - Error Message: ${errorData['message']}\x1B[0m');
             }
           }
           // ✅ FIX: تسجيل كـ error وليس success
-          appLogger.logApiCallError('POST (FormData)', uri, 
-              'Status ${response.statusCode}: ${response.data}', 
+          appLogger.logApiCallError('POST (FormData)', uri,
+              'Status ${response.statusCode}: ${response.data}',
               duration: stopwatch.elapsed);
         } else {
-          appLogger.logApiCallSuccess(
-              'POST (FormData)', uri, response.statusCode ?? 0, stopwatch.elapsed);
+          appLogger.logApiCallSuccess('POST (FormData)', uri,
+              response.statusCode ?? 0, stopwatch.elapsed);
         }
-        
+
         // Convert DioResponse to GetResponse
         return Response(
           statusCode: response.statusCode ?? 0,
@@ -1328,18 +1343,23 @@ class ApiClient extends GetxService {
         );
       } on DioException catch (e) {
         stopwatch.stop();
-        debugPrint('\x1B[31m❌❌❌ DioException in postFormData (Fallback):\x1B[0m');
+        debugPrint(
+            '\x1B[31m❌❌❌ DioException in postFormData (Fallback):\x1B[0m');
         debugPrint('\x1B[31m - Status Code: ${e.response?.statusCode}\x1B[0m');
-        debugPrint('\x1B[31m - Status Message: ${e.response?.statusMessage}\x1B[0m');
+        debugPrint(
+            '\x1B[31m - Status Message: ${e.response?.statusMessage}\x1B[0m');
         debugPrint('\x1B[31m - Response Data: ${e.response?.data}\x1B[0m');
-        debugPrint('\x1B[31m - Response Headers: ${e.response?.headers}\x1B[0m');
+        debugPrint(
+            '\x1B[31m - Response Headers: ${e.response?.headers}\x1B[0m');
         if (e.response?.data is Map) {
           final errorData = e.response!.data as Map;
           if (errorData.containsKey('errors')) {
-            debugPrint('\x1B[31m - Validation Errors: ${errorData['errors']}\x1B[0m');
+            debugPrint(
+                '\x1B[31m - Validation Errors: ${errorData['errors']}\x1B[0m');
           }
           if (errorData.containsKey('message')) {
-            debugPrint('\x1B[31m - Error Message: ${errorData['message']}\x1B[0m');
+            debugPrint(
+                '\x1B[31m - Error Message: ${errorData['message']}\x1B[0m');
           }
         }
         if (!uri.contains('registration-activity')) {
@@ -1356,7 +1376,8 @@ class ApiClient extends GetxService {
         return Response(statusCode: 1, statusText: noInternetMessage);
       } catch (e) {
         stopwatch.stop();
-        debugPrint('\x1B[31m❌❌❌ General Exception in postFormData (Fallback):\x1B[0m');
+        debugPrint(
+            '\x1B[31m❌❌❌ General Exception in postFormData (Fallback):\x1B[0m');
         debugPrint('\x1B[31m - Error: $e\x1B[0m');
         if (!uri.contains('registration-activity')) {
           appLogger.logApiCallError('POST (FormData)', uri, e.toString());
@@ -1377,14 +1398,10 @@ class ApiClient extends GetxService {
       {Map<String, String>? headers, bool handleError = true}) async {
     try {
       // ⚠️ CRITICAL: Merge custom headers with default headers
-      final Map<String, String> finalHeaders =
-          Map<String, String>.from(_mainHeaders);
-      if (headers != null) {
-        finalHeaders.addAll(headers);
-      }
+      final Map<String, String> finalHeaders = _prepareFinalHeaders(headers);
 
-      final blockedResponse = await _ensureHomeHeadersOrBlock(uri, finalHeaders,
-          method: 'PUT');
+      final blockedResponse =
+          await _ensureHomeHeadersOrBlock(uri, finalHeaders, method: 'PUT');
       if (blockedResponse != null) {
         return blockedResponse;
       }
@@ -1481,14 +1498,10 @@ class ApiClient extends GetxService {
       {Map<String, String>? headers, bool handleError = true}) async {
     try {
       // ⚠️ CRITICAL: Merge custom headers with default headers
-      final Map<String, String> finalHeaders =
-          Map<String, String>.from(_mainHeaders);
-      if (headers != null) {
-        finalHeaders.addAll(headers);
-      }
+      final Map<String, String> finalHeaders = _prepareFinalHeaders(headers);
 
-      final blockedResponse = await _ensureHomeHeadersOrBlock(uri, finalHeaders,
-          method: 'DELETE');
+      final blockedResponse =
+          await _ensureHomeHeadersOrBlock(uri, finalHeaders, method: 'DELETE');
       if (blockedResponse != null) {
         return blockedResponse;
       }
@@ -1659,8 +1672,8 @@ class ApiClient extends GetxService {
     }
 
     if (serverTimeUtc == null) return;
-    final int offsetMs =
-        serverTimeUtc.millisecondsSinceEpoch - DateTime.now().toUtc().millisecondsSinceEpoch;
+    final int offsetMs = serverTimeUtc.millisecondsSinceEpoch -
+        DateTime.now().toUtc().millisecondsSinceEpoch;
     sharedPreferences.setInt(AppConstants.serverTimeOffsetMs, offsetMs);
     DateConverter.updateServerTimeOffsetMs(offsetMs);
   }

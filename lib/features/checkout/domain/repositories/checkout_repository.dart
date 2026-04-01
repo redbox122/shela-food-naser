@@ -128,15 +128,6 @@ class CheckoutRepository implements CheckoutRepositoryInterface {
     headers['Content-Type'] = 'application/json; charset=UTF-8';
     headers['Accept'] = 'application/json';
 
-    // 🔥 FIX: إزالة duplication - latitude/longitude موجودان في body
-    // لا حاجة لإرسالهما في headers أيضاً (إلا إذا كان backend يتطلب ذلك صراحة)
-    // if (orderBody.latitude != null) {
-    //   headers['latitude'] = orderBody.latitude!;
-    // }
-    // if (orderBody.longitude != null) {
-    //   headers['longitude'] = orderBody.longitude!;
-    // }
-
     // Add moduleId and zoneId headers as required by the API
     if (sharedPreferences.getString(AppConstants.cacheModuleId) != null) {
       try {

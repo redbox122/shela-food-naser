@@ -1,6 +1,7 @@
 // ignore_for_file: deprecated_member_use
 
 import 'dart:async';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/foundation.dart';
 import 'package:photo_view/photo_view.dart';
 import 'package:sixam_mart/features/auth/controllers/auth_controller.dart';
@@ -655,7 +656,7 @@ class OrderDetailsScreenState extends State<OrderDetailsScreen> {
                 borderRadius: BorderRadius.circular(Dimensions.radiusLarge),
                 child: PhotoView(
                   tightMode: true,
-                  imageProvider: NetworkImage(imageUrl),
+                  imageProvider: CachedNetworkImageProvider(imageUrl),
                   heroAttributes: PhotoViewHeroAttributes(tag: imageUrl),
                 ),
               ),
