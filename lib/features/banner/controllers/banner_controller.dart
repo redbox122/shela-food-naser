@@ -20,8 +20,11 @@ class BannerController extends GetxController implements GetxService {
   final BannerServiceInterface bannerServiceInterface;
   BannerController({required this.bannerServiceInterface});
 
+  Worker? _moduleWorker;
+
   @override
   void onClose() {
+    _moduleWorker?.dispose();
     invalidateAll();
     super.onClose();
   }
@@ -118,7 +121,8 @@ class BannerController extends GetxController implements GetxService {
 
       // 🏗️ MODULE-FIRST: React to module selection changes
       // 🔒 BOOTSTRAP PROTECTION: Guard against null module and duplicate loading
-      ever(splashController.selectedModule, (ModuleModel? module) {
+      _moduleWorker =
+          ever(splashController.selectedModule, (ModuleModel? module) {
         if (module != null) {
           // 🚫 UI THREAD PROTECTION: Skip if banners already loaded for this module
           if (_lastLoadedModuleId != null &&
@@ -127,7 +131,7 @@ class BannerController extends GetxController implements GetxService {
               _featuredBannerList!.isNotEmpty) {
             if (kDebugMode) {
               appLogger.debug(
-                  '⚡ BannerController: Banners already loaded for module ${module.id} - skipping');
+                  '⚡ BannerControllers: Banners already loaded for module ${module.id} - skipping');
             }
             return;
           }

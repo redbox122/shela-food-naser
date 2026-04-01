@@ -465,10 +465,10 @@ class CheckoutController extends GetxController implements GetxService {
       update();
     }
   }
+
   Future<bool> Pay(BuildContext context, String amount,
       {String? contactNumber}) async {
-    debugPrint(
-        'Opening MyFatoorah payment (backend-driven) - Amount: $amount');
+    debugPrint('Opening MyFatoorah payment (backend-driven) - Amount: $amount');
     debugPrint(
         '[Pay][Start] orderId=$_currentOrderId inProgress=$_isPaymentInProgress isOrderPaid=$_isOrderPaid selectedMethod=${select_payment_Methods?.paymentMethodAr} methodId=${select_payment_Methods?.paymentMethodId}');
 
@@ -536,13 +536,15 @@ class CheckoutController extends GetxController implements GetxService {
       final service = MyFatoorahService(repository: repository);
 
       final profileController = Get.find<ProfileController>();
-      final String customerName =
-          profileController.userInfoModel?.fName?.trim().isNotEmpty == true
-              ? '${profileController.userInfoModel?.fName ?? ''} ${profileController.userInfoModel?.lName ?? ''}'
-                  .trim()
-              : ((profileController.userInfoModel?.lName ?? '').trim().isNotEmpty
-                  ? (profileController.userInfoModel?.lName ?? '').trim()
-                  : 'Customer');
+      final String customerName = profileController.userInfoModel?.fName
+                  ?.trim()
+                  .isNotEmpty ==
+              true
+          ? '${profileController.userInfoModel?.fName ?? ''} ${profileController.userInfoModel?.lName ?? ''}'
+              .trim()
+          : ((profileController.userInfoModel?.lName ?? '').trim().isNotEmpty
+              ? (profileController.userInfoModel?.lName ?? '').trim()
+              : 'Customer');
       final String customerPhone = (contactNumber != null &&
               contactNumber.trim().isNotEmpty)
           ? contactNumber.trim()
@@ -590,14 +592,12 @@ class CheckoutController extends GetxController implements GetxService {
         return false;
       }
 
-      final Map<String, dynamic> body =
-          response.body is Map<String, dynamic>
-              ? response.body as Map<String, dynamic>
-              : <String, dynamic>{};
+      final Map<String, dynamic> body = response.body is Map<String, dynamic>
+          ? response.body as Map<String, dynamic>
+          : <String, dynamic>{};
       final dynamic data = body['data'];
-      final String? paymentUrl = data is Map<String, dynamic>
-          ? data['payment_url']?.toString()
-          : null;
+      final String? paymentUrl =
+          data is Map<String, dynamic> ? data['payment_url']?.toString() : null;
       debugPrint(
           '[Pay][PaymentUrl] hasUrl=${paymentUrl != null && paymentUrl.isNotEmpty} url=${paymentUrl ?? ''}');
 
@@ -752,9 +752,8 @@ class CheckoutController extends GetxController implements GetxService {
     MFPaymentMethod? method,
     String? amount,
   }) {
-    final String methodName = method?.paymentMethodEn ??
-        method?.paymentMethodAr ??
-        'unknown';
+    final String methodName =
+        method?.paymentMethodEn ?? method?.paymentMethodAr ?? 'unknown';
     final dynamic methodId = method?.paymentMethodId;
 
     final List<String> details = <String>[
@@ -774,11 +773,8 @@ class CheckoutController extends GetxController implements GetxService {
       'amount=${amount ?? ''}',
     ];
 
-    final String shortStack = stackTrace
-        .toString()
-        .split('\n')
-        .take(5)
-        .join(' | ');
+    final String shortStack =
+        stackTrace.toString().split('\n').take(5).join(' | ');
 
     debugPrint(
         '\x1B[31m[MyFatoorah][ERROR] ${details.join(' ; ')} ; stack=$shortStack\x1B[0m');
@@ -807,8 +803,7 @@ class CheckoutController extends GetxController implements GetxService {
             : MFEnvironment.LIVE,
       );
       _isMyFatoorahSdkInitialized = true;
-      debugPrint(
-          '[MyFatoorah] SDK initialized for direct executePayment flow');
+      debugPrint('[MyFatoorah] SDK initialized for direct executePayment flow');
       return true;
     } catch (e, st) {
       debugPrint(
@@ -1186,12 +1181,13 @@ class CheckoutController extends GetxController implements GetxService {
     }
   }
 
-    void setOrderType(String? type, {bool notify = true}) {
+  void setOrderType(String? type, {bool notify = true}) {
     _orderType = type;
     if (_orderType == 'take_away') {
       // Takeaway must always have zero delivery fee in UI and totals.
       _calculatedDeliveryCharge = 0.0;
-      final int? targetStoreId = _store?.id ?? Get.find<CartController>().storeId;
+      final int? targetStoreId =
+          _store?.id ?? Get.find<CartController>().storeId;
       if (targetStoreId != null && targetStoreId > 0) {
         _hydrateStoreAddressFromStoreSummary(targetStoreId);
       }
@@ -1202,7 +1198,7 @@ class CheckoutController extends GetxController implements GetxService {
     }
   }
 
-    Future<void> _hydrateStoreAddressFromStoreSummary(int storeId) async {
+  Future<void> _hydrateStoreAddressFromStoreSummary(int storeId) async {
     try {
       final String currentAddress = (_store?.address ?? '').trim();
       if (currentAddress.isNotEmpty) return;
@@ -1655,15 +1651,19 @@ class CheckoutController extends GetxController implements GetxService {
     try {
       // Create order with "unpaid" status first (REAL E-COMMERCE FLOW)
       debugPrint('\x1B[32m[CreateOrder] Calling placeOrder()...\x1B[0m');
-      debugPrint('\x1B[32m[CreateOrder] orderType=${placeOrderBody.orderType}\x1B[0m');
-      debugPrint('\x1B[32m[CreateOrder] multiParts=${multiParts.length}\x1B[0m');
+      debugPrint(
+          '\x1B[32m[CreateOrder] orderType=${placeOrderBody.orderType}\x1B[0m');
+      debugPrint(
+          '\x1B[32m[CreateOrder] multiParts=${multiParts.length}\x1B[0m');
 
       final Response response =
           await checkoutServiceInterface.placeOrder(placeOrderBody, multiParts);
 
       debugPrint('\x1B[32m[CreateOrder] placeOrder() returned\x1B[0m');
-      debugPrint('\x1B[32m[CreateOrder] statusCode=${response.statusCode}\x1B[0m');
-      debugPrint('\x1B[32m[CreateOrder] bodyType=${response.body.runtimeType}\x1B[0m');
+      debugPrint(
+          '\x1B[32m[CreateOrder] statusCode=${response.statusCode}\x1B[0m');
+      debugPrint(
+          '\x1B[32m[CreateOrder] bodyType=${response.body.runtimeType}\x1B[0m');
 
       // ✅ FIX: قبول 200 أو 201 كـ success (لا نعتمد على success field)
       // لأن prescription endpoint قد لا يرجع success: true
@@ -1699,7 +1699,8 @@ class CheckoutController extends GetxController implements GetxService {
           return orderID;
         } else {
           debugPrint('\x1B[31m❌ Order ID is empty in response!\x1B[0m');
-          debugPrint('\x1B[31m[CreateOrder] fullResponse=${response.body}\x1B[0m');
+          debugPrint(
+              '\x1B[31m[CreateOrder] fullResponse=${response.body}\x1B[0m');
           _paymentFlowState = PaymentFlowState.failed;
           _isLoading = false;
           update();
@@ -1854,7 +1855,6 @@ class CheckoutController extends GetxController implements GetxService {
     }
   }
 
-
   String _extractReadableApiMessage(dynamic body, {required String fallback}) {
     String message = fallback;
 
@@ -1865,7 +1865,8 @@ class CheckoutController extends GetxController implements GetxService {
         message = body['error'].toString();
       } else if (body['errors'] is Map && (body['errors'] as Map).isNotEmpty) {
         message = (body['errors'] as Map).values.first.toString();
-      } else if (body['errors'] is List && (body['errors'] as List).isNotEmpty) {
+      } else if (body['errors'] is List &&
+          (body['errors'] as List).isNotEmpty) {
         message = (body['errors'] as List).first.toString();
       }
     } else if (body is String && body.trim().isNotEmpty) {
@@ -1923,6 +1924,7 @@ class CheckoutController extends GetxController implements GetxService {
         normalized == 'signed' ||
         normalized == 'active';
   }
+
   // Step 2: Process Payment - Called after user chooses payment method
   // 🥇 Anti-loop Guard: يستخدم PaymentFlowState لمنع أي navigation تلقائي
   Future<String> processPayment(
@@ -2089,7 +2091,8 @@ class CheckoutController extends GetxController implements GetxService {
             paymentSucceeded = true;
             await kaidhaSubController.get_Wallet_Kaidh(); // Refresh balance
           } else {
-            debugPrint('\x1B[33m[Payment][Qidha] failed status=$statusCode\x1B[0m');
+            debugPrint(
+                '\x1B[33m[Payment][Qidha] failed status=$statusCode\x1B[0m');
             debugPrint(
                 '\x1B[33m[Payment][Qidha] response=${paymentResponse.body}\x1B[0m');
 
@@ -2107,8 +2110,7 @@ class CheckoutController extends GetxController implements GetxService {
           _isLoading = false;
           update();
           debugPrint('[Payment][Qidha] exception: $e');
-          showCustomSnackBar(
-              'Qidha payment error. Please try again later.');
+          showCustomSnackBar('Qidha payment error. Please try again later.');
           return '';
         }
       } else if (_paymentMethodIndex == 1 && isMy_Pay == true) {
@@ -2172,8 +2174,7 @@ class CheckoutController extends GetxController implements GetxService {
           _isLoading = false;
           update();
           debugPrint('[Payment][Wallet] exception: $e');
-          showCustomSnackBar(
-              'Wallet payment error. Please try again later.');
+          showCustomSnackBar('Wallet payment error. Please try again later.');
           return '';
         }
       } else {
@@ -2185,7 +2186,8 @@ class CheckoutController extends GetxController implements GetxService {
 
       // ============================ عرض النتيجة النهائية ============================
       if (paymentSucceeded) {
-        debugPrint('\x1B[32m[Payment] order=$_currentOrderId marked paid\x1B[0m');
+        debugPrint(
+            '\x1B[32m[Payment] order=$_currentOrderId marked paid\x1B[0m');
 
         // 🥇 Update flow state - نجحت العملية
         _paymentFlowState = PaymentFlowState.success;
@@ -2639,7 +2641,18 @@ class CheckoutController extends GetxController implements GetxService {
       return false;
     }
   }
+
+  @override
+  void onClose() {
+    couponController.dispose();
+    noteController.dispose();
+    streetNumberController.dispose();
+    houseController.dispose();
+    floorController.dispose();
+    tipController.dispose();
+    streetNode.dispose();
+    houseNode.dispose();
+    floorNode.dispose();
+    super.onClose();
+  }
 }
-
-
-

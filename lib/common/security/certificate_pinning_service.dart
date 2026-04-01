@@ -44,7 +44,7 @@ class CertificatePinningService {
 
   // Server environment (should be configurable)
   static String _currentEnvironment = 'production';
-  
+
   // Certificate validation status
   static bool _isCertificateValid = false;
   static String? _lastValidationError;
@@ -53,7 +53,7 @@ class CertificatePinningService {
   /// [environment] - Server environment (production, staging, development)
   static Future<void> initialize({String environment = 'production'}) async {
     _currentEnvironment = environment;
-    
+
     try {
       // Validate current environment
       if (!_certificateFingerprints.containsKey(_currentEnvironment)) {
@@ -61,14 +61,15 @@ class CertificatePinningService {
       }
 
       if (kDebugMode) {
-        print('🔒 Certificate Pinning Service initialized for $_currentEnvironment environment');
+        print(
+            '🔒 Certificate Pinning Service initialized for $_currentEnvironment environment');
       }
-      
+
       _isCertificateValid = true;
     } catch (e) {
       _isCertificateValid = false;
       _lastValidationError = e.toString();
-      
+
       if (kDebugMode) {
         print('❌ Certificate Pinning Service initialization failed: $e');
       }
@@ -90,23 +91,29 @@ class CertificatePinningService {
   static bool validateCertificateFingerprint(X509Certificate certificate) {
     try {
       final fingerprint = _calculateCertificateFingerprint(certificate);
-      final allowedFingerprints = _certificateFingerprints[_currentEnvironment] ?? [];
-      
+      final allowedFingerprints =
+          _certificateFingerprints[_currentEnvironment] ?? [];
+
       if (allowedFingerprints.isEmpty) {
         if (kDebugMode) {
-          print('⚠️ No certificate fingerprints configured for $_currentEnvironment environment');
+          print(
+              '⚠️ No certificate fingerprints configured for $_currentEnvironment environment');
+          print(
+              '⚠️ Certificate pinning is effectively DISABLED - add fingerprints before production release');
         }
+        // TODO: Set _certificateFingerprints for production before release.
+        // Returning true here bypasses pinning entirely.
         return true; // Allow if no fingerprints configured
       }
-      
+
       final isValid = allowedFingerprints.contains(fingerprint);
-      
+
       if (kDebugMode) {
         print('🔒 Certificate validation: ${isValid ? 'VALID' : 'INVALID'}');
         print('🔒 Expected fingerprints: $allowedFingerprints');
         print('🔒 Actual fingerprint: $fingerprint');
       }
-      
+
       return isValid;
     } catch (e) {
       if (kDebugMode) {
@@ -143,7 +150,7 @@ class CertificatePinningService {
         dio.options.headers['X-Frame-Options'] = 'DENY';
         dio.options.headers['X-XSS-Protection'] = '1; mode=block';
       }
-      
+
       // الـ headers الآمنة على جميع المنصات
       dio.options.headers['X-Content-Type-Options'] = 'nosniff';
 
@@ -170,7 +177,7 @@ class CertificatePinningService {
     try {
       final socket = await SecureSocket.connect(host, port);
       final certificate = socket.peerCertificate;
-      
+
       if (certificate == null) {
         if (kDebugMode) {
           print('❌ No certificate received from $host:$port');
@@ -180,7 +187,7 @@ class CertificatePinningService {
 
       final isValid = validateCertificateFingerprint(certificate);
       await socket.close();
-      
+
       return isValid;
     } catch (e) {
       if (kDebugMode) {
@@ -194,11 +201,12 @@ class CertificatePinningService {
   /// [host] - Host to check
   /// [port] - Port number
   /// Returns certificate information map
-  static Future<Map<String, dynamic>?> getCertificateInfo(String host, int port) async {
+  static Future<Map<String, dynamic>?> getCertificateInfo(
+      String host, int port) async {
     try {
       final socket = await SecureSocket.connect(host, port);
       final certificate = socket.peerCertificate;
-      
+
       if (certificate == null) {
         await socket.close();
         return null;
@@ -225,13 +233,15 @@ class CertificatePinningService {
   /// Update certificate fingerprints
   /// [environment] - Environment to update
   /// [fingerprints] - New certificate fingerprints
-  static void updateCertificateFingerprints(String environment, List<String> fingerprints) {
+  static void updateCertificateFingerprints(
+      String environment, List<String> fingerprints) {
     try {
       if (_certificateFingerprints.containsKey(environment)) {
         _certificateFingerprints[environment] = fingerprints;
-        
+
         if (kDebugMode) {
-          print('🔒 Updated certificate fingerprints for $environment environment');
+          print(
+              '🔒 Updated certificate fingerprints for $environment environment');
           print('🔒 New fingerprints: $fingerprints');
         }
       } else {
@@ -252,7 +262,8 @@ class CertificatePinningService {
       'currentEnvironment': _currentEnvironment,
       'certificateValidation': _isCertificateValid,
       'lastValidationError': _lastValidationError,
-      'configuredFingerprints': _certificateFingerprints[_currentEnvironment]?.length ?? 0,
+      'configuredFingerprints':
+          _certificateFingerprints[_currentEnvironment]?.length ?? 0,
       'totalEnvironments': _certificateFingerprints.length,
     };
   }
@@ -264,11 +275,12 @@ class CertificatePinningService {
     try {
       final uri = Uri.parse(testUrl);
       final isValid = await validateServerCertificate(uri.host, uri.port);
-      
+
       if (kDebugMode) {
-        print('🧪 Certificate pinning test for $testUrl: ${isValid ? 'PASSED' : 'FAILED'}');
+        print(
+            '🧪 Certificate pinning test for $testUrl: ${isValid ? 'PASSED' : 'FAILED'}');
       }
-      
+
       return isValid;
     } catch (e) {
       if (kDebugMode) {

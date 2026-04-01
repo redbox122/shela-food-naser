@@ -32,7 +32,10 @@ android {
 
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
+            // TODO: Replace with your production signing config.
+            // 1. Create a keystore: keytool -genkey -v -keystore release-key.jks ...
+            // 2. Store credentials in android/key.properties (excluded from VCS)
+            // 3. Load them here via: val keystoreProperties = Properties().apply { load(FileInputStream(rootProject.file("key.properties"))) }
             // Signing with the debug keys for now, so `flutter run --release` works.
             signingConfig = signingConfigs.getByName("debug")
         }

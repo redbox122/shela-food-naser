@@ -202,7 +202,8 @@ class ParcelController extends GetxController implements GetxService {
 
   void setLocationFromPlace(
       String? placeID, String? address, bool? isPickedUp) async {
-    final Response response = await parcelServiceInterface.getPlaceDetails(placeID);
+    final Response response =
+        await parcelServiceInterface.getPlaceDetails(placeID);
     if (response.statusCode == 200) {
       final PlaceDetailsModel placeDetails =
           PlaceDetailsModel.fromJson(response.body as Map<String, dynamic>);
@@ -223,7 +224,8 @@ class ParcelController extends GetxController implements GetxService {
         contactPersonNumber:
             AddressHelper.getUserAddressFromSharedPref()!.contactPersonNumber,
       );
-      final LocationController locationController = Get.find<LocationController>();
+      final LocationController locationController =
+          Get.find<LocationController>();
       final ZoneResponseModel response0 = await locationController.getZone(
           address0.latitude, address0.longitude, false);
       if (response0.isSuccess) {
@@ -415,9 +417,12 @@ class ParcelController extends GetxController implements GetxService {
     }
     _isLoading = false;
     if (response.statusCode == 200) {
-      final String? message = (response.body as Map<String, dynamic>)['message'] as String?;
-      orderID = ((response.body as Map<String, dynamic>)['order_id'] as dynamic).toString();
-      final int createUserId = (response.body as Map<String, dynamic>)['user_id'] as int;
+      final String? message =
+          (response.body as Map<String, dynamic>)['message'] as String?;
+      orderID = ((response.body as Map<String, dynamic>)['order_id'] as dynamic)
+          .toString();
+      final int createUserId =
+          (response.body as Map<String, dynamic>)['user_id'] as int;
 
       if (!isOfflinePay) {
         parcelCallback(
@@ -503,5 +508,11 @@ class ParcelController extends GetxController implements GetxService {
     } else {
       showCustomSnackBar(message);
     }
+  }
+
+  @override
+  void onClose() {
+    _customNoteController.dispose();
+    super.onClose();
   }
 }

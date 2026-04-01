@@ -213,6 +213,11 @@ class AppConstants {
   static const String storeReviewUri = '/api/v1/stores/reviews';
   static const String distanceMatrixUri = '/api/v1/config/distance-api';
 
+  // Google Maps API Key - provide via --dart-define=GOOGLE_MAPS_KEY=your_key
+  // TODO: Set your production Google Maps API key via --dart-define or environment config
+  static const String googleMapsApiKey =
+      String.fromEnvironment('GOOGLE_MAPS_KEY', defaultValue: '');
+
   //
 
   static const String searchLocationUri =
@@ -404,6 +409,7 @@ class AppConstants {
   static const String cacheCountryCode = 'cache_country_code';
   static const String cacheLanguageCode = 'cache_language_code';
   static const String cartList = '6ammart_cart_list';
+
   /// v3: default position reset; prefs only apply after 4s-hold + drag.
   static const String stickyCartBubbleNudgeDx =
       '6ammart_sticky_cart_bubble_dx_v3';
@@ -465,7 +471,7 @@ class AppConstants {
 
   /// Delivery Tips
   static List<String> tips = ['0', '15', '10', '20', '40', 'custom'];
-  
+
   // 🔥 Zone Filtering Configuration
   // List of allowed zone slugs for location selection
   // Currently: Only Riyadh West is allowed
@@ -479,17 +485,17 @@ class AppConstants {
   // Strict validation: Only West Riyadh city is allowed
   // This ensures locations outside Riyadh (Jeddah, Mecca, etc.) are rejected
   // Future: Add more allowed cities/regions by extending these configs
-  
+
   /// Allowed city name (must match geocode address)
   static const String allowedCity = 'Riyadh';
   static const String allowedCityArabic = 'الرياض';
-  
+
   /// West Riyadh geographic bounds (longitude range)
   /// These bounds define the western part of Riyadh city
   // 🗑️ REMOVED: Client-side geographic validation constants
   // All zone validation is now handled by backend API (/api/v1/config/get-zone-id)
   // Backend is the single source of truth for zone boundaries
-  
+
   static List<String> deliveryInstructionList = [
     'deliver_to_front_door'.tr,
     'deliver_the_reception_desk'.tr,
