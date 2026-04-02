@@ -52,6 +52,7 @@ import 'package:sixam_mart/features/offers/controllers/offers_controller.dart';
 import 'package:sixam_mart/features/home/controllers/home_unified_controller.dart';
 import 'package:sixam_mart/features/location/controllers/location_controller.dart';
 import 'package:sixam_mart/common/utils/app_logger.dart';
+import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 
 class SplashController extends GetxController implements GetxService {
   final SplashServiceInterface splashServiceInterface;
@@ -78,28 +79,13 @@ class SplashController extends GetxController implements GetxService {
           '🧠 SplashController.onInit() CALLED - Setting up module selection listener');
     }
 
-    // 🔥 PROMOTIONAL CONTENT: Load banners and offers from Module 3 for MultiModuleHomeScreen
-    // This displays promotional content even before user selects a module
-    // This is a business requirement - show featured content from eCommerce module
-    Future.microtask(_loadPromotionalContentIfReady);
+    // 🔥 PROMOTIONAL CONTENT: Deferred until after app-init completes and moduleList is populated.
+    // Previously fired as microtask in onInit, racing against CachedSplashLoader and causing
+    // duplicate API calls with empty headers.  Now triggered from _loadWithAppInit after modules arrive.
 
-    // 🔧 SAFETY: Ensure module list is loaded (for multi-module selection UI)
-    Future.microtask(() async {
-      if (_moduleList == null || _moduleList!.isEmpty) {
-        if (kDebugMode) {
-          debugPrint(
-              '⚠️ SplashController.onInit: moduleList empty - fetching modules from API');
-        }
-        try {
-          await getModules(dataSource: DataSourceEnum.client);
-        } catch (e) {
-          if (kDebugMode) {
-            debugPrint(
-                '❌ SplashController.onInit: Failed to fetch modules: $e');
-          }
-        }
-      }
-    });
+    // 🔧 SAFETY: getModules() removed from onInit — app-init endpoint already returns modules.
+    // The duplicate call was racing with CachedSplashLoader.loadSplashData and hitting the API
+    // before valid headers existed, causing wasted requests and main-thread contention.
 
     // 🔧 ARCHITECTURE FIX: Centralized module selection listener
     // This ensures banners and offers are loaded reactively when module is selected
@@ -167,14 +153,20 @@ class SplashController extends GetxController implements GetxService {
       _hasLoadedPromotionalContent = false;
       update(['promotional_content']);
       if (kDebugMode) {
-        debugPrint(
-            '❌ SplashController: Error loading promotional content: $e');
+        debugPrint('❌ SplashController: Error loading promotional content: $e');
         debugPrint('Stack trace: $stackTrace');
       }
     }
   }
 
   Future<void> _loadPromotionalContentIfReady() async {
+    if (!_isSplashFlowActive) {
+      if (kDebugMode) {
+        debugPrint(
+            '⏭️ SplashController: Skipping promotional content - splash flow inactive');
+      }
+      return;
+    }
     if (_hasLoadedPromotionalContent) {
       return;
     }
@@ -187,12 +179,20 @@ class SplashController extends GetxController implements GetxService {
       }
       return;
     }
+    // ⚡ PERF FIX: Don't attempt promotional API calls when address/zone headers
+    // are empty (fresh install). The backend rejects them and we waste 1-3s.
+    if (AddressHelper.getUserAddressFromSharedPref() == null) {
+      if (kDebugMode) {
+        debugPrint(
+            '⚡ SplashController: Skipping promotional content — no address/zone headers yet (fresh install)');
+      }
+      return;
+    }
     // Keep this false until we actually load promotional data successfully.
     // Otherwise offline failures can leave the UI stuck in a loading state.
     _hasLoadedPromotionalContent = false;
     if (kDebugMode) {
-      debugPrint(
-          '🔥 SplashController: Loading promotional content (Module 3)');
+      debugPrint('🔥 SplashController: Loading promotional content (Module 3)');
     }
     await _loadPromotionalContentForMultiModuleScreen();
     update(['promotional_content']);
@@ -264,6 +264,7 @@ class SplashController extends GetxController implements GetxService {
 
   bool _isStartupModulePreloadRunning = false;
   final Set<int> _startupPreloadedModuleIds = <int>{};
+  bool _isSplashFlowActive = false;
 
   // 🏗️ MODULE-FIRST ARCHITECTURE: Single Source of Truth
   // This is the ONLY source of module selection state in the application
@@ -275,12 +276,36 @@ class SplashController extends GetxController implements GetxService {
 
   DateTime get currentTime => DateTime.now();
 
+  bool get isSplashFlowActive => _isSplashFlowActive;
+
+  void markSplashFlowActive() {
+    _isSplashFlowActive = true;
+    if (kDebugMode) {
+      debugPrint('🧭 SplashController: splash flow marked ACTIVE');
+    }
+  }
+
+  void markSplashFlowStopped() {
+    _isSplashFlowActive = false;
+    if (kDebugMode) {
+      debugPrint('🧭 SplashController: splash flow marked STOPPED');
+    }
+  }
+
   /// ✅ Check if splash data is ready (config and modules loaded)
   bool get isReady {
     return _configModel != null &&
         _moduleList != null &&
         _moduleList!.isNotEmpty &&
         !_isLoadingConfig;
+  }
+
+  bool _hasStartupLocationHeadersReady() {
+    final address = AddressHelper.getUserAddressFromSharedPref();
+    final hasZone = address?.zoneIds != null && address!.zoneIds!.isNotEmpty;
+    final hasLat = (address?.latitude ?? '').trim().isNotEmpty;
+    final hasLng = (address?.longitude ?? '').trim().isNotEmpty;
+    return hasZone && hasLat && hasLng;
   }
 
   /// 🔧 FIX 5: Get default moduleId for API calls when no module is selected
@@ -308,22 +333,26 @@ class SplashController extends GetxController implements GetxService {
   }
 
   /// ✅ Wait until splash data is ready (with timeout)
+  /// ⚡ PERF FIX: Uses exponential back-off instead of fixed 100ms polling
+  /// to avoid burning frames on the main thread during startup.
   Future<void> waitUntilReady(
       {Duration timeout = const Duration(seconds: 10)}) async {
     if (isReady) {
       return;
     }
 
-    final startTime = DateTime.now();
+    final stopwatch = Stopwatch()..start();
+    int delayMs = 50; // start at 50ms, back off to 400ms max
     while (!isReady) {
-      if (DateTime.now().difference(startTime) > timeout) {
+      if (stopwatch.elapsed > timeout) {
         if (kDebugMode) {
           debugPrint(
               '⚠️ SplashController: Timeout waiting for data to be ready');
         }
         break;
       }
-      await Future.delayed(const Duration(milliseconds: 100));
+      await Future.delayed(Duration(milliseconds: delayMs));
+      if (delayMs < 400) delayMs = (delayMs * 1.5).round();
     }
   }
 
@@ -945,6 +974,8 @@ class SplashController extends GetxController implements GetxService {
       if (kDebugMode) {
         debugPrint(
             '📡 SplashController: Starting parallel loading (app-init + home-unified)...');
+        debugPrint(
+            '🧭 SplashController: startup prerequisites=app-init config/modules; deferred=profile, notifications, banners');
         debugPrint('   ⚡ TASK 3: Core Four Endpoints:');
         debugPrint('      1. /api/v1/app-init (Config)');
         debugPrint('      2. /api/v2/home-unified (Home Content)');
@@ -962,7 +993,7 @@ class SplashController extends GetxController implements GetxService {
             '🔧 SplashController: Updating API client headers with moduleId=3 for pre-fetch...');
       }
       apiClient.updateHeader(
-        null, // token
+        apiClient.token, // token (preserve auth header if logged in)
         null, // zoneIDs
         null, // operationIds
         null, // languageCode
@@ -976,18 +1007,21 @@ class SplashController extends GetxController implements GetxService {
             '✅ SplashController: API client headers updated - pre-fetch will include moduleId=3');
       }
 
-      // Warm global banners at startup (non-blocking).
-      _preloadGlobalBannersAtStartup().catchError((Object e) {
-        if (kDebugMode) {
-          debugPrint(
-              '⚠️ SplashController: Global banner warm-up failed (non-blocking): $e');
-        }
-        return false;
-      });
+      // Defer global banners out of splash to keep startup deterministic.
+      // Banner warm-up can run after first usable screen instead.
+      final hasAddress = AddressHelper.getUserAddressFromSharedPref() != null;
+      if (kDebugMode) {
+        debugPrint(
+            '⏭️ SplashController: Deferred global banner warm-up until post-splash');
+      }
 
       // ⚡ TASK 2: Parallel loading - trigger both simultaneously
       final appInitFuture = appInitService.getAppInitData(
-        headers: HeaderHelper.featuredHeader(),
+        headers: {
+          ...HeaderHelper.featuredHeader(),
+          'X-No-Retry': 'true',
+          'X-Startup-Owner': 'splash',
+        },
       );
 
       // 🔧 CRITICAL FIX: Check if this is a fresh install (no address)
@@ -1013,41 +1047,42 @@ class SplashController extends GetxController implements GetxService {
       // ⚡ TASK 3: Pre-load user profile data during splash (non-blocking)
       // This ensures ProfileController.userInfoModel is populated BEFORE Menu screen appears
       // Core Endpoint #3: /api/v1/customer/info (User/Wallet Balance)
-      if (AuthHelper.isLoggedIn() && Get.isRegistered<ProfileController>()) {
-        _preloadUserProfile().catchError((Object e) {
-          if (kDebugMode) {
-            debugPrint(
-                '⚠️ SplashController: User profile pre-fetch failed (non-blocking): $e');
-          }
-          return false;
-        });
+      if (kDebugMode) {
+        debugPrint(
+            '⏭️ SplashController: Deferred /api/v1/customer/info until post-splash (not part of splash prerequisites)');
       }
 
       // ⚡ TASK 3: Pre-load notifications during splash (non-blocking)
       // Core Endpoint #4: /api/v1/customer/notifications (Unread Signal)
-      if (AuthHelper.isLoggedIn() &&
-          Get.isRegistered<NotificationController>()) {
-        _preloadNotifications().catchError((Object e) {
-          if (kDebugMode) {
-            debugPrint(
-                '⚠️ SplashController: Notifications pre-fetch failed (non-blocking): $e');
-          }
-          return false;
-        });
+      if (kDebugMode) {
+        debugPrint(
+            '⏭️ SplashController: Deferred /api/v1/customer/notifications until post-splash (not part of splash prerequisites)');
       }
 
       // Bug#1 FIX: Always await app-init first so _moduleList is populated.
       // Then trigger home-unified prefetch non-blockingly with the correct module.
       final appInitData = await appInitFuture;
+      if (!_isSplashFlowActive) {
+        if (kDebugMode) {
+          debugPrint(
+              '🧹 SplashController: Splash flow no longer active after app-init await - skipping splash-owned follow-up tasks');
+        }
+        return;
+      }
       // Determine best module now that _moduleList is populated after app-init.
       int? prefetchModuleId;
-      if (_moduleList != null && _moduleList!.length == 1) {
+      final ModuleModel? selected = selectedModule.value ?? _module;
+      if (selected != null && selected.id != null) {
+        prefetchModuleId = selected.id;
+      } else if (_moduleList != null && _moduleList!.length == 1) {
         prefetchModuleId = _moduleList!.first.id;
-      } else if (_moduleList != null && _moduleList!.isNotEmpty) {
-        prefetchModuleId = getDefaultModuleId();
+      } else if (kDebugMode) {
+        debugPrint(
+            '⏭️ SplashController: Skipping home-unified prefetch - module unresolved (multi-module flow)');
       }
       if (prefetchModuleId != null &&
-          Get.isRegistered<HomeUnifiedController>()) {
+          Get.isRegistered<HomeUnifiedController>() &&
+          hasAddress) {
         // Ensure headers carry the right module before the prefetch call.
         apiClient.updateHeader(
           apiClient.token,
@@ -1074,6 +1109,9 @@ class SplashController extends GetxController implements GetxService {
               '⚡ SplashController: home-unified prefetch started for module '
               '$prefetchModuleId (background, non-blocking)');
         }
+      } else if (kDebugMode && prefetchModuleId != null && !hasAddress) {
+        debugPrint(
+            '⚡ SplashController: Skipping home-unified prefetch — no address/zone headers yet (fresh install)');
       }
 
       if (kDebugMode) {
@@ -1082,8 +1120,16 @@ class SplashController extends GetxController implements GetxService {
             ? 'ok (200)'
             : (_configModel != null ? 'FROM_CACHE (304)' : 'error');
         debugPrint('   - App-init: $appInitStatus');
-        debugPrint(
-            '   - Home-unified: STARTED in background for module $prefetchModuleId');
+        if (prefetchModuleId != null && hasAddress) {
+          debugPrint(
+              '   - Home-unified: STARTED in background for module $prefetchModuleId');
+        } else if (prefetchModuleId == null) {
+          debugPrint(
+              '   - Home-unified: SKIPPED (module unresolved during startup)');
+        } else {
+          debugPrint(
+              '   - Home-unified: SKIPPED (zone/location headers not ready)');
+        }
         // 🚫 REMOVED: Wallet and User Profile logging - no longer pre-fetched during splash
 
         // 🚫 REMOVED: Wallet verification - no longer pre-fetched during splash
@@ -1100,10 +1146,8 @@ class SplashController extends GetxController implements GetxService {
 
       if (appInitData != null) {
         if (kDebugMode) {
-          debugPrint(
-              '✅ SplashController: App-init data received successfully');
-          debugPrint(
-              '   - Config: ${appInitData.config != null ? "✓" : "✗"}');
+          debugPrint('✅ SplashController: App-init data received successfully');
+          debugPrint('   - Config: ${appInitData.config != null ? "✓" : "✗"}');
           debugPrint('   - Modules: ${appInitData.modules?.length ?? 0}');
           debugPrint('   - Zones: ${appInitData.zones?.length ?? 0}');
           debugPrint('   - User Zone ID: ${appInitData.userZoneId}');
@@ -1115,7 +1159,12 @@ class SplashController extends GetxController implements GetxService {
         _configModel = appInitData.config;
         _data = appInitData.config?.toJson();
         _moduleList = appInitData.modules;
-        await _loadPromotionalContentIfReady();
+        if (kDebugMode) {
+          debugPrint(
+              '🧭 SplashController: app-init hydration done; readyToExit=${_configModel != null && (_moduleList?.isNotEmpty ?? false)}');
+        }
+        // Promotional content preloading is intentionally deferred out of splash.
+        // MultiModuleHomeScreen can load this after splash route transition.
 
         // Extract business settings from app-init and set in HomeController
         if (appInitData.businessSettings != null) {
@@ -1179,8 +1228,7 @@ class SplashController extends GetxController implements GetxService {
         if (loadLandingData) {
           getLandingPageData().catchError((e) {
             if (kDebugMode) {
-              debugPrint(
-                  '⚠️ SplashController: Error loading landing data: $e');
+              debugPrint('⚠️ SplashController: Error loading landing data: $e');
             }
           });
         }
@@ -1289,8 +1337,7 @@ class SplashController extends GetxController implements GetxService {
           if (kDebugMode) {
             debugPrint(
                 '✅ SplashController: Using in-memory cached config data (no Hive cache available)');
-            debugPrint(
-                '   - ✅ configModel already exists - recursion blocked');
+            debugPrint('   - ✅ configModel already exists - recursion blocked');
           }
           // 🔧 Reset guard clause
           _isLoadingConfig = false;
@@ -1320,8 +1367,7 @@ class SplashController extends GetxController implements GetxService {
           if (kDebugMode) {
             debugPrint(
                 '⚠️ SplashController: No Hive cache found, falling back to legacy calls');
-            debugPrint(
-                '   - ✅ No error dialog shown - graceful fallback');
+            debugPrint('   - ✅ No error dialog shown - graceful fallback');
           }
 
           // 🔧 Reset guard clause before legacy call to allow it to proceed
@@ -1351,8 +1397,7 @@ class SplashController extends GetxController implements GetxService {
         if (loadLandingData) {
           getLandingPageData().catchError((e) {
             if (kDebugMode) {
-              debugPrint(
-                  '⚠️ SplashController: Error loading landing data: $e');
+              debugPrint('⚠️ SplashController: Error loading landing data: $e');
             }
           });
         }
@@ -1446,6 +1491,13 @@ class SplashController extends GetxController implements GetxService {
       await SplashCacheManager.clearSplashCache();
       await SmartCacheManager.clearCache();
 
+      // Clear cached image files to prevent PathNotFoundException from
+      // orphaned file references (OS/user cleared cache directory but
+      // the image-cache DB still points at deleted files).
+      try {
+        await DefaultCacheManager().emptyCache();
+      } catch (_) {}
+
       final prefs = await SharedPreferences.getInstance();
       final keysToRemove = prefs.getKeys().where((key) =>
           key.startsWith('home_unified_') ||
@@ -1463,8 +1515,7 @@ class SplashController extends GetxController implements GetxService {
       }
     } catch (e) {
       if (kDebugMode) {
-        debugPrint(
-            '❌ SplashController: Failed clearing startup caches: $e');
+        debugPrint('❌ SplashController: Failed clearing startup caches: $e');
       }
     }
   }
@@ -1488,6 +1539,14 @@ class SplashController extends GetxController implements GetxService {
       return;
     }
     if (!Get.isRegistered<HomeUnifiedController>()) {
+      return;
+    }
+
+    if (!_hasStartupLocationHeadersReady()) {
+      if (kDebugMode) {
+        debugPrint(
+            '⏭️ SplashController: Skip core module preload - zone/location headers not ready');
+      }
       return;
     }
 
@@ -1541,7 +1600,7 @@ class SplashController extends GetxController implements GetxService {
     _isStartupModulePreloadRunning = true;
     if (kDebugMode) {
       debugPrint(
-          '🚀 SplashController: Starting core module preload during splash: $idsToPreload');
+          '🚀 SplashController: Starting core module preload (post-splash): $idsToPreload');
     }
 
     try {
@@ -1579,6 +1638,17 @@ class SplashController extends GetxController implements GetxService {
   /// Only loads if userInfoModel is not already set (e.g., from login response)
   /// ⚡ TASK 3: Core Endpoint #3 - /api/v1/customer/info (User/Wallet Balance)
   Future<bool> _preloadUserProfile() async {
+    final apiClient = Get.find<ApiClient>();
+    final hasAuthHeader =
+        (apiClient.getHeader()['Authorization'] ?? '').trim().isNotEmpty;
+    if (!hasAuthHeader) {
+      if (kDebugMode) {
+        debugPrint(
+            '⏭️ SplashController: Skip /customer/info preload - auth header not ready');
+      }
+      return false;
+    }
+
     final profileController = Get.find<ProfileController>();
     // Only load if userInfoModel is null (not already set from login)
     if (profileController.userInfoModel == null) {
@@ -1612,6 +1682,17 @@ class SplashController extends GetxController implements GetxService {
   /// Pre-load notifications during splash screen
   /// ⚡ TASK 3: Core Endpoint #4 - /api/v1/customer/notifications (Unread Signal)
   Future<bool> _preloadNotifications() async {
+    final apiClient = Get.find<ApiClient>();
+    final hasAuthHeader =
+        (apiClient.getHeader()['Authorization'] ?? '').trim().isNotEmpty;
+    if (!hasAuthHeader) {
+      if (kDebugMode) {
+        debugPrint(
+            '⏭️ SplashController: Skip /customer/notifications preload - auth header not ready');
+      }
+      return false;
+    }
+
     if (kDebugMode) {
       debugPrint(
           '🔄 SplashController: Pre-loading notifications (Core Endpoint #4: /api/v1/customer/notifications)...');
@@ -1787,8 +1868,7 @@ class SplashController extends GetxController implements GetxService {
       }
     } else {
       if (kDebugMode) {
-        debugPrint(
-            '⚠️ setCacheConfigModule: Cannot set config - missing data');
+        debugPrint('⚠️ setCacheConfigModule: Cannot set config - missing data');
       }
     }
   }
@@ -2021,8 +2101,7 @@ class SplashController extends GetxController implements GetxService {
         // Only load cart data if not already loaded
         final cartController = Get.find<CartController>();
         if (cartController.cartList.isEmpty) {
-          debugPrint(
-              '🔄 SplashController: Loading cart data (empty cart)');
+          debugPrint('🔄 SplashController: Loading cart data (empty cart)');
           cartController.getCartDataOnline();
         } else {
           debugPrint('💾 SplashController: Using existing cart data');
@@ -2089,8 +2168,7 @@ class SplashController extends GetxController implements GetxService {
     _moduleIndex = 0;
     List<ModuleModel>? moduleList;
     if (kDebugMode) {
-      debugPrint(
-          '📡 SplashController.getModules: start (source=$dataSource)');
+      debugPrint('📡 SplashController.getModules: start (source=$dataSource)');
     }
     if (dataSource == DataSourceEnum.local) {
       // Load from local cache first for instant display
@@ -2229,8 +2307,7 @@ class SplashController extends GetxController implements GetxService {
         }
       } catch (e) {
         if (kDebugMode) {
-          debugPrint(
-              '⚠️ SplashController: Error resetting ItemController: $e');
+          debugPrint('⚠️ SplashController: Error resetting ItemController: $e');
         }
       }
     }
@@ -2394,15 +2471,13 @@ class SplashController extends GetxController implements GetxService {
       if (Get.isRegistered<CampaignController>()) {
         Get.delete<CampaignController>(force: true);
         if (kDebugMode) {
-          debugPrint(
-              '🗑️ SplashController: Deleted CampaignController');
+          debugPrint('🗑️ SplashController: Deleted CampaignController');
         }
       }
       if (Get.isRegistered<FlashSaleController>()) {
         Get.delete<FlashSaleController>(force: true);
         if (kDebugMode) {
-          debugPrint(
-              '🗑️ SplashController: Deleted FlashSaleController');
+          debugPrint('🗑️ SplashController: Deleted FlashSaleController');
         }
       }
       if (Get.isRegistered<BrandsController>()) {
@@ -2433,8 +2508,7 @@ class SplashController extends GetxController implements GetxService {
       // ⚠️ ADD NEW MODULE CONTROLLERS HERE WHEN CREATED
     } catch (e) {
       if (kDebugMode) {
-        debugPrint(
-            '⚠️ SplashController: Error deleting controllers: $e');
+        debugPrint('⚠️ SplashController: Error deleting controllers: $e');
       }
     }
 
@@ -2653,7 +2727,8 @@ class SplashController extends GetxController implements GetxService {
             .map((data) => ModuleModel.fromJson(data as Map<String, dynamic>))
             .toList();
       }
-      await _loadPromotionalContentIfReady();
+      // Promotional content preloading is intentionally deferred out of splash.
+      // Keep cache restore focused on config/module readiness only.
 
       debugPrint(
           '✅ SplashController: Data restored from cache - instant startup ready');
@@ -2680,10 +2755,10 @@ class SplashController extends GetxController implements GetxService {
       if (kDebugMode) {
         if (targetModuleId == 0) {
           debugPrint(
-              '🆕 SplashController: New user detected - using Module 3 as default for promotional content');
+              '🆕 PromotionalContent: New user detected - using Module 3 as default content module');
         }
         debugPrint(
-            '🚀 SplashController: Loading promotional content for Module $finalModuleId...');
+            '🚀 PromotionalContent: Loading for Module $finalModuleId (splashActive=$_isSplashFlowActive)');
       }
 
       if (_promotionalBannerLoadInProgress[finalModuleId] == true) {
@@ -2761,9 +2836,9 @@ class SplashController extends GetxController implements GetxService {
           bool loadedFromUnified = false;
 
           if (Get.isRegistered<HomeUnifiedController>()) {
-
             final unifiedController = Get.find<HomeUnifiedController>();
-            final cachedUnified = unifiedController.getModuleData(finalModuleId);
+            final cachedUnified =
+                unifiedController.getModuleData(finalModuleId);
             if (cachedUnified?.offers != null &&
                 cachedUnified!.offers!.isNotEmpty &&
                 cachedUnified.offers!.first.data.isNotEmpty) {
@@ -2778,8 +2853,8 @@ class SplashController extends GetxController implements GetxService {
           }
 
           if (!loadedFromUnified) {
-            offersModel = await offersController
-                .getOffers(specificModuleId: finalModuleId);
+            offersModel = await offersController.getOffers(
+                specificModuleId: finalModuleId);
             if (kDebugMode && offersModel != null) {
               debugPrint(
                   'SplashController: Loaded ${offersModel.data.length} promotional offers');
@@ -2802,8 +2877,7 @@ class SplashController extends GetxController implements GetxService {
           offers: offersModel,
         );
         if (kDebugMode) {
-          debugPrint(
-              '💾 SplashController: Saved promotional content to cache');
+          debugPrint('💾 SplashController: Saved promotional content to cache');
         }
         _hasLoadedPromotionalContent = true;
         update(['promotional_content']);
@@ -2821,13 +2895,11 @@ class SplashController extends GetxController implements GetxService {
       );
 
       if (kDebugMode) {
-        debugPrint(
-            '✅ SplashController: Promotional content loaded and cached');
+        debugPrint('✅ SplashController: Promotional content loaded and cached');
       }
     } catch (e, stackTrace) {
       if (kDebugMode) {
-        debugPrint(
-            '❌ SplashController: Error loading promotional content: $e');
+        debugPrint('❌ SplashController: Error loading promotional content: $e');
         debugPrint('   Stack trace: $stackTrace');
       }
     } finally {
@@ -2844,6 +2916,7 @@ class SplashController extends GetxController implements GetxService {
 
   @override
   void onClose() {
+    _isSplashFlowActive = false;
     _promotionalBannerLoadInProgress.clear();
     super.onClose();
   }

@@ -65,7 +65,8 @@ class NotificationPopupWidget extends StatelessWidget {
                   GestureDetector(
                     onTap: onDismiss,
                     child: Container(
-                      padding: const EdgeInsets.all(Dimensions.paddingSizeExtraSmall),
+                      padding: const EdgeInsets.all(
+                          Dimensions.paddingSizeExtraSmall),
                       decoration: BoxDecoration(
                         color: Colors.grey.withValues(alpha: 0.2),
                         borderRadius:
@@ -101,7 +102,8 @@ class NotificationPopupWidget extends StatelessWidget {
                           borderRadius:
                               BorderRadius.circular(Dimensions.radiusDefault),
                           image: DecorationImage(
-                            image: CachedNetworkImageProvider(notification.imageFullUrl!),
+                            image: CachedNetworkImageProvider(
+                                notification.imageFullUrl!),
                             fit: BoxFit.cover,
                           ),
                         ),
@@ -143,8 +145,9 @@ class NotificationPopupWidget extends StatelessWidget {
                           vertical: Dimensions.paddingSizeExtraSmall,
                         ),
                         decoration: BoxDecoration(
-                          color:
-                              Theme.of(context).primaryColor.withValues(alpha: 0.1),
+                          color: Theme.of(context)
+                              .primaryColor
+                              .withValues(alpha: 0.1),
                           borderRadius:
                               BorderRadius.circular(Dimensions.radiusSmall),
                         ),

@@ -131,7 +131,9 @@ class CustomTextFieldState extends State<CustomTextField> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         widget.showTitle
-            ? Text(widget.titleText, style: robotoRegular.copyWith(fontSize: Dimensions.fontSizeSmall))
+            ? Text(widget.titleText,
+                style:
+                    robotoRegular.copyWith(fontSize: Dimensions.fontSizeSmall))
             : const SizedBox(),
         SizedBox(
             height: widget.showTitle
@@ -157,13 +159,16 @@ class CustomTextFieldState extends State<CustomTextField> {
             validator: widget.validator,
             style: robotoRegular.copyWith(fontSize: Dimensions.fontSizeLarge),
             textInputAction: widget.inputAction,
-            keyboardType: widget.isAmount ? TextInputType.number : widget.inputType,
+            keyboardType:
+                widget.isAmount ? TextInputType.number : widget.inputType,
             cursorColor: theme.primaryColor,
             textCapitalization: widget.capitalization,
             enabled: widget.isEnabled,
             obscureText: widget.isPassword ? _obscureText : false,
             inputFormatters: widget.inputType == TextInputType.phone
-                ? <TextInputFormatter>[FilteringTextInputFormatter.allow(RegExp('[0-9]'))]
+                ? <TextInputFormatter>[
+                    FilteringTextInputFormatter.allow(RegExp('[0-9]'))
+                  ]
                 : widget.isAmount
                     ? [FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*'))]
                     : widget.isNumber
@@ -173,49 +178,72 @@ class CustomTextFieldState extends State<CustomTextField> {
               enabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(Dimensions.radiusDefault),
                 borderSide: BorderSide(
-                    style: widget.showBorder ? BorderStyle.solid : BorderStyle.none,
+                    style: widget.showBorder
+                        ? BorderStyle.solid
+                        : BorderStyle.none,
                     width: ResponsiveHelper.isDesktop(context) ? 0.7 : 0.3,
                     color: theme.disabledColor),
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(Dimensions.radiusDefault),
                 borderSide: BorderSide(
-                    style: widget.showBorder ? BorderStyle.solid : BorderStyle.none, color: theme.primaryColor),
+                    style: widget.showBorder
+                        ? BorderStyle.solid
+                        : BorderStyle.none,
+                    color: theme.primaryColor),
               ),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(Dimensions.radiusDefault),
                 borderSide: BorderSide(
-                    style: widget.showBorder ? BorderStyle.solid : BorderStyle.none,
+                    style: widget.showBorder
+                        ? BorderStyle.solid
+                        : BorderStyle.none,
                     width: 0.3,
                     color: theme.primaryColor),
               ),
               errorBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(Dimensions.radiusDefault),
                 borderSide: BorderSide(
-                    style: widget.showBorder ? BorderStyle.solid : BorderStyle.none, color: theme.colorScheme.error),
+                    style: widget.showBorder
+                        ? BorderStyle.solid
+                        : BorderStyle.none,
+                    color: theme.colorScheme.error),
               ),
               focusedErrorBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(Dimensions.radiusDefault),
                 borderSide: BorderSide(
-                    style: widget.showBorder ? BorderStyle.solid : BorderStyle.none, color: theme.colorScheme.error),
+                    style: widget.showBorder
+                        ? BorderStyle.solid
+                        : BorderStyle.none,
+                    color: theme.colorScheme.error),
               ),
               isDense: true,
-              hintText: widget.hintText.isEmpty || !ResponsiveHelper.isDesktop(context) ? widget.titleText : widget.hintText,
+              hintText: widget.hintText.isEmpty ||
+                      !ResponsiveHelper.isDesktop(context)
+                  ? widget.titleText
+                  : widget.hintText,
               fillColor: theme.cardColor,
-              hintStyle: robotoRegular.copyWith(fontSize: Dimensions.fontSizeLarge, color: theme.hintColor),
+              hintStyle: robotoRegular.copyWith(
+                  fontSize: Dimensions.fontSizeLarge, color: theme.hintColor),
               filled: true,
               labelStyle: widget.showLabelText
-                  ? robotoRegular.copyWith(fontSize: Dimensions.fontSizeDefault, color: theme.hintColor)
+                  ? robotoRegular.copyWith(
+                      fontSize: Dimensions.fontSizeDefault,
+                      color: theme.hintColor)
                   : null,
-              errorStyle: robotoRegular.copyWith(fontSize: Dimensions.fontSizeSmall),
+              errorStyle:
+                  robotoRegular.copyWith(fontSize: Dimensions.fontSizeSmall),
               label: shouldBuildLabel
                   ? Text.rich(TextSpan(children: [
                       if (hasLabelText)
                         TextSpan(
                           text: widget.labelText!.trim(),
                           style: robotoRegular.copyWith(
-                            fontSize: widget.labelTextSize ?? Dimensions.fontSizeLarge,
-                            color: ((_isFocused || widget.controller?.text.isNotEmpty == true) &&
+                            fontSize: widget.labelTextSize ??
+                                Dimensions.fontSizeLarge,
+                            color: ((_isFocused ||
+                                        widget.controller?.text.isNotEmpty ==
+                                            true) &&
                                     widget.isEnabled)
                                 ? theme.textTheme.bodyLarge?.color
                                 : theme.hintColor.withValues(alpha: 0.75),
@@ -225,12 +253,16 @@ class CustomTextFieldState extends State<CustomTextField> {
                         TextSpan(
                             text: ' *',
                             style: robotoRegular.copyWith(
-                                color: theme.colorScheme.error, fontSize: Dimensions.fontSizeLarge)),
+                                color: theme.colorScheme.error,
+                                fontSize: Dimensions.fontSizeLarge)),
                       if (shouldShowNonChangeableHint)
                         TextSpan(
-                            text: hasLabelText ? ' (${'non_changeable'.tr})' : '(${ 'non_changeable'.tr})',
+                            text: hasLabelText
+                                ? ' (${'non_changeable'.tr})'
+                                : '(${'non_changeable'.tr})',
                             style: robotoRegular.copyWith(
-                                fontSize: Dimensions.fontSizeLarge, color: theme.colorScheme.error)),
+                                fontSize: Dimensions.fontSizeLarge,
+                                color: theme.colorScheme.error)),
                     ]))
                   : null,
               prefixIcon: (widget.isPhone || widget.countryDialCode != null)
@@ -243,7 +275,8 @@ class CustomTextFieldState extends State<CustomTextField> {
                           decoration: const BoxDecoration(
                             borderRadius: BorderRadius.only(
                               topLeft: Radius.circular(Dimensions.radiusSmall),
-                              bottomLeft: Radius.circular(Dimensions.radiusSmall),
+                              bottomLeft:
+                                  Radius.circular(Dimensions.radiusSmall),
                             ),
                           ),
                           margin: const EdgeInsets.only(),
@@ -255,7 +288,9 @@ class CustomTextFieldState extends State<CustomTextField> {
                               onChanged: widget.onCountryChanged,
                               initialSelection: widget.countryDialCode,
                               favorite: [widget.countryDialCode ?? ''],
-                              enabled: Get.find<SplashController>().configModel?.countryPickerStatus,
+                              enabled: Get.find<SplashController>()
+                                  .configModel
+                                  ?.countryPickerStatus,
                               dialogBackgroundColor: theme.cardColor,
                               textStyle: robotoRegular.copyWith(
                                 fontSize: Dimensions.fontSizeDefault,
@@ -274,7 +309,9 @@ class CustomTextFieldState extends State<CustomTextField> {
                   : widget.prefixImage != null && widget.prefixIcon == null
                       ? Padding(
                           padding: EdgeInsets.all(
-                              ResponsiveHelper.isDesktop(context) ? Dimensions.paddingSizeSmall : Dimensions.paddingSizeDefault),
+                              ResponsiveHelper.isDesktop(context)
+                                  ? Dimensions.paddingSizeSmall
+                                  : Dimensions.paddingSizeDefault),
                           child: CustomAssetImageWidget(widget.prefixImage!,
                               height: 10,
                               width: 10,
@@ -291,7 +328,10 @@ class CustomTextFieldState extends State<CustomTextField> {
                           : null,
               suffixIcon: widget.isPassword
                   ? IconButton(
-                      icon: Icon(_obscureText ? Icons.visibility_off : Icons.visibility,
+                      icon: Icon(
+                          _obscureText
+                              ? Icons.visibility_off
+                              : Icons.visibility,
                           color: theme.hintColor.withValues(alpha: 0.3)),
                       onPressed: _toggle,
                     )
@@ -300,8 +340,11 @@ class CustomTextFieldState extends State<CustomTextField> {
                           onTap: widget.suffixOnPressed,
                           child: Padding(
                             padding: EdgeInsets.all(
-                                ResponsiveHelper.isDesktop(context) ? Dimensions.paddingSizeSmall : Dimensions.paddingSizeDefault),
-                            child: Image.asset(widget.suffixImage!, height: 10, width: 10, fit: BoxFit.cover),
+                                ResponsiveHelper.isDesktop(context)
+                                    ? Dimensions.paddingSizeSmall
+                                    : Dimensions.paddingSizeDefault),
+                            child: Image.asset(widget.suffixImage!,
+                                height: 10, width: 10, fit: BoxFit.cover),
                           ))
                       : widget.suffixChild,
             ),
@@ -315,7 +358,10 @@ class CustomTextFieldState extends State<CustomTextField> {
           ),
         ),
         widget.divider
-            ? const Padding(padding: EdgeInsets.symmetric(horizontal: Dimensions.paddingSizeLarge), child: Divider())
+            ? const Padding(
+                padding: EdgeInsets.symmetric(
+                    horizontal: Dimensions.paddingSizeLarge),
+                child: Divider())
             : const SizedBox(),
       ],
     );

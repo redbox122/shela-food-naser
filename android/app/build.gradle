@@ -104,8 +104,8 @@ android {
 
     buildTypes {
         release {
-            // ✅ أهم سطر: استخدم debug signing
-            signingConfig signingConfigs.release
+            // Use release keystore when configured; otherwise fall back to debug signing for local builds.
+            signingConfig keystorePropertiesFile.exists() ? signingConfigs.release : signingConfigs.debug
 
             // للتجربة فقط
             minifyEnabled false

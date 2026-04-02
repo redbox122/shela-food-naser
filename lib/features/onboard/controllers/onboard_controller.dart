@@ -17,11 +17,12 @@ class OnBoardingController extends GetxController implements GetxService {
     update();
   }
 
-  void getOnBoardingList() async {
-    final Response<dynamic> response = await onboardServiceInterface.getOnBoardingList();
+  Future<void> getOnBoardingList() async {
+    final Response<dynamic> response =
+        await onboardServiceInterface.getOnBoardingList();
     if (response.statusCode == 200) {
       _onBoardingList = [];
-      
+
       // 🛡️ Defensive handling: Support both JSON and Model objects
       final List<dynamic> data = response.body as List<dynamic>;
       _onBoardingList = data.map((e) {
@@ -35,10 +36,8 @@ class OnBoardingController extends GetxController implements GetxService {
         }
         // Invalid type - throw descriptive exception
         else {
-          throw Exception(
-            "Invalid onboarding data type: ${e.runtimeType}. "
-            "Expected OnBoardingModel or Map<String, dynamic>."
-          );
+          throw Exception("Invalid onboarding data type: ${e.runtimeType}. "
+              "Expected OnBoardingModel or Map<String, dynamic>.");
         }
       }).toList();
     }

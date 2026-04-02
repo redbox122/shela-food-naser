@@ -38,10 +38,28 @@ class NotificationService {
   static final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
       FlutterLocalNotificationsPlugin();
   static bool isNotificationTapped = false;
+  static bool _isInitialized = false;
+  static bool _backgroundHandlerRegistered = false;
+
+  static void registerBackgroundHandlerOnce() {
+    if (_backgroundHandlerRegistered) {
+      return;
+    }
+    FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
+    _backgroundHandlerRegistered = true;
+  }
 
   // Initialize notification service
 
   Future<void> initialize() async {
+    if (_isInitialized) {
+      if (kDebugMode) {
+        print(
+            '⏭️ NotificationService: initialize skipped (already initialized)');
+      }
+      return;
+    }
+
     // ✅ اشتراك بالتوبيك فقط على المنصات غير الويب
     if (!kIsWeb) {
       _firebaseMessaging.subscribeToTopic('all');
@@ -50,11 +68,10 @@ class NotificationService {
     }
 
     const AndroidInitializationSettings androidSettings =
-        AndroidInitializationSettings('notification_icon'); // Use notification_icon for consistency
+        AndroidInitializationSettings(
+            'notification_icon'); // Use notification_icon for consistency
     const DarwinInitializationSettings iosSettings =
-        DarwinInitializationSettings(
-      
-    );
+        DarwinInitializationSettings();
     const InitializationSettings initSettings = InitializationSettings(
       android: androidSettings,
       iOS: iosSettings,
@@ -62,14 +79,14 @@ class NotificationService {
 
     // Create notification channel BEFORE initializing (critical for release builds)
     if (!kIsWeb && Platform.isAndroid) {
-      final androidPlugin = flutterLocalNotificationsPlugin
-          .resolvePlatformSpecificImplementation<
+      final androidPlugin =
+          flutterLocalNotificationsPlugin.resolvePlatformSpecificImplementation<
               AndroidFlutterLocalNotificationsPlugin>();
-      
+
       if (androidPlugin != null) {
         // Request notification permissions for Android 13+
         await androidPlugin.requestNotificationsPermission();
-        
+
         // Create notification channel with MAX IMPORTANCE (for heads-up banners)
         const AndroidNotificationChannel channel = AndroidNotificationChannel(
           'AzizBaffoun', // Must match AndroidManifest
@@ -77,7 +94,7 @@ class NotificationService {
           description: 'Notifications for new orders and messages',
           importance: Importance.max, // Critical for heads-up notifications
         );
-        
+
         await androidPlugin.createNotificationChannel(channel);
         print('✅ Notification channel created: AzizBaffoun');
       }
@@ -86,12 +103,8 @@ class NotificationService {
     await flutterLocalNotificationsPlugin.initialize(initSettings);
 
     if (!kIsWeb && Platform.isIOS) {
-      await _firebaseMessaging.requestPermission(
-        
-      );
+      await _firebaseMessaging.requestPermission();
     }
-
-    FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
 
     FirebaseMessaging.onMessageOpenedApp.listen(_handleNotificationTap);
 
@@ -104,6 +117,7 @@ class NotificationService {
     }
 
     _getDeviceToken();
+    _isInitialized = true;
   }
 
   // Foreground notification
@@ -225,7 +239,8 @@ class NotificationService {
       if (existing.length > 100) {
         existing.removeRange(100, existing.length);
       }
-      await prefs.setStringList(AppConstants.localNotificationLogList, existing);
+      await prefs.setStringList(
+          AppConstants.localNotificationLogList, existing);
     } catch (e) {
       if (kDebugMode) {
         print('🔔 NotificationService: Failed to persist local log: $e');
@@ -280,7 +295,8 @@ class NotificationService {
     final String body = (message.notification?.body ?? '').toLowerCase();
     final String paymentStatus =
         (data['payment_status'] ?? '').toString().toLowerCase();
-    final String orderStatus = (data['order_status'] ?? '').toString().toLowerCase();
+    final String orderStatus =
+        (data['order_status'] ?? '').toString().toLowerCase();
     final bool hasOrderId = data['order_id'] != null;
     final bool isOrderLike = hasOrderId ||
         type.contains('order') ||

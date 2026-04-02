@@ -1,5 +1,5 @@
 /// Modern Store Filter Bottom Sheet
-/// 
+///
 /// Beautiful, animated bottom sheet with comprehensive filtering options
 /// Features smooth animations, gradient accents, and intuitive UX
 library;
@@ -17,7 +17,7 @@ import 'package:sixam_mart/util/styles.dart';
 class StoreFilterBottomSheet extends StatefulWidget {
   final StoreController storeController;
   final Function(Map<String, dynamic> filters)? onApply;
-  
+
   const StoreFilterBottomSheet({
     super.key,
     required this.storeController,
@@ -44,7 +44,7 @@ class _StoreFilterBottomSheetState extends State<StoreFilterBottomSheet>
   double? _maxDeliveryTime; // in minutes
   double? _maxMinOrder;
   List<int> _selectedCategoryIds = [];
-  
+
   @override
   void initState() {
     super.initState();
@@ -57,14 +57,14 @@ class _StoreFilterBottomSheetState extends State<StoreFilterBottomSheet>
       duration: DesignTokens.animationMedium,
       vsync: this,
     );
-    
+
     _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(
         parent: _animationController,
         curve: DesignTokens.curveEaseOut,
       ),
     );
-    
+
     _slideAnimation = Tween<Offset>(
       begin: const Offset(0, 0.3),
       end: Offset.zero,
@@ -74,7 +74,7 @@ class _StoreFilterBottomSheetState extends State<StoreFilterBottomSheet>
         curve: DesignTokens.curveEaseOutCubic,
       ),
     );
-    
+
     _animationController.forward();
   }
 
@@ -141,7 +141,7 @@ class _StoreFilterBottomSheetState extends State<StoreFilterBottomSheet>
   @override
   Widget build(BuildContext context) {
     final hasActiveFilters = _getActiveFilterCount() > 0;
-    
+
     return Container(
       constraints: BoxConstraints(
         maxHeight: MediaQuery.of(context).size.height * 0.85,
@@ -163,10 +163,10 @@ class _StoreFilterBottomSheetState extends State<StoreFilterBottomSheet>
             children: [
               // Drag Handle
               _buildDragHandle(),
-              
+
               // Header
               _buildHeader(hasActiveFilters),
-              
+
               // Content
               Flexible(
                 child: SingleChildScrollView(
@@ -178,39 +178,39 @@ class _StoreFilterBottomSheetState extends State<StoreFilterBottomSheet>
                       children: [
                         // Sort Section
                         _buildSortSection(),
-                        
+
                         const SizedBox(height: DesignTokens.spaceLarge),
-                        
+
                         // Quick Filters
                         _buildQuickFilters(),
-                        
+
                         const SizedBox(height: DesignTokens.spaceLarge),
-                        
+
                         // Rating Filter
                         _buildRatingFilter(),
-                        
+
                         const SizedBox(height: DesignTokens.spaceLarge),
-                        
+
                         // Delivery Time Filter
                         _buildDeliveryTimeFilter(),
-                        
+
                         const SizedBox(height: DesignTokens.spaceLarge),
-                        
+
                         // Category Filter
                         _buildCategoryFilter(),
-                        
+
                         const SizedBox(height: DesignTokens.spaceLarge),
-                        
+
                         // Minimum Order Filter
                         _buildMinOrderFilter(),
-                        
+
                         const SizedBox(height: DesignTokens.spaceHuge),
                       ],
                     ),
                   ),
                 ),
               ),
-              
+
               // Footer with Action Buttons
               _buildFooter(hasActiveFilters),
             ],
@@ -308,25 +308,29 @@ class _StoreFilterBottomSheetState extends State<StoreFilterBottomSheet>
             label: 'distance'.tr,
             icon: Icons.location_on_rounded,
             isSelected: _selectedSort == 'distance',
-            onTap: () => setState(() => _selectedSort = _selectedSort == 'distance' ? null : 'distance'),
+            onTap: () => setState(() => _selectedSort =
+                _selectedSort == 'distance' ? null : 'distance'),
           ),
           _buildFilterChip(
             label: 'rating'.tr,
             icon: Icons.star_rounded,
             isSelected: _selectedSort == 'rating',
-            onTap: () => setState(() => _selectedSort = _selectedSort == 'rating' ? null : 'rating'),
+            onTap: () => setState(() =>
+                _selectedSort = _selectedSort == 'rating' ? null : 'rating'),
           ),
           _buildFilterChip(
             label: 'delivery_time'.tr,
             icon: Icons.access_time_rounded,
             isSelected: _selectedSort == 'delivery_time',
-            onTap: () => setState(() => _selectedSort = _selectedSort == 'delivery_time' ? null : 'delivery_time'),
+            onTap: () => setState(() => _selectedSort =
+                _selectedSort == 'delivery_time' ? null : 'delivery_time'),
           ),
           _buildFilterChip(
             label: 'minimum_order'.tr,
             icon: Icons.shopping_bag_rounded,
             isSelected: _selectedSort == 'min_order',
-            onTap: () => setState(() => _selectedSort = _selectedSort == 'min_order' ? null : 'min_order'),
+            onTap: () => setState(() => _selectedSort =
+                _selectedSort == 'min_order' ? null : 'min_order'),
           ),
         ],
       ),
@@ -382,13 +386,15 @@ class _StoreFilterBottomSheetState extends State<StoreFilterBottomSheet>
             label: '4+ ⭐',
             icon: Icons.star_rounded,
             isSelected: _minRating == 4,
-            onTap: () => setState(() => _minRating = _minRating == 4 ? null : 4),
+            onTap: () =>
+                setState(() => _minRating = _minRating == 4 ? null : 4),
           ),
           _buildFilterChip(
             label: '4.5+ ⭐',
             icon: Icons.star_rounded,
             isSelected: _minRating == 45,
-            onTap: () => setState(() => _minRating = _minRating == 45 ? null : 45),
+            onTap: () =>
+                setState(() => _minRating = _minRating == 45 ? null : 45),
           ),
           _buildFilterChip(
             label: 'all_ratings'.tr,
@@ -413,13 +419,15 @@ class _StoreFilterBottomSheetState extends State<StoreFilterBottomSheet>
             label: 'under_30_min'.tr,
             icon: Icons.hourglass_empty_rounded,
             isSelected: _maxDeliveryTime == 30,
-            onTap: () => setState(() => _maxDeliveryTime = _maxDeliveryTime == 30 ? null : 30),
+            onTap: () => setState(
+                () => _maxDeliveryTime = _maxDeliveryTime == 30 ? null : 30),
           ),
           _buildFilterChip(
             label: '30_60_min'.tr,
             icon: Icons.hourglass_bottom_rounded,
             isSelected: _maxDeliveryTime == 60,
-            onTap: () => setState(() => _maxDeliveryTime = _maxDeliveryTime == 60 ? null : 60),
+            onTap: () => setState(
+                () => _maxDeliveryTime = _maxDeliveryTime == 60 ? null : 60),
           ),
           _buildFilterChip(
             label: 'any_time'.tr,
@@ -435,9 +443,9 @@ class _StoreFilterBottomSheetState extends State<StoreFilterBottomSheet>
   Widget _buildCategoryFilter() {
     final categoryController = Get.find<CategoryController>();
     final categories = categoryController.categoryList ?? [];
-    
+
     if (categories.isEmpty) return const SizedBox.shrink();
-    
+
     return _buildSection(
       title: 'categories'.tr,
       icon: Icons.category_rounded,
@@ -449,10 +457,11 @@ class _StoreFilterBottomSheetState extends State<StoreFilterBottomSheet>
           itemBuilder: (context, index) {
             final category = categories[index];
             final isSelected = _selectedCategoryIds.contains(category.id);
-            
+
             return Padding(
               padding: EdgeInsets.only(
-                right: index < categories.length - 1 ? DesignTokens.spaceSmall : 0,
+                right:
+                    index < categories.length - 1 ? DesignTokens.spaceSmall : 0,
               ),
               child: _buildCategoryChip(
                 category: category,
@@ -486,19 +495,22 @@ class _StoreFilterBottomSheetState extends State<StoreFilterBottomSheet>
             label: 'under_10'.tr,
             icon: Icons.shopping_cart_rounded,
             isSelected: _maxMinOrder == 10,
-            onTap: () => setState(() => _maxMinOrder = _maxMinOrder == 10 ? null : 10),
+            onTap: () =>
+                setState(() => _maxMinOrder = _maxMinOrder == 10 ? null : 10),
           ),
           _buildFilterChip(
             label: '10_25'.tr,
             icon: Icons.shopping_cart_rounded,
             isSelected: _maxMinOrder == 25,
-            onTap: () => setState(() => _maxMinOrder = _maxMinOrder == 25 ? null : 25),
+            onTap: () =>
+                setState(() => _maxMinOrder = _maxMinOrder == 25 ? null : 25),
           ),
           _buildFilterChip(
             label: '25_50'.tr,
             icon: Icons.shopping_cart_rounded,
             isSelected: _maxMinOrder == 50,
-            onTap: () => setState(() => _maxMinOrder = _maxMinOrder == 50 ? null : 50),
+            onTap: () =>
+                setState(() => _maxMinOrder = _maxMinOrder == 50 ? null : 50),
           ),
           _buildFilterChip(
             label: 'any_amount'.tr,
@@ -559,12 +571,8 @@ class _StoreFilterBottomSheetState extends State<StoreFilterBottomSheet>
               vertical: DesignTokens.spaceSmall,
             ),
             decoration: BoxDecoration(
-              gradient: isSelected
-                  ? DesignTokens.primaryGreenGradient
-                  : null,
-              color: isSelected
-                  ? null
-                  : Theme.of(context).cardColor,
+              gradient: isSelected ? DesignTokens.primaryGreenGradient : null,
+              color: isSelected ? null : Theme.of(context).cardColor,
               borderRadius: BorderRadius.circular(DesignTokens.radiusDefault),
               border: Border.all(
                 color: isSelected
@@ -582,18 +590,14 @@ class _StoreFilterBottomSheetState extends State<StoreFilterBottomSheet>
                 Icon(
                   icon,
                   size: 18,
-                  color: isSelected
-                      ? Colors.white
-                      : DesignTokens.primaryGreen,
+                  color: isSelected ? Colors.white : DesignTokens.primaryGreen,
                 ),
                 const SizedBox(width: DesignTokens.spaceSmall),
                 Text(
                   label,
                   style: robotoMedium.copyWith(
                     fontSize: Dimensions.fontSizeSmall,
-                    color: isSelected
-                        ? Colors.white
-                        : DesignTokens.textDark,
+                    color: isSelected ? Colors.white : DesignTokens.textDark,
                   ),
                 ),
               ],
@@ -632,12 +636,8 @@ class _StoreFilterBottomSheetState extends State<StoreFilterBottomSheet>
           duration: DesignTokens.animationDefault,
           padding: const EdgeInsets.all(DesignTokens.spaceDefault),
           decoration: BoxDecoration(
-            gradient: isSelected
-                ? DesignTokens.primaryGreenGradient
-                : null,
-            color: isSelected
-                ? null
-                : Theme.of(context).cardColor,
+            gradient: isSelected ? DesignTokens.primaryGreenGradient : null,
+            color: isSelected ? null : Theme.of(context).cardColor,
             borderRadius: BorderRadius.circular(DesignTokens.radiusDefault),
             border: Border.all(
               color: isSelected
@@ -657,7 +657,8 @@ class _StoreFilterBottomSheetState extends State<StoreFilterBottomSheet>
                   width: 40,
                   height: 40,
                   decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(DesignTokens.radiusSmall),
+                    borderRadius:
+                        BorderRadius.circular(DesignTokens.radiusSmall),
                     image: DecorationImage(
                       image: CachedNetworkImageProvider(category.image!),
                       fit: BoxFit.cover,
@@ -669,9 +670,7 @@ class _StoreFilterBottomSheetState extends State<StoreFilterBottomSheet>
                 category.name ?? '',
                 style: robotoMedium.copyWith(
                   fontSize: Dimensions.fontSizeExtraSmall,
-                  color: isSelected
-                      ? Colors.white
-                      : DesignTokens.textDark,
+                  color: isSelected ? Colors.white : DesignTokens.textDark,
                 ),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
@@ -711,7 +710,8 @@ class _StoreFilterBottomSheetState extends State<StoreFilterBottomSheet>
                   vertical: DesignTokens.spaceDefault,
                 ),
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(DesignTokens.radiusDefault),
+                  borderRadius:
+                      BorderRadius.circular(DesignTokens.radiusDefault),
                 ),
                 side: BorderSide(
                   color: hasActiveFilters
@@ -742,7 +742,8 @@ class _StoreFilterBottomSheetState extends State<StoreFilterBottomSheet>
                 color: Colors.transparent,
                 child: InkWell(
                   onTap: _applyFilters,
-                  borderRadius: BorderRadius.circular(DesignTokens.radiusDefault),
+                  borderRadius:
+                      BorderRadius.circular(DesignTokens.radiusDefault),
                   child: Container(
                     padding: const EdgeInsets.symmetric(
                       vertical: DesignTokens.spaceDefault,
@@ -767,7 +768,8 @@ class _StoreFilterBottomSheetState extends State<StoreFilterBottomSheet>
                             ),
                             decoration: BoxDecoration(
                               color: Colors.white.withValues(alpha: 0.3),
-                              borderRadius: BorderRadius.circular(DesignTokens.radiusFull),
+                              borderRadius: BorderRadius.circular(
+                                  DesignTokens.radiusFull),
                             ),
                             child: Text(
                               '$_getActiveFilterCount',
@@ -790,11 +792,3 @@ class _StoreFilterBottomSheetState extends State<StoreFilterBottomSheet>
     );
   }
 }
-
-
-
-
-
-
-
-

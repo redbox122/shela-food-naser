@@ -195,503 +195,526 @@ class _StoreScreenState extends State<StoreScreen> {
         endDrawerEnableOpenDragGesture: false,
         backgroundColor: Theme.of(context).colorScheme.surface,
         body: GetBuilder<StoreController>(builder: (storeController) {
-            // ⚡ INSTANT UI: Use widget.store for immediate render, fallback to storeController.store
-            // This achieves 0ms perceived load time by showing header immediately
-            // ✅ FIX: Prefer storeController.store if available (has full data including cover photo)
-            // If widget.store doesn't have cover photo but storeController.store does, use storeController.store
-            Store? displayStore;
-            if (storeController.store != null) {
-              displayStore = storeController.store;
-            } else if (widget.store != null) {
-              displayStore = widget.store;
-            }
+          // ⚡ INSTANT UI: Use widget.store for immediate render, fallback to storeController.store
+          // This achieves 0ms perceived load time by showing header immediately
+          // ✅ FIX: Prefer storeController.store if available (has full data including cover photo)
+          // If widget.store doesn't have cover photo but storeController.store does, use storeController.store
+          Store? displayStore;
+          if (storeController.store != null) {
+            displayStore = storeController.store;
+          } else if (widget.store != null) {
+            displayStore = widget.store;
+          }
 
-            // ✅ FIX: If widget.store is missing cover photo but storeController.store has it, prefer storeController.store
-            if (displayStore == widget.store &&
-                storeController.store != null &&
-                (displayStore?.coverPhotoFullUrl == null ||
-                    displayStore!.coverPhotoFullUrl!.isEmpty) &&
-                storeController.store!.coverPhotoFullUrl != null &&
-                storeController.store!.coverPhotoFullUrl!.isNotEmpty) {
-              displayStore = storeController.store;
-            }
+          // ✅ FIX: If widget.store is missing cover photo but storeController.store has it, prefer storeController.store
+          if (displayStore == widget.store &&
+              storeController.store != null &&
+              (displayStore?.coverPhotoFullUrl == null ||
+                  displayStore!.coverPhotoFullUrl!.isEmpty) &&
+              storeController.store!.coverPhotoFullUrl != null &&
+              storeController.store!.coverPhotoFullUrl!.isNotEmpty) {
+            displayStore = storeController.store;
+          }
 
-            // Ensure displayStore is not null for the rest of the build
-            displayStore ??= widget.store;
+          // Ensure displayStore is not null for the rest of the build
+          displayStore ??= widget.store;
 
-            // Only show error if both storeController.store AND widget.store are null
-            if (displayStore == null || displayStore.name == null) {
-              final bool isBootstrapLoading = storeController.isLoading &&
-                  widget.store?.id != null &&
-                  widget.store!.id! > 0;
-              if (isBootstrapLoading) {
-                return const Center(
-                  child:
-                      LoadingWidget(messageKey: 'loading', showMessage: true),
-                );
-              }
-              return ErrorStateView(
-                onRetry: () {
-                  final int? storeId = widget.store?.id;
-                  if (storeId != null && storeId > 0) {
-                    storeController.getStoreDetails(
-                      context,
-                      Store(id: storeId),
-                      widget.fromModule,
-                      slug: widget.slug,
-                    );
-                  } else {
-                    Get.back<void>();
-                  }
-                },
+          // Only show error if both storeController.store AND widget.store are null
+          if (displayStore == null || displayStore.name == null) {
+            final bool isBootstrapLoading = storeController.isLoading &&
+                widget.store?.id != null &&
+                widget.store!.id! > 0;
+            if (isBootstrapLoading) {
+              return const Center(
+                child: LoadingWidget(messageKey: 'loading', showMessage: true),
               );
             }
+            return ErrorStateView(
+              onRetry: () {
+                final int? storeId = widget.store?.id;
+                if (storeId != null && storeId > 0) {
+                  storeController.getStoreDetails(
+                    context,
+                    Store(id: storeId),
+                    widget.fromModule,
+                    slug: widget.slug,
+                  );
+                } else {
+                  Get.back<void>();
+                }
+              },
+            );
+          }
 
-            // 🔧 FIX: Don't call setCategoryList() in build() - it's already called in initDataCall() after store details are loaded
-            // Calling it here causes race condition where old store data is used before _store is updated
-            // Categories will be set after loadAllStoreDetails() completes in initDataCall()
+          // 🔧 FIX: Don't call setCategoryList() in build() - it's already called in initDataCall() after store details are loaded
+          // Calling it here causes race condition where old store data is used before _store is updated
+          // Categories will be set after loadAllStoreDetails() completes in initDataCall()
 
-            // ⚡ INSTANT UI: Render header immediately with displayStore, show shimmer for categories/items
-            // Header renders instantly (0ms perceived load), categories/items show shimmer until loaded
-            // Categories and items only render when storeController.store is loaded (not just widget.store)
-            final storeLoaded = storeController.store != null;
+          // ⚡ INSTANT UI: Render header immediately with displayStore, show shimmer for categories/items
+          // Header renders instantly (0ms perceived load), categories/items show shimmer until loaded
+          // Categories and items only render when storeController.store is loaded (not just widget.store)
+          final storeLoaded = storeController.store != null;
 
-            return (displayStore.name != null)
-                ? CustomScrollView(
-                    physics: const AlwaysScrollableScrollPhysics(),
-                    controller: scrollController,
-                    slivers: [
-                      ResponsiveHelper.isDesktop(context)
-                          ? SliverToBoxAdapter(
-                              child: FlattenedStoreHeaderWeb(
-                                  store:
-                                      displayStore), // ⚡ TASK 1: Flattened widget tree
-                            )
-                          : SliverAppBar(
-                              expandedHeight: 300,
-                              toolbarHeight: 100,
-                              pinned: true,
-                              elevation: 0.5,
-                              backgroundColor: Theme.of(context).cardColor,
-                              leading: IconButton(
-                                icon: Container(
-                                  height: 50,
-                                  width: 50,
-                                  decoration: BoxDecoration(
-                                      shape: BoxShape.circle,
-                                      color: Theme.of(context).primaryColor),
-                                  alignment: Alignment.center,
-                                  child: Icon(Icons.chevron_left,
-                                      color: Theme.of(context).cardColor),
-                                ),
-                                onPressed: () => Get.back<void>(),
+          return (displayStore.name != null)
+              ? CustomScrollView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  controller: scrollController,
+                  slivers: [
+                    ResponsiveHelper.isDesktop(context)
+                        ? SliverToBoxAdapter(
+                            child: FlattenedStoreHeaderWeb(
+                                store:
+                                    displayStore), // ⚡ TASK 1: Flattened widget tree
+                          )
+                        : SliverAppBar(
+                            expandedHeight: 300,
+                            toolbarHeight: 100,
+                            pinned: true,
+                            elevation: 0.5,
+                            backgroundColor: Theme.of(context).cardColor,
+                            leading: IconButton(
+                              icon: Container(
+                                height: 50,
+                                width: 50,
+                                decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    color: Theme.of(context).primaryColor),
+                                alignment: Alignment.center,
+                                child: Icon(Icons.chevron_left,
+                                    color: Theme.of(context).cardColor),
                               ),
-                              flexibleSpace: FlexibleSpaceBar(
-                                titlePadding: EdgeInsets.zero,
-                                centerTitle: true,
-                                expandedTitleScale: 1.1,
-                                title: SingleChildScrollView(
-                                  child: CustomizableSpaceBarWidget(
-                                    builder: (context, scrollingRate) {
-                                      return Container(
-                                        height: displayStore!.discount != null
-                                            ? 145
-                                            : 100,
-                                        decoration: BoxDecoration(
-                                          color: Theme.of(context).cardColor,
-                                          borderRadius:
-                                              const BorderRadius.vertical(
-                                                  top: Radius.circular(
-                                                      Dimensions.radiusLarge)),
-                                        ),
-                                        child: Column(
-                                          children: [
-                                            displayStore.discount != null
-                                                ? Container(
-                                                    width: double.infinity,
-                                                    decoration: BoxDecoration(
-                                                      color:
-                                                          Theme.of(context).colorScheme.error,
-                                                      borderRadius: const BorderRadius
-                                                          .vertical(
-                                                          top: Radius.circular(
-                                                              Dimensions
-                                                                  .radiusLarge)),
-                                                    ),
-                                                    padding: EdgeInsets.all(Dimensions
-                                                            .paddingSizeExtraSmall -
-                                                        (GetPlatform.isAndroid
-                                                            ? (scrollingRate *
-                                                                Dimensions
-                                                                    .paddingSizeExtraSmall)
-                                                            : 0)),
-                                                    child: Text(
-                                                      '${displayStore.discount!.discountType == 'percent' ? '${displayStore.discount!.discount}% ${'off'.tr}' : '${PriceConverter.convertPrice(displayStore.discount!.discount)} ${'off'.tr}'} '
-                                                      '${'on_all_products'.tr}, ${'after_minimum_purchase'.tr} ${PriceConverter.convertPrice(displayStore.discount!.minPurchase)},'
-                                                      ' ${'daily_time'.tr}: ${DateConverter.convertTimeToTime(displayStore.discount!.startTime!)} '
-                                                      '- ${DateConverter.convertTimeToTime(displayStore.discount!.endTime!)}',
-                                                      style:
-                                                          robotoBold.copyWith(
-                                                        fontSize: Dimensions
-                                                            .fontSizeSmall,
-                                                        color: Theme.of(context).colorScheme.onError,
-                                                      ),
-                                                      textAlign:
-                                                          TextAlign.center,
-                                                      maxLines: 2,
-                                                      overflow:
-                                                          TextOverflow.ellipsis,
-                                                    ),
-                                                  )
-                                                : const SizedBox(),
-                                            Container(
-                                              color: Theme.of(context)
-                                                  .cardColor
-                                                  .withValues(
-                                                      alpha: scrollingRate),
-                                              padding: EdgeInsets.only(
-                                                left: Get.find<
-                                                            LocalizationController>()
-                                                        .isLtr
-                                                    ? 40 * scrollingRate
-                                                    : 0,
-                                                right: Get.find<
-                                                            LocalizationController>()
-                                                        .isLtr
-                                                    ? 0
-                                                    : 40 * scrollingRate,
-                                              ),
-                                              child: Align(
-                                                alignment: Alignment.bottomLeft,
-                                                child: Container(
-                                                  height: 100,
-                                                  color: Theme.of(context)
-                                                      .cardColor
-                                                      .withValues(
-                                                          alpha:
-                                                              scrollingRate ==
-                                                                      0.0
-                                                                  ? 1
-                                                                  : 0),
-                                                  padding: EdgeInsets.only(
-                                                    left: Get.find<
-                                                                LocalizationController>()
-                                                            .isLtr
-                                                        ? 20
-                                                        : 0,
-                                                    right: Get.find<
-                                                                LocalizationController>()
-                                                            .isLtr
-                                                        ? 0
-                                                        : 20,
+                              onPressed: () => Get.back<void>(),
+                            ),
+                            flexibleSpace: FlexibleSpaceBar(
+                              titlePadding: EdgeInsets.zero,
+                              centerTitle: true,
+                              expandedTitleScale: 1.1,
+                              title: SingleChildScrollView(
+                                child: CustomizableSpaceBarWidget(
+                                  builder: (context, scrollingRate) {
+                                    return Container(
+                                      height: displayStore!.discount != null
+                                          ? 145
+                                          : 100,
+                                      decoration: BoxDecoration(
+                                        color: Theme.of(context).cardColor,
+                                        borderRadius:
+                                            const BorderRadius.vertical(
+                                                top: Radius.circular(
+                                                    Dimensions.radiusLarge)),
+                                      ),
+                                      child: Column(
+                                        children: [
+                                          displayStore.discount != null
+                                              ? Container(
+                                                  width: double.infinity,
+                                                  decoration: BoxDecoration(
+                                                    color: Theme.of(context)
+                                                        .colorScheme
+                                                        .error,
+                                                    borderRadius: const BorderRadius
+                                                        .vertical(
+                                                        top: Radius.circular(
+                                                            Dimensions
+                                                                .radiusLarge)),
                                                   ),
-                                                  child: Row(children: [
-                                                    ClipRRect(
-                                                      borderRadius:
-                                                          BorderRadius.circular(
+                                                  padding: EdgeInsets.all(Dimensions
+                                                          .paddingSizeExtraSmall -
+                                                      (GetPlatform.isAndroid
+                                                          ? (scrollingRate *
                                                               Dimensions
-                                                                  .radiusSmall),
-                                                      child: Stack(children: [
-                                                        // ✅ FIX: Removed duplicate Hero widget - using SliverAppBar background Hero instead
-                                                        CustomImage(
-                                                          image: displayStore
-                                                                  .logoFullUrl ??
-                                                              '',
-                                                          height: 60 -
-                                                              (scrollingRate *
-                                                                  15),
-                                                          width: 70 -
-                                                              (scrollingRate *
-                                                                  15),
-                                                        ),
-                                                        // ✅ FRONTEND ONLY: Use store.isOpen from API only
-                                                        (displayStore.isOpen ==
-                                                                true)
-                                                            ? const SizedBox()
-                                                            : Positioned(
-                                                                bottom: 0,
-                                                                left: 0,
-                                                                right: 0,
-                                                                child:
-                                                                    Container(
-                                                                  height: 30,
-                                                                  alignment:
-                                                                      Alignment
+                                                                  .paddingSizeExtraSmall)
+                                                          : 0)),
+                                                  child: Text(
+                                                    '${displayStore.discount!.discountType == 'percent' ? '${displayStore.discount!.discount}% ${'off'.tr}' : '${PriceConverter.convertPrice(displayStore.discount!.discount)} ${'off'.tr}'} '
+                                                    '${'on_all_products'.tr}, ${'after_minimum_purchase'.tr} ${PriceConverter.convertPrice(displayStore.discount!.minPurchase)},'
+                                                    ' ${'daily_time'.tr}: ${DateConverter.convertTimeToTime(displayStore.discount!.startTime!)} '
+                                                    '- ${DateConverter.convertTimeToTime(displayStore.discount!.endTime!)}',
+                                                    style: robotoBold.copyWith(
+                                                      fontSize: Dimensions
+                                                          .fontSizeSmall,
+                                                      color: Theme.of(context)
+                                                          .colorScheme
+                                                          .onError,
+                                                    ),
+                                                    textAlign: TextAlign.center,
+                                                    maxLines: 2,
+                                                    overflow:
+                                                        TextOverflow.ellipsis,
+                                                  ),
+                                                )
+                                              : const SizedBox(),
+                                          Container(
+                                            color: Theme.of(context)
+                                                .cardColor
+                                                .withValues(
+                                                    alpha: scrollingRate),
+                                            padding: EdgeInsets.only(
+                                              left: Get.find<
+                                                          LocalizationController>()
+                                                      .isLtr
+                                                  ? 40 * scrollingRate
+                                                  : 0,
+                                              right: Get.find<
+                                                          LocalizationController>()
+                                                      .isLtr
+                                                  ? 0
+                                                  : 40 * scrollingRate,
+                                            ),
+                                            child: Align(
+                                              alignment: Alignment.bottomLeft,
+                                              child: Container(
+                                                height: 100,
+                                                color: Theme.of(context)
+                                                    .cardColor
+                                                    .withValues(
+                                                        alpha:
+                                                            scrollingRate == 0.0
+                                                                ? 1
+                                                                : 0),
+                                                padding: EdgeInsets.only(
+                                                  left: Get.find<
+                                                              LocalizationController>()
+                                                          .isLtr
+                                                      ? 20
+                                                      : 0,
+                                                  right: Get.find<
+                                                              LocalizationController>()
+                                                          .isLtr
+                                                      ? 0
+                                                      : 20,
+                                                ),
+                                                child: Row(children: [
+                                                  ClipRRect(
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                            Dimensions
+                                                                .radiusSmall),
+                                                    child: Stack(children: [
+                                                      // ✅ FIX: Removed duplicate Hero widget - using SliverAppBar background Hero instead
+                                                      CustomImage(
+                                                        image: displayStore
+                                                                .logoFullUrl ??
+                                                            '',
+                                                        height: 60 -
+                                                            (scrollingRate *
+                                                                15),
+                                                        width: 70 -
+                                                            (scrollingRate *
+                                                                15),
+                                                      ),
+                                                      // ✅ FRONTEND ONLY: Use store.isOpen from API only
+                                                      (displayStore.isOpen ==
+                                                              true)
+                                                          ? const SizedBox()
+                                                          : Positioned(
+                                                              bottom: 0,
+                                                              left: 0,
+                                                              right: 0,
+                                                              child: Container(
+                                                                height: 30,
+                                                                alignment:
+                                                                    Alignment
+                                                                        .center,
+                                                                decoration:
+                                                                    BoxDecoration(
+                                                                  borderRadius: const BorderRadius
+                                                                      .vertical(
+                                                                      bottom: Radius.circular(
+                                                                          Dimensions
+                                                                              .radiusSmall)),
+                                                                  color: Colors
+                                                                      .black
+                                                                      .withValues(
+                                                                          alpha:
+                                                                              0.6),
+                                                                ),
+                                                                child: Text(
+                                                                  'closed_now'
+                                                                      .tr,
+                                                                  textAlign:
+                                                                      TextAlign
                                                                           .center,
-                                                                  decoration:
-                                                                      BoxDecoration(
-                                                                    borderRadius: const BorderRadius
-                                                                        .vertical(
-                                                                        bottom:
-                                                                            Radius.circular(Dimensions.radiusSmall)),
-                                                                    color: Colors
-                                                                        .black
-                                                                        .withValues(
-                                                                            alpha:
-                                                                                0.6),
-                                                                  ),
-                                                                  child: Text(
-                                                                    'closed_now'
-                                                                        .tr,
-                                                                    textAlign:
-                                                                        TextAlign
-                                                                            .center,
-                                                                    style: robotoRegular.copyWith(
-                                                                        color: Colors
-                                                                            .white,
-                                                                        fontSize:
-                                                                            Dimensions.fontSizeSmall),
-                                                                  ),
+                                                                  style: robotoRegular.copyWith(
+                                                                      color: Colors
+                                                                          .white,
+                                                                      fontSize:
+                                                                          Dimensions
+                                                                              .fontSizeSmall),
                                                                 ),
                                                               ),
-                                                      ]),
-                                                    ),
-                                                    const SizedBox(
-                                                        width: Dimensions
-                                                            .paddingSizeSmall),
-                                                    Expanded(
-                                                        child: Column(
-                                                            crossAxisAlignment:
-                                                                CrossAxisAlignment
-                                                                    .start,
-                                                            mainAxisAlignment:
-                                                                MainAxisAlignment
-                                                                    .center,
-                                                            children: [
-                                                          Row(children: [
-                                                            Expanded(
-                                                                child: Text(
-                                                              displayStore
-                                                                  .name!,
-                                                              style: robotoMedium.copyWith(
-                                                                  fontSize: Dimensions
-                                                                          .fontSizeLarge -
-                                                                      (scrollingRate *
-                                                                          3),
-                                                                  color: Theme.of(
-                                                                          context)
-                                                                      .textTheme
-                                                                      .bodyMedium!
-                                                                      .color),
-                                                              maxLines: 1,
-                                                              overflow:
-                                                                  TextOverflow
-                                                                      .ellipsis,
-                                                            )),
-                                                            const SizedBox(
-                                                                width: Dimensions
-                                                                    .paddingSizeSmall),
-                                                          ]),
-                                                          const SizedBox(
-                                                              height: Dimensions
-                                                                  .paddingSizeExtraSmall),
-                                                          Text(
-                                                            displayStore
-                                                                    .address ??
-                                                                '',
+                                                            ),
+                                                    ]),
+                                                  ),
+                                                  const SizedBox(
+                                                      width: Dimensions
+                                                          .paddingSizeSmall),
+                                                  Expanded(
+                                                      child: Column(
+                                                          crossAxisAlignment:
+                                                              CrossAxisAlignment
+                                                                  .start,
+                                                          mainAxisAlignment:
+                                                              MainAxisAlignment
+                                                                  .center,
+                                                          children: [
+                                                        Row(children: [
+                                                          Expanded(
+                                                              child: Text(
+                                                            displayStore.name!,
+                                                            style: robotoMedium.copyWith(
+                                                                fontSize: Dimensions
+                                                                        .fontSizeLarge -
+                                                                    (scrollingRate *
+                                                                        3),
+                                                                color: Theme.of(
+                                                                        context)
+                                                                    .textTheme
+                                                                    .bodyMedium!
+                                                                    .color),
                                                             maxLines: 1,
                                                             overflow:
                                                                 TextOverflow
                                                                     .ellipsis,
-                                                            style: robotoRegular.copyWith(
-                                                                fontSize: Dimensions
-                                                                        .fontSizeSmall -
-                                                                    (scrollingRate *
-                                                                        2),
-                                                                color: Theme.of(
+                                                          )),
+                                                          const SizedBox(
+                                                              width: Dimensions
+                                                                  .paddingSizeSmall),
+                                                        ]),
+                                                        const SizedBox(
+                                                            height: Dimensions
+                                                                .paddingSizeExtraSmall),
+                                                        Text(
+                                                          displayStore
+                                                                  .address ??
+                                                              '',
+                                                          maxLines: 1,
+                                                          overflow: TextOverflow
+                                                              .ellipsis,
+                                                          style: robotoRegular.copyWith(
+                                                              fontSize: Dimensions
+                                                                      .fontSizeSmall -
+                                                                  (scrollingRate *
+                                                                      2),
+                                                              color: Theme.of(
+                                                                      context)
+                                                                  .disabledColor),
+                                                        ),
+                                                        SizedBox(
+                                                            height: ResponsiveHelper
+                                                                    .isDesktop(
                                                                         context)
-                                                                    .disabledColor),
-                                                          ),
-                                                          SizedBox(
-                                                              height: ResponsiveHelper
-                                                                      .isDesktop(
-                                                                          context)
-                                                                  ? Dimensions
-                                                                      .paddingSizeExtraSmall
-                                                                  : 0),
-                                                          Row(children: [
-                                                            Flexible(
-                                                              child: Text(
-                                                                  'minimum_order'
-                                                                      .tr,
-                                                                  style: robotoRegular
-                                                                      .copyWith(
-                                                                    fontSize: Dimensions
-                                                                            .fontSizeExtraSmall -
-                                                                        (scrollingRate *
-                                                                            2),
-                                                                    color: Theme.of(
-                                                                            context)
-                                                                        .disabledColor,
-                                                                  ),
-                                                                  maxLines: 1,
-                                                                  overflow:
-                                                                      TextOverflow
-                                                                          .ellipsis),
-                                                            ),
-                                                            const SizedBox(
-                                                                width: Dimensions
-                                                                    .paddingSizeExtraSmall),
-                                                            PriceConverter
-                                                                .convertPrice2(
-                                                              displayStore
-                                                                  .minimumOrder,
-                                                              textStyle: robotoMedium.copyWith(
+                                                                ? Dimensions
+                                                                    .paddingSizeExtraSmall
+                                                                : 0),
+                                                        Row(children: [
+                                                          Flexible(
+                                                            child: Text(
+                                                                'minimum_order'
+                                                                    .tr,
+                                                                style:
+                                                                    robotoRegular
+                                                                        .copyWith(
                                                                   fontSize: Dimensions
                                                                           .fontSizeExtraSmall -
                                                                       (scrollingRate *
                                                                           2),
                                                                   color: Theme.of(
                                                                           context)
-                                                                      .primaryColor),
-                                                            ),
-                                                          ]),
-                                                        ])),
-                                                    GetBuilder<
-                                                            FavouriteController>(
-                                                        builder:
-                                                            (favouriteController) {
-                                                      final bool isWished =
-                                                          favouriteController
-                                                              .wishStoreIdList
-                                                              .contains(
-                                                                  displayStore!
-                                                                      .id);
-                                                      return InkWell(
-                                                        onTap: () {
-                                                          if (AuthHelper
-                                                              .isLoggedIn()) {
-                                                            isWished
-                                                                ? favouriteController
-                                                                    .removeFromFavouriteList(
-                                                                        displayStore!
-                                                                            .id,
-                                                                        true)
-                                                                : favouriteController
-                                                                    .addToFavouriteList(
-                                                                        null,
-                                                                        displayStore
-                                                                            ?.id,
-                                                                        true);
-                                                          } else {
-                                                            showCustomSnackBar(
-                                                                'you_are_not_logged_in'
-                                                                    .tr);
-                                                          }
-                                                        },
-                                                        child: Container(
-                                                          decoration:
-                                                              BoxDecoration(
-                                                            color: Theme.of(
-                                                                    context)
-                                                                .primaryColor
-                                                                .withValues(
-                                                                    alpha: 0.1),
-                                                            borderRadius:
-                                                                BorderRadius.circular(
-                                                                    Dimensions
-                                                                        .radiusDefault),
+                                                                      .disabledColor,
+                                                                ),
+                                                                maxLines: 1,
+                                                                overflow:
+                                                                    TextOverflow
+                                                                        .ellipsis),
                                                           ),
-                                                          padding: const EdgeInsets
-                                                              .all(Dimensions
+                                                          const SizedBox(
+                                                              width: Dimensions
                                                                   .paddingSizeExtraSmall),
-                                                          child: Icon(
-                                                            isWished
-                                                                ? Icons.favorite
-                                                                : Icons
-                                                                    .favorite_border,
-                                                            color: isWished
-                                                                ? Theme.of(
-                                                                        context)
-                                                                    .primaryColor
-                                                                : Theme.of(
-                                                                        context)
-                                                                    .disabledColor,
-                                                            size: 24 -
-                                                                (scrollingRate *
-                                                                    4),
-                                                          ),
-                                                        ),
-                                                      );
-                                                    }),
-                                                    const SizedBox(
-                                                        width: Dimensions
-                                                            .paddingSizeSmall),
-                                                    AppConstants.webHostedUrl
-                                                            .isNotEmpty
-                                                        ? InkWell(
-                                                            onTap: () {
-                                                              storeController
-                                                                  .shareStore();
-                                                            },
-                                                            child: Container(
-                                                              decoration:
-                                                                  BoxDecoration(
+                                                          PriceConverter
+                                                              .convertPrice2(
+                                                            displayStore
+                                                                .minimumOrder,
+                                                            textStyle: robotoMedium.copyWith(
+                                                                fontSize: Dimensions
+                                                                        .fontSizeExtraSmall -
+                                                                    (scrollingRate *
+                                                                        2),
                                                                 color: Theme.of(
                                                                         context)
-                                                                    .primaryColor
-                                                                    .withValues(
-                                                                        alpha:
-                                                                            0.1),
-                                                                borderRadius:
-                                                                    BorderRadius.circular(
-                                                                        Dimensions
-                                                                            .radiusDefault),
-                                                              ),
-                                                              padding:
-                                                                  const EdgeInsets
-                                                                      .all(
+                                                                    .primaryColor),
+                                                          ),
+                                                        ]),
+                                                      ])),
+                                                  GetBuilder<
+                                                          FavouriteController>(
+                                                      builder:
+                                                          (favouriteController) {
+                                                    final bool isWished =
+                                                        favouriteController
+                                                            .wishStoreIdList
+                                                            .contains(
+                                                                displayStore!
+                                                                    .id);
+                                                    return InkWell(
+                                                      onTap: () {
+                                                        if (AuthHelper
+                                                            .isLoggedIn()) {
+                                                          isWished
+                                                              ? favouriteController
+                                                                  .removeFromFavouriteList(
+                                                                      displayStore!
+                                                                          .id,
+                                                                      true)
+                                                              : favouriteController
+                                                                  .addToFavouriteList(
+                                                                      null,
+                                                                      displayStore
+                                                                          ?.id,
+                                                                      true);
+                                                        } else {
+                                                          showCustomSnackBar(
+                                                              'you_are_not_logged_in'
+                                                                  .tr);
+                                                        }
+                                                      },
+                                                      child: Container(
+                                                        decoration:
+                                                            BoxDecoration(
+                                                          color:
+                                                              Theme.of(context)
+                                                                  .primaryColor
+                                                                  .withValues(
+                                                                      alpha:
+                                                                          0.1),
+                                                          borderRadius: BorderRadius
+                                                              .circular(Dimensions
+                                                                  .radiusDefault),
+                                                        ),
+                                                        padding: const EdgeInsets
+                                                            .all(Dimensions
+                                                                .paddingSizeExtraSmall),
+                                                        child: Icon(
+                                                          isWished
+                                                              ? Icons.favorite
+                                                              : Icons
+                                                                  .favorite_border,
+                                                          color: isWished
+                                                              ? Theme.of(
+                                                                      context)
+                                                                  .primaryColor
+                                                              : Theme.of(
+                                                                      context)
+                                                                  .disabledColor,
+                                                          size: 24 -
+                                                              (scrollingRate *
+                                                                  4),
+                                                        ),
+                                                      ),
+                                                    );
+                                                  }),
+                                                  const SizedBox(
+                                                      width: Dimensions
+                                                          .paddingSizeSmall),
+                                                  AppConstants.webHostedUrl
+                                                          .isNotEmpty
+                                                      ? InkWell(
+                                                          onTap: () {
+                                                            storeController
+                                                                .shareStore();
+                                                          },
+                                                          child: Container(
+                                                            decoration:
+                                                                BoxDecoration(
+                                                              color: Theme.of(
+                                                                      context)
+                                                                  .primaryColor
+                                                                  .withValues(
+                                                                      alpha:
+                                                                          0.1),
+                                                              borderRadius:
+                                                                  BorderRadius.circular(
                                                                       Dimensions
-                                                                          .paddingSizeExtraSmall),
-                                                              child: Icon(
-                                                                Icons.share,
-                                                                size: 24 -
-                                                                    (scrollingRate *
-                                                                        4),
-                                                              ),
+                                                                          .radiusDefault),
                                                             ),
-                                                          )
-                                                        : const SizedBox(),
-                                                    const SizedBox(
-                                                        width: Dimensions
-                                                            .paddingSizeSmall),
-                                                  ]),
-                                                ),
+                                                            padding:
+                                                                const EdgeInsets
+                                                                    .all(
+                                                                    Dimensions
+                                                                        .paddingSizeExtraSmall),
+                                                            child: Icon(
+                                                              Icons.share,
+                                                              size: 24 -
+                                                                  (scrollingRate *
+                                                                      4),
+                                                            ),
+                                                          ),
+                                                        )
+                                                      : const SizedBox(),
+                                                  const SizedBox(
+                                                      width: Dimensions
+                                                          .paddingSizeSmall),
+                                                ]),
                                               ),
                                             ),
-                                          ],
+                                          ),
+                                        ],
+                                      ),
+                                    );
+                                  },
+                                ),
+                              ),
+                              background: Hero(
+                                tag: 'store_image_${displayStore.id}',
+                                flightShuttleBuilder: (flightContext,
+                                    animation,
+                                    flightDirection,
+                                    fromHeroContext,
+                                    toHeroContext) {
+                                  return AnimatedBuilder(
+                                    animation: animation,
+                                    builder: (context, child) {
+                                      final curvedAnimation = CurvedAnimation(
+                                        parent: animation,
+                                        curve: Curves.easeOutBack,
+                                      );
+                                      return FadeTransition(
+                                        opacity: curvedAnimation,
+                                        child: ScaleTransition(
+                                          scale: Tween<double>(
+                                                  begin: 0.9, end: 1.0)
+                                              .animate(curvedAnimation),
+                                          child: child,
                                         ),
                                       );
                                     },
-                                  ),
-                                ),
-                                background: Hero(
-                                  tag: 'store_image_${displayStore.id}',
-                                  flightShuttleBuilder: (flightContext,
-                                      animation,
-                                      flightDirection,
-                                      fromHeroContext,
-                                      toHeroContext) {
-                                    return AnimatedBuilder(
-                                      animation: animation,
-                                      builder: (context, child) {
-                                        final curvedAnimation = CurvedAnimation(
-                                          parent: animation,
-                                          curve: Curves.easeOutBack,
-                                        );
-                                        return FadeTransition(
-                                          opacity: curvedAnimation,
-                                          child: ScaleTransition(
-                                            scale: Tween<double>(
-                                                    begin: 0.9, end: 1.0)
-                                                .animate(curvedAnimation),
-                                            child: child,
-                                          ),
-                                        );
-                                      },
-                                      child: Stack(
-                                        children: [
-                                          CustomImage(
+                                    child: Stack(
+                                      children: [
+                                        CustomImage(
+                                          image: ((displayStore
+                                                      ?.coverPhotoFullUrl
+                                                      ?.isNotEmpty ??
+                                                  false))
+                                              ? (displayStore
+                                                      ?.coverPhotoFullUrl ??
+                                                  '')
+                                              : (displayStore?.logoFullUrl ??
+                                                  ''),
+                                          height: double.infinity,
+                                          width: double.infinity,
+                                        ),
+                                        BackdropFilter(
+                                          filter: ui.ImageFilter.blur(
+                                              sigmaX: 20.0, sigmaY: 20.0),
+                                          child: Container(
+                                              color: Theme.of(context)
+                                                  .colorScheme
+                                                  .scrim
+                                                  .withValues(alpha: 0.1)),
+                                        ),
+                                        Center(
+                                          child: CustomImage(
+                                            fit: BoxFit.contain,
                                             image: ((displayStore
                                                         ?.coverPhotoFullUrl
                                                         ?.isNotEmpty ??
@@ -704,37 +727,35 @@ class _StoreScreenState extends State<StoreScreen> {
                                             height: double.infinity,
                                             width: double.infinity,
                                           ),
-                                          BackdropFilter(
-                                            filter: ui.ImageFilter.blur(
-                                                sigmaX: 20.0, sigmaY: 20.0),
-                                            child: Container(
-                                                color: Theme.of(context).colorScheme.scrim
-                                                    .withValues(alpha: 0.1)),
-                                          ),
-                                          Center(
-                                            child: CustomImage(
-                                              fit: BoxFit.contain,
-                                              image: ((displayStore
-                                                          ?.coverPhotoFullUrl
-                                                          ?.isNotEmpty ??
-                                                      false))
-                                                  ? (displayStore
-                                                          ?.coverPhotoFullUrl ??
-                                                      '')
-                                                  : (displayStore
-                                                          ?.logoFullUrl ??
-                                                      ''),
-                                              height: double.infinity,
-                                              width: double.infinity,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    );
-                                  },
-                                  child: Stack(
-                                    children: [
-                                      CustomImage(
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                },
+                                child: Stack(
+                                  children: [
+                                    CustomImage(
+                                      image: ((displayStore.coverPhotoFullUrl
+                                                  ?.isNotEmpty ??
+                                              false))
+                                          ? (displayStore.coverPhotoFullUrl ??
+                                              '')
+                                          : (displayStore.logoFullUrl ?? ''),
+                                      height: double.infinity,
+                                      width: double.infinity,
+                                    ),
+                                    BackdropFilter(
+                                      filter: ui.ImageFilter.blur(
+                                          sigmaX: 20.0, sigmaY: 20.0),
+                                      child: Container(
+                                          color: Theme.of(context)
+                                              .colorScheme
+                                              .scrim
+                                              .withValues(alpha: 0.1)),
+                                    ),
+                                    Center(
+                                      child: CustomImage(
+                                        fit: BoxFit.contain,
                                         image: ((displayStore.coverPhotoFullUrl
                                                     ?.isNotEmpty ??
                                                 false))
@@ -744,425 +765,448 @@ class _StoreScreenState extends State<StoreScreen> {
                                         height: double.infinity,
                                         width: double.infinity,
                                       ),
-                                      BackdropFilter(
-                                        filter: ui.ImageFilter.blur(
-                                            sigmaX: 20.0, sigmaY: 20.0),
-                                        child: Container(
-                                            color: Theme.of(context).colorScheme.scrim
-                                                .withValues(alpha: 0.1)),
-                                      ),
-                                      Center(
-                                        child: CustomImage(
-                                          fit: BoxFit.contain,
-                                          image: ((displayStore
-                                                      .coverPhotoFullUrl
-                                                      ?.isNotEmpty ??
-                                                  false))
-                                              ? (displayStore
-                                                      .coverPhotoFullUrl ??
-                                                  '')
-                                              : (displayStore.logoFullUrl ??
-                                                  ''),
-                                          height: double.infinity,
-                                          width: double.infinity,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                            actions: const [
+                              SizedBox(),
+                            ],
+                          ),
+
+                    (ResponsiveHelper.isDesktop(context) &&
+                            storeController
+                                    .recommendedItemModel?.items?.isNotEmpty ==
+                                true)
+                        ? SliverToBoxAdapter(
+                            child: Container(
+                              color: Theme.of(context)
+                                  .primaryColor
+                                  .withValues(alpha: 0.10),
+                              child: Center(
+                                child: SizedBox(
+                                  width: Dimensions.webMaxWidth,
+                                  height: ResponsiveHelper.isDesktop(context)
+                                      ? 325
+                                      : 125,
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      const SizedBox(
+                                          height: Dimensions.paddingSizeSmall),
+                                      Text('recommended_for_you'.tr,
+                                          style: robotoMedium.copyWith(
+                                              fontSize:
+                                                  Dimensions.fontSizeLarge,
+                                              fontWeight: FontWeight.w700)),
+                                      const SizedBox(
+                                          height:
+                                              Dimensions.paddingSizeExtraSmall),
+                                      Text('here_is_what_you_might_like'.tr,
+                                          style: robotoRegular.copyWith(
+                                              fontSize:
+                                                  Dimensions.fontSizeSmall,
+                                              color: Theme.of(context)
+                                                  .disabledColor)),
+                                      const SizedBox(
+                                          height:
+                                              Dimensions.paddingSizeExtraSmall),
+                                      SizedBox(
+                                        height: 250,
+                                        child: ListView.builder(
+                                          shrinkWrap: true,
+                                          scrollDirection: Axis.horizontal,
+                                          itemCount: storeController
+                                                  .recommendedItemModel
+                                                  ?.items
+                                                  ?.length ??
+                                              0,
+                                          physics:
+                                              const BouncingScrollPhysics(),
+                                          padding: const EdgeInsets.symmetric(
+                                              vertical: Dimensions
+                                                  .paddingSizeExtraSmall),
+                                          itemBuilder: (context, index) {
+                                            return Container(
+                                              width: 225,
+                                              padding: const EdgeInsets.only(
+                                                  right: Dimensions
+                                                      .paddingSizeSmall,
+                                                  left: Dimensions
+                                                      .paddingSizeExtraSmall),
+                                              margin: const EdgeInsets.only(
+                                                  right: Dimensions
+                                                      .paddingSizeSmall),
+                                              child: WebItemWidget(
+                                                isStore: false,
+                                                item: storeController
+                                                    .recommendedItemModel!
+                                                    .items![index],
+                                                store: null,
+                                                index: index,
+                                                length: null,
+                                                inStore: true,
+                                              ),
+                                            );
+                                          },
                                         ),
                                       ),
                                     ],
                                   ),
                                 ),
                               ),
-                              actions: const [
-                                SizedBox(),
-                              ],
                             ),
+                          )
+                        : const SliverToBoxAdapter(child: SizedBox()),
 
-                      (ResponsiveHelper.isDesktop(context) &&
-                              storeController.recommendedItemModel?.items
-                                      ?.isNotEmpty ==
-                                  true)
-                          ? SliverToBoxAdapter(
-                              child: Container(
-                                color: Theme.of(context)
-                                    .primaryColor
-                                    .withValues(alpha: 0.10),
-                                child: Center(
-                                  child: SizedBox(
-                                    width: Dimensions.webMaxWidth,
-                                    height: ResponsiveHelper.isDesktop(context)
-                                        ? 325
-                                        : 125,
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        const SizedBox(
-                                            height:
-                                                Dimensions.paddingSizeSmall),
-                                        Text('recommended_for_you'.tr,
-                                            style: robotoMedium.copyWith(
-                                                fontSize:
-                                                    Dimensions.fontSizeLarge,
-                                                fontWeight: FontWeight.w700)),
-                                        const SizedBox(
-                                            height: Dimensions
-                                                .paddingSizeExtraSmall),
-                                        Text('here_is_what_you_might_like'.tr,
-                                            style: robotoRegular.copyWith(
-                                                fontSize:
-                                                    Dimensions.fontSizeSmall,
-                                                color: Theme.of(context)
-                                                    .disabledColor)),
-                                        const SizedBox(
-                                            height: Dimensions
-                                                .paddingSizeExtraSmall),
-                                        SizedBox(
-                                          height: 250,
-                                          child: ListView.builder(
-                                            shrinkWrap: true,
-                                            scrollDirection: Axis.horizontal,
-                                            itemCount: storeController
-                                                    .recommendedItemModel
-                                                    ?.items
-                                                    ?.length ??
-                                                0,
-                                            physics:
-                                                const BouncingScrollPhysics(),
-                                            padding: const EdgeInsets.symmetric(
-                                                vertical: Dimensions
-                                                    .paddingSizeExtraSmall),
-                                            itemBuilder: (context, index) {
-                                              return Container(
-                                                width: 225,
-                                                padding: const EdgeInsets.only(
-                                                    right: Dimensions
-                                                        .paddingSizeSmall,
-                                                    left: Dimensions
-                                                        .paddingSizeExtraSmall),
-                                                margin: const EdgeInsets.only(
-                                                    right: Dimensions
-                                                        .paddingSizeSmall),
-                                                child: WebItemWidget(
-                                                  isStore: false,
-                                                  item: storeController
-                                                      .recommendedItemModel!
-                                                      .items![index],
-                                                  store: null,
-                                                  index: index,
-                                                  length: null,
-                                                  inStore: true,
-                                                ),
-                                              );
-                                            },
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            )
-                          : const SliverToBoxAdapter(child: SizedBox()),
+                    const SliverToBoxAdapter(
+                        child: SizedBox(height: Dimensions.paddingSizeSmall)),
 
-                      const SliverToBoxAdapter(
-                          child: SizedBox(height: Dimensions.paddingSizeSmall)),
-
-                      ///web view..
-                      ResponsiveHelper.isDesktop(context)
-                          ? SliverToBoxAdapter(
-                              child: FooterView(
-                                child: SizedBox(
-                                  width: Dimensions.webMaxWidth,
-                                  child: Padding(
-                                    padding: const EdgeInsets.only(
-                                        top: Dimensions.paddingSizeSmall),
-                                    child: Row(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        SizedBox(
-                                          width: 175,
-                                          child: Row(
-                                            crossAxisAlignment:
-                                                CrossAxisAlignment.start,
-                                            children: [
-                                              Expanded(
-                                                child: ListView.builder(
-                                                  shrinkWrap: true,
-                                                  itemCount: storeController
-                                                          .categoryList
-                                                          ?.length ??
-                                                      0,
-                                                  padding: const EdgeInsets
-                                                      .only(
-                                                      left: Dimensions
-                                                          .paddingSizeSmall),
-                                                  physics:
-                                                      const NeverScrollableScrollPhysics(),
-                                                  itemBuilder:
-                                                      (context, index) {
-                                                    return InkWell(
-                                                      onTap: () {
-                                                        storeController
-                                                            .setCategoryIndex(
-                                                                index,
-                                                                itemSearching:
-                                                                    storeController
-                                                                        .isSearching);
-                                                      },
-                                                      child: Padding(
-                                                        padding: const EdgeInsets
-                                                            .only(
-                                                            bottom: Dimensions
-                                                                .paddingSizeSmall),
-                                                        child: Container(
-                                                          padding: const EdgeInsets
-                                                              .symmetric(
-                                                              horizontal: Dimensions
-                                                                  .paddingSizeSmall,
-                                                              vertical: Dimensions
-                                                                  .paddingSizeExtraSmall),
-                                                          decoration:
-                                                              BoxDecoration(
-                                                                  gradient: LinearGradient(
-                                                                      begin: Alignment
-                                                                          .bottomRight,
-                                                                      end: Alignment
-                                                                          .topLeft,
-                                                                      colors: <Color>[
-                                                                index ==
-                                                                        storeController
-                                                                            .categoryIndex
-                                                                    ? Theme.of(
-                                                                            context)
-                                                                        .primaryColor
-                                                                        .withValues(
-                                                                            alpha:
-                                                                                0.50)
-                                                                    : Colors
-                                                                        .transparent,
-                                                                index ==
-                                                                        storeController
-                                                                            .categoryIndex
-                                                                    ? Theme.of(
-                                                                            context)
-                                                                        .cardColor
-                                                                    : Colors
-                                                                        .transparent,
-                                                              ])),
-                                                          child: Column(
-                                                              mainAxisAlignment:
-                                                                  MainAxisAlignment
-                                                                      .center,
-                                                              crossAxisAlignment:
-                                                                  CrossAxisAlignment
-                                                                      .start,
-                                                              children: [
-                                                                Text(
-                                                                  storeController
-                                                                          .categoryList?[
-                                                                              index]
-                                                                          .name ??
-                                                                      '',
-                                                                  maxLines: 1,
-                                                                  overflow:
-                                                                      TextOverflow
-                                                                          .ellipsis,
-                                                                  style: index ==
-                                                                          storeController
-                                                                              .categoryIndex
-                                                                      ? robotoMedium.copyWith(
-                                                                          fontSize: Dimensions
-                                                                              .fontSizeSmall,
-                                                                          color: Theme.of(context)
-                                                                              .primaryColor)
-                                                                      : robotoRegular.copyWith(
-                                                                          fontSize:
-                                                                              Dimensions.fontSizeSmall),
-                                                                ),
-                                                              ]),
-                                                        ),
-                                                      ),
-                                                    );
-                                                  },
-                                                ),
-                                              ),
-                                              // ⚡ TASK 3: Browse Complete Catalog button for large stores
-                                              if (storeController
-                                                  .isLargeStore) ...[
-                                                const SizedBox(
-                                                    height: Dimensions
-                                                        .paddingSizeSmall),
-                                                InkWell(
-                                                  onTap: () {
-                                                    final int? storeId =
-                                                        displayStore?.id;
-                                                    if (storeId == null) {
-                                                      showCustomSnackBar(
-                                                          'something_went_wrong'
-                                                              .tr);
-                                                      return;
-                                                    }
-                                                    Get.toNamed(
-                                                      RouteHelper
-                                                          .getSearchStoreItemRoute(
-                                                              storeId),
-                                                    );
-                                                  },
-                                                  child: Container(
-                                                    padding: const EdgeInsets
-                                                        .symmetric(
-                                                      horizontal: Dimensions
-                                                          .paddingSizeDefault,
-                                                      vertical: Dimensions
-                                                          .paddingSizeSmall,
-                                                    ),
-                                                    decoration: BoxDecoration(
-                                                      borderRadius: BorderRadius
-                                                          .circular(Dimensions
-                                                              .radiusDefault),
-                                                      gradient: LinearGradient(
-                                                        colors: [
-                                                          Theme.of(context)
-                                                              .primaryColor,
-                                                          Theme.of(context)
-                                                              .primaryColor
-                                                              .withValues(
-                                                                  alpha: 0.8),
-                                                        ],
-                                                      ),
-                                                      boxShadow: [
-                                                        BoxShadow(
-                                                          color:
-                                                              Theme.of(context)
-                                                                  .primaryColor
-                                                                  .withValues(
-                                                                      alpha:
-                                                                          0.3),
-                                                          blurRadius: 8,
-                                                          offset: const Offset(
-                                                              0, 4),
-                                                        ),
-                                                      ],
-                                                    ),
-                                                    child: Row(
-                                                      mainAxisSize:
-                                                          MainAxisSize.min,
-                                                      children: [
-                                                        Icon(
-                                                          Icons.search,
-                                                          color: Theme.of(context).colorScheme.onPrimary,
-                                                          size: 18,
-                                                        ),
-                                                        const SizedBox(
-                                                            width: 8),
-                                                        Text(
-                                                          'browse_complete_catalog'
-                                                              .tr,
-                                                          style: robotoMedium
-                                                              .copyWith(
-                                                            fontSize: Dimensions
-                                                                .fontSizeSmall,
-                                                            color: Theme.of(context).colorScheme.onPrimary,
-                                                          ),
-                                                        ),
-                                                      ],
-                                                    ),
-                                                  ),
-                                                ),
-                                              ],
-                                              Container(
-                                                height: (storeController
-                                                            .categoryList
-                                                            ?.length ??
-                                                        0) *
-                                                    50,
-                                                width: 1,
-                                                color: Theme.of(context)
-                                                    .disabledColor
-                                                    .withValues(alpha: 0.5),
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                                        const SizedBox(
-                                            width: Dimensions.paddingSizeLarge),
-                                        Expanded(
-                                            child: Column(
+                    ///web view..
+                    ResponsiveHelper.isDesktop(context)
+                        ? SliverToBoxAdapter(
+                            child: FooterView(
+                              child: SizedBox(
+                                width: Dimensions.webMaxWidth,
+                                child: Padding(
+                                  padding: const EdgeInsets.only(
+                                      top: Dimensions.paddingSizeSmall),
+                                  child: Row(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      SizedBox(
+                                        width: 175,
+                                        child: Row(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
                                           children: [
-                                            Row(
-                                              mainAxisAlignment:
-                                                  MainAxisAlignment.end,
-                                              children: [
-                                                Container(
-                                                  padding: const EdgeInsets.all(
-                                                      Dimensions
-                                                          .paddingSizeExtraSmall),
-                                                  height: 45,
-                                                  width: 430,
+                                            Expanded(
+                                              child: ListView.builder(
+                                                shrinkWrap: true,
+                                                itemCount: storeController
+                                                        .categoryList?.length ??
+                                                    0,
+                                                padding: const EdgeInsets.only(
+                                                    left: Dimensions
+                                                        .paddingSizeSmall),
+                                                physics:
+                                                    const NeverScrollableScrollPhysics(),
+                                                itemBuilder: (context, index) {
+                                                  return InkWell(
+                                                    onTap: () {
+                                                      storeController
+                                                          .setCategoryIndex(
+                                                              index,
+                                                              itemSearching:
+                                                                  storeController
+                                                                      .isSearching);
+                                                    },
+                                                    child: Padding(
+                                                      padding: const EdgeInsets
+                                                          .only(
+                                                          bottom: Dimensions
+                                                              .paddingSizeSmall),
+                                                      child: Container(
+                                                        padding: const EdgeInsets
+                                                            .symmetric(
+                                                            horizontal: Dimensions
+                                                                .paddingSizeSmall,
+                                                            vertical: Dimensions
+                                                                .paddingSizeExtraSmall),
+                                                        decoration:
+                                                            BoxDecoration(
+                                                                gradient: LinearGradient(
+                                                                    begin: Alignment
+                                                                        .bottomRight,
+                                                                    end: Alignment
+                                                                        .topLeft,
+                                                                    colors: <Color>[
+                                                              index ==
+                                                                      storeController
+                                                                          .categoryIndex
+                                                                  ? Theme.of(
+                                                                          context)
+                                                                      .primaryColor
+                                                                      .withValues(
+                                                                          alpha:
+                                                                              0.50)
+                                                                  : Colors
+                                                                      .transparent,
+                                                              index ==
+                                                                      storeController
+                                                                          .categoryIndex
+                                                                  ? Theme.of(
+                                                                          context)
+                                                                      .cardColor
+                                                                  : Colors
+                                                                      .transparent,
+                                                            ])),
+                                                        child: Column(
+                                                            mainAxisAlignment:
+                                                                MainAxisAlignment
+                                                                    .center,
+                                                            crossAxisAlignment:
+                                                                CrossAxisAlignment
+                                                                    .start,
+                                                            children: [
+                                                              Text(
+                                                                storeController
+                                                                        .categoryList?[
+                                                                            index]
+                                                                        .name ??
+                                                                    '',
+                                                                maxLines: 1,
+                                                                overflow:
+                                                                    TextOverflow
+                                                                        .ellipsis,
+                                                                style: index ==
+                                                                        storeController
+                                                                            .categoryIndex
+                                                                    ? robotoMedium.copyWith(
+                                                                        fontSize:
+                                                                            Dimensions
+                                                                                .fontSizeSmall,
+                                                                        color: Theme.of(context)
+                                                                            .primaryColor)
+                                                                    : robotoRegular.copyWith(
+                                                                        fontSize:
+                                                                            Dimensions.fontSizeSmall),
+                                                              ),
+                                                            ]),
+                                                      ),
+                                                    ),
+                                                  );
+                                                },
+                                              ),
+                                            ),
+                                            // ⚡ TASK 3: Browse Complete Catalog button for large stores
+                                            if (storeController
+                                                .isLargeStore) ...[
+                                              const SizedBox(
+                                                  height: Dimensions
+                                                      .paddingSizeSmall),
+                                              InkWell(
+                                                onTap: () {
+                                                  final int? storeId =
+                                                      displayStore?.id;
+                                                  if (storeId == null) {
+                                                    showCustomSnackBar(
+                                                        'something_went_wrong'
+                                                            .tr);
+                                                    return;
+                                                  }
+                                                  Get.toNamed(
+                                                    RouteHelper
+                                                        .getSearchStoreItemRoute(
+                                                            storeId),
+                                                  );
+                                                },
+                                                child: Container(
+                                                  padding: const EdgeInsets
+                                                      .symmetric(
+                                                    horizontal: Dimensions
+                                                        .paddingSizeDefault,
+                                                    vertical: Dimensions
+                                                        .paddingSizeSmall,
+                                                  ),
                                                   decoration: BoxDecoration(
                                                     borderRadius:
                                                         BorderRadius.circular(
                                                             Dimensions
                                                                 .radiusDefault),
-                                                    color: Theme.of(context)
-                                                        .cardColor,
-                                                    border: Border.all(
+                                                    gradient: LinearGradient(
+                                                      colors: [
+                                                        Theme.of(context)
+                                                            .primaryColor,
+                                                        Theme.of(context)
+                                                            .primaryColor
+                                                            .withValues(
+                                                                alpha: 0.8),
+                                                      ],
+                                                    ),
+                                                    boxShadow: [
+                                                      BoxShadow(
                                                         color: Theme.of(context)
                                                             .primaryColor
                                                             .withValues(
-                                                                alpha: 0.40)),
+                                                                alpha: 0.3),
+                                                        blurRadius: 8,
+                                                        offset:
+                                                            const Offset(0, 4),
+                                                      ),
+                                                    ],
                                                   ),
                                                   child: Row(
+                                                    mainAxisSize:
+                                                        MainAxisSize.min,
                                                     children: [
-                                                      Expanded(
-                                                        child: TextField(
-                                                          controller:
-                                                              _searchController,
-                                                          textInputAction:
-                                                              TextInputAction
-                                                                  .search,
-                                                          decoration:
-                                                              InputDecoration(
-                                                            contentPadding:
-                                                                const EdgeInsets
-                                                                    .symmetric(),
-                                                            hintText:
-                                                                'search_for_items'
-                                                                    .tr,
-                                                            hintStyle: robotoRegular.copyWith(
-                                                                fontSize: Dimensions
-                                                                    .fontSizeSmall,
-                                                                color: Theme.of(
-                                                                        context)
-                                                                    .disabledColor),
-                                                            border: OutlineInputBorder(
-                                                                borderRadius:
-                                                                    BorderRadius.circular(
-                                                                        Dimensions
-                                                                            .radiusSmall),
-                                                                borderSide:
-                                                                    BorderSide
-                                                                        .none),
-                                                            filled: true,
-                                                            fillColor: Theme.of(
-                                                                    context)
-                                                                .cardColor,
-                                                            isDense: true,
-                                                            prefixIcon: Icon(
-                                                                Icons.search,
-                                                                color: Theme.of(
-                                                                        context)
-                                                                    .primaryColor
-                                                                    .withValues(
-                                                                        alpha:
-                                                                            0.50)),
-                                                          ),
-                                                          onSubmitted:
-                                                              (String? value) {
-                                                            if (value!
-                                                                .isNotEmpty) {
-                                                              Get.find<
-                                                                      StoreController>()
+                                                      Icon(
+                                                        Icons.search,
+                                                        color: Theme.of(context)
+                                                            .colorScheme
+                                                            .onPrimary,
+                                                        size: 18,
+                                                      ),
+                                                      const SizedBox(width: 8),
+                                                      Text(
+                                                        'browse_complete_catalog'
+                                                            .tr,
+                                                        style: robotoMedium
+                                                            .copyWith(
+                                                          fontSize: Dimensions
+                                                              .fontSizeSmall,
+                                                          color:
+                                                              Theme.of(context)
+                                                                  .colorScheme
+                                                                  .onPrimary,
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
+                                            Container(
+                                              height: (storeController
+                                                          .categoryList
+                                                          ?.length ??
+                                                      0) *
+                                                  50,
+                                              width: 1,
+                                              color: Theme.of(context)
+                                                  .disabledColor
+                                                  .withValues(alpha: 0.5),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                      const SizedBox(
+                                          width: Dimensions.paddingSizeLarge),
+                                      Expanded(
+                                          child: Column(
+                                        children: [
+                                          Row(
+                                            mainAxisAlignment:
+                                                MainAxisAlignment.end,
+                                            children: [
+                                              Container(
+                                                padding: const EdgeInsets.all(
+                                                    Dimensions
+                                                        .paddingSizeExtraSmall),
+                                                height: 45,
+                                                width: 430,
+                                                decoration: BoxDecoration(
+                                                  borderRadius:
+                                                      BorderRadius.circular(
+                                                          Dimensions
+                                                              .radiusDefault),
+                                                  color: Theme.of(context)
+                                                      .cardColor,
+                                                  border: Border.all(
+                                                      color: Theme.of(context)
+                                                          .primaryColor
+                                                          .withValues(
+                                                              alpha: 0.40)),
+                                                ),
+                                                child: Row(
+                                                  children: [
+                                                    Expanded(
+                                                      child: TextField(
+                                                        controller:
+                                                            _searchController,
+                                                        textInputAction:
+                                                            TextInputAction
+                                                                .search,
+                                                        decoration:
+                                                            InputDecoration(
+                                                          contentPadding:
+                                                              const EdgeInsets
+                                                                  .symmetric(),
+                                                          hintText:
+                                                              'search_for_items'
+                                                                  .tr,
+                                                          hintStyle: robotoRegular.copyWith(
+                                                              fontSize: Dimensions
+                                                                  .fontSizeSmall,
+                                                              color: Theme.of(
+                                                                      context)
+                                                                  .disabledColor),
+                                                          border: OutlineInputBorder(
+                                                              borderRadius:
+                                                                  BorderRadius.circular(
+                                                                      Dimensions
+                                                                          .radiusSmall),
+                                                              borderSide:
+                                                                  BorderSide
+                                                                      .none),
+                                                          filled: true,
+                                                          fillColor:
+                                                              Theme.of(context)
+                                                                  .cardColor,
+                                                          isDense: true,
+                                                          prefixIcon: Icon(
+                                                              Icons.search,
+                                                              color: Theme.of(
+                                                                      context)
+                                                                  .primaryColor
+                                                                  .withValues(
+                                                                      alpha:
+                                                                          0.50)),
+                                                        ),
+                                                        onSubmitted:
+                                                            (String? value) {
+                                                          if (value!
+                                                              .isNotEmpty) {
+                                                            Get.find<
+                                                                    StoreController>()
+                                                                .getStoreSearchItemList(
+                                                              _searchController
+                                                                  .text
+                                                                  .trim(),
+                                                              (displayStore
+                                                                          ?.id ??
+                                                                      widget
+                                                                          .store
+                                                                          ?.id ??
+                                                                      storeController
+                                                                          .store
+                                                                          ?.id ??
+                                                                      0)
+                                                                  .toString(),
+                                                              1,
+                                                              storeController
+                                                                  .type,
+                                                            );
+                                                          }
+                                                        },
+                                                        onChanged:
+                                                            (String value) {
+                                                          // Live search as user types
+                                                          storeController
+                                                              .performLiveSearch(
+                                                                  value);
+                                                        },
+                                                      ),
+                                                    ),
+                                                    const SizedBox(
+                                                        width: Dimensions
+                                                            .paddingSizeSmall),
+                                                    !storeController.isSearching
+                                                        ? CustomButton(
+                                                            radius: Dimensions
+                                                                .radiusSmall,
+                                                            height: 40,
+                                                            width: 74,
+                                                            buttonText:
+                                                                'search'.tr,
+                                                            isBold: false,
+                                                            fontSize: Dimensions
+                                                                .fontSizeSmall,
+                                                            onPressed: () {
+                                                              storeController
                                                                   .getStoreSearchItemList(
                                                                 _searchController
                                                                     .text
@@ -1181,725 +1225,588 @@ class _StoreScreenState extends State<StoreScreen> {
                                                                 storeController
                                                                     .type,
                                                               );
-                                                            }
-                                                          },
-                                                          onChanged:
-                                                              (String value) {
-                                                            // Live search as user types
-                                                            storeController
-                                                                .performLiveSearch(
-                                                                    value);
-                                                          },
-                                                        ),
-                                                      ),
-                                                      const SizedBox(
-                                                          width: Dimensions
-                                                              .paddingSizeSmall),
-                                                      !storeController
-                                                              .isSearching
-                                                          ? CustomButton(
-                                                              radius: Dimensions
-                                                                  .radiusSmall,
-                                                              height: 40,
-                                                              width: 74,
-                                                              buttonText:
-                                                                  'search'.tr,
-                                                              isBold: false,
-                                                              fontSize: Dimensions
-                                                                  .fontSizeSmall,
-                                                              onPressed: () {
-                                                                storeController
-                                                                    .getStoreSearchItemList(
-                                                                  _searchController
-                                                                      .text
-                                                                      .trim(),
-                                                                  (displayStore
-                                                                              ?.id ??
-                                                                          widget
-                                                                              .store
-                                                                              ?.id ??
-                                                                          storeController
-                                                                              .store
-                                                                              ?.id ??
-                                                                          0)
-                                                                      .toString(),
-                                                                  1,
-                                                                  storeController
-                                                                      .type,
-                                                                );
-                                                              },
-                                                            )
-                                                          : InkWell(
-                                                              onTap: () {
-                                                                _searchController
-                                                                    .text = '';
-                                                                storeController
-                                                                    .initSearchData();
-                                                                storeController
-                                                                    .changeSearchStatus();
-                                                              },
-                                                              child: Container(
-                                                                decoration: BoxDecoration(
-                                                                    color: Theme.of(
-                                                                            context)
-                                                                        .primaryColor,
-                                                                    borderRadius:
-                                                                        BorderRadius.circular(
-                                                                            Dimensions.radiusSmall)),
-                                                                padding: const EdgeInsets
-                                                                    .symmetric(
-                                                                    vertical: 3,
-                                                                    horizontal:
-                                                                        Dimensions
-                                                                            .paddingSizeSmall),
-                                                                child: const Icon(
-                                                                    Icons.clear,
-                                                                    color: Colors
-                                                                        .white),
-                                                              ),
-                                                            ),
-                                                    ],
-                                                  ),
-                                                ),
-                                                const SizedBox(
-                                                    width: Dimensions
-                                                        .paddingSizeSmall),
-
-                                                // Live search field (shown when search icon is clicked)
-                                                GetBuilder<StoreController>(
-                                                  builder: (storeController) {
-                                                    return storeController
-                                                            .isSearchFieldVisible
-                                                        ? Container(
-                                                            margin: const EdgeInsets
-                                                                .only(
-                                                                top: Dimensions
-                                                                    .paddingSizeSmall),
-                                                            padding:
-                                                                const EdgeInsets
-                                                                    .all(
-                                                                    Dimensions
-                                                                        .paddingSizeSmall),
-                                                            decoration:
-                                                                BoxDecoration(
-                                                              borderRadius:
-                                                                  BorderRadius.circular(
-                                                                      Dimensions
-                                                                          .radiusDefault),
-                                                              color: Theme.of(
-                                                                      context)
-                                                                  .cardColor,
-                                                              border: Border.all(
+                                                            },
+                                                          )
+                                                        : InkWell(
+                                                            onTap: () {
+                                                              _searchController
+                                                                  .text = '';
+                                                              storeController
+                                                                  .initSearchData();
+                                                              storeController
+                                                                  .changeSearchStatus();
+                                                            },
+                                                            child: Container(
+                                                              decoration: BoxDecoration(
                                                                   color: Theme.of(
                                                                           context)
-                                                                      .primaryColor
-                                                                      .withValues(
-                                                                          alpha:
-                                                                              0.40)),
+                                                                      .primaryColor,
+                                                                  borderRadius:
+                                                                      BorderRadius.circular(
+                                                                          Dimensions
+                                                                              .radiusSmall)),
+                                                              padding: const EdgeInsets
+                                                                  .symmetric(
+                                                                  vertical: 3,
+                                                                  horizontal:
+                                                                      Dimensions
+                                                                          .paddingSizeSmall),
+                                                              child: const Icon(
+                                                                  Icons.clear,
+                                                                  color: Colors
+                                                                      .white),
                                                             ),
-                                                            child: Row(
-                                                              children: [
-                                                                Expanded(
-                                                                  child:
-                                                                      TextField(
-                                                                    controller:
-                                                                        _searchController,
-                                                                    textInputAction:
-                                                                        TextInputAction
+                                                          ),
+                                                  ],
+                                                ),
+                                              ),
+                                              const SizedBox(
+                                                  width: Dimensions
+                                                      .paddingSizeSmall),
+
+                                              // Live search field (shown when search icon is clicked)
+                                              GetBuilder<StoreController>(
+                                                builder: (storeController) {
+                                                  return storeController
+                                                          .isSearchFieldVisible
+                                                      ? Container(
+                                                          margin: const EdgeInsets
+                                                              .only(
+                                                              top: Dimensions
+                                                                  .paddingSizeSmall),
+                                                          padding: const EdgeInsets
+                                                              .all(Dimensions
+                                                                  .paddingSizeSmall),
+                                                          decoration:
+                                                              BoxDecoration(
+                                                            borderRadius:
+                                                                BorderRadius.circular(
+                                                                    Dimensions
+                                                                        .radiusDefault),
+                                                            color: Theme.of(
+                                                                    context)
+                                                                .cardColor,
+                                                            border: Border.all(
+                                                                color: Theme.of(
+                                                                        context)
+                                                                    .primaryColor
+                                                                    .withValues(
+                                                                        alpha:
+                                                                            0.40)),
+                                                          ),
+                                                          child: Row(
+                                                            children: [
+                                                              Expanded(
+                                                                child:
+                                                                    TextField(
+                                                                  controller:
+                                                                      _searchController,
+                                                                  textInputAction:
+                                                                      TextInputAction
+                                                                          .search,
+                                                                  decoration:
+                                                                      InputDecoration(
+                                                                    contentPadding:
+                                                                        const EdgeInsets
+                                                                            .symmetric(),
+                                                                    hintText:
+                                                                        'search_for_items'
+                                                                            .tr,
+                                                                    hintStyle: robotoRegular.copyWith(
+                                                                        fontSize:
+                                                                            Dimensions
+                                                                                .fontSizeSmall,
+                                                                        color: Theme.of(context)
+                                                                            .disabledColor),
+                                                                    border: OutlineInputBorder(
+                                                                        borderRadius:
+                                                                            BorderRadius.circular(Dimensions
+                                                                                .radiusSmall),
+                                                                        borderSide:
+                                                                            BorderSide.none),
+                                                                    filled:
+                                                                        true,
+                                                                    fillColor: Theme.of(
+                                                                            context)
+                                                                        .cardColor,
+                                                                    isDense:
+                                                                        true,
+                                                                    prefixIcon: Icon(
+                                                                        Icons
                                                                             .search,
-                                                                    decoration:
-                                                                        InputDecoration(
-                                                                      contentPadding:
-                                                                          const EdgeInsets
-                                                                              .symmetric(),
-                                                                      hintText:
-                                                                          'search_for_items'
-                                                                              .tr,
-                                                                      hintStyle: robotoRegular.copyWith(
-                                                                          fontSize: Dimensions
-                                                                              .fontSizeSmall,
-                                                                          color:
-                                                                              Theme.of(context).disabledColor),
-                                                                      border: OutlineInputBorder(
-                                                                          borderRadius: BorderRadius.circular(Dimensions
-                                                                              .radiusSmall),
-                                                                          borderSide:
-                                                                              BorderSide.none),
-                                                                      filled:
-                                                                          true,
-                                                                      fillColor:
-                                                                          Theme.of(context)
-                                                                              .cardColor,
-                                                                      isDense:
-                                                                          true,
-                                                                      prefixIcon: Icon(
-                                                                          Icons
-                                                                              .search,
-                                                                          color: Theme.of(context)
-                                                                              .primaryColor
-                                                                              .withValues(alpha: 0.50)),
-                                                                    ),
-                                                                    onChanged:
-                                                                        (String
-                                                                            value) {
-                                                                      // Live search as user types
+                                                                        color: Theme.of(context)
+                                                                            .primaryColor
+                                                                            .withValues(alpha: 0.50)),
+                                                                  ),
+                                                                  onChanged:
+                                                                      (String
+                                                                          value) {
+                                                                    // Live search as user types
+                                                                    storeController
+                                                                        .performLiveSearch(
+                                                                            value);
+                                                                  },
+                                                                  onSubmitted:
+                                                                      (String?
+                                                                          value) {
+                                                                    if (value!
+                                                                        .isNotEmpty) {
                                                                       storeController
                                                                           .performLiveSearch(
                                                                               value);
-                                                                    },
-                                                                    onSubmitted:
-                                                                        (String?
-                                                                            value) {
-                                                                      if (value!
-                                                                          .isNotEmpty) {
-                                                                        storeController
-                                                                            .performLiveSearch(value);
-                                                                      }
-                                                                    },
-                                                                  ),
-                                                                ),
-                                                                const SizedBox(
-                                                                    width: Dimensions
-                                                                        .paddingSizeSmall),
-                                                                InkWell(
-                                                                  onTap: () {
-                                                                    _searchController
-                                                                        .text = '';
-                                                                    storeController
-                                                                        .clearLiveSearch();
+                                                                    }
                                                                   },
-                                                                  child:
-                                                                      Container(
-                                                                    decoration: BoxDecoration(
-                                                                        color: Theme.of(context)
-                                                                            .primaryColor,
-                                                                        borderRadius:
-                                                                            BorderRadius.circular(Dimensions.radiusSmall)),
-                                                                    padding: const EdgeInsets
-                                                                        .symmetric(
-                                                                        vertical:
-                                                                            3,
-                                                                        horizontal:
-                                                                            Dimensions.paddingSizeSmall),
-                                                                    child: const Icon(
-                                                                        Icons
-                                                                            .clear,
-                                                                        color: Colors
-                                                                            .white),
-                                                                  ),
                                                                 ),
-                                                              ],
-                                                            ),
-                                                          )
-                                                        : const SizedBox();
-                                                  },
-                                                ),
-
-                                                (Get.find<SplashController>()
-                                                            .configModel!
-                                                            .moduleConfig!
-                                                            .module!
-                                                            .vegNonVeg! &&
-                                                        Get.find<
-                                                                SplashController>()
-                                                            .configModel!
-                                                            .toggleVegNonVeg!)
-                                                    ? SizedBox(
-                                                        width: 300,
-                                                        height: 30,
-                                                        child: ListView.builder(
-                                                          shrinkWrap: true,
-                                                          scrollDirection:
-                                                              Axis.horizontal,
-                                                          itemCount: Get.find<
-                                                                  ItemController>()
-                                                              .itemTypeList
-                                                              .length,
-                                                          padding: const EdgeInsets
-                                                              .only(
-                                                              left: Dimensions
-                                                                  .paddingSizeSmall),
-                                                          physics:
-                                                              const NeverScrollableScrollPhysics(),
-                                                          itemBuilder:
-                                                              (context, index) {
-                                                            return Padding(
-                                                              padding: const EdgeInsets
-                                                                  .only(
-                                                                  right: Dimensions
+                                                              ),
+                                                              const SizedBox(
+                                                                  width: Dimensions
                                                                       .paddingSizeSmall),
-                                                              child:
-                                                                  CustomCheckBoxWidget(
-                                                                title: Get.find<
-                                                                        ItemController>()
-                                                                    .itemTypeList[
-                                                                        index]
-                                                                    .tr,
-                                                                value: storeController
-                                                                        .type ==
+                                                              InkWell(
+                                                                onTap: () {
+                                                                  _searchController
+                                                                      .text = '';
+                                                                  storeController
+                                                                      .clearLiveSearch();
+                                                                },
+                                                                child:
+                                                                    Container(
+                                                                  decoration: BoxDecoration(
+                                                                      color: Theme.of(
+                                                                              context)
+                                                                          .primaryColor,
+                                                                      borderRadius:
+                                                                          BorderRadius.circular(
+                                                                              Dimensions.radiusSmall)),
+                                                                  padding: const EdgeInsets
+                                                                      .symmetric(
+                                                                      vertical:
+                                                                          3,
+                                                                      horizontal:
+                                                                          Dimensions
+                                                                              .paddingSizeSmall),
+                                                                  child: const Icon(
+                                                                      Icons
+                                                                          .clear,
+                                                                      color: Colors
+                                                                          .white),
+                                                                ),
+                                                              ),
+                                                            ],
+                                                          ),
+                                                        )
+                                                      : const SizedBox();
+                                                },
+                                              ),
+
+                                              (Get.find<SplashController>()
+                                                          .configModel!
+                                                          .moduleConfig!
+                                                          .module!
+                                                          .vegNonVeg! &&
+                                                      Get.find<
+                                                              SplashController>()
+                                                          .configModel!
+                                                          .toggleVegNonVeg!)
+                                                  ? SizedBox(
+                                                      width: 300,
+                                                      height: 30,
+                                                      child: ListView.builder(
+                                                        shrinkWrap: true,
+                                                        scrollDirection:
+                                                            Axis.horizontal,
+                                                        itemCount: Get.find<
+                                                                ItemController>()
+                                                            .itemTypeList
+                                                            .length,
+                                                        padding: const EdgeInsets
+                                                            .only(
+                                                            left: Dimensions
+                                                                .paddingSizeSmall),
+                                                        physics:
+                                                            const NeverScrollableScrollPhysics(),
+                                                        itemBuilder:
+                                                            (context, index) {
+                                                          return Padding(
+                                                            padding: const EdgeInsets
+                                                                .only(
+                                                                right: Dimensions
+                                                                    .paddingSizeSmall),
+                                                            child:
+                                                                CustomCheckBoxWidget(
+                                                              title: Get.find<
+                                                                      ItemController>()
+                                                                  .itemTypeList[
+                                                                      index]
+                                                                  .tr,
+                                                              value: storeController
+                                                                      .type ==
+                                                                  Get.find<ItemController>()
+                                                                          .itemTypeList[
+                                                                      index],
+                                                              onClick: () {
+                                                                if (storeController
+                                                                    .isSearching) {
+                                                                  storeController
+                                                                      .getStoreSearchItemList(
+                                                                    storeController
+                                                                        .searchText,
+                                                                    widget
+                                                                        .store!
+                                                                        .id
+                                                                        .toString(),
+                                                                    1,
                                                                     Get.find<ItemController>()
                                                                             .itemTypeList[
                                                                         index],
-                                                                onClick: () {
-                                                                  if (storeController
-                                                                      .isSearching) {
-                                                                    storeController
-                                                                        .getStoreSearchItemList(
+                                                                  );
+                                                                } else {
+                                                                  storeController.getStoreItemList(
                                                                       storeController
-                                                                          .searchText,
-                                                                      widget
                                                                           .store!
-                                                                          .id
-                                                                          .toString(),
+                                                                          .id,
                                                                       1,
                                                                       Get.find<ItemController>()
                                                                               .itemTypeList[
                                                                           index],
-                                                                    );
-                                                                  } else {
-                                                                    storeController.getStoreItemList(
-                                                                        storeController
-                                                                            .store!
-                                                                            .id,
-                                                                        1,
-                                                                        Get.find<ItemController>()
-                                                                            .itemTypeList[index],
-                                                                        true);
-                                                                  }
-                                                                },
-                                                              ),
-                                                            );
-                                                          },
-                                                        ),
-                                                      )
-                                                    : const SizedBox(),
-                                              ],
-                                            ),
-                                            const SizedBox(
-                                                height: Dimensions
-                                                    .paddingSizeSmall),
-                                            PaginatedListView(
-                                              scrollController:
-                                                  scrollController,
-                                              onPaginate: (int? offset) {
-                                                if (storeController
-                                                    .isSearching) {
-                                                  storeController
-                                                      .getStoreSearchItemList(
-                                                    storeController.searchText,
-                                                    widget.store!.id.toString(),
-                                                    offset!,
-                                                    storeController.type,
-                                                  );
-                                                } else {
-                                                  storeController
-                                                      .getStoreItemList(
-                                                    widget.store!.id ??
-                                                        storeController
-                                                            .store!.id,
-                                                    offset!,
-                                                    storeController.type,
-                                                    false,
-                                                    pageSize: storeController
-                                                        .itemsPageSize,
-                                                  );
-                                                }
-                                              },
-                                              totalSize:
-                                                  storeController.isSearching
-                                                      ? storeController
-                                                          .storeSearchItemModel
-                                                          ?.totalSize
-                                                      : storeController
-                                                          .storeItemModel
-                                                          ?.totalSize,
-                                              offset:
-                                                  storeController.isSearching
-                                                      ? storeController
-                                                          .storeSearchItemModel
-                                                          ?.offset
-                                                      : storeController
-                                                          .storeItemModel
-                                                          ?.offset,
-                                              itemView: WebItemsView(
-                                                isStore: false,
-                                                stores: null,
-                                                fromStore: true,
-                                                items: storeController
-                                                        .isSearching
-                                                    ? (storeController.isLiveSearching
-                                                        ? storeController
-                                                            .liveSearchResults
-                                                        : storeController
-                                                            .storeSearchItemModel
-                                                            ?.items)
-                                                    : (storeLoaded &&
-                                                            storeController
-                                                                    .categoryList !=
-                                                                null &&
-                                                            storeController
-                                                                .categoryList!
-                                                                .isNotEmpty &&
-                                                            storeController
-                                                                    .storeItemModel !=
-                                                                null)
-                                                        ? storeController
-                                                            .storeItemModel!
-                                                            .items
-                                                        : null,
-                                                inStorePage: true,
-                                              ),
-                                            ),
-                                          ],
-                                        ))
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            )
-                          : const SliverToBoxAdapter(child: SizedBox()),
-
-                      ///mobile view..
-                      ResponsiveHelper.isDesktop(context)
-                          ? const SliverToBoxAdapter(child: SizedBox())
-                          : SliverToBoxAdapter(
-                              child: Center(
-                                  child: Container(
-                              width: Dimensions.webMaxWidth,
-                              padding: const EdgeInsets.all(
-                                  Dimensions.paddingSizeSmall),
-                              color: Theme.of(context).cardColor,
-                              child: Column(children: [
-                                ResponsiveHelper.isDesktop(context)
-                                    ? const SizedBox()
-                                    : StoreDescriptionViewWidget(
-                                        store: displayStore),
-                                const SizedBox(
-                                    height: Dimensions.paddingSizeSmall),
-                                displayStore.announcementActive ?? false
-                                    ? Container(
-                                        decoration: BoxDecoration(
-                                          color: Theme.of(context)
-                                              .primaryColor
-                                              .withValues(alpha: 0.05),
-                                          borderRadius: BorderRadius.circular(
-                                              Dimensions.radiusDefault),
-                                          border: Border.all(
-                                              color: Theme.of(context)
-                                                  .primaryColor
-                                                  .withValues(alpha: 0.2)),
-                                        ),
-                                        padding: const EdgeInsets.all(
-                                            Dimensions.paddingSizeSmall),
-                                        margin: const EdgeInsets.only(
-                                            top: Dimensions.paddingSizeSmall),
-                                        child: Row(children: [
-                                          Image.asset(Images.announcement,
-                                              height: 20, width: 20),
+                                                                      true);
+                                                                }
+                                                              },
+                                                            ),
+                                                          );
+                                                        },
+                                                      ),
+                                                    )
+                                                  : const SizedBox(),
+                                            ],
+                                          ),
                                           const SizedBox(
-                                              width:
+                                              height:
                                                   Dimensions.paddingSizeSmall),
-                                          Flexible(
-                                              child: Text(
-                                                  displayStore
-                                                          .announcementMessage ??
-                                                      '',
-                                                  style: robotoRegular.copyWith(
-                                                      fontSize: Dimensions
-                                                          .fontSizeSmall))),
-                                        ]),
-                                      )
-                                    : const SizedBox(),
-                                StoreBannerWidget(
-                                    storeController: storeController),
-                                const SizedBox(
-                                    height: Dimensions.paddingSizeLarge),
-                                (!ResponsiveHelper.isDesktop(context) &&
-                                        storeController.recommendedItemModel
-                                                ?.items?.isNotEmpty ==
-                                            true)
-                                    ? Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          Text('recommended_for_you'.tr,
-                                              style: robotoMedium),
-                                          const SizedBox(
-                                              height: Dimensions
-                                                  .paddingSizeExtraSmall),
-                                          SizedBox(
-                                            height: ResponsiveHelper.isDesktop(
-                                                    context)
-                                                ? 150
-                                                : 130,
-                                            child: ListView.builder(
-                                              scrollDirection: Axis.horizontal,
-                                              itemCount: storeController
-                                                      .recommendedItemModel
-                                                      ?.items
-                                                      ?.length ??
-                                                  0,
-                                              physics:
-                                                  const BouncingScrollPhysics(),
-                                              itemBuilder: (context, index) {
-                                                return Padding(
-                                                  padding: ResponsiveHelper
-                                                          .isDesktop(context)
-                                                      ? const EdgeInsets
-                                                          .symmetric(
-                                                          vertical: 20)
-                                                      : const EdgeInsets
-                                                          .symmetric(
-                                                          vertical: 10),
-                                                  child: Container(
-                                                    width: ResponsiveHelper
-                                                            .isDesktop(context)
-                                                        ? 500
-                                                        : 300,
-                                                    padding: const EdgeInsets
-                                                        .only(
-                                                        right: Dimensions
-                                                            .paddingSizeSmall,
-                                                        left: Dimensions
-                                                            .paddingSizeExtraSmall),
-                                                    margin: const EdgeInsets
-                                                        .only(
-                                                        right: Dimensions
-                                                            .paddingSizeSmall),
-                                                    child: ItemWidget(
-                                                      isStore: false,
-                                                      item: storeController
-                                                          .recommendedItemModel!
-                                                          .items![index],
-                                                      store: null,
-                                                      index: index,
-                                                      length: null,
-                                                      inStore: true,
-                                                    ),
-                                                  ),
+                                          PaginatedListView(
+                                            scrollController: scrollController,
+                                            onPaginate: (int? offset) {
+                                              if (storeController.isSearching) {
+                                                storeController
+                                                    .getStoreSearchItemList(
+                                                  storeController.searchText,
+                                                  widget.store!.id.toString(),
+                                                  offset!,
+                                                  storeController.type,
                                                 );
-                                              },
+                                              } else {
+                                                storeController
+                                                    .getStoreItemList(
+                                                  widget.store!.id ??
+                                                      storeController.store!.id,
+                                                  offset!,
+                                                  storeController.type,
+                                                  false,
+                                                  pageSize: storeController
+                                                      .itemsPageSize,
+                                                );
+                                              }
+                                            },
+                                            totalSize:
+                                                storeController.isSearching
+                                                    ? storeController
+                                                        .storeSearchItemModel
+                                                        ?.totalSize
+                                                    : storeController
+                                                        .storeItemModel
+                                                        ?.totalSize,
+                                            offset: storeController.isSearching
+                                                ? storeController
+                                                    .storeSearchItemModel
+                                                    ?.offset
+                                                : storeController
+                                                    .storeItemModel?.offset,
+                                            itemView: WebItemsView(
+                                              isStore: false,
+                                              stores: null,
+                                              fromStore: true,
+                                              items: storeController.isSearching
+                                                  ? (storeController
+                                                          .isLiveSearching
+                                                      ? storeController
+                                                          .liveSearchResults
+                                                      : storeController
+                                                          .storeSearchItemModel?.items)
+                                                  : (storeLoaded &&
+                                                          storeController
+                                                                  .categoryList !=
+                                                              null &&
+                                                          storeController
+                                                              .categoryList!
+                                                              .isNotEmpty &&
+                                                          storeController
+                                                                  .storeItemModel !=
+                                                              null)
+                                                      ? storeController
+                                                          .storeItemModel!.items
+                                                      : null,
+                                              inStorePage: true,
                                             ),
                                           ),
                                         ],
-                                      )
-                                    : const SizedBox(),
-                              ]),
-                            ))),
+                                      ))
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                          )
+                        : const SliverToBoxAdapter(child: SizedBox()),
 
-                      ResponsiveHelper.isDesktop(context)
-                          ? const SliverToBoxAdapter(child: SizedBox())
-                          : (storeController.categoryList?.isNotEmpty == true)
-                              ? SliverPersistentHeader(
-                                  pinned: true,
-                                  delegate: SliverDelegate(
-                                    height: storeController.isSearchFieldVisible
-                                        ? 105
-                                        : 75,
-                                    child: Center(
-                                      child: Container(
-                                        width: Dimensions.webMaxWidth,
-                                        decoration: BoxDecoration(
-                                          color: Theme.of(context).cardColor,
-                                          boxShadow: [
-                                            BoxShadow(
-                                                color: Theme.of(context).shadowColor.withValues(alpha: 0.12),
-                                                blurRadius: 5,
-                                                spreadRadius: 1)
-                                          ],
+                    ///mobile view..
+                    ResponsiveHelper.isDesktop(context)
+                        ? const SliverToBoxAdapter(child: SizedBox())
+                        : SliverToBoxAdapter(
+                            child: Center(
+                                child: Container(
+                            width: Dimensions.webMaxWidth,
+                            padding: const EdgeInsets.all(
+                                Dimensions.paddingSizeSmall),
+                            color: Theme.of(context).cardColor,
+                            child: Column(children: [
+                              ResponsiveHelper.isDesktop(context)
+                                  ? const SizedBox()
+                                  : StoreDescriptionViewWidget(
+                                      store: displayStore),
+                              const SizedBox(
+                                  height: Dimensions.paddingSizeSmall),
+                              displayStore.announcementActive ?? false
+                                  ? Container(
+                                      decoration: BoxDecoration(
+                                        color: Theme.of(context)
+                                            .primaryColor
+                                            .withValues(alpha: 0.05),
+                                        borderRadius: BorderRadius.circular(
+                                            Dimensions.radiusDefault),
+                                        border: Border.all(
+                                            color: Theme.of(context)
+                                                .primaryColor
+                                                .withValues(alpha: 0.2)),
+                                      ),
+                                      padding: const EdgeInsets.all(
+                                          Dimensions.paddingSizeSmall),
+                                      margin: const EdgeInsets.only(
+                                          top: Dimensions.paddingSizeSmall),
+                                      child: Row(children: [
+                                        Image.asset(Images.announcement,
+                                            height: 20, width: 20),
+                                        const SizedBox(
+                                            width: Dimensions.paddingSizeSmall),
+                                        Flexible(
+                                            child: Text(
+                                                displayStore
+                                                        .announcementMessage ??
+                                                    '',
+                                                style: robotoRegular.copyWith(
+                                                    fontSize: Dimensions
+                                                        .fontSizeSmall))),
+                                      ]),
+                                    )
+                                  : const SizedBox(),
+                              StoreBannerWidget(
+                                  storeController: storeController),
+                              const SizedBox(
+                                  height: Dimensions.paddingSizeLarge),
+                              (!ResponsiveHelper.isDesktop(context) &&
+                                      storeController.recommendedItemModel
+                                              ?.items?.isNotEmpty ==
+                                          true)
+                                  ? Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text('recommended_for_you'.tr,
+                                            style: robotoMedium),
+                                        const SizedBox(
+                                            height: Dimensions
+                                                .paddingSizeExtraSmall),
+                                        SizedBox(
+                                          height: ResponsiveHelper.isDesktop(
+                                                  context)
+                                              ? 150
+                                              : 130,
+                                          child: ListView.builder(
+                                            scrollDirection: Axis.horizontal,
+                                            itemCount: storeController
+                                                    .recommendedItemModel
+                                                    ?.items
+                                                    ?.length ??
+                                                0,
+                                            physics:
+                                                const BouncingScrollPhysics(),
+                                            itemBuilder: (context, index) {
+                                              return Padding(
+                                                padding: ResponsiveHelper
+                                                        .isDesktop(context)
+                                                    ? const EdgeInsets
+                                                        .symmetric(vertical: 20)
+                                                    : const EdgeInsets
+                                                        .symmetric(
+                                                        vertical: 10),
+                                                child: Container(
+                                                  width: ResponsiveHelper
+                                                          .isDesktop(context)
+                                                      ? 500
+                                                      : 300,
+                                                  padding: const EdgeInsets
+                                                      .only(
+                                                      right: Dimensions
+                                                          .paddingSizeSmall,
+                                                      left: Dimensions
+                                                          .paddingSizeExtraSmall),
+                                                  margin: const EdgeInsets.only(
+                                                      right: Dimensions
+                                                          .paddingSizeSmall),
+                                                  child: ItemWidget(
+                                                    isStore: false,
+                                                    item: storeController
+                                                        .recommendedItemModel!
+                                                        .items![index],
+                                                    store: null,
+                                                    index: index,
+                                                    length: null,
+                                                    inStore: true,
+                                                  ),
+                                                ),
+                                              );
+                                            },
+                                          ),
                                         ),
-                                        padding: EdgeInsets.zero,
-                                        child: Column(
-                                          mainAxisSize: MainAxisSize.min,
-                                          children: [
-                                            Padding(
-                                              padding: const EdgeInsets.only(
-                                                  left: Dimensions
-                                                      .paddingSizeSmall,
-                                                  right: Dimensions
-                                                      .paddingSizeSmall,
-                                                  top: 2,
-                                                  bottom: 2),
-                                              child: Row(children: [
-                                                InkWell(
-                                                  onTap: () {
-                                                    storeController
-                                                        .setVerticalItems(
-                                                            !storeController
-                                                                .isVertical);
-                                                  },
-                                                  child: Container(
-                                                    decoration: BoxDecoration(
-                                                      borderRadius: BorderRadius
-                                                          .circular(Dimensions
-                                                              .radiusDefault),
-                                                      color: Theme.of(context)
-                                                          .primaryColor
-                                                          .withValues(
-                                                              alpha: 0.1),
-                                                    ),
-                                                    padding: const EdgeInsets
-                                                        .all(Dimensions
-                                                            .paddingSizeExtraSmall),
-                                                    child: Icon(
-                                                        storeController
-                                                                .isVertical
-                                                            ? Icons.list
-                                                            : Icons
-                                                                .filter_list_sharp,
-                                                        size: 24,
-                                                        color: Theme.of(context)
-                                                            .primaryColor),
+                                      ],
+                                    )
+                                  : const SizedBox(),
+                            ]),
+                          ))),
+
+                    ResponsiveHelper.isDesktop(context)
+                        ? const SliverToBoxAdapter(child: SizedBox())
+                        : (storeController.categoryList?.isNotEmpty == true)
+                            ? SliverPersistentHeader(
+                                pinned: true,
+                                delegate: SliverDelegate(
+                                  height: storeController.isSearchFieldVisible
+                                      ? 105
+                                      : 75,
+                                  child: Center(
+                                    child: Container(
+                                      width: Dimensions.webMaxWidth,
+                                      decoration: BoxDecoration(
+                                        color: Theme.of(context).cardColor,
+                                        boxShadow: [
+                                          BoxShadow(
+                                              color: Theme.of(context)
+                                                  .shadowColor
+                                                  .withValues(alpha: 0.12),
+                                              blurRadius: 5,
+                                              spreadRadius: 1)
+                                        ],
+                                      ),
+                                      padding: EdgeInsets.zero,
+                                      child: Column(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Padding(
+                                            padding: const EdgeInsets.only(
+                                                left:
+                                                    Dimensions.paddingSizeSmall,
+                                                right:
+                                                    Dimensions.paddingSizeSmall,
+                                                top: 2,
+                                                bottom: 2),
+                                            child: Row(children: [
+                                              InkWell(
+                                                onTap: () {
+                                                  storeController
+                                                      .setVerticalItems(
+                                                          !storeController
+                                                              .isVertical);
+                                                },
+                                                child: Container(
+                                                  decoration: BoxDecoration(
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                            Dimensions
+                                                                .radiusDefault),
+                                                    color: Theme.of(context)
+                                                        .primaryColor
+                                                        .withValues(alpha: 0.1),
                                                   ),
-                                                ),
-                                                const SizedBox(
-                                                  width: 5,
-                                                ),
-                                                Text('all_products'.tr,
-                                                    style: robotoBold.copyWith(
-                                                        fontSize: Dimensions
-                                                            .fontSizeDefault)),
-
-                                                //
-                                                const SizedBox(
-                                                  width: 15,
-                                                ),
-                                                InkWell(
-                                                  onTap: () {
-                                                    storeController.set_Price(
-                                                        !storeController
-                                                            .isPriceAscending);
-                                                  },
-                                                  child: Container(
-                                                    decoration: BoxDecoration(
-                                                      borderRadius: BorderRadius
-                                                          .circular(Dimensions
-                                                              .radiusDefault),
+                                                  padding: const EdgeInsets.all(
+                                                      Dimensions
+                                                          .paddingSizeExtraSmall),
+                                                  child: Icon(
+                                                      storeController.isVertical
+                                                          ? Icons.list
+                                                          : Icons
+                                                              .filter_list_sharp,
+                                                      size: 24,
                                                       color: Theme.of(context)
-                                                          .primaryColor
-                                                          .withValues(
-                                                              alpha: 0.1),
-                                                    ),
-                                                    padding: const EdgeInsets
-                                                        .all(Dimensions
-                                                            .paddingSizeExtraSmall),
-                                                    child: Icon(
-                                                        storeController
-                                                                .isPriceAscending
-                                                            ? Icons
-                                                                .trending_down // يوحي بسعر يصعد
-                                                            : Icons
-                                                                .trending_up, // يوحي بسعر ينخفض
-                                                        size: 24,
-                                                        color: Theme.of(context)
-                                                            .primaryColor),
+                                                          .primaryColor),
+                                                ),
+                                              ),
+                                              const SizedBox(
+                                                width: 5,
+                                              ),
+                                              Text('all_products'.tr,
+                                                  style: robotoBold.copyWith(
+                                                      fontSize: Dimensions
+                                                          .fontSizeDefault)),
+
+                                              //
+                                              const SizedBox(
+                                                width: 15,
+                                              ),
+                                              InkWell(
+                                                onTap: () {
+                                                  storeController.set_Price(
+                                                      !storeController
+                                                          .isPriceAscending);
+                                                },
+                                                child: Container(
+                                                  decoration: BoxDecoration(
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                            Dimensions
+                                                                .radiusDefault),
+                                                    color: Theme.of(context)
+                                                        .primaryColor
+                                                        .withValues(alpha: 0.1),
                                                   ),
+                                                  padding: const EdgeInsets.all(
+                                                      Dimensions
+                                                          .paddingSizeExtraSmall),
+                                                  child: Icon(
+                                                      storeController
+                                                              .isPriceAscending
+                                                          ? Icons
+                                                              .trending_down // يوحي بسعر يصعد
+                                                          : Icons
+                                                              .trending_up, // يوحي بسعر ينخفض
+                                                      size: 24,
+                                                      color: Theme.of(context)
+                                                          .primaryColor),
                                                 ),
+                                              ),
 
-                                                //
+                                              //
 
-                                                const Expanded(
-                                                  child: SizedBox(),
-                                                ),
-                                                !ResponsiveHelper.isDesktop(
-                                                        context)
-                                                    ? InkWell(
-                                                        onTap: () => Get.toNamed<
-                                                                void>(
-                                                            RouteHelper
-                                                                .getSearchStoreItemRoute(
-                                                                    displayStore!
-                                                                        .id)),
-                                                        child: Container(
-                                                          decoration:
-                                                              BoxDecoration(
-                                                            borderRadius:
-                                                                BorderRadius.circular(
-                                                                    Dimensions
-                                                                        .radiusDefault),
-                                                            color: Theme.of(
-                                                                    context)
-                                                                .primaryColor
-                                                                .withValues(
-                                                                    alpha: 0.1),
-                                                          ),
-                                                          padding: const EdgeInsets
-                                                              .all(Dimensions
-                                                                  .paddingSizeExtraSmall),
-                                                          child: Icon(
-                                                              Icons.tune,
-                                                              size: 24,
-                                                              color: Theme.of(
-                                                                      context)
-                                                                  .primaryColor),
-                                                        ),
-                                                      )
-                                                    : const SizedBox(),
-                                                // Search icon next to filter
-                                                !ResponsiveHelper.isDesktop(
-                                                        context)
-                                                    ? InkWell(
-                                                        onTap: () {
-                                                          storeController
-                                                              .toggleSearchField();
-                                                        },
-                                                        child: Container(
-                                                          decoration:
-                                                              BoxDecoration(
-                                                            borderRadius:
-                                                                BorderRadius.circular(
-                                                                    Dimensions
-                                                                        .radiusDefault),
-                                                            color: Theme.of(
-                                                                    context)
-                                                                .primaryColor
-                                                                .withValues(
-                                                                    alpha: 0.1),
-                                                          ),
-                                                          padding: const EdgeInsets
-                                                              .all(Dimensions
-                                                                  .paddingSizeExtraSmall),
-                                                          child: Icon(
-                                                              Icons.search,
-                                                              size: 24,
-                                                              color: Theme.of(
-                                                                      context)
-                                                                  .primaryColor),
-                                                        ),
-                                                      )
-                                                    : const SizedBox(),
-                                                storeController.type.isNotEmpty
-                                                    ? VegFilterWidget(
-                                                        type: storeController
-                                                            .type,
-                                                        onSelected:
-                                                            (String type) {
-                                                          storeController
-                                                              .getStoreItemList(
-                                                                  storeController
-                                                                      .store!
-                                                                      .id,
-                                                                  1,
-                                                                  type,
-                                                                  true);
-                                                        },
-                                                      )
-                                                    : const SizedBox(),
-                                              ]),
-                                            ),
-
-                                            // Live search field for mobile (shown when search icon is clicked)
-                                            GetBuilder<StoreController>(
-                                              builder: (storeController) {
-                                                return storeController
-                                                        .isSearchFieldVisible
-                                                    ? Container(
-                                                        margin: const EdgeInsets
-                                                            .symmetric(
-                                                            horizontal: Dimensions
-                                                                .paddingSizeSmall),
-                                                        height: 30,
+                                              const Expanded(
+                                                child: SizedBox(),
+                                              ),
+                                              !ResponsiveHelper.isDesktop(
+                                                      context)
+                                                  ? InkWell(
+                                                      onTap: () => Get.toNamed<
+                                                              void>(
+                                                          RouteHelper
+                                                              .getSearchStoreItemRoute(
+                                                                  displayStore!
+                                                                      .id)),
+                                                      child: Container(
                                                         decoration:
                                                             BoxDecoration(
                                                           borderRadius: BorderRadius
@@ -1907,568 +1814,646 @@ class _StoreScreenState extends State<StoreScreen> {
                                                                   .radiusDefault),
                                                           color:
                                                               Theme.of(context)
-                                                                  .cardColor,
-                                                          border: Border.all(
-                                                              color: Theme.of(
-                                                                      context)
                                                                   .primaryColor
                                                                   .withValues(
                                                                       alpha:
-                                                                          0.40)),
+                                                                          0.1),
                                                         ),
-                                                        child: Row(
-                                                          children: [
-                                                            Expanded(
-                                                              child: TextField(
-                                                                controller:
-                                                                    _searchController,
-                                                                textInputAction:
-                                                                    TextInputAction
-                                                                        .search,
-                                                                style: robotoRegular
-                                                                    .copyWith(
-                                                                        fontSize:
-                                                                            12),
-                                                                decoration:
-                                                                    InputDecoration(
-                                                                  contentPadding:
-                                                                      const EdgeInsets
-                                                                          .symmetric(),
-                                                                  hintText:
-                                                                      'search_for_items'
-                                                                          .tr,
-                                                                  hintStyle: robotoRegular.copyWith(
-                                                                      fontSize:
-                                                                          Dimensions
-                                                                              .fontSizeSmall,
-                                                                      color: Theme.of(
-                                                                              context)
-                                                                          .disabledColor),
-                                                                  border: OutlineInputBorder(
-                                                                      borderRadius:
-                                                                          BorderRadius.circular(Dimensions
-                                                                              .radiusSmall),
-                                                                      borderSide:
-                                                                          BorderSide
-                                                                              .none),
-                                                                  filled: true,
-                                                                  fillColor: Theme.of(
-                                                                          context)
-                                                                      .cardColor,
-                                                                  isDense: true,
-                                                                  prefixIcon: Icon(
-                                                                      Icons
-                                                                          .search,
-                                                                      color: Theme.of(
-                                                                              context)
-                                                                          .primaryColor
-                                                                          .withValues(
-                                                                              alpha: 0.50)),
-                                                                ),
-                                                                onChanged:
-                                                                    (String
-                                                                        value) {
-                                                                  // Live search as user types
-                                                                  storeController
-                                                                      .performLiveSearch(
-                                                                          value);
-                                                                },
-                                                                onSubmitted:
-                                                                    (String?
-                                                                        value) {
-                                                                  if (value!
-                                                                      .isNotEmpty) {
-                                                                    storeController
-                                                                        .performLiveSearch(
-                                                                            value);
-                                                                  }
-                                                                },
-                                                              ),
-                                                            ),
-                                                            const SizedBox(
-                                                                width: 4),
-                                                            InkWell(
-                                                              onTap: () {
-                                                                _searchController
-                                                                    .text = '';
+                                                        padding: const EdgeInsets
+                                                            .all(Dimensions
+                                                                .paddingSizeExtraSmall),
+                                                        child: Icon(Icons.tune,
+                                                            size: 24,
+                                                            color: Theme.of(
+                                                                    context)
+                                                                .primaryColor),
+                                                      ),
+                                                    )
+                                                  : const SizedBox(),
+                                              // Search icon next to filter
+                                              !ResponsiveHelper.isDesktop(
+                                                      context)
+                                                  ? InkWell(
+                                                      onTap: () {
+                                                        storeController
+                                                            .toggleSearchField();
+                                                      },
+                                                      child: Container(
+                                                        decoration:
+                                                            BoxDecoration(
+                                                          borderRadius: BorderRadius
+                                                              .circular(Dimensions
+                                                                  .radiusDefault),
+                                                          color:
+                                                              Theme.of(context)
+                                                                  .primaryColor
+                                                                  .withValues(
+                                                                      alpha:
+                                                                          0.1),
+                                                        ),
+                                                        padding: const EdgeInsets
+                                                            .all(Dimensions
+                                                                .paddingSizeExtraSmall),
+                                                        child: Icon(
+                                                            Icons.search,
+                                                            size: 24,
+                                                            color: Theme.of(
+                                                                    context)
+                                                                .primaryColor),
+                                                      ),
+                                                    )
+                                                  : const SizedBox(),
+                                              storeController.type.isNotEmpty
+                                                  ? VegFilterWidget(
+                                                      type:
+                                                          storeController.type,
+                                                      onSelected:
+                                                          (String type) {
+                                                        storeController
+                                                            .getStoreItemList(
                                                                 storeController
-                                                                    .clearLiveSearch();
-                                                              },
-                                                              child: Container(
-                                                                height: 24,
-                                                                width: 24,
-                                                                decoration: BoxDecoration(
-                                                                    color: Theme.of(
-                                                                            context)
-                                                                        .primaryColor,
-                                                                    borderRadius:
-                                                                        BorderRadius.circular(
-                                                                            4)),
-                                                                child: const Icon(
-                                                                    Icons.clear,
-                                                                    size: 12,
-                                                                    color: Colors
-                                                                        .white),
-                                                              ),
-                                                            ),
-                                                          ],
-                                                        ),
-                                                      )
-                                                    : const SizedBox();
-                                              },
-                                            ),
+                                                                    .store!.id,
+                                                                1,
+                                                                type,
+                                                                true);
+                                                      },
+                                                    )
+                                                  : const SizedBox(),
+                                            ]),
+                                          ),
 
-                                            SizedBox(
-                                              height: 30,
-                                              child: ListView.builder(
-                                                scrollDirection:
-                                                    Axis.horizontal,
-                                                itemCount: storeController
-                                                        .categoryList?.length ??
-                                                    0,
-                                                padding: const EdgeInsets.only(
-                                                    left: Dimensions
-                                                        .paddingSizeSmall),
-                                                physics:
-                                                    const BouncingScrollPhysics(),
-                                                itemBuilder: (context, index) {
-                                                  // Load more categories when user scrolls near the end
-                                                  if (index >=
-                                                          (storeController
-                                                                      .categoryList
-                                                                      ?.length ??
-                                                                  0) -
-                                                              2 &&
-                                                      storeController
-                                                          .hasMoreCategories &&
-                                                      !storeController
-                                                          .isLoadingMoreCategories) {
-                                                    // Trigger loading more categories in background
-                                                    WidgetsBinding.instance
-                                                        .addPostFrameCallback(
-                                                            (_) {
-                                                      storeController
-                                                          .loadMoreCategories();
-                                                    });
-                                                  }
-
-                                                  return InkWell(
-                                                    onTap: () => storeController
-                                                        .setCategoryIndex(
-                                                            index),
-                                                    child: Container(
-                                                      padding: const EdgeInsets
+                                          // Live search field for mobile (shown when search icon is clicked)
+                                          GetBuilder<StoreController>(
+                                            builder: (storeController) {
+                                              return storeController
+                                                      .isSearchFieldVisible
+                                                  ? Container(
+                                                      margin: const EdgeInsets
                                                           .symmetric(
                                                           horizontal: Dimensions
-                                                              .paddingSizeSmall,
-                                                          vertical: Dimensions
-                                                              .paddingSizeExtraSmall),
-                                                      margin: const EdgeInsets
-                                                          .only(
-                                                          right: Dimensions
                                                               .paddingSizeSmall),
+                                                      height: 30,
                                                       decoration: BoxDecoration(
                                                         borderRadius: BorderRadius
                                                             .circular(Dimensions
                                                                 .radiusDefault),
-                                                        color: index ==
-                                                                storeController
-                                                                    .categoryIndex
-                                                            ? Theme.of(context)
+                                                        color: Theme.of(context)
+                                                            .cardColor,
+                                                        border: Border.all(
+                                                            color: Theme.of(
+                                                                    context)
                                                                 .primaryColor
                                                                 .withValues(
-                                                                    alpha: 0.1)
-                                                            : Colors
-                                                                .transparent,
+                                                                    alpha:
+                                                                        0.40)),
                                                       ),
-                                                      child: Column(
-                                                          mainAxisAlignment:
-                                                              MainAxisAlignment
-                                                                  .center,
-                                                          children: [
-                                                            Text(
-                                                              "${storeController.categoryList?[index].name ?? ''} ${index == storeController.categoryIndex && (storeController.categoryList?[index].id ?? -1) != -1 ? storeController.pageSize : ''}",
-                                                              style: index ==
-                                                                      storeController
-                                                                          .categoryIndex
-                                                                  ? robotoMedium.copyWith(
+                                                      child: Row(
+                                                        children: [
+                                                          Expanded(
+                                                            child: TextField(
+                                                              controller:
+                                                                  _searchController,
+                                                              textInputAction:
+                                                                  TextInputAction
+                                                                      .search,
+                                                              style: robotoRegular
+                                                                  .copyWith(
                                                                       fontSize:
-                                                                          Dimensions
-                                                                              .fontSizeSmall,
-                                                                      color: Theme.of(
-                                                                              context)
-                                                                          .primaryColor)
-                                                                  : robotoRegular
-                                                                      .copyWith(
-                                                                          fontSize:
-                                                                              Dimensions.fontSizeSmall),
+                                                                          12),
+                                                              decoration:
+                                                                  InputDecoration(
+                                                                contentPadding:
+                                                                    const EdgeInsets
+                                                                        .symmetric(),
+                                                                hintText:
+                                                                    'search_for_items'
+                                                                        .tr,
+                                                                hintStyle: robotoRegular.copyWith(
+                                                                    fontSize:
+                                                                        Dimensions
+                                                                            .fontSizeSmall,
+                                                                    color: Theme.of(
+                                                                            context)
+                                                                        .disabledColor),
+                                                                border: OutlineInputBorder(
+                                                                    borderRadius:
+                                                                        BorderRadius.circular(Dimensions
+                                                                            .radiusSmall),
+                                                                    borderSide:
+                                                                        BorderSide
+                                                                            .none),
+                                                                filled: true,
+                                                                fillColor: Theme.of(
+                                                                        context)
+                                                                    .cardColor,
+                                                                isDense: true,
+                                                                prefixIcon: Icon(
+                                                                    Icons
+                                                                        .search,
+                                                                    color: Theme.of(
+                                                                            context)
+                                                                        .primaryColor
+                                                                        .withValues(
+                                                                            alpha:
+                                                                                0.50)),
+                                                              ),
+                                                              onChanged: (String
+                                                                  value) {
+                                                                // Live search as user types
+                                                                storeController
+                                                                    .performLiveSearch(
+                                                                        value);
+                                                              },
+                                                              onSubmitted:
+                                                                  (String?
+                                                                      value) {
+                                                                if (value!
+                                                                    .isNotEmpty) {
+                                                                  storeController
+                                                                      .performLiveSearch(
+                                                                          value);
+                                                                }
+                                                              },
                                                             ),
-                                                          ]),
-                                                    ),
-                                                  );
-                                                },
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                )
-                              : const SliverToBoxAdapter(child: SizedBox()),
-
-                      ResponsiveHelper.isDesktop(context)
-                          ? const SliverToBoxAdapter(child: SizedBox())
-                          : storeController.subCategoryList != null
-                              ? SliverToBoxAdapter(
-                                  child: SizedBox(
-                                    height: 40,
-                                    child: ListView.builder(
-                                      scrollDirection: Axis.horizontal,
-                                      itemCount: storeController
-                                          .subCategoryList!.length,
-                                      padding: const EdgeInsets.only(
-                                          left: Dimensions.paddingSizeSmall),
-                                      physics: const BouncingScrollPhysics(),
-                                      itemBuilder: (context, index) {
-                                        return Padding(
-                                          padding: const EdgeInsets.all(5),
-                                          child: InkWell(
-                                            onTap: () => storeController
-                                                .setSubCategoryIndex(index),
-                                            child: Container(
-                                              padding: const EdgeInsets
-                                                  .symmetric(
-                                                  horizontal: Dimensions
-                                                      .paddingSizeSmall,
-                                                  vertical: Dimensions
-                                                      .paddingSizeExtraSmall),
-                                              margin: const EdgeInsets.only(
-                                                  right: Dimensions
-                                                      .paddingSizeSmall),
-                                              decoration: BoxDecoration(
-                                                borderRadius:
-                                                    BorderRadius.circular(
-                                                        Dimensions
-                                                            .radiusDefault),
-                                                color: index ==
-                                                        storeController
-                                                            .subCategoryIndex
-                                                    ? Theme.of(context)
-                                                        .primaryColor
-                                                        .withValues(alpha: 0.1)
-                                                    : Colors.transparent,
-                                              ),
-                                              child: Column(
-                                                  mainAxisAlignment:
-                                                      MainAxisAlignment.center,
-                                                  children: [
-                                                    Text(
-                                                      storeController
-                                                          .subCategoryList![
-                                                              index]
-                                                          .name!,
-                                                      style: index ==
+                                                          ),
+                                                          const SizedBox(
+                                                              width: 4),
+                                                          InkWell(
+                                                            onTap: () {
+                                                              _searchController
+                                                                  .text = '';
                                                               storeController
-                                                                  .subCategoryIndex
-                                                          ? robotoMedium.copyWith(
-                                                              fontSize: Dimensions
-                                                                  .fontSizeSmall,
-                                                              color: Theme.of(
-                                                                      context)
-                                                                  .primaryColor)
-                                                          : robotoRegular.copyWith(
-                                                              fontSize: Dimensions
-                                                                  .fontSizeSmall),
+                                                                  .clearLiveSearch();
+                                                            },
+                                                            child: Container(
+                                                              height: 24,
+                                                              width: 24,
+                                                              decoration: BoxDecoration(
+                                                                  color: Theme.of(
+                                                                          context)
+                                                                      .primaryColor,
+                                                                  borderRadius:
+                                                                      BorderRadius
+                                                                          .circular(
+                                                                              4)),
+                                                              child: const Icon(
+                                                                  Icons.clear,
+                                                                  size: 12,
+                                                                  color: Colors
+                                                                      .white),
+                                                            ),
+                                                          ),
+                                                        ],
+                                                      ),
+                                                    )
+                                                  : const SizedBox();
+                                            },
+                                          ),
+
+                                          SizedBox(
+                                            height: 30,
+                                            child: ListView.builder(
+                                              scrollDirection: Axis.horizontal,
+                                              itemCount: storeController
+                                                      .categoryList?.length ??
+                                                  0,
+                                              padding: const EdgeInsets.only(
+                                                  left: Dimensions
+                                                      .paddingSizeSmall),
+                                              physics:
+                                                  const BouncingScrollPhysics(),
+                                              itemBuilder: (context, index) {
+                                                // Load more categories when user scrolls near the end
+                                                if (index >=
+                                                        (storeController
+                                                                    .categoryList
+                                                                    ?.length ??
+                                                                0) -
+                                                            2 &&
+                                                    storeController
+                                                        .hasMoreCategories &&
+                                                    !storeController
+                                                        .isLoadingMoreCategories) {
+                                                  // Trigger loading more categories in background
+                                                  WidgetsBinding.instance
+                                                      .addPostFrameCallback(
+                                                          (_) {
+                                                    storeController
+                                                        .loadMoreCategories();
+                                                  });
+                                                }
+
+                                                return InkWell(
+                                                  onTap: () => storeController
+                                                      .setCategoryIndex(index),
+                                                  child: Container(
+                                                    padding: const EdgeInsets
+                                                        .symmetric(
+                                                        horizontal: Dimensions
+                                                            .paddingSizeSmall,
+                                                        vertical: Dimensions
+                                                            .paddingSizeExtraSmall),
+                                                    margin: const EdgeInsets
+                                                        .only(
+                                                        right: Dimensions
+                                                            .paddingSizeSmall),
+                                                    decoration: BoxDecoration(
+                                                      borderRadius: BorderRadius
+                                                          .circular(Dimensions
+                                                              .radiusDefault),
+                                                      color: index ==
+                                                              storeController
+                                                                  .categoryIndex
+                                                          ? Theme.of(context)
+                                                              .primaryColor
+                                                              .withValues(
+                                                                  alpha: 0.1)
+                                                          : Colors.transparent,
                                                     ),
-                                                  ]),
+                                                    child: Column(
+                                                        mainAxisAlignment:
+                                                            MainAxisAlignment
+                                                                .center,
+                                                        children: [
+                                                          Text(
+                                                            "${storeController.categoryList?[index].name ?? ''} ${index == storeController.categoryIndex && (storeController.categoryList?[index].id ?? -1) != -1 ? storeController.pageSize : ''}",
+                                                            style: index ==
+                                                                    storeController
+                                                                        .categoryIndex
+                                                                ? robotoMedium.copyWith(
+                                                                    fontSize:
+                                                                        Dimensions
+                                                                            .fontSizeSmall,
+                                                                    color: Theme.of(
+                                                                            context)
+                                                                        .primaryColor)
+                                                                : robotoRegular.copyWith(
+                                                                    fontSize:
+                                                                        Dimensions
+                                                                            .fontSizeSmall),
+                                                          ),
+                                                        ]),
+                                                  ),
+                                                );
+                                              },
                                             ),
                                           ),
-                                        );
-                                      },
-                                    ),
-                                  ),
-                                )
-                              : const SliverToBoxAdapter(child: SizedBox()),
-
-// =======================================================
-
-                      // 🔧 FIX: Store closed banner - show above items
-                      // ✅ FRONTEND ONLY: Use store.isOpen from API only (no time calculations)
-                      SliverToBoxAdapter(
-                        child: GetBuilder<StoreController>(
-                          builder: (storeController) {
-                            // ✅ FRONTEND ONLY: Get store open status from API only
-                            // ❌ NO DateTime calculations, NO schedule checks, NO time logic
-                            final bool isStoreOpen =
-                                displayStore?.isOpen == true;
-
-                            if (!isStoreOpen) {
-                              return Container(
-                                width: double.infinity,
-                                margin: const EdgeInsets.symmetric(
-                                  horizontal: Dimensions.paddingSizeSmall,
-                                  vertical: Dimensions.paddingSizeSmall,
-                                ),
-                                padding: const EdgeInsets.all(
-                                    Dimensions.paddingSizeDefault),
-                                decoration: BoxDecoration(
-                                  color: Theme.of(context).colorScheme.errorContainer.withValues(alpha: 0.35),
-                                  borderRadius: BorderRadius.circular(
-                                      Dimensions.radiusDefault),
-                                  border: Border.all(
-                                    color: Theme.of(context).colorScheme.error.withValues(alpha: 0.6),
-                                    width: 1,
-                                  ),
-                                ),
-                                child: Row(
-                                  children: [
-                                    Icon(
-                                      Icons.lock_outline,
-                                      color: Theme.of(context).colorScheme.error,
-                                      size: 20,
-                                    ),
-                                    const SizedBox(
-                                        width: Dimensions.paddingSizeSmall),
-                                    Expanded(
-                                      child: Text(
-                                        'المتجر مغلق حالياً، يمكنك التصفح فقط',
-                                        style: robotoMedium.copyWith(
-                                          fontSize: Dimensions.fontSizeSmall,
-                                          color: Theme.of(context).colorScheme.onErrorContainer,
-                                        ),
+                                        ],
                                       ),
                                     ),
-                                  ],
+                                  ),
                                 ),
-                              );
-                            }
-                            return const SizedBox.shrink();
-                          },
-                        ),
-                      ),
+                              )
+                            : const SliverToBoxAdapter(child: SizedBox()),
 
-                      ResponsiveHelper.isDesktop(context)
-                          ? const SliverToBoxAdapter(child: SizedBox())
-                          : (storeController
-                                          .categoryList?[
-                                              storeController.categoryIndex]
-                                          .id ??
-                                      -1) !=
-                                  -1
-                              ? SliverToBoxAdapter(
-                                  child: Container(
-                                    width: Dimensions.webMaxWidth,
-                                    decoration: BoxDecoration(
-                                      color:
-                                          Theme.of(context).colorScheme.surface,
-                                    ),
-                                    child: !(storeController
-                                                    .categoryList?.isNotEmpty ==
-                                                true &&
-                                            storeController.storeItemModel !=
-                                                null)
-                                        ? const Center(
-                                            child: LoadingWidget(),
-                                          )
-                                        : PaginatedListView(
-                                            scrollController: scrollController,
-                                            onPaginate: (int? offset) =>
-                                                storeController
-                                                    .getStoreItemList(
-                                              displayStore?.id ??
-                                                  widget.store?.id ??
-                                                  storeController.store?.id ??
-                                                  0,
-                                              offset!,
-                                              storeController.type,
-                                              false,
-                                              pageSize:
-                                                  storeController.itemsPageSize,
-                                            ),
-                                            totalSize: storeController
-                                                .storeItemModel?.totalSize,
-                                            offset: storeController
-                                                .storeItemModel?.offset,
-                                            itemView: ItemsView(
-                                              isStore: false,
-                                              stores: null,
-                                              items: () {
-                                                // ✅ FRONTEND ONLY: Always show items view, even if store is closed
-                                                // Items should be displayed for browsing, ordering is disabled separately
-
-                                                if (storeController
-                                                    .isSearching) {
-                                                  return storeController
-                                                          .isLiveSearching
-                                                      ? storeController
-                                                          .liveSearchResults
-                                                      : storeController
-                                                          .storeSearchItemModel
-                                                          ?.items;
-                                                }
-
-                                                // ✅ CRITICAL: Check if items exist (regardless of store.open status)
-                                                final hasCategoryList =
-                                                    storeController.categoryList
-                                                            ?.isNotEmpty ==
-                                                        true;
-                                                final hasSlimMenu =
-                                                    storeController
-                                                        .slimMenuLoaded;
-                                                final hasVisibleItems =
-                                                    storeController
-                                                            .visibleItemList !=
-                                                        null;
-                                                final hasStoreItemModel =
-                                                    storeController
-                                                            .storeItemModel
-                                                            ?.items !=
-                                                        null;
-
-                                                // ✅ DEBUG: Log items availability for troubleshooting
-
-                                                // ✅ FRONTEND ONLY: Show items if available (store.open is ignored for display)
-                                                if ((hasCategoryList ||
-                                                        hasSlimMenu) &&
-                                                    (hasVisibleItems ||
-                                                        hasStoreItemModel)) {
-                                                  // ⚡ TASK 2: Kill "All" category logjam - limit to 50 items for instant speed
-                                                  final allItems = List<
-                                                          Item>.from(storeController
-                                                              .visibleItemList ??
-                                                          storeController
-                                                              .storeItemModel!
-                                                              .items!)
-                                                      .where((item) =>
-                                                          (item.stock ?? 0) > 0)
-                                                      .toList();
-
-                                                  allItems.sort((a, b) =>
-                                                      storeController
-                                                              .isPriceAscending
-                                                          ? (a.price ?? 0)
-                                                              .compareTo(
-                                                                  b.price ?? 0)
-                                                          : (b.price ?? 0)
-                                                              .compareTo(
-                                                                  a.price ??
-                                                                      0));
-
-                                                  // Limit to 50 items if "All" category (index 0) is selected
-                                                  final itemCount = storeController
-                                                              .categoryIndex ==
-                                                          0
-                                                      ? math.min(
-                                                          allItems.length, 50)
-                                                      : allItems.length;
-
-                                                  return allItems
-                                                      .take(itemCount)
-                                                      .toList();
-                                                } else {
-                                                  // ✅ DEBUG: Log why items are not available
-                                                  return null;
-                                                }
-                                              }(),
-                                              inStorePage: true,
-                                              verticalItem:
-                                                  storeController.isVertical,
-                                              padding:
-                                                  const EdgeInsets.symmetric(
+                    ResponsiveHelper.isDesktop(context)
+                        ? const SliverToBoxAdapter(child: SizedBox())
+                        : storeController.subCategoryList != null
+                            ? SliverToBoxAdapter(
+                                child: SizedBox(
+                                  height: 40,
+                                  child: ListView.builder(
+                                    scrollDirection: Axis.horizontal,
+                                    itemCount:
+                                        storeController.subCategoryList!.length,
+                                    padding: const EdgeInsets.only(
+                                        left: Dimensions.paddingSizeSmall),
+                                    physics: const BouncingScrollPhysics(),
+                                    itemBuilder: (context, index) {
+                                      return Padding(
+                                        padding: const EdgeInsets.all(5),
+                                        child: InkWell(
+                                          onTap: () => storeController
+                                              .setSubCategoryIndex(index),
+                                          child: Container(
+                                            padding: const EdgeInsets.symmetric(
                                                 horizontal:
                                                     Dimensions.paddingSizeSmall,
-                                                vertical:
-                                                    Dimensions.paddingSizeSmall,
-                                              ),
+                                                vertical: Dimensions
+                                                    .paddingSizeExtraSmall),
+                                            margin: const EdgeInsets.only(
+                                                right: Dimensions
+                                                    .paddingSizeSmall),
+                                            decoration: BoxDecoration(
+                                              borderRadius:
+                                                  BorderRadius.circular(
+                                                      Dimensions.radiusDefault),
+                                              color: index ==
+                                                      storeController
+                                                          .subCategoryIndex
+                                                  ? Theme.of(context)
+                                                      .primaryColor
+                                                      .withValues(alpha: 0.1)
+                                                  : Colors.transparent,
                                             ),
-                                          ),
-                                  ),
-                                )
-                              : SliverToBoxAdapter(
-                                  child: GridView.builder(
-                                    physics:
-                                        const NeverScrollableScrollPhysics(),
-                                    shrinkWrap: true,
-                                    gridDelegate:
-                                        SliverGridDelegateWithFixedCrossAxisCount(
-                                      crossAxisCount: ResponsiveHelper
-                                              .isDesktop(context)
-                                          ? 6
-                                          : ResponsiveHelper.isMobile(context)
-                                              ? 4
-                                              : 3,
-                                      mainAxisSpacing:
-                                          Dimensions.paddingSizeSmall,
-                                      crossAxisSpacing:
-                                          Dimensions.paddingSizeSmall,
-                                    ),
-                                    padding: const EdgeInsets.all(
-                                        Dimensions.paddingSizeSmall),
-                                    itemCount:
-                                        storeController.categoryList?.length ??
-                                            0,
-                                    itemBuilder: (context, index) {
-                                      return InkWell(
-                                        onTap: () => storeController
-                                            .setCategoryIndex(index),
-                                        child: Container(
-                                          decoration: BoxDecoration(
-                                            color: Theme.of(context).cardColor,
-                                            borderRadius: BorderRadius.circular(
-                                                Dimensions.radiusSmall),
-                                            boxShadow: [
-                                              BoxShadow(
-                                                  color: Theme.of(context).shadowColor.withValues(alpha: 0.12),
-                                                  blurRadius: 5,
-                                                  spreadRadius: 1)
-                                            ],
-                                          ),
-                                          alignment: Alignment.center,
-                                          child: Column(
-                                              mainAxisAlignment:
-                                                  MainAxisAlignment.center,
-                                              children: [
-                                                ClipRRect(
-                                                  borderRadius:
-                                                      BorderRadius.circular(
-                                                          Dimensions
-                                                              .radiusSmall),
-                                                  child: CustomImage(
-                                                    height: 90,
-                                                    width: 80,
-                                                    image: storeController
-                                                            .categoryList?[
-                                                                index]
-                                                            .imageFullUrl ??
-                                                        '',
+                                            child: Column(
+                                                mainAxisAlignment:
+                                                    MainAxisAlignment.center,
+                                                children: [
+                                                  Text(
+                                                    storeController
+                                                        .subCategoryList![index]
+                                                        .name!,
+                                                    style: index ==
+                                                            storeController
+                                                                .subCategoryIndex
+                                                        ? robotoMedium.copyWith(
+                                                            fontSize: Dimensions
+                                                                .fontSizeSmall,
+                                                            color: Theme.of(
+                                                                    context)
+                                                                .primaryColor)
+                                                        : robotoRegular.copyWith(
+                                                            fontSize: Dimensions
+                                                                .fontSizeSmall),
                                                   ),
-                                                ),
-                                                const SizedBox(
-                                                    height: Dimensions
-                                                        .paddingSizeExtraSmall),
-                                                Text(
-                                                  storeController
-                                                          .categoryList?[index]
-                                                          .name ??
-                                                      '',
-                                                  textAlign: TextAlign.center,
-                                                  style: robotoMedium.copyWith(
-                                                      fontSize: Dimensions
-                                                          .fontSizeSmall),
-                                                  maxLines: 2,
-                                                  overflow:
-                                                      TextOverflow.ellipsis,
-                                                ),
-                                              ]),
+                                                ]),
+                                          ),
                                         ),
                                       );
                                     },
                                   ),
                                 ),
-                    ],
-                  )
-                : const LoadingWidget();
+                              )
+                            : const SliverToBoxAdapter(child: SizedBox()),
+
+// =======================================================
+
+                    // 🔧 FIX: Store closed banner - show above items
+                    // ✅ FRONTEND ONLY: Use store.isOpen from API only (no time calculations)
+                    SliverToBoxAdapter(
+                      child: GetBuilder<StoreController>(
+                        builder: (storeController) {
+                          // ✅ FRONTEND ONLY: Get store open status from API only
+                          // ❌ NO DateTime calculations, NO schedule checks, NO time logic
+                          final bool isStoreOpen = displayStore?.isOpen == true;
+
+                          if (!isStoreOpen) {
+                            return Container(
+                              width: double.infinity,
+                              margin: const EdgeInsets.symmetric(
+                                horizontal: Dimensions.paddingSizeSmall,
+                                vertical: Dimensions.paddingSizeSmall,
+                              ),
+                              padding: const EdgeInsets.all(
+                                  Dimensions.paddingSizeDefault),
+                              decoration: BoxDecoration(
+                                color: Theme.of(context)
+                                    .colorScheme
+                                    .errorContainer
+                                    .withValues(alpha: 0.35),
+                                borderRadius: BorderRadius.circular(
+                                    Dimensions.radiusDefault),
+                                border: Border.all(
+                                  color: Theme.of(context)
+                                      .colorScheme
+                                      .error
+                                      .withValues(alpha: 0.6),
+                                  width: 1,
+                                ),
+                              ),
+                              child: Row(
+                                children: [
+                                  Icon(
+                                    Icons.lock_outline,
+                                    color: Theme.of(context).colorScheme.error,
+                                    size: 20,
+                                  ),
+                                  const SizedBox(
+                                      width: Dimensions.paddingSizeSmall),
+                                  Expanded(
+                                    child: Text(
+                                      'المتجر مغلق حالياً، يمكنك التصفح فقط',
+                                      style: robotoMedium.copyWith(
+                                        fontSize: Dimensions.fontSizeSmall,
+                                        color: Theme.of(context)
+                                            .colorScheme
+                                            .onErrorContainer,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            );
+                          }
+                          return const SizedBox.shrink();
+                        },
+                      ),
+                    ),
+
+                    ResponsiveHelper.isDesktop(context)
+                        ? const SliverToBoxAdapter(child: SizedBox())
+                        : (storeController
+                                        .categoryList?[
+                                            storeController.categoryIndex]
+                                        .id ??
+                                    -1) !=
+                                -1
+                            ? SliverToBoxAdapter(
+                                child: Container(
+                                  width: Dimensions.webMaxWidth,
+                                  decoration: BoxDecoration(
+                                    color:
+                                        Theme.of(context).colorScheme.surface,
+                                  ),
+                                  child: !(storeController
+                                                  .categoryList?.isNotEmpty ==
+                                              true &&
+                                          storeController.storeItemModel !=
+                                              null)
+                                      ? const Center(
+                                          child: LoadingWidget(),
+                                        )
+                                      : PaginatedListView(
+                                          scrollController: scrollController,
+                                          onPaginate: (int? offset) =>
+                                              storeController.getStoreItemList(
+                                            displayStore?.id ??
+                                                widget.store?.id ??
+                                                storeController.store?.id ??
+                                                0,
+                                            offset!,
+                                            storeController.type,
+                                            false,
+                                            pageSize:
+                                                storeController.itemsPageSize,
+                                          ),
+                                          totalSize: storeController
+                                              .storeItemModel?.totalSize,
+                                          offset: storeController
+                                              .storeItemModel?.offset,
+                                          itemView: ItemsView(
+                                            isStore: false,
+                                            stores: null,
+                                            items: () {
+                                              // ✅ FRONTEND ONLY: Always show items view, even if store is closed
+                                              // Items should be displayed for browsing, ordering is disabled separately
+
+                                              if (storeController.isSearching) {
+                                                return storeController
+                                                        .isLiveSearching
+                                                    ? storeController
+                                                        .liveSearchResults
+                                                    : storeController
+                                                        .storeSearchItemModel
+                                                        ?.items;
+                                              }
+
+                                              // ✅ CRITICAL: Check if items exist (regardless of store.open status)
+                                              final hasCategoryList =
+                                                  storeController.categoryList
+                                                          ?.isNotEmpty ==
+                                                      true;
+                                              final hasSlimMenu =
+                                                  storeController
+                                                      .slimMenuLoaded;
+                                              final hasVisibleItems =
+                                                  storeController
+                                                          .visibleItemList !=
+                                                      null;
+                                              final hasStoreItemModel =
+                                                  storeController.storeItemModel
+                                                          ?.items !=
+                                                      null;
+
+                                              // ✅ DEBUG: Log items availability for troubleshooting
+
+                                              // ✅ FRONTEND ONLY: Show items if available (store.open is ignored for display)
+                                              if ((hasCategoryList ||
+                                                      hasSlimMenu) &&
+                                                  (hasVisibleItems ||
+                                                      hasStoreItemModel)) {
+                                                // ⚡ TASK 2: Kill "All" category logjam - limit to 50 items for instant speed
+                                                final allItems = List<
+                                                        Item>.from(storeController
+                                                            .visibleItemList ??
+                                                        storeController
+                                                            .storeItemModel!
+                                                            .items!)
+                                                    .where((item) =>
+                                                        (item.stock ?? 0) > 0)
+                                                    .toList();
+
+                                                allItems.sort((a, b) =>
+                                                    storeController
+                                                            .isPriceAscending
+                                                        ? (a.price ?? 0)
+                                                            .compareTo(
+                                                                b.price ?? 0)
+                                                        : (b.price ?? 0)
+                                                            .compareTo(
+                                                                a.price ?? 0));
+
+                                                // Limit to 50 items if "All" category (index 0) is selected
+                                                final itemCount = storeController
+                                                            .categoryIndex ==
+                                                        0
+                                                    ? math.min(
+                                                        allItems.length, 50)
+                                                    : allItems.length;
+
+                                                return allItems
+                                                    .take(itemCount)
+                                                    .toList();
+                                              } else {
+                                                // ✅ DEBUG: Log why items are not available
+                                                return null;
+                                              }
+                                            }(),
+                                            inStorePage: true,
+                                            verticalItem:
+                                                storeController.isVertical,
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal:
+                                                  Dimensions.paddingSizeSmall,
+                                              vertical:
+                                                  Dimensions.paddingSizeSmall,
+                                            ),
+                                          ),
+                                        ),
+                                ),
+                              )
+                            : SliverToBoxAdapter(
+                                child: GridView.builder(
+                                  physics: const NeverScrollableScrollPhysics(),
+                                  shrinkWrap: true,
+                                  gridDelegate:
+                                      SliverGridDelegateWithFixedCrossAxisCount(
+                                    crossAxisCount:
+                                        ResponsiveHelper.isDesktop(context)
+                                            ? 6
+                                            : ResponsiveHelper.isMobile(context)
+                                                ? 4
+                                                : 3,
+                                    mainAxisSpacing:
+                                        Dimensions.paddingSizeSmall,
+                                    crossAxisSpacing:
+                                        Dimensions.paddingSizeSmall,
+                                  ),
+                                  padding: const EdgeInsets.all(
+                                      Dimensions.paddingSizeSmall),
+                                  itemCount:
+                                      storeController.categoryList?.length ?? 0,
+                                  itemBuilder: (context, index) {
+                                    return InkWell(
+                                      onTap: () => storeController
+                                          .setCategoryIndex(index),
+                                      child: Container(
+                                        decoration: BoxDecoration(
+                                          color: Theme.of(context).cardColor,
+                                          borderRadius: BorderRadius.circular(
+                                              Dimensions.radiusSmall),
+                                          boxShadow: [
+                                            BoxShadow(
+                                                color: Theme.of(context)
+                                                    .shadowColor
+                                                    .withValues(alpha: 0.12),
+                                                blurRadius: 5,
+                                                spreadRadius: 1)
+                                          ],
+                                        ),
+                                        alignment: Alignment.center,
+                                        child: Column(
+                                            mainAxisAlignment:
+                                                MainAxisAlignment.center,
+                                            children: [
+                                              ClipRRect(
+                                                borderRadius:
+                                                    BorderRadius.circular(
+                                                        Dimensions.radiusSmall),
+                                                child: CustomImage(
+                                                  height: 90,
+                                                  width: 80,
+                                                  image: storeController
+                                                          .categoryList?[index]
+                                                          .imageFullUrl ??
+                                                      '',
+                                                ),
+                                              ),
+                                              const SizedBox(
+                                                  height: Dimensions
+                                                      .paddingSizeExtraSmall),
+                                              Text(
+                                                storeController
+                                                        .categoryList?[index]
+                                                        .name ??
+                                                    '',
+                                                textAlign: TextAlign.center,
+                                                style: robotoMedium.copyWith(
+                                                    fontSize: Dimensions
+                                                        .fontSizeSmall),
+                                                maxLines: 2,
+                                                overflow: TextOverflow.ellipsis,
+                                              ),
+                                            ]),
+                                      ),
+                                    );
+                                  },
+                                ),
+                              ),
+                  ],
+                )
+              : const LoadingWidget();
         }),
         floatingActionButton:
             GetBuilder<StoreController>(builder: (storeController) {
@@ -2583,5 +2568,3 @@ class CategoryProduct {
   List<Item> products;
   CategoryProduct(this.category, this.products);
 }
-
-

@@ -125,8 +125,7 @@ class OrderDetailsScreenState extends State<OrderDetailsScreen> {
         timer.cancel();
         return;
       }
-      await orderController.timerTrackOrder(
-          widget.orderId.toString(),
+      await orderController.timerTrackOrder(widget.orderId.toString(),
           contactNumber: widget.contactNumber);
       if (_isOrderInTerminalState(orderController.trackModel)) {
         timer.cancel();

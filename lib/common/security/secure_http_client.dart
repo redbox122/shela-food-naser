@@ -449,6 +449,16 @@ class SecureHttpClient {
   /// [options] - Request options
   /// Returns true if retry should be attempted
   bool _shouldRetry(RequestOptions options) {
+    final String noRetryHeader =
+        options.headers['X-No-Retry']?.toString().toLowerCase() ?? 'false';
+    if (noRetryHeader == 'true') {
+      if (kDebugMode) {
+        debugPrint(
+            '⏭️ SecureHttpClient: retry disabled by header for ${options.path}');
+      }
+      return false;
+    }
+
     final int retryCount = options.extra['retryCount'] is int
         ? options.extra['retryCount'] as int
         : 0;

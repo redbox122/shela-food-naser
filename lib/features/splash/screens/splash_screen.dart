@@ -60,7 +60,8 @@ class SplashScreenState extends State<SplashScreen> {
               textAlign: TextAlign.center),
         ));
         if (isConnected && !_hasInitiatedRouting) {
-          debugPrint('🔄 SplashScreen: Connectivity restored, refreshing data...');
+          debugPrint(
+              '🔄 SplashScreen: Connectivity restored, refreshing data...');
           if (!mounted) {
             return;
           }
@@ -76,7 +77,9 @@ class SplashScreenState extends State<SplashScreen> {
     });
 
     // Initialize shared data FIRST to ensure showIntro() works correctly
-    Get.find<SplashController>().initSharedData();
+    final splashController = Get.find<SplashController>();
+    splashController.markSplashFlowActive();
+    splashController.initSharedData();
 
     // ✅ OPTIMIZATION: Removed premature API calls
     // Previously called:
@@ -95,7 +98,10 @@ class SplashScreenState extends State<SplashScreen> {
     // This reduces startup API calls from 13+ to ~2-3
 
     // Use cached splash loader for instant startup
-    Future.delayed(const Duration(milliseconds: 500), () async {
+    // ⚡ PERF FIX: Reduced from 500ms to 50ms. The original 500ms was pure
+    // dead time before any API call. 50ms is enough for the event loop to
+    // schedule the logo frame render.
+    Future.delayed(const Duration(milliseconds: 50), () async {
       // Prevent multiple routing calls
       if (_hasInitiatedRouting) {
         debugPrint(
@@ -115,6 +121,7 @@ class SplashScreenState extends State<SplashScreen> {
         buildContext,
         notificationBody: widget.body,
         loadModuleData: true,
+        allowBackgroundRefresh: false,
       );
       if (!buildContext.mounted) {
         return;
@@ -125,78 +132,99 @@ class SplashScreenState extends State<SplashScreen> {
       final splashController = Get.find<SplashController>();
       final moduleList = splashController.moduleList;
       final moduleListLength = moduleList?.length ?? 0;
-      
+
       if (moduleList != null && moduleListLength > 0) {
         // Resolve initial module (checks cache, auto-selects if single, or leaves null for user choice)
-        final moduleResolved = await splashController.resolveInitialModule(moduleList);
-        
+        final moduleResolved =
+            await splashController.resolveInitialModule(moduleList);
+
         if (kDebugMode) {
           if (moduleResolved) {
-            debugPrint('✅ SplashScreen: Module resolved (id=${splashController.selectedModule.value?.id})');
+            debugPrint(
+                '✅ SplashScreen: Module resolved (id=${splashController.selectedModule.value?.id})');
           } else {
-            debugPrint('🔄 SplashScreen: Module selection required - user will choose');
+            debugPrint(
+                '🔄 SplashScreen: Module selection required - user will choose');
           }
         }
       }
 
-      // Bug#2 FIX: Await the preload with a hard cap of 3 s instead of firing
-      // it unawaited. Without the await the user could select a module on the
-      // MultiModuleHomeScreen while preloadModuleDataForSplash() still holds
-      // _isFetching = true, causing onModuleReady → loadHomeData() to be
-      // silently dropped. The 3 s cap keeps startup fast even if the backend
-      // is slow; the minimum splash duration (2.5 s) runs concurrently so the
-      // net UX cost is at most ~0.5 s on a cold network.
-      unawaited(splashController
-          .preloadCoreModulesForFastSwitch()
-          .catchError((Object _) {}));
-      
+      // Core module preloading is allowed only when a startup module is already resolved.
+      // For multi-module/no-selection flow we intentionally skip all module prefetch.
+      final startupAddress = AddressHelper.getUserAddressFromSharedPref();
+      final hasAddressForPrefetch = startupAddress?.zoneIds != null &&
+          startupAddress!.zoneIds!.isNotEmpty &&
+          (startupAddress.latitude ?? '').trim().isNotEmpty &&
+          (startupAddress.longitude ?? '').trim().isNotEmpty;
+      final hasResolvedStartupModule =
+          splashController.selectedModule.value != null ||
+              splashController.module != null ||
+              moduleListLength == 1;
+      // ⚡ PERF FIX: Do NOT preload other modules during splash.
+      // preloadCoreModulesForFastSwitch loads [3, 6, 9] etc. which competes
+      // for network/CPU with the critical splash data fetch and inflates
+      // splash time from ~3s to ~14s.  Deferred to DashboardScreen instead.
+      if (hasResolvedStartupModule && hasAddressForPrefetch) {
+        if (kDebugMode) {
+          debugPrint(
+              '⚡ SplashScreen: Deferring preloadCoreModulesForFastSwitch to post-splash');
+        }
+      } else if (kDebugMode) {
+        debugPrint(
+            '⚡ SplashScreen: Skipping preloadCoreModulesForFastSwitch — module or zone/location headers not ready');
+      }
+
       // If no module is selected and multiple modules exist, go DIRECTLY to multi-module screen
       // 🏗️ MODULE-FIRST ARCHITECTURE: No prefetch without module
       // Prefetch will happen after user selects module in MultiModuleHomeScreen
       if (moduleListLength > 1 && splashController.module == null) {
         if (kDebugMode) {
-          debugPrint('🏗️ [Module-First] SplashScreen: Multiple modules available, no prefetch without module selection');
+          debugPrint(
+              '🏗️ [Module-First] SplashScreen: Multiple modules available, no prefetch without module selection');
           debugPrint('   Prefetch will happen after user selects module');
         }
-        
+
         // ✅ مدة splash ثابتة = 2.5 ثانية minimum
         final startTime = DateTime.now();
-        
+
         // دع اللوجو يظهر مباشرة
-        await Future.delayed(const Duration(milliseconds: 100));
-        
+        await Future.delayed(const Duration(milliseconds: 16));
+
         // 🏗️ MODULE-FIRST: Wait for module list to be ready, but don't prefetch
         // Prefetch is only allowed after module is selected
-        final splashController = Get.find<SplashController>();
+        // ⚡ PERF FIX: Removed shadowed `splashController` re-declaration that was hiding the outer one
         if (kDebugMode) {
           debugPrint('⏳ SplashScreen: Waiting for module list to be ready...');
         }
         await splashController.waitUntilReady();
-        
+
         // احسب الوقت
         final elapsed = DateTime.now().difference(startTime);
-        
-        // مدة splash ثابتة = 2.5 ثانية
-        const minSplashDuration = Duration(milliseconds: 2500);
-        
+
+        // مدة splash ثابتة = 1.5 ثانية (cache already loaded, keep it snappy)
+        const minSplashDuration = Duration(milliseconds: 1500);
+
         if (elapsed < minSplashDuration) {
           final remainingTime = minSplashDuration - elapsed;
-          debugPrint('⏱️ SplashScreen: Waiting ${remainingTime.inMilliseconds}ms to complete minimum splash duration (${elapsed.inMilliseconds}ms elapsed)');
+          debugPrint(
+              '⏱️ SplashScreen: Waiting ${remainingTime.inMilliseconds}ms to complete minimum splash duration (${elapsed.inMilliseconds}ms elapsed)');
           await Future.delayed(remainingTime);
         } else {
-          debugPrint('✅ SplashScreen: Minimum splash duration already satisfied (${elapsed.inMilliseconds}ms)');
+          debugPrint(
+              '✅ SplashScreen: Minimum splash duration already satisfied (${elapsed.inMilliseconds}ms)');
         }
-        
+
         debugPrint('✅ SplashScreen: Data ready, proceeding to route');
-        
-        // Check for notification popup before routing
-        await _checkAndShowNotificationPopup();
-        if (!mounted) {
-          return;
-        }
-        
+
+        // ⚡ PERF FIX: Notification popup check deferred to post-routing.
+        // Running 2 API calls here was blocking splash → home transition.
+
         // Route directly to multi-module screen - it's the main entry point
+        splashController.markSplashFlowStopped();
         route(context, body: widget.body);
+
+        // ⚡ Check notification popup AFTER routing (non-blocking)
+        _checkAndShowNotificationPopup();
         return;
       }
 
@@ -205,21 +233,23 @@ class SplashScreenState extends State<SplashScreen> {
       // 1. User has a cached module preference
       // 2. Only one module exists (auto-selected)
       // 3. Config has a default module set
-      
-      // ✅ مدة splash ثابتة = 2.5 ثانية minimum
+
+      // ✅ مدة splash ثابتة = 1.5 ثانية minimum (cache is loaded)
       final startTime = DateTime.now();
-      
+
       // دع اللوجو يظهر مباشرة
-      await Future.delayed(const Duration(milliseconds: 100));
-      
+      await Future.delayed(const Duration(milliseconds: 16));
+
       // Create data loading future
       Future<void> dataLoadingFuture;
-      
+
       // 🏗️ MODULE-FIRST ARCHITECTURE: Check if module is resolved
-      final hasModuleSelected = splashController.selectedModule.value != null || splashController.module != null;
-      
+      final hasModuleSelected = splashController.selectedModule.value != null ||
+          splashController.module != null;
+
       if (hasModuleSelected || moduleListLength == 1) {
-        debugPrint('🚀 SplashScreen: Module selected (or single module), loading module-specific data...');
+        debugPrint(
+            '🚀 SplashScreen: Module selected (or single module), loading module-specific data...');
 
         dataLoadingFuture = () async {
           await Future.microtask(() async {
@@ -227,11 +257,13 @@ class SplashScreenState extends State<SplashScreen> {
               return;
             }
             await _ensureSuperPayloadReady(buildContext);
-            debugPrint('✅ SplashScreen: Super-payload ready (memory + Hive) - proceed to route');
+            debugPrint(
+                '✅ SplashScreen: Super-payload ready (memory + Hive) - proceed to route');
           });
         }();
       } else {
-        debugPrint('⚠️ SplashScreen: No module selected and module list not ready yet, proceeding to home screen anyway');
+        debugPrint(
+            '⚠️ SplashScreen: No module selected and module list not ready yet, proceeding to home screen anyway');
         dataLoadingFuture = Future.value();
       }
 
@@ -250,38 +282,42 @@ class SplashScreenState extends State<SplashScreen> {
         );
       } on TimeoutException {
         // Timeout guard: move on with cached data immediately
-        debugPrint('⏱️ SplashScreen: Timeout waiting for API, routing with cache');
+        debugPrint(
+            '⏱️ SplashScreen: Timeout waiting for API, routing with cache');
         await _restoreDataFromCache();
       }
       if (!mounted) {
         return;
       }
-      
+
       // احسب الوقت
       final elapsed = DateTime.now().difference(startTime);
-      
-      // مدة splash ثابتة = 2.5 ثانية
-      const minSplashDuration = Duration(milliseconds: 2500);
-      
+
+      // مدة splash ثابتة = 1.5 ثانية (cache loaded, keep it snappy)
+      const minSplashDuration = Duration(milliseconds: 1500);
+
       if (elapsed < minSplashDuration) {
         final remainingTime = minSplashDuration - elapsed;
-        debugPrint('⏱️ SplashScreen: Waiting ${remainingTime.inMilliseconds}ms to complete minimum splash duration (${elapsed.inMilliseconds}ms elapsed)');
+        debugPrint(
+            '⏱️ SplashScreen: Waiting ${remainingTime.inMilliseconds}ms to complete minimum splash duration (${elapsed.inMilliseconds}ms elapsed)');
         await Future.delayed(remainingTime);
       } else {
-        debugPrint('✅ SplashScreen: Minimum splash duration already satisfied (${elapsed.inMilliseconds}ms)');
+        debugPrint(
+            '✅ SplashScreen: Minimum splash duration already satisfied (${elapsed.inMilliseconds}ms)');
       }
-      
+
       debugPrint('✅ SplashScreen: Data ready, proceeding to route');
 
-      // Check for notification popup before routing
-      await _checkAndShowNotificationPopup();
-      if (!mounted) {
-        return;
-      }
+      // ⚡ PERF FIX: Notification popup check deferred to post-routing.
+      // Running 2 API calls here was blocking splash → home transition.
 
       // Now perform the routing
       debugPrint('🚀 SplashScreen: Routing to home screen...');
+      splashController.markSplashFlowStopped();
       route(context, body: widget.body);
+
+      // ⚡ Check notification popup AFTER routing (non-blocking)
+      _checkAndShowNotificationPopup();
     });
   }
 
@@ -298,13 +334,14 @@ class SplashScreenState extends State<SplashScreen> {
       // Check banner data - 🔧 FIX: Check cache first
       if (Get.isRegistered<BannerController>()) {
         final bannerController = Get.find<BannerController>();
-        
+
         // 🔧 FIX: Check if banners exist in cache (don't wait for API)
         bool hasBannersInCache = false;
         int cachedBannerCount = 0;
         if (Get.isRegistered<SplashController>()) {
           final splashController = Get.find<SplashController>();
-          final moduleId = splashController.selectedModule.value?.id ?? splashController.module?.id;
+          final moduleId = splashController.selectedModule.value?.id ??
+              splashController.module?.id;
           if (moduleId != null) {
             try {
               final cacheService = HiveHomeCacheService();
@@ -315,7 +352,8 @@ class SplashScreenState extends State<SplashScreen> {
                 cachedBannerCount = bannerCount + campaignCount;
                 hasBannersInCache = cachedBannerCount > 0;
                 if (hasBannersInCache && kDebugMode) {
-                  debugPrint('✅ SplashScreen: Banners found in cache - $cachedBannerCount items');
+                  debugPrint(
+                      '✅ SplashScreen: Banners found in cache - $cachedBannerCount items');
                 }
               }
             } catch (e) {
@@ -325,13 +363,16 @@ class SplashScreenState extends State<SplashScreen> {
             }
           }
         }
-        
+
         // 🔧 CRITICAL FIX: Don't consider banners "ready" if count is 0
         // This prevents UI from building with empty state when real banners arrive later
-        final controllerBannerCount = bannerController.bannerImageList?.length ?? 0;
-        final controllerFeaturedBannerCount = bannerController.featuredBannerList?.length ?? 0;
-        final totalBannerCount = controllerBannerCount + controllerFeaturedBannerCount;
-        
+        final controllerBannerCount =
+            bannerController.bannerImageList?.length ?? 0;
+        final controllerFeaturedBannerCount =
+            bannerController.featuredBannerList?.length ?? 0;
+        final totalBannerCount =
+            controllerBannerCount + controllerFeaturedBannerCount;
+
         // If cache has banners OR controller has banners (with count > 0), consider ready
         if (!hasBannersInCache && totalBannerCount == 0) {
           debugPrint(
@@ -401,12 +442,14 @@ class SplashScreenState extends State<SplashScreen> {
   Future<void> _restoreDataFromCache() async {
     // Check if widget is still mounted
     if (!mounted) {
-      debugPrint('⚠️ SplashScreen: Widget unmounted, skipping cache restoration');
+      debugPrint(
+          '⚠️ SplashScreen: Widget unmounted, skipping cache restoration');
       return;
     }
 
     try {
-      debugPrint('📦 SplashScreen: Restoring data from cache to controllers...');
+      debugPrint(
+          '📦 SplashScreen: Restoring data from cache to controllers...');
 
       // Load cached data and restore to controllers
       final cachedData = await ComprehensiveHomeCacheManager.loadAllHomeData();
@@ -416,7 +459,8 @@ class SplashScreenState extends State<SplashScreen> {
         debugPrint(
             '✅ SplashScreen: Data restored from cache to controllers successfully');
       } else {
-        debugPrint('⚠️ SplashScreen: No cached data found, loading from API...');
+        debugPrint(
+            '⚠️ SplashScreen: No cached data found, loading from API...');
         // Fallback to API loading if cache is empty
         if (!mounted) {
           return;
@@ -436,8 +480,8 @@ class SplashScreenState extends State<SplashScreen> {
   /// Ensure super-payload is ready in memory + Hive before routing
   Future<void> _ensureSuperPayloadReady(BuildContext context) async {
     final splashController = Get.find<SplashController>();
-    final moduleId =
-        splashController.selectedModule.value?.id ?? splashController.module?.id;
+    final moduleId = splashController.selectedModule.value?.id ??
+        splashController.module?.id;
     if (moduleId == null || !Get.isRegistered<HomeUnifiedController>()) {
       return;
     }
@@ -446,17 +490,21 @@ class SplashScreenState extends State<SplashScreen> {
     final cacheService = HiveHomeCacheService();
 
     // 1) Try memory cache -> distribute immediately (instant switch)
-    final bool memoryLoaded =
-        await homeUnifiedController.loadCachedDataForInstantUI(loadStores: false);
+    final bool memoryLoaded = await homeUnifiedController
+        .loadCachedDataForInstantUI(loadStores: false);
 
-    // 2) Ensure Hive has super-payload, otherwise fetch and save
+    // 2) Check Hive for super-payload
     final cached = await cacheService.loadHomeUnifiedData(moduleId);
     if (cached == null || !cached.isValid) {
-      await homeUnifiedController.loadHomeData(
+      // ⚡ PERF FIX: Do NOT await a full API call on the splash critical path.
+      // If Hive cache is missing, fire the network fetch in the background and
+      // let the home screen show its own loading state instead of blocking
+      // splash for potentially 10+ seconds.
+      unawaited(homeUnifiedController.loadHomeData(
         moduleId: moduleId,
         forceRefresh: true,
         showLoading: false,
-      );
+      ));
     } else if (!memoryLoaded) {
       // If cache exists but memory wasn't injected, inject directly
       if (cached.categories != null &&
@@ -469,12 +517,14 @@ class SplashScreenState extends State<SplashScreen> {
       }
     }
 
-    // 3) Background refresh (offline-first UX)
-    unawaited(homeUnifiedController.loadHomeData(
-      moduleId: moduleId,
-      forceRefresh: false,
-      showLoading: false,
-    ));
+    // 3) Background refresh (offline-first UX) — only if cache was valid
+    if (cached != null && cached.isValid) {
+      unawaited(homeUnifiedController.loadHomeData(
+        moduleId: moduleId,
+        forceRefresh: false,
+        showLoading: false,
+      ));
+    }
   }
 
   /// Pre-load home screen data during splash for instant home screen
@@ -482,15 +532,18 @@ class SplashScreenState extends State<SplashScreen> {
   Future<void> _preloadHomeScreenData(BuildContext context) async {
     // Check if widget is still mounted
     if (!mounted) {
-      debugPrint('⚠️ SplashScreen: Widget unmounted, skipping home data preload');
+      debugPrint(
+          '⚠️ SplashScreen: Widget unmounted, skipping home data preload');
       return;
     }
 
     try {
-      debugPrint('🚀 SplashScreen: Pre-loading home screen data (cache invalid)...');
+      debugPrint(
+          '🚀 SplashScreen: Pre-loading home screen data (cache invalid)...');
 
       // Since this method is only called when cache is invalid, always load from API
-      debugPrint('🔄 SplashScreen: Calling OptimizedHomeDataLoader.loadData...');
+      debugPrint(
+          '🔄 SplashScreen: Calling OptimizedHomeDataLoader.loadData...');
       await OptimizedHomeDataLoader.loadData(
         context,
         true, // reload
@@ -525,34 +578,31 @@ class SplashScreenState extends State<SplashScreen> {
 
       // Save to cache
       await ComprehensiveHomeCacheManager.saveAllHomeData();
-      debugPrint('✅ SplashScreen: Data loaded from API and cached successfully');
+      debugPrint(
+          '✅ SplashScreen: Data loaded from API and cached successfully');
 
       // CRITICAL: Restore data to controllers immediately after loading from API
-      debugPrint('🔄 SplashScreen: Restoring data to controllers after API load...');
+      debugPrint(
+          '🔄 SplashScreen: Restoring data to controllers after API load...');
       final cachedData = await ComprehensiveHomeCacheManager.loadAllHomeData();
       if (cachedData.isNotEmpty) {
         await ComprehensiveHomeCacheManager.restoreDataToControllers(
             cachedData);
-        debugPrint('✅ SplashScreen: Data restored to controllers after API load');
+        debugPrint(
+            '✅ SplashScreen: Data restored to controllers after API load');
       } else {
         debugPrint('⚠️ SplashScreen: No data found in cache after API load');
       }
 
-      // Load and cache promotional content for Module 3 (multi-module home screen)
-      // This runs in background and doesn't block the splash screen
-      final splashController = Get.find<SplashController>();
-      splashController.loadAndCachePromotionalContent().catchError((e) {
-        if (kDebugMode) {
-          debugPrint('⚠️ SplashScreen: Error loading promotional content: $e');
-        }
-      });
+      // Promotional content preload is intentionally deferred to
+      // MultiModuleHomeScreen after splash route transition.
     } catch (e) {
       debugPrint('⚠️ SplashScreen: Could not pre-load home data - $e');
     }
   }
 
   /// Pre-fetch multi-module home screen data during splash
-  /// 
+  ///
   // 🏗️ MODULE-FIRST ARCHITECTURE: Removed _prefetchMultiModuleData
   // Prefetch is not allowed without a selected module
   // Prefetch will happen in MultiModuleHomeScreen after user selects a module
@@ -574,7 +624,8 @@ class SplashScreenState extends State<SplashScreen> {
           // Check and show popup if available
           await notificationController.checkAndShowNotificationPopup();
         } else {
-          debugPrint('🔔 SplashScreen: NotificationController not registered yet');
+          debugPrint(
+              '🔔 SplashScreen: NotificationController not registered yet');
         }
       } else {
         debugPrint(
@@ -587,6 +638,9 @@ class SplashScreenState extends State<SplashScreen> {
 
   @override
   void dispose() {
+    if (Get.isRegistered<SplashController>()) {
+      Get.find<SplashController>().markSplashFlowStopped();
+    }
     super.dispose();
 
     _onConnectivityChanged?.cancel();
@@ -594,7 +648,9 @@ class SplashScreenState extends State<SplashScreen> {
 
   @override
   Widget build(BuildContext context) {
-    Get.find<SplashController>().initSharedData();
+    // ⚡ PERF FIX: initSharedData() removed from build() — it already runs once
+    // in initState(). Calling it here caused redundant SharedPreferences +
+    // Hive work on every widget rebuild, adding jank during splash.
     if (AddressHelper.getUserAddressFromSharedPref() != null &&
         AddressHelper.getUserAddressFromSharedPref()!.zoneIds == null) {
       Get.find<AuthController>().clearSharedAddress();

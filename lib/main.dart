@@ -1,4 +1,5 @@
 // ignore_for_file: use_build_context_synchronously, avoid_print
+import 'dart:io';
 import 'package:get/get.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -63,6 +64,8 @@ bool _heavyServicesInitialized = false;
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // ⚡ Background handler registration moved to _initializeHeavyServices()
+  // after Firebase.initializeApp() to avoid "duplicate background isolate" warning
 
   // Initialize logging system first (synchronous, fast)
   _setupLogging();
@@ -81,6 +84,19 @@ Future<void> main() async {
 
   // ðŸ”´ Global error handler - catches all Flutter errors
   FlutterError.onError = (FlutterErrorDetails details) {
+    // Suppress PathNotFoundException from image cache (orphaned file refs
+    // that cached_network_image surfaces after OS clears the cache dir).
+    if (details.exception is PathNotFoundException) {
+      final String pathStr =
+          (details.exception as PathNotFoundException).path ?? '';
+      if (pathStr.contains('libCachedImageData')) {
+        if (kDebugMode) {
+          debugPrint(
+              '🗑️ Suppressed image cache PathNotFoundException: $pathStr');
+        }
+        return; // swallow — errorWidget in CustomImage handles the UI
+      }
+    }
     logger_package.logger.e(
       "Flutter Error: ${details.exception}",
       error: details.exception,
@@ -129,12 +145,14 @@ Future<void> main() async {
 
   // âš¡ CRITICAL: Initialize heavy services AFTER first frame renders
   WidgetsBinding.instance.addPostFrameCallback((_) {
-    _initializeHeavyServices();
+    Future<void>.delayed(const Duration(milliseconds: 1200), () {
+      _initializeHeavyServices();
+    });
   });
 }
+
 Future<void> _initializeCriticalDateFormatting() async {
-  final Locale deviceLocale =
-      WidgetsBinding.instance.platformDispatcher.locale;
+  final Locale deviceLocale = WidgetsBinding.instance.platformDispatcher.locale;
 
   final Set<String> locales = <String>{
     'ar',
@@ -156,6 +174,7 @@ Future<void> _initializeCriticalDateFormatting() async {
     }),
   );
 }
+
 /// ⚡ NEW: Initialize ONLY what's needed for routing decision
 /// Target: < 500ms total time
 Future<Map<String, Map<String, String>>> _initEssentialOnly() async {
@@ -189,14 +208,24 @@ Future<void> _initializeHeavyServices() async {
       options: DefaultFirebaseOptions.currentPlatform,
     );
     if (kDebugMode) debugPrint('âœ… Firebase initialized (Stage 1)');
+    // ✅ Register background handler AFTER Firebase is initialized
+    // Prevents "duplicate background isolate" warning that occurs when
+    // registration happens before Firebase is ready and a stale native
+    // isolate from a previous run still exists.
+    try {
+      NotificationService.registerBackgroundHandlerOnce();
+    } catch (e) {
+      if (kDebugMode) debugPrint('⚠️ Background handler registration note: $e');
+    }
+    // âš¡ STAGE 2: Stagger heavy service init to reduce frame drops on splash/onboarding
+    await CacheManager().initialize();
+    await HiveHomeCacheService().initialize();
+    if (kDebugMode) debugPrint('âœ… Core cache services initialized (Stage 2)');
 
-    // âš¡ STAGE 2: Initialize services that depend on Firebase in parallel
-    await Future.wait([
-      NotificationService().initialize(),
-      CacheManager().initialize(),
-      HiveHomeCacheService().initialize(),
-    ]);
-    if (kDebugMode) debugPrint('âœ… Core services initialized (Stage 2)');
+    unawaited(NotificationService().initialize());
+    if (kDebugMode) {
+      debugPrint('âœ… Notification service init queued (non-blocking Stage 2)');
+    }
 
     // âš¡ STAGE 3: Non-critical services (can fail without breaking app)
     _initializeNonCriticalServices();
@@ -318,7 +347,9 @@ class _MyAppState extends State<MyApp> {
         final address = AddressHelper.getUserAddressFromSharedPref();
 
         if (address == null) {
-          if (kDebugMode) debugPrint('âš ï¸ Ù„Ù… ÙŠØªÙ… Ø§Ù„Ø¹Ø«ÙˆØ± Ø¹Ù„Ù‰ Ø¹Ù†ÙˆØ§Ù† Ù…Ø®Ø²Ù†');
+          if (kDebugMode)
+            debugPrint(
+                'âš ï¸ Ù„Ù… ÙŠØªÙ… Ø§Ù„Ø¹Ø«ÙˆØ± Ø¹Ù„Ù‰ Ø¹Ù†ÙˆØ§Ù† Ù…Ø®Ø²Ù†');
         } else if (address.zoneIds == null) {
           Get.find<AuthController>().clearSharedAddress();
         }
@@ -332,7 +363,8 @@ class _MyAppState extends State<MyApp> {
           // Only load cart data if not already loaded
           final cartController = Get.find<CartController>();
           if (cartController.cartList.isEmpty) {
-            debugPrint('ðŸ”„ Main: Loading cart data on app start (empty cart)');
+            debugPrint(
+                'ðŸ”„ Main: Loading cart data on app start (empty cart)');
             // âš¡ Load cart in background (non-blocking)
             unawaited(cartController.getCartDataOnline());
           } else {
@@ -504,9 +536,8 @@ class _MyAppState extends State<MyApp> {
       // Navigator + global overlays must live inside this builder (not outside
       // GetMaterialApp) so they share the same element tree, MediaQuery, and theme.
       builder: (BuildContext context, Widget? child) {
-        final TextDirection textDirection = localizeController.isLtr
-            ? TextDirection.ltr
-            : TextDirection.rtl;
+        final TextDirection textDirection =
+            localizeController.isLtr ? TextDirection.ltr : TextDirection.rtl;
         final Widget navigatorChild = child ?? const SizedBox.shrink();
         return Directionality(
           textDirection: textDirection,
@@ -556,4 +587,3 @@ void unawaited(Future<void> future) {
     if (kDebugMode) debugPrint('âš ï¸ Unawaited future error: $e');
   });
 }
-

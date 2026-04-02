@@ -50,9 +50,11 @@ class ApiClient extends GetxService {
     token = sharedPreferences.getString(AppConstants.token);
     AddressModel? addressModel;
     try {
-      addressModel = AddressModel.fromJson(
-          jsonDecode(sharedPreferences.getString(AppConstants.userAddress)!)
-              as Map<String, dynamic>);
+      final rawAddress = sharedPreferences.getString(AppConstants.userAddress);
+      if (rawAddress != null && rawAddress.isNotEmpty) {
+        addressModel = AddressModel.fromJson(
+            jsonDecode(rawAddress) as Map<String, dynamic>);
+      }
     } catch (_) {}
     // MOBILE-MODULE-ID FIX: Read saved moduleId on ALL platforms (not just web).
     // Without this, every cold start on Android/iOS fires API calls with
@@ -96,9 +98,12 @@ class ApiClient extends GetxService {
         // Update headers with the secure token
         AddressModel? addressModel;
         try {
-          addressModel = AddressModel.fromJson(
-              jsonDecode(sharedPreferences.getString(AppConstants.userAddress)!)
-                  as Map<String, dynamic>);
+          final rawAddress =
+              sharedPreferences.getString(AppConstants.userAddress);
+          if (rawAddress != null && rawAddress.isNotEmpty) {
+            addressModel = AddressModel.fromJson(
+                jsonDecode(rawAddress) as Map<String, dynamic>);
+          }
         } catch (_) {}
         // MOBILE-MODULE-ID FIX: Read saved moduleId on ALL platforms.
         int? moduleID;
@@ -134,9 +139,12 @@ class ApiClient extends GetxService {
         // Update headers with legacy token
         AddressModel? addressModel;
         try {
-          addressModel = AddressModel.fromJson(
-              jsonDecode(sharedPreferences.getString(AppConstants.userAddress)!)
-                  as Map<String, dynamic>);
+          final rawAddress =
+              sharedPreferences.getString(AppConstants.userAddress);
+          if (rawAddress != null && rawAddress.isNotEmpty) {
+            addressModel = AddressModel.fromJson(
+                jsonDecode(rawAddress) as Map<String, dynamic>);
+          }
         } catch (_) {}
         // MOBILE-MODULE-ID FIX: Read saved moduleId on ALL platforms.
         int? moduleID;

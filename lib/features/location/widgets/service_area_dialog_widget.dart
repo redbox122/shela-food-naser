@@ -31,8 +31,7 @@ class ServiceAreaDialogWidget extends StatelessWidget {
               Container(
                 decoration: const BoxDecoration(
                   color: Colors.white,
-                  borderRadius:
-                      BorderRadius.vertical(top: Radius.circular(20)),
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
                 ),
                 padding: const EdgeInsets.all(16),
                 child: ClipRRect(

@@ -47,12 +47,13 @@ class SplashRepository implements SplashRepositoryInterface {
               AppConstants.configUri,
               useEtag: false,
             );
-            if (forcedResponse.statusCode == 200 && forcedResponse.body != null) {
+            if (forcedResponse.statusCode == 200 &&
+                forcedResponse.body != null) {
               responseData = Response(
                   statusCode: 200,
                   body: forcedResponse.body as Map<String, dynamic>);
-              LocalClient.organize(source, cacheId, jsonEncode(forcedResponse.body),
-                  apiClient.getHeader());
+              LocalClient.organize(source, cacheId,
+                  jsonEncode(forcedResponse.body), apiClient.getHeader());
             }
           }
         }
@@ -173,9 +174,11 @@ class SplashRepository implements SplashRepositoryInterface {
   Future<void> setStoreCategory(int storeCategoryID) async {
     AddressModel? addressModel;
     try {
-      addressModel = AddressModel.fromJson(
-          jsonDecode(sharedPreferences.getString(AppConstants.userAddress)!)
-              as Map<String, dynamic>);
+      final rawAddress = sharedPreferences.getString(AppConstants.userAddress);
+      if (rawAddress != null && rawAddress.isNotEmpty) {
+        addressModel = AddressModel.fromJson(
+            jsonDecode(rawAddress) as Map<String, dynamic>);
+      }
     } catch (e) {
       debugPrint('Did not get shared Preferences address . Note: $e');
     }
@@ -190,7 +193,7 @@ class SplashRepository implements SplashRepositoryInterface {
     );
   }
 
-    @override
+  @override
   Future<List<ModuleModel>?> getModules(
       {Map<String, String>? headers, required DataSourceEnum source}) async {
     List<ModuleModel>? moduleList;
@@ -242,7 +245,8 @@ class SplashRepository implements SplashRepositoryInterface {
                 '\x1B[32mModules cache hydration success: ${moduleList.length} modules\x1B[0m');
           } else {
             debugPrint('\x1B[31mModules cache miss after 304/NULL body\x1B[0m');
-            debugPrint('\x1B[33mRetrying modules API with ETag disabled\x1B[0m');
+            debugPrint(
+                '\x1B[33mRetrying modules API with ETag disabled\x1B[0m');
 
             final Response forcedResponse = await apiClient.getData(
               AppConstants.moduleUri,
@@ -250,14 +254,15 @@ class SplashRepository implements SplashRepositoryInterface {
               useEtag: false,
             );
 
-            if (forcedResponse.statusCode == 200 && forcedResponse.body is List) {
+            if (forcedResponse.statusCode == 200 &&
+                forcedResponse.body is List) {
               moduleList = [];
               for (var storeCategory in (forcedResponse.body as List)) {
-                moduleList.add(
-                    ModuleModel.fromJson(storeCategory as Map<String, dynamic>));
+                moduleList.add(ModuleModel.fromJson(
+                    storeCategory as Map<String, dynamic>));
               }
-              LocalClient.organize(source, cacheId, jsonEncode(forcedResponse.body),
-                  apiClient.getHeader());
+              LocalClient.organize(source, cacheId,
+                  jsonEncode(forcedResponse.body), apiClient.getHeader());
               debugPrint(
                   '\x1B[32mModules force-fetch success: ${moduleList.length} modules\x1B[0m');
             } else {
@@ -276,8 +281,8 @@ class SplashRepository implements SplashRepositoryInterface {
         if (cacheResponseData != null) {
           moduleList = [];
           for (var storeCategory in (jsonDecode(cacheResponseData) as List)) {
-            moduleList
-                .add(ModuleModel.fromJson(storeCategory as Map<String, dynamic>));
+            moduleList.add(
+                ModuleModel.fromJson(storeCategory as Map<String, dynamic>));
           }
         }
     }
@@ -289,9 +294,11 @@ class SplashRepository implements SplashRepositoryInterface {
   Future<void> setModule(ModuleModel? module) async {
     AddressModel? addressModel;
     try {
-      addressModel = AddressModel.fromJson(
-          jsonDecode(sharedPreferences.getString(AppConstants.userAddress)!)
-              as Map<String, dynamic>);
+      final rawAddress = sharedPreferences.getString(AppConstants.userAddress);
+      if (rawAddress != null && rawAddress.isNotEmpty) {
+        addressModel = AddressModel.fromJson(
+            jsonDecode(rawAddress) as Map<String, dynamic>);
+      }
     } catch (e) {
       debugPrint('Did not get shared Preferences address . Note: $e');
     }
@@ -449,4 +456,3 @@ class SplashRepository implements SplashRepositoryInterface {
     throw UnimplementedError();
   }
 }
-

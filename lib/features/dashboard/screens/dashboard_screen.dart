@@ -112,6 +112,25 @@ class DashboardScreenState extends State<DashboardScreen> {
       const OrderScreen(),
       const MenuScreen()
     ];
+
+    // ⚡ PERF FIX: Preload other modules AFTER splash completes.
+    // Previously this ran during splash, competing for network/CPU and
+    // inflating splash time from ~3s to ~14s.  A 2s post-frame delay
+    // ensures the home screen has rendered first.
+    _deferCoreModulePreload();
+  }
+
+  void _deferCoreModulePreload() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Future.delayed(const Duration(seconds: 2), () {
+        if (!mounted) return;
+        if (Get.isRegistered<SplashController>()) {
+          unawaited(Get.find<SplashController>()
+              .preloadCoreModulesForFastSwitch()
+              .catchError((Object _) {}));
+        }
+      });
+    });
   }
 
   void _loadRunningOrdersForGlobalBottomSheet() {
@@ -124,7 +143,8 @@ class DashboardScreenState extends State<DashboardScreen> {
         final bool hasRunningOrdersLoaded =
             orderController.runningOrderModel?.orders != null;
         if (!hasRunningOrdersLoaded) {
-          orderController.getRunningOrders(1, isUpdate: false, fromDashboard: true);
+          orderController.getRunningOrders(1,
+              isUpdate: false, fromDashboard: true);
         }
       });
     });
@@ -149,7 +169,8 @@ class DashboardScreenState extends State<DashboardScreen> {
   Future<void> _hideRunningOrdersBarTemporarily(
       List<OrderModel> reversedRunningOrders) async {
     final DateTime hideUntil = DateTime.now().add(_runningOrdersHideDuration);
-    final String signature = _buildRunningOrdersSignature(reversedRunningOrders);
+    final String signature =
+        _buildRunningOrdersSignature(reversedRunningOrders);
     setState(() {
       _runningOrdersHiddenUntil = hideUntil;
       _runningOrdersHiddenSignature = signature;
@@ -162,7 +183,8 @@ class DashboardScreenState extends State<DashboardScreen> {
   }
 
   Future<void> _clearRunningOrdersBarHiddenState() async {
-    if (_runningOrdersHiddenUntil == null && _runningOrdersHiddenSignature == null) {
+    if (_runningOrdersHiddenUntil == null &&
+        _runningOrdersHiddenSignature == null) {
       return;
     }
     setState(() {
@@ -363,15 +385,15 @@ class DashboardScreenState extends State<DashboardScreen> {
                 Icons.more_horiz,
               ];
 
-              final bool showBottomChrome = !(ResponsiveHelper.isDesktop(context) ||
-                  (widget.fromSplash &&
-                      Get.find<LocationController>()
-                          .showLocationSuggestion &&
-                      active) ||
-                  keyboardVisible);
+              final bool showBottomChrome =
+                  !(ResponsiveHelper.isDesktop(context) ||
+                      (widget.fromSplash &&
+                          Get.find<LocationController>()
+                              .showLocationSuggestion &&
+                          active) ||
+                      keyboardVisible);
               final bool shouldShowRunningOrdersSheet = !((widget.fromSplash &&
-                      Get.find<LocationController>()
-                          .showLocationSuggestion &&
+                      Get.find<LocationController>().showLocationSuggestion &&
                       active &&
                       !ResponsiveHelper.isDesktop(context)) ||
                   !_isLogin ||
@@ -540,11 +562,12 @@ class DashboardScreenState extends State<DashboardScreen> {
                               ),
                               onTap: (int index) {
                                 if (index == 0) {
-                                  Get.offAll<dynamic>(() => MultiModuleHomeScreen(
-                                        key: ValueKey(
-                                            'multi_${Get.find<SplashController>().selectedModule.value?.id}'),
-                                        showBottomNavigation: false,
-                                      ));
+                                  Get.offAll<dynamic>(
+                                      () => MultiModuleHomeScreen(
+                                            key: ValueKey(
+                                                'multi_${Get.find<SplashController>().selectedModule.value?.id}'),
+                                            showBottomNavigation: false,
+                                          ));
                                   return;
                                 }
                                 final int pageIndex =

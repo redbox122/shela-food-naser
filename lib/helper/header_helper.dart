@@ -10,29 +10,43 @@ class HeaderHelper {
     final SharedPreferences sharedPreferences = Get.find<SharedPreferences>();
     AddressModel? addressModel;
     try {
-      addressModel = AddressModel.fromJson(
-          jsonDecode(sharedPreferences.getString(AppConstants.userAddress)!) as Map<String, dynamic>);
+      final rawAddress = sharedPreferences.getString(AppConstants.userAddress);
+      if (rawAddress != null && rawAddress.isNotEmpty) {
+        addressModel = AddressModel.fromJson(
+            jsonDecode(rawAddress) as Map<String, dynamic>);
+      }
     } catch (_) {}
-    
+
     // ❌ IMPORTANT: Do NOT include moduleId for featured content
     // Featured banners/items are cross-module and should not be filtered by module
-    
-    return {
+
+    final Map<String, String> headers = {
       'Content-Type': 'application/json; charset=UTF-8',
-      AppConstants.zoneId: addressModel?.zoneIds != null
-          ? jsonEncode(addressModel?.zoneIds)
-          : '',
       // ❌ NO moduleId for featured content - it's cross-module
       AppConstants.localizationKey:
           sharedPreferences.getString(AppConstants.languageCode) ??
               AppConstants.languages[0].languageCode!,
-      AppConstants.latitude: addressModel?.latitude != null
-          ? jsonEncode(addressModel?.latitude)
-          : '',
-      AppConstants.longitude: addressModel?.longitude != null
-          ? jsonEncode(addressModel?.longitude)
-          : '',
-      // 'Authorization': 'Bearer $token'
     };
+
+    final zoneIds = addressModel?.zoneIds;
+    if (zoneIds != null && zoneIds.isNotEmpty) {
+      headers[AppConstants.zoneId] = jsonEncode(zoneIds);
+    }
+
+    final latitude = addressModel?.latitude;
+    final longitude = addressModel?.longitude;
+    if (latitude != null && latitude.isNotEmpty) {
+      headers[AppConstants.latitude] = jsonEncode(latitude);
+    }
+    if (longitude != null && longitude.isNotEmpty) {
+      headers[AppConstants.longitude] = jsonEncode(longitude);
+    }
+
+    final token = sharedPreferences.getString(AppConstants.token);
+    if (token != null && token.isNotEmpty && token != 'null') {
+      headers['Authorization'] = 'Bearer $token';
+    }
+
+    return headers;
   }
 }

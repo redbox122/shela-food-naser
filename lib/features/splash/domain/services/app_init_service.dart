@@ -16,7 +16,7 @@ class AppInitService {
 
   /// Call the /api/v1/app-init endpoint to get all startup data
   /// Returns AppInitModel with config, modules, zones, and business settings
-  /// 
+  ///
   /// With [gracefulFallback], returns null on error instead of throwing
   Future<AppInitModel?> getAppInitData({
     Map<String, String>? headers,
@@ -26,6 +26,10 @@ class AppInitService {
       if (kDebugMode) {
         print('🚀 AppInitService: Calling /api/v1/app-init endpoint');
         print('   - Headers: $headers');
+        print(
+            '   - Startup owner: ${headers?['X-Startup-Owner'] ?? 'unknown'} | no-retry: ${headers?['X-No-Retry'] ?? 'false'}');
+        print(
+            '   - Header readiness: zone=${headers?.containsKey('zoneId') == true}, lat=${headers?.containsKey('latitude') == true}, lng=${headers?.containsKey('longitude') == true}');
       }
 
       final Response response = await apiClient.getData(
@@ -41,10 +45,12 @@ class AppInitService {
       // 304 means data is unchanged - use local cache, do NOT trigger failure fallback
       if (response.statusCode == 304) {
         if (kDebugMode) {
-          print('✅ AppInitService: 304 LOGIC VERIFICATION - 304 Not Modified received');
+          print(
+              '✅ AppInitService: 304 LOGIC VERIFICATION - 304 Not Modified received');
           print('   - Status: ${response.statusCode}');
           print('   - This is a SUCCESS case, not an error');
-          print('   - SplashController will load ModuleModel from Hive app_config box');
+          print(
+              '   - SplashController will load ModuleModel from Hive app_config box');
         }
         // 304 is a success - data hasn't changed, continue using cached config
         // Return null to indicate no new data (but this is SUCCESS, not failure)
@@ -58,43 +64,49 @@ class AppInitService {
         Map<String, dynamic> jsonData;
         if (response.body is String) {
           // Response is string - parse in isolate if large
-          final parsed = await JsonIsolateHelper.parseUnifiedPayload(response.body as String);
+          final parsed = await JsonIsolateHelper.parseUnifiedPayload(
+              response.body as String);
           jsonData = parsed;
         } else if (response.body is Map<String, dynamic>) {
           // Response is already parsed
           jsonData = response.body as Map<String, dynamic>;
         } else if (response.body is Map) {
           // Response is already parsed but with dynamic keys
-          jsonData = Map<String, dynamic>.from(response.body as Map<dynamic, dynamic>);
+          jsonData =
+              Map<String, dynamic>.from(response.body as Map<dynamic, dynamic>);
         } else {
           if (kDebugMode) {
-            print('⚠️ AppInitService: Unexpected response body type: ${response.body.runtimeType}');
+            print(
+                '⚠️ AppInitService: Unexpected response body type: ${response.body.runtimeType}');
           }
           return null;
         }
-        
+
         final appInitModel = AppInitModel.fromJson(jsonData);
-        
+
         if (kDebugMode) {
           print('✅ AppInitService: Successfully parsed app-init data');
           print('   - Config: ${appInitModel.config != null ? "✓" : "✗"}');
           print('   - Modules: ${appInitModel.modules?.length ?? 0}');
           print('   - Zones: ${appInitModel.zones?.length ?? 0}');
           print('   - User Zone ID: ${appInitModel.userZoneId}');
-          print('   - Business Settings: ${appInitModel.businessSettings != null ? "✓" : "✗"}');
+          print(
+              '   - Business Settings: ${appInitModel.businessSettings != null ? "✓" : "✗"}');
         }
 
         return appInitModel;
       } else {
         // ⚡ ERROR UI: Handle 500 and other errors gracefully - fallback to Hive cache
         if (kDebugMode) {
-          print('⚠️ AppInitService: Non-200 status code: ${response.statusCode}');
+          print(
+              '⚠️ AppInitService: Non-200 status code: ${response.statusCode}');
           if (response.statusCode == 500) {
             print('   - ⚠️ ERROR UI: 500 Server Error detected');
-            print('   - Will fallback to Hive app_config box (no error dialog shown)');
+            print(
+                '   - Will fallback to Hive app_config box (no error dialog shown)');
           }
         }
-        
+
         // ⚡ ERROR UI: Always use graceful fallback for 500 errors (don't throw)
         // This ensures app falls back to Hive cache instead of showing error dialog
         if (!gracefulFallback && response.statusCode != 500) {
@@ -108,7 +120,8 @@ class AppInitService {
         print('❌ AppInitService: Error calling app-init endpoint');
         print('   - Error: $e');
         print('   - Stack trace: $stackTrace');
-        print('   - ⚠️ ERROR UI: Will fallback to Hive app_config box (no error dialog shown)');
+        print(
+            '   - ⚠️ ERROR UI: Will fallback to Hive app_config box (no error dialog shown)');
       }
 
       // ⚡ ERROR UI: Always use graceful fallback (don't throw) to prevent error dialogs
@@ -126,7 +139,7 @@ class AppInitService {
         AppConstants.appInitUri,
         headers: {'Content-Type': 'application/json'},
       );
-      
+
       return response.statusCode == 200;
     } catch (e) {
       if (kDebugMode) {

@@ -73,7 +73,7 @@ class GroceryStoreHeader extends StatelessWidget {
                         borderRadius: BorderRadius.circular(8),
                       ),
                     ),
-                      child: Hero(
+                    child: Hero(
                       tag:
                           heroBannerTag ?? 'store_image_header_${storeId ?? 0}',
                       child: coverPhotoUrl.isNotEmpty
@@ -288,7 +288,8 @@ class GroceryStoreHeader extends StatelessWidget {
       width: 17.5,
       height: 12,
       child: CustomPaint(
-        painter: SignalBarsPainter(fillColor: Theme.of(context).colorScheme.onPrimary),
+        painter: SignalBarsPainter(
+            fillColor: Theme.of(context).colorScheme.onPrimary),
       ),
     );
   }

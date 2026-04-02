@@ -202,8 +202,12 @@ class AuthRepository implements AuthRepositoryInterface {
     AddressModel? addressModel;
     if (alreadyInApp &&
         sharedPreferences.getString(AppConstants.userAddress) != null) {
-      final dynamic decodedJson = jsonDecode(sharedPreferences.getString(AppConstants.userAddress)!);
-      addressModel = AddressModel.fromJson(decodedJson as Map<String, dynamic>);
+      final rawAddress = sharedPreferences.getString(AppConstants.userAddress);
+      if (rawAddress != null && rawAddress.isNotEmpty) {
+        final dynamic decodedJson = jsonDecode(rawAddress);
+        addressModel =
+            AddressModel.fromJson(decodedJson as Map<String, dynamic>);
+      }
     } else {
       addressModel = AddressHelper.getUserAddressFromSharedPref();
     }
@@ -222,7 +226,8 @@ class AuthRepository implements AuthRepositoryInterface {
 
     if (kDebugMode) {
       final isJWT = token.contains('.');
-      debugPrint('🔐 Token and headers updated IMMEDIATELY: ${isJWT ? "JWT" : "Passport"} token');
+      debugPrint(
+          '🔐 Token and headers updated IMMEDIATELY: ${isJWT ? "JWT" : "Passport"} token');
       debugPrint('✅ Headers updated before async storage operations');
     }
 
@@ -257,9 +262,7 @@ class AuthRepository implements AuthRepositoryInterface {
         FirebaseMessaging.instance.setForegroundNotificationPresentationOptions(
             alert: true, badge: true, sound: true);
         final NotificationSettings settings =
-            await FirebaseMessaging.instance.requestPermission(
-          
-        );
+            await FirebaseMessaging.instance.requestPermission();
         if (settings.authorizationStatus == AuthorizationStatus.authorized) {
           deviceToken = await saveDeviceToken();
         }
@@ -293,18 +296,21 @@ class AuthRepository implements AuthRepositoryInterface {
         deviceToken = await FirebaseMessaging.instance.getToken();
         if (deviceToken == null) {
           if (kDebugMode) {
-            debugPrint('⚠️ AuthRepository: Firebase token is null - Firebase may not be initialized or permissions not granted');
+            debugPrint(
+                '⚠️ AuthRepository: Firebase token is null - Firebase may not be initialized or permissions not granted');
           }
         }
       } catch (e) {
         // 🔧 FIX: Better error handling for Firebase token
         if (kDebugMode) {
           final errorString = e.toString();
-          if (errorString.contains('TOKEN_NOT_FOUND') || 
+          if (errorString.contains('TOKEN_NOT_FOUND') ||
               errorString.contains('FirebaseApp') ||
               errorString.contains('not initialized')) {
-            debugPrint('⚠️ AuthRepository: Firebase token loading failed - Firebase may not be initialized yet');
-            debugPrint('   - This is expected during app startup if Firebase initializes after first frame');
+            debugPrint(
+                '⚠️ AuthRepository: Firebase token loading failed - Firebase may not be initialized yet');
+            debugPrint(
+                '   - This is expected during app startup if Firebase initializes after first frame');
             debugPrint('   - Token will be retried when Firebase is ready');
           } else {
             debugPrint('❌ AuthRepository: Firebase token loading error: $e');
@@ -316,7 +322,8 @@ class AuthRepository implements AuthRepositoryInterface {
     }
     if (deviceToken != null && deviceToken != '@') {
       if (kDebugMode) {
-        debugPrint('✅ AuthRepository: Device Token loaded: ${deviceToken.substring(0, 20)}...');
+        debugPrint(
+            '✅ AuthRepository: Device Token loaded: ${deviceToken.substring(0, 20)}...');
       }
     }
     return deviceToken;
@@ -343,7 +350,8 @@ class AuthRepository implements AuthRepositoryInterface {
       final hasSecureToken = await SecureTokenStorage.hasValidToken();
       // Only log once per session to avoid spam
       if (!hasSecureToken && kDebugMode && !_hasLoggedTokenWarning) {
-        debugPrint('⚠️ Legacy token exists but secure token is invalid/expired');
+        debugPrint(
+            '⚠️ Legacy token exists but secure token is invalid/expired');
         _hasLoggedTokenWarning = true;
       }
     } catch (e) {
@@ -388,8 +396,11 @@ class AuthRepository implements AuthRepositoryInterface {
   Future<bool> clearSharedData({bool removeToken = true}) async {
     if (!GetPlatform.isWeb) {
       FirebaseMessaging.instance.unsubscribeFromTopic(AppConstants.topic);
-      FirebaseMessaging.instance.unsubscribeFromTopic(
-          'zone_${AddressHelper.getUserAddressFromSharedPref()!.zoneId}_customer');
+      final address = AddressHelper.getUserAddressFromSharedPref();
+      if (address?.zoneId != null) {
+        FirebaseMessaging.instance
+            .unsubscribeFromTopic('zone_${address!.zoneId}_customer');
+      }
       if (removeToken) {
         apiClient.postData(
             AppConstants.tokenUri, {'_method': 'put', 'cm_firebase_token': '@'},
@@ -423,18 +434,22 @@ class AuthRepository implements AuthRepositoryInterface {
     // apiClient.updateHeader(null, null, null, null, null, null, null);
     await guestLogin();
     if (sharedPreferences.getString(AppConstants.userAddress) != null) {
-      final dynamic decodedJson = jsonDecode(sharedPreferences.getString(AppConstants.userAddress)!);
-      final AddressModel addressModel = AddressModel.fromJson(decodedJson as Map<String, dynamic>);
-      apiClient.updateHeader(
-        null,
-        addressModel.zoneIds,
-        null,
-        sharedPreferences.getString(AppConstants.languageCode),
-        null,
-        addressModel.latitude,
-        addressModel.longitude,
-      );
-        }
+      final rawAddress = sharedPreferences.getString(AppConstants.userAddress);
+      if (rawAddress != null && rawAddress.isNotEmpty) {
+        final dynamic decodedJson = jsonDecode(rawAddress);
+        final AddressModel addressModel =
+            AddressModel.fromJson(decodedJson as Map<String, dynamic>);
+        apiClient.updateHeader(
+          null,
+          addressModel.zoneIds,
+          null,
+          sharedPreferences.getString(AppConstants.languageCode),
+          null,
+          addressModel.latitude,
+          addressModel.longitude,
+        );
+      }
+    }
     return true;
   }
 
