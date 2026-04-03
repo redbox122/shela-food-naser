@@ -1,0 +1,2866 @@
+{
+  "generated_at": "2026-04-03T17:54:42.827179Z",
+  "summary": {
+    "declared_api_constants": 226,
+    "unique_paths": 220,
+    "referenced_in_lib": 181,
+    "never_referenced_anywhere": 44,
+    "referenced_only_in_tests_not_lib": 0,
+    "smoke_literal_paths_extracted": 64,
+    "referenced_in_lib_and_smoke_match": 79,
+    "referenced_in_lib_but_not_smoke": 103
+  },
+  "smoke_paths_extracted": [
+    "/api/qidha-wallet/get-wallet",
+    "/api/v1/about-us",
+    "/api/v1/advertisement/list",
+    "/api/v1/app-init",
+    "/api/v1/app/version/check",
+    "/api/v1/auth/guest/request",
+    "/api/v1/banners",
+    "/api/v1/banners/$storeId",
+    "/api/v1/bootstrap",
+    "/api/v1/brand/items",
+    "/api/v1/brands",
+    "/api/v1/cashback/list",
+    "/api/v1/categories",
+    "/api/v1/categories/popular",
+    "/api/v1/config",
+    "/api/v1/coupon/list",
+    "/api/v1/customer/address/list",
+    "/api/v1/customer/analytics/insights",
+    "/api/v1/customer/analytics/summary",
+    "/api/v1/customer/cart/add$guestParam",
+    "/api/v1/customer/cart/list",
+    "/api/v1/customer/cart/list$guestParam",
+    "/api/v1/customer/cart/remove-item?cart_id=1$guestParam",
+    "/api/v1/customer/cart/update$guestParam",
+    "/api/v1/customer/info",
+    "/api/v1/customer/loyalty-point/transactions",
+    "/api/v1/customer/message/list",
+    "/api/v1/customer/message/search-list",
+    "/api/v1/customer/notifications",
+    "/api/v1/customer/order/list",
+    "/api/v1/customer/order/running-orders",
+    "/api/v1/customer/suggested-items",
+    "/api/v1/customer/visit-again",
+    "/api/v1/customer/wallet/bonuses",
+    "/api/v1/customer/wallet/recipients",
+    "/api/v1/customer/wallet/transactions",
+    "/api/v1/customer/wish-list",
+    "/api/v1/flash-sales",
+    "/api/v1/flutter-landing-page",
+    "/api/v1/items/discounted",
+    "/api/v1/items/latest",
+    "/api/v1/items/popular",
+    "/api/v1/items/recommended",
+    "/api/v1/items/search",
+    "/api/v1/module",
+    "/api/v1/most-tips",
+    "/api/v1/offers/active",
+    "/api/v1/other-banners",
+    "/api/v1/privacy-policy",
+    "/api/v1/rental/banners",
+    "/api/v1/rental/coupon/list",
+    "/api/v1/rental/user/cart/get-cart",
+    "/api/v1/rental/user/trip/get-trip-list",
+    "/api/v1/rental/user/wish-list",
+    "/api/v1/rental/vehicle/top-rated",
+    "/api/v1/stores/details/$storeId",
+    "/api/v1/stores/details/1",
+    "/api/v1/stores/get-stores/all",
+    "/api/v1/terms-and-conditions",
+    "/api/v1/zone/list",
+    "/api/v2/checkout/store-summary",
+    "/api/v2/checkout/store-summary/$storeId",
+    "/api/v2/checkout/store-summary/1",
+    "/api/v2/home-unified"
+  ],
+  "constants_unused_in_lib": [
+    "addTaxiReviewUri",
+    "addTaxiWishListUri",
+    "addToCarCartUri",
+    "bandListUri",
+    "checkEmailUri",
+    "directionUri",
+    "getCarCartListUri",
+    "getPopularTaxiSuggestionUri",
+    "getProviderBannerUri",
+    "getProviderDetailsUri",
+    "getProviderVehicleCategoryListUri",
+    "getProviderVehicleListUri",
+    "getSearchVehicleSuggestionUri",
+    "getSelectVehiclesUri",
+    "getTaxiBannerUri",
+    "getTaxiBrandListUri",
+    "getTaxiCouponUri",
+    "getTaxiProviderReviewUri",
+    "getTaxiWishListUri",
+    "getTopRatedCarsUri",
+    "getVehicleCategoriesUri",
+    "getVehicleDetailsUri",
+    "messageUri",
+    "removeAllCarCartUri",
+    "removeCarCartUri",
+    "removeMultipleCarCartUri",
+    "removeTaxiWishListUri",
+    "runningTripUri",
+    "searchItemUri",
+    "setMenuUri",
+    "socialRegisterUri",
+    "storeSubcategoriesWithSamplesBaseUri",
+    "store_infoUri",
+    "topRatedVehiclesListUri",
+    "tripBookingUri",
+    "tripCancelUri",
+    "tripDetailsUri",
+    "tripListUri",
+    "tripPaymentUri",
+    "tripPlaceUri",
+    "tripUpdateUserDataUri",
+    "updateCarCartUri",
+    "vehicleListUri",
+    "verifyEmailUri"
+  ],
+  "constants_only_referenced_from_test": [],
+  "per_constant": [
+    {
+      "constant": "aboutUsUri",
+      "path": "/api/v1/about-us",
+      "referenced_in_lib": true,
+      "reference_count_lib": 1,
+      "locations_lib": [
+        "lib/features/html/domain/repositories/html_repository.dart:22"
+      ],
+      "locations_test": [],
+      "smoke_path_heuristic_match": true,
+      "needs_live_validation": false
+    },
+    {
+      "constant": "addAddressUri",
+      "path": "/api/v1/customer/address/add",
+      "referenced_in_lib": true,
+      "reference_count_lib": 1,
+      "locations_lib": [
+        "lib/features/address/domain/repositories/address_repository.dart:21"
+      ],
+      "locations_test": [],
+      "smoke_path_heuristic_match": false,
+      "needs_live_validation": true
+    },
+    {
+      "constant": "addCartUri",
+      "path": "/api/v1/customer/cart/add",
+      "referenced_in_lib": true,
+      "reference_count_lib": 1,
+      "locations_lib": [
+        "lib/features/cart/domain/repositories/cart_repository.dart:87"
+      ],
+      "locations_test": [],
+      "smoke_path_heuristic_match": true,
+      "needs_live_validation": false
+    },
+    {
+      "constant": "addFundUri",
+      "path": "/api/v1/customer/wallet/add-fund",
+      "referenced_in_lib": true,
+      "reference_count_lib": 1,
+      "locations_lib": [
+        "lib/features/wallet/domain/repositories/wallet_repository.dart:26"
+      ],
+      "locations_test": [],
+      "smoke_path_heuristic_match": false,
+      "needs_live_validation": true
+    },
+    {
+      "constant": "addRecipientUri",
+      "path": "/api/v1/customer/wallet/recipients/add",
+      "referenced_in_lib": true,
+      "reference_count_lib": 1,
+      "locations_lib": [
+        "lib/features/wallet_transfer/data/repositories/wallet_transfer_repository.dart:40"
+      ],
+      "locations_test": [],
+      "smoke_path_heuristic_match": true,
+      "needs_live_validation": false
+    },
+    {
+      "constant": "addTaxiReviewUri",
+      "path": "/api/v1/rental/user/review/add",
+      "referenced_in_lib": false,
+      "reference_count_lib": 0,
+      "locations_lib": [],
+      "locations_test": [],
+      "smoke_path_heuristic_match": false,
+      "needs_live_validation": false
+    },
+    {
+      "constant": "addTaxiWishListUri",
+      "path": "/api/v1/rental/user/wish-list/add",
+      "referenced_in_lib": false,
+      "reference_count_lib": 0,
+      "locations_lib": [],
+      "locations_test": [],
+      "smoke_path_heuristic_match": true,
+      "needs_live_validation": false
+    },
+    {
+      "constant": "addToCarCartUri",
+      "path": "/api/v1/rental/user/cart/add-to-cart",
+      "referenced_in_lib": false,
+      "reference_count_lib": 0,
+      "locations_lib": [],
+      "locations_test": [],
+      "smoke_path_heuristic_match": false,
+      "needs_live_validation": false
+    },
+    {
+      "constant": "addWishListUri",
+      "path": "/api/v1/customer/wish-list/add?",
+      "referenced_in_lib": true,
+      "reference_count_lib": 1,
+      "locations_lib": [
+        "lib/features/favourite/domain/repositories/favourite_repository.dart:20"
+      ],
+      "locations_test": [],
+      "smoke_path_heuristic_match": true,
+      "needs_live_validation": false
+    },
+    {
+      "constant": "addressListUri",
+      "path": "/api/v1/customer/address/list",
+      "referenced_in_lib": true,
+      "reference_count_lib": 1,
+      "locations_lib": [
+        "lib/features/address/domain/repositories/address_repository.dart:83"
+      ],
+      "locations_test": [],
+      "smoke_path_heuristic_match": true,
+      "needs_live_validation": false
+    },
+    {
+      "constant": "advertisementListUri",
+      "path": "/api/v1/advertisement/list",
+      "referenced_in_lib": true,
+      "reference_count_lib": 3,
+      "locations_lib": [
+        "lib/features/home/domain/repositories/advertisement_repository.dart:19",
+        "lib/features/home/domain/repositories/advertisement_repository.dart:23",
+        "lib/features/home/domain/repositories/advertisement_repository.dart:41"
+      ],
+      "locations_test": [],
+      "smoke_path_heuristic_match": true,
+      "needs_live_validation": false
+    },
+    {
+      "constant": "allZonesUri",
+      "path": "/api/v1/zone/list",
+      "referenced_in_lib": true,
+      "reference_count_lib": 2,
+      "locations_lib": [
+        "lib/features/location/domain/repositories/location_repository.dart:346",
+        "lib/features/location/domain/repositories/location_repository.dart:468"
+      ],
+      "locations_test": [],
+      "smoke_path_heuristic_match": true,
+      "needs_live_validation": false
+    },
+    {
+      "constant": "analyticsBaseUri",
+      "path": "/api/v1/customer/analytics",
+      "referenced_in_lib": true,
+      "reference_count_lib": 1,
+      "locations_lib": [
+        "lib/features/statistics/data/api/analytics_api_client.dart:252"
+      ],
+      "locations_test": [],
+      "smoke_path_heuristic_match": true,
+      "needs_live_validation": false
+    },
+    {
+      "constant": "analyticsCategoryBreakdownUri",
+      "path": "/api/v1/customer/analytics/category-breakdown",
+      "referenced_in_lib": true,
+      "reference_count_lib": 1,
+      "locations_lib": [
+        "lib/features/statistics/data/api/analytics_api_client.dart:181"
+      ],
+      "locations_test": [],
+      "smoke_path_heuristic_match": false,
+      "needs_live_validation": true
+    },
+    {
+      "constant": "analyticsExportUri",
+      "path": "/api/v1/customer/analytics/export",
+      "referenced_in_lib": true,
+      "reference_count_lib": 1,
+      "locations_lib": [
+        "lib/features/statistics/data/api/analytics_api_client.dart:206"
+      ],
+      "locations_test": [],
+      "smoke_path_heuristic_match": false,
+      "needs_live_validation": true
+    },
+    {
+      "constant": "analyticsInsightsUri",
+      "path": "/api/v1/customer/analytics/insights",
+      "referenced_in_lib": true,
+      "reference_count_lib": 1,
+      "locations_lib": [
+        "lib/features/statistics/data/api/analytics_api_client.dart:152"
+      ],
+      "locations_test": [],
+      "smoke_path_heuristic_match": true,
+      "needs_live_validation": false
+    },
+    {
+      "constant": "analyticsMostPurchasedProductsUri",
+      "path": "/api/v1/customer/analytics/most-purchased-products",
+      "referenced_in_lib": true,
+      "reference_count_lib": 1,
+      "locations_lib": [
+        "lib/features/statistics/data/api/analytics_api_client.dart:73"
+      ],
+      "locations_test": [],
+      "smoke_path_heuristic_match": false,
+      "needs_live_validation": true
+    },
+    {
+      "constant": "analyticsProductDetailsUri",
+      "path": "/api/v1/customer/analytics/product-details",
+      "referenced_in_lib": true,
+      "reference_count_lib": 2,
+      "locations_lib": [
+        "lib/features/statistics/data/api/analytics_api_client.dart:106",
+        "lib/features/statistics/data/api/analytics_api_client.dart:131"
+      ],
+      "locations_test": [],
+      "smoke_path_heuristic_match": false,
+      "needs_live_validation": true
+    },
+    {
+      "constant": "analyticsProductTransactionHistoryUri",
+      "path": "/api/v1/customer/analytics/product-transaction-history",
+      "referenced_in_lib": true,
+      "reference_count_lib": 1,
+      "locations_lib": [
+        "lib/features/statistics/data/api/analytics_api_client.dart:231"
+      ],
+      "locations_test": [],
+      "smoke_path_heuristic_match": false,
+      "needs_live_validation": true
+    },
+    {
+      "constant": "analyticsSpendingTrendsUri",
+      "path": "/api/v1/customer/analytics/spending-trends",
+      "referenced_in_lib": true,
+      "reference_count_lib": 1,
+      "locations_lib": [
+        "lib/features/statistics/data/api/analytics_api_client.dart:43"
+      ],
+      "locations_test": [],
+      "smoke_path_heuristic_match": false,
+      "needs_live_validation": true
+    },
+    {
+      "constant": "analyticsSummaryUri",
+      "path": "/api/v1/customer/analytics/summary",
+      "referenced_in_lib": true,
+      "reference_count_lib": 1,
+      "locations_lib": [
+        "lib/features/statistics/data/api/analytics_api_client.dart:13"
+      ],
+      "locations_test": [],
+      "smoke_path_heuristic_match": true,
+      "needs_live_validation": false
+    },
+    {
+      "constant": "appInitUri",
+      "path": "/api/v1/app-init",
+      "referenced_in_lib": true,
+      "reference_count_lib": 2,
+      "locations_lib": [
+        "lib/features/splash/domain/services/app_init_service.dart:36",
+        "lib/features/splash/domain/services/app_init_service.dart:139"
+      ],
+      "locations_test": [],
+      "smoke_path_heuristic_match": true,
+      "needs_live_validation": false
+    },
+    {
+      "constant": "appVersionCheckUri",
+      "path": "/api/v1/app/version/check",
+      "referenced_in_lib": true,
+      "reference_count_lib": 1,
+      "locations_lib": [
+        "lib/services/app_version_service.dart:16"
+      ],
+      "locations_test": [],
+      "smoke_path_heuristic_match": true,
+      "needs_live_validation": false
+    },
+    {
+      "constant": "bandListUri",
+      "path": "/api/v1/vehicles/brand/list",
+      "referenced_in_lib": false,
+      "reference_count_lib": 0,
+      "locations_lib": [],
+      "locations_test": [],
+      "smoke_path_heuristic_match": false,
+      "needs_live_validation": false
+    },
+    {
+      "constant": "bannerUri",
+      "path": "/api/v1/banners",
+      "referenced_in_lib": true,
+      "reference_count_lib": 5,
+      "locations_lib": [
+        "lib/features/banner/controllers/banner_controller.dart:497",
+        "lib/features/banner/domain/repositories/banner_repository.dart:58",
+        "lib/features/banner/domain/repositories/banner_repository.dart:62",
+        "lib/features/banner/domain/repositories/banner_repository.dart:187",
+        "lib/features/home/screens/home_screen.dart:749"
+      ],
+      "locations_test": [],
+      "smoke_path_heuristic_match": true,
+      "needs_live_validation": false
+    },
+    {
+      "constant": "basicCampaignDetailsUri",
+      "path": "/api/v1/campaigns/basic-campaign-details?basic_campaign_id=",
+      "referenced_in_lib": true,
+      "reference_count_lib": 1,
+      "locations_lib": [
+        "lib/features/item/domain/repositories/campaign_repository.dart:99"
+      ],
+      "locations_test": [],
+      "smoke_path_heuristic_match": false,
+      "needs_live_validation": true
+    },
+    {
+      "constant": "basicCampaignUri",
+      "path": "/api/v1/campaigns/basic",
+      "referenced_in_lib": true,
+      "reference_count_lib": 3,
+      "locations_lib": [
+        "lib/features/item/domain/repositories/campaign_repository.dart:34",
+        "lib/features/item/domain/repositories/campaign_repository.dart:39",
+        "lib/features/item/domain/repositories/campaign_repository.dart:66"
+      ],
+      "locations_test": [],
+      "smoke_path_heuristic_match": false,
+      "needs_live_validation": true
+    },
+    {
+      "constant": "basicMedicineUri",
+      "path": "/api/v1/items/basic",
+      "referenced_in_lib": true,
+      "reference_count_lib": 2,
+      "locations_lib": [
+        "lib/features/item/domain/repositories/item_repository.dart:23",
+        "lib/features/item/domain/repositories/item_repository.dart:28"
+      ],
+      "locations_test": [],
+      "smoke_path_heuristic_match": false,
+      "needs_live_validation": true
+    },
+    {
+      "constant": "bootstrapUri",
+      "path": "/api/v1/bootstrap",
+      "referenced_in_lib": true,
+      "reference_count_lib": 2,
+      "locations_lib": [
+        "lib/common/services/bootstrap_service.dart:79",
+        "lib/common/services/bootstrap_service.dart:286"
+      ],
+      "locations_test": [],
+      "smoke_path_heuristic_match": true,
+      "needs_live_validation": false
+    },
+    {
+      "constant": "brandFilterItemUri",
+      "path": "/api/v1/brand/items/filter",
+      "referenced_in_lib": true,
+      "reference_count_lib": 1,
+      "locations_lib": [
+        "lib/features/brands/domain/repositories/brands_repository.dart:316"
+      ],
+      "locations_test": [],
+      "smoke_path_heuristic_match": true,
+      "needs_live_validation": false
+    },
+    {
+      "constant": "brandItemUri",
+      "path": "/api/v1/brand/items",
+      "referenced_in_lib": true,
+      "reference_count_lib": 1,
+      "locations_lib": [
+        "lib/features/brands/domain/repositories/brands_repository.dart:168"
+      ],
+      "locations_test": [],
+      "smoke_path_heuristic_match": true,
+      "needs_live_validation": false
+    },
+    {
+      "constant": "brandListUri",
+      "path": "/api/v1/brands",
+      "referenced_in_lib": true,
+      "reference_count_lib": 3,
+      "locations_lib": [
+        "lib/features/brands/domain/repositories/brands_repository.dart:36",
+        "lib/features/brands/domain/repositories/brands_repository.dart:42",
+        "lib/features/brands/domain/repositories/brands_repository.dart:51"
+      ],
+      "locations_test": [],
+      "smoke_path_heuristic_match": true,
+      "needs_live_validation": false
+    },
+    {
+      "constant": "brandSearchItemUri",
+      "path": "/api/v1/brand/items/search",
+      "referenced_in_lib": true,
+      "reference_count_lib": 1,
+      "locations_lib": [
+        "lib/features/brands/domain/repositories/brands_repository.dart:240"
+      ],
+      "locations_test": [],
+      "smoke_path_heuristic_match": true,
+      "needs_live_validation": false
+    },
+    {
+      "constant": "businessPlanPaymentUri",
+      "path": "/api/v1/vendor/subscription/payment/api",
+      "referenced_in_lib": true,
+      "reference_count_lib": 1,
+      "locations_lib": [
+        "lib/features/business/domain/repositories/business_repo.dart:29"
+      ],
+      "locations_test": [],
+      "smoke_path_heuristic_match": false,
+      "needs_live_validation": true
+    },
+    {
+      "constant": "businessPlanUri",
+      "path": "/api/v1/vendor/business_plan",
+      "referenced_in_lib": true,
+      "reference_count_lib": 1,
+      "locations_lib": [
+        "lib/features/business/domain/repositories/business_repo.dart:17"
+      ],
+      "locations_test": [],
+      "smoke_path_heuristic_match": false,
+      "needs_live_validation": true
+    },
+    {
+      "constant": "business_SettingsUri",
+      "path": "/api/v1/business-settings/mobile-app-home-screen-setup",
+      "referenced_in_lib": true,
+      "reference_count_lib": 1,
+      "locations_lib": [
+        "lib/features/home/domain/repositories/home_repository.dart:37"
+      ],
+      "locations_test": [],
+      "smoke_path_heuristic_match": false,
+      "needs_live_validation": true
+    },
+    {
+      "constant": "cancellationUri",
+      "path": "/api/v1/cancelation",
+      "referenced_in_lib": true,
+      "reference_count_lib": 1,
+      "locations_lib": [
+        "lib/features/html/domain/repositories/html_repository.dart:26"
+      ],
+      "locations_test": [],
+      "smoke_path_heuristic_match": false,
+      "needs_live_validation": true
+    },
+    {
+      "constant": "cartMergeUri",
+      "path": "/cart/merge",
+      "referenced_in_lib": true,
+      "reference_count_lib": 1,
+      "locations_lib": [
+        "lib/features/cart/domain/repositories/cart_repository.dart:69"
+      ],
+      "locations_test": [],
+      "smoke_path_heuristic_match": false,
+      "needs_live_validation": true
+    },
+    {
+      "constant": "cartStoreSuggestedItemsUri",
+      "path": "/api/v1/items/suggested",
+      "referenced_in_lib": true,
+      "reference_count_lib": 1,
+      "locations_lib": [
+        "lib/features/store/domain/repositories/store_repository.dart:1506"
+      ],
+      "locations_test": [],
+      "smoke_path_heuristic_match": false,
+      "needs_live_validation": true
+    },
+    {
+      "constant": "cashBackOfferListUri",
+      "path": "/api/v1/cashback/list",
+      "referenced_in_lib": true,
+      "reference_count_lib": 1,
+      "locations_lib": [
+        "lib/features/home/domain/repositories/home_repository.dart:57"
+      ],
+      "locations_test": [],
+      "smoke_path_heuristic_match": true,
+      "needs_live_validation": false
+    },
+    {
+      "constant": "categoryItemUri",
+      "path": "/api/v1/categories/items/",
+      "referenced_in_lib": true,
+      "reference_count_lib": 2,
+      "locations_lib": [
+        "lib/features/category/domain/reposotories/category_repository.dart:442",
+        "lib/features/item/domain/repositories/item_repository.dart:347"
+      ],
+      "locations_test": [],
+      "smoke_path_heuristic_match": true,
+      "needs_live_validation": false
+    },
+    {
+      "constant": "categoryStoreUri",
+      "path": "/api/v1/categories/stores/",
+      "referenced_in_lib": true,
+      "reference_count_lib": 1,
+      "locations_lib": [
+        "lib/features/category/domain/reposotories/category_repository.dart:521"
+      ],
+      "locations_test": [],
+      "smoke_path_heuristic_match": true,
+      "needs_live_validation": false
+    },
+    {
+      "constant": "categoryUri",
+      "path": "/api/v1/categories",
+      "referenced_in_lib": true,
+      "reference_count_lib": 3,
+      "locations_lib": [
+        "lib/features/category/domain/reposotories/category_repository.dart:117",
+        "lib/features/category/domain/reposotories/category_repository.dart:149",
+        "lib/features/home/screens/home_screen.dart:762"
+      ],
+      "locations_test": [],
+      "smoke_path_heuristic_match": true,
+      "needs_live_validation": false
+    },
+    {
+      "constant": "checkEmailUri",
+      "path": "/api/v1/auth/check-email",
+      "referenced_in_lib": false,
+      "reference_count_lib": 0,
+      "locations_lib": [],
+      "locations_test": [],
+      "smoke_path_heuristic_match": false,
+      "needs_live_validation": false
+    },
+    {
+      "constant": "checkZoneUri",
+      "path": "/api/v1/zone/check",
+      "referenced_in_lib": true,
+      "reference_count_lib": 1,
+      "locations_lib": [
+        "lib/features/auth/domain/reposotories/store_registration_repository.dart:176"
+      ],
+      "locations_test": [],
+      "smoke_path_heuristic_match": false,
+      "needs_live_validation": true
+    },
+    {
+      "constant": "codSwitchUri",
+      "path": "/api/v1/customer/order/payment-method",
+      "referenced_in_lib": true,
+      "reference_count_lib": 1,
+      "locations_lib": [
+        "lib/features/order/domain/repositories/order_repository.dart:49"
+      ],
+      "locations_test": [],
+      "smoke_path_heuristic_match": false,
+      "needs_live_validation": true
+    },
+    {
+      "constant": "commonConditionUri",
+      "path": "/api/v1/common-condition",
+      "referenced_in_lib": true,
+      "reference_count_lib": 1,
+      "locations_lib": [
+        "lib/features/item/domain/repositories/item_repository.dart:295"
+      ],
+      "locations_test": [],
+      "smoke_path_heuristic_match": false,
+      "needs_live_validation": true
+    },
+    {
+      "constant": "conditionWiseItemUri",
+      "path": "/api/v1/common-condition/items/",
+      "referenced_in_lib": true,
+      "reference_count_lib": 1,
+      "locations_lib": [
+        "lib/features/item/domain/repositories/item_repository.dart:126"
+      ],
+      "locations_test": [],
+      "smoke_path_heuristic_match": false,
+      "needs_live_validation": true
+    },
+    {
+      "constant": "configUri",
+      "path": "/api/v1/config",
+      "referenced_in_lib": true,
+      "reference_count_lib": 3,
+      "locations_lib": [
+        "lib/features/splash/domain/repositories/splash_repository.dart:24",
+        "lib/features/splash/domain/repositories/splash_repository.dart:29",
+        "lib/features/splash/domain/repositories/splash_repository.dart:46"
+      ],
+      "locations_test": [],
+      "smoke_path_heuristic_match": true,
+      "needs_live_validation": false
+    },
+    {
+      "constant": "conversationListUri",
+      "path": "/api/v1/customer/message/list",
+      "referenced_in_lib": true,
+      "reference_count_lib": 1,
+      "locations_lib": [
+        "lib/features/chat/domain/repositories/chat_repository.dart:25"
+      ],
+      "locations_test": [],
+      "smoke_path_heuristic_match": true,
+      "needs_live_validation": false
+    },
+    {
+      "constant": "couponApplyUri",
+      "path": "/api/v1/coupon/apply?code=",
+      "referenced_in_lib": true,
+      "reference_count_lib": 1,
+      "locations_lib": [
+        "lib/features/my_coupon/domain/repositories/coupon_repository.dart:51"
+      ],
+      "locations_test": [],
+      "smoke_path_heuristic_match": false,
+      "needs_live_validation": true
+    },
+    {
+      "constant": "couponUri",
+      "path": "/api/v1/coupon/list",
+      "referenced_in_lib": true,
+      "reference_count_lib": 1,
+      "locations_lib": [
+        "lib/features/my_coupon/domain/repositories/coupon_repository.dart:24"
+      ],
+      "locations_test": [],
+      "smoke_path_heuristic_match": true,
+      "needs_live_validation": false
+    },
+    {
+      "constant": "customerDmCheckRegistrationUri",
+      "path": "/api/v1/customer/delivery-man/check-registration",
+      "referenced_in_lib": true,
+      "reference_count_lib": 1,
+      "locations_lib": [
+        "lib/features/auth/domain/reposotories/deliveryman_registration_repository.dart:252"
+      ],
+      "locations_test": [],
+      "smoke_path_heuristic_match": false,
+      "needs_live_validation": true
+    },
+    {
+      "constant": "customerInfoUri",
+      "path": "/api/v1/customer/info",
+      "referenced_in_lib": true,
+      "reference_count_lib": 3,
+      "locations_lib": [
+        "lib/features/home/screens/home_screen.dart:819",
+        "lib/features/profile/domain/repositories/profile_repository.dart:23",
+        "lib/features/profile/domain/repositories/profile_repository.dart:62"
+      ],
+      "locations_test": [],
+      "smoke_path_heuristic_match": true,
+      "needs_live_validation": false
+    },
+    {
+      "constant": "customerRemoveUri",
+      "path": "/api/v1/customer/remove-account",
+      "referenced_in_lib": true,
+      "reference_count_lib": 2,
+      "locations_lib": [
+        "lib/features/profile/domain/repositories/profile_repository.dart:167",
+        "lib/features/profile/domain/repositories/profile_repository.dart:178"
+      ],
+      "locations_test": [],
+      "smoke_path_heuristic_match": false,
+      "needs_live_validation": true
+    },
+    {
+      "constant": "deliveryManReviewUri",
+      "path": "/api/v1/delivery-man/reviews/submit",
+      "referenced_in_lib": true,
+      "reference_count_lib": 1,
+      "locations_lib": [
+        "lib/features/review/domain/repositories/review_repository.dart:85"
+      ],
+      "locations_test": [],
+      "smoke_path_heuristic_match": false,
+      "needs_live_validation": true
+    },
+    {
+      "constant": "directionUri",
+      "path": "/api/v1/config/direction-api",
+      "referenced_in_lib": false,
+      "reference_count_lib": 0,
+      "locations_lib": [],
+      "locations_test": [],
+      "smoke_path_heuristic_match": true,
+      "needs_live_validation": false
+    },
+    {
+      "constant": "discountedItemsUri",
+      "path": "/api/v1/items/discounted",
+      "referenced_in_lib": true,
+      "reference_count_lib": 2,
+      "locations_lib": [
+        "lib/features/item/domain/repositories/item_repository.dart:310",
+        "lib/features/item/domain/repositories/item_repository.dart:315"
+      ],
+      "locations_test": [],
+      "smoke_path_heuristic_match": true,
+      "needs_live_validation": false
+    },
+    {
+      "constant": "distanceMatrixUri",
+      "path": "/api/v1/config/distance-api",
+      "referenced_in_lib": true,
+      "reference_count_lib": 1,
+      "locations_lib": [
+        "lib/features/checkout/domain/repositories/checkout_repository.dart:52"
+      ],
+      "locations_test": [],
+      "smoke_path_heuristic_match": true,
+      "needs_live_validation": false
+    },
+    {
+      "constant": "dmCheckRegistrationUri",
+      "path": "/api/v1/auth/delivery-man/check-registration",
+      "referenced_in_lib": true,
+      "reference_count_lib": 1,
+      "locations_lib": [
+        "lib/features/auth/domain/reposotories/deliveryman_registration_repository.dart:264"
+      ],
+      "locations_test": [],
+      "smoke_path_heuristic_match": false,
+      "needs_live_validation": true
+    },
+    {
+      "constant": "dmRegisterUri",
+      "path": "/api/v1/auth/delivery-man/store",
+      "referenced_in_lib": true,
+      "reference_count_lib": 1,
+      "locations_lib": [
+        "lib/features/auth/domain/reposotories/deliveryman_registration_repository.dart:43"
+      ],
+      "locations_test": [],
+      "smoke_path_heuristic_match": false,
+      "needs_live_validation": true
+    },
+    {
+      "constant": "editOrderAddressUri",
+      "path": "/api/v1/customer/order/edit-address",
+      "referenced_in_lib": true,
+      "reference_count_lib": 1,
+      "locations_lib": [
+        "lib/features/checkout/domain/repositories/checkout_repository.dart:755"
+      ],
+      "locations_test": [],
+      "smoke_path_heuristic_match": false,
+      "needs_live_validation": true
+    },
+    {
+      "constant": "exchangeWalletMoney",
+      "path": "/api/v1/customer/ExchangeWalletMoney",
+      "referenced_in_lib": true,
+      "reference_count_lib": 1,
+      "locations_lib": [
+        "lib/features/wallet/domain/repositories/wallet_repository.dart:250"
+      ],
+      "locations_test": [],
+      "smoke_path_heuristic_match": false,
+      "needs_live_validation": true
+    },
+    {
+      "constant": "featuredCategoriesItemsUri",
+      "path": "/api/v1/categories/featured/items",
+      "referenced_in_lib": true,
+      "reference_count_lib": 2,
+      "locations_lib": [
+        "lib/features/item/domain/repositories/item_repository.dart:235",
+        "lib/features/item/domain/repositories/item_repository.dart:240"
+      ],
+      "locations_test": [],
+      "smoke_path_heuristic_match": true,
+      "needs_live_validation": false
+    },
+    {
+      "constant": "firebaseAuthVerify",
+      "path": "/api/v1/auth/firebase-verify-token",
+      "referenced_in_lib": true,
+      "reference_count_lib": 2,
+      "locations_lib": [
+        "lib/features/verification/domein/reposotories/verification_repository.dart:98",
+        "lib/features/verification/domein/reposotories/verification_repository.dart:129"
+      ],
+      "locations_test": [],
+      "smoke_path_heuristic_match": false,
+      "needs_live_validation": true
+    },
+    {
+      "constant": "firebaseResetPassword",
+      "path": "/api/v1/auth/firebase-reset-password",
+      "referenced_in_lib": true,
+      "reference_count_lib": 1,
+      "locations_lib": [
+        "lib/features/verification/domein/reposotories/verification_repository.dart:146"
+      ],
+      "locations_test": [],
+      "smoke_path_heuristic_match": false,
+      "needs_live_validation": true
+    },
+    {
+      "constant": "flashSaleProductsUri",
+      "path": "/api/v1/flash-sales/items",
+      "referenced_in_lib": true,
+      "reference_count_lib": 1,
+      "locations_lib": [
+        "lib/features/flash_sale/domain/repositories/flash_sale_repository.dart:43"
+      ],
+      "locations_test": [],
+      "smoke_path_heuristic_match": true,
+      "needs_live_validation": false
+    },
+    {
+      "constant": "flashSaleUri",
+      "path": "/api/v1/flash-sales",
+      "referenced_in_lib": true,
+      "reference_count_lib": 2,
+      "locations_lib": [
+        "lib/features/flash_sale/domain/repositories/flash_sale_repository.dart:20",
+        "lib/features/flash_sale/domain/repositories/flash_sale_repository.dart:24"
+      ],
+      "locations_test": [],
+      "smoke_path_heuristic_match": true,
+      "needs_live_validation": false
+    },
+    {
+      "constant": "forgetPasswordUri",
+      "path": "/api/v1/auth/forgot-password",
+      "referenced_in_lib": true,
+      "reference_count_lib": 1,
+      "locations_lib": [
+        "lib/features/verification/domein/reposotories/verification_repository.dart:39"
+      ],
+      "locations_test": [],
+      "smoke_path_heuristic_match": false,
+      "needs_live_validation": true
+    },
+    {
+      "constant": "geocodeUri",
+      "path": "/api/v1/config/geocode-api",
+      "referenced_in_lib": true,
+      "reference_count_lib": 1,
+      "locations_lib": [
+        "lib/features/location/domain/repositories/location_repository.dart:98"
+      ],
+      "locations_test": [],
+      "smoke_path_heuristic_match": true,
+      "needs_live_validation": false
+    },
+    {
+      "constant": "getCarCartListUri",
+      "path": "/api/v1/rental/user/cart/get-cart",
+      "referenced_in_lib": false,
+      "reference_count_lib": 0,
+      "locations_lib": [],
+      "locations_test": [],
+      "smoke_path_heuristic_match": true,
+      "needs_live_validation": false
+    },
+    {
+      "constant": "getCartListUri",
+      "path": "/api/v1/customer/cart/list",
+      "referenced_in_lib": true,
+      "reference_count_lib": 1,
+      "locations_lib": [
+        "lib/features/cart/domain/repositories/cart_repository.dart:207"
+      ],
+      "locations_test": [],
+      "smoke_path_heuristic_match": true,
+      "needs_live_validation": false
+    },
+    {
+      "constant": "getCashBackAmountUri",
+      "path": "/api/v1/cashback/getCashback",
+      "referenced_in_lib": true,
+      "reference_count_lib": 1,
+      "locations_lib": [
+        "lib/features/home/domain/repositories/home_repository.dart:76"
+      ],
+      "locations_test": [],
+      "smoke_path_heuristic_match": false,
+      "needs_live_validation": true
+    },
+    {
+      "constant": "getPopularTaxiSuggestionUri",
+      "path": "/api/v1/rental/vehicle/popular-suggestion/",
+      "referenced_in_lib": false,
+      "reference_count_lib": 0,
+      "locations_lib": [],
+      "locations_test": [],
+      "smoke_path_heuristic_match": false,
+      "needs_live_validation": false
+    },
+    {
+      "constant": "getProviderBannerUri",
+      "path": "/api/v1/rental/banners",
+      "referenced_in_lib": false,
+      "reference_count_lib": 0,
+      "locations_lib": [],
+      "locations_test": [],
+      "smoke_path_heuristic_match": true,
+      "needs_live_validation": false
+    },
+    {
+      "constant": "getProviderDetailsUri",
+      "path": "/api/v1/rental/provider/get-provider-details",
+      "referenced_in_lib": false,
+      "reference_count_lib": 0,
+      "locations_lib": [],
+      "locations_test": [],
+      "smoke_path_heuristic_match": false,
+      "needs_live_validation": false
+    },
+    {
+      "constant": "getProviderVehicleCategoryListUri",
+      "path": "/api/v1/rental/vehicle/category-list",
+      "referenced_in_lib": false,
+      "reference_count_lib": 0,
+      "locations_lib": [],
+      "locations_test": [],
+      "smoke_path_heuristic_match": false,
+      "needs_live_validation": false
+    },
+    {
+      "constant": "getProviderVehicleListUri",
+      "path": "/api/v1/rental/vehicle/get-provider-vehicles",
+      "referenced_in_lib": false,
+      "reference_count_lib": 0,
+      "locations_lib": [],
+      "locations_test": [],
+      "smoke_path_heuristic_match": false,
+      "needs_live_validation": false
+    },
+    {
+      "constant": "getSearchVehicleSuggestionUri",
+      "path": "/api/v1/rental/vehicle/search/suggestion",
+      "referenced_in_lib": false,
+      "reference_count_lib": 0,
+      "locations_lib": [],
+      "locations_test": [],
+      "smoke_path_heuristic_match": false,
+      "needs_live_validation": false
+    },
+    {
+      "constant": "getSelectVehiclesUri",
+      "path": "/api/v1/rental/vehicle/search/",
+      "referenced_in_lib": false,
+      "reference_count_lib": 0,
+      "locations_lib": [],
+      "locations_test": [],
+      "smoke_path_heuristic_match": false,
+      "needs_live_validation": false
+    },
+    {
+      "constant": "getTaxiBannerUri",
+      "path": "/api/v1/rental/banners",
+      "referenced_in_lib": false,
+      "reference_count_lib": 0,
+      "locations_lib": [],
+      "locations_test": [],
+      "smoke_path_heuristic_match": true,
+      "needs_live_validation": false
+    },
+    {
+      "constant": "getTaxiBrandListUri",
+      "path": "/api/v1/rental/vehicle/brand-list",
+      "referenced_in_lib": false,
+      "reference_count_lib": 0,
+      "locations_lib": [],
+      "locations_test": [],
+      "smoke_path_heuristic_match": false,
+      "needs_live_validation": false
+    },
+    {
+      "constant": "getTaxiCouponUri",
+      "path": "/api/v1/rental/coupon/list",
+      "referenced_in_lib": false,
+      "reference_count_lib": 0,
+      "locations_lib": [],
+      "locations_test": [],
+      "smoke_path_heuristic_match": true,
+      "needs_live_validation": false
+    },
+    {
+      "constant": "getTaxiProviderReviewUri",
+      "path": "/api/v1/rental/provider/get-provider-reviews",
+      "referenced_in_lib": false,
+      "reference_count_lib": 0,
+      "locations_lib": [],
+      "locations_test": [],
+      "smoke_path_heuristic_match": false,
+      "needs_live_validation": false
+    },
+    {
+      "constant": "getTaxiWishListUri",
+      "path": "/api/v1/rental/user/wish-list",
+      "referenced_in_lib": false,
+      "reference_count_lib": 0,
+      "locations_lib": [],
+      "locations_test": [],
+      "smoke_path_heuristic_match": true,
+      "needs_live_validation": false
+    },
+    {
+      "constant": "getTopRatedCarsUri",
+      "path": "/api/v1/rental/vehicle/top-rated",
+      "referenced_in_lib": false,
+      "reference_count_lib": 0,
+      "locations_lib": [],
+      "locations_test": [],
+      "smoke_path_heuristic_match": true,
+      "needs_live_validation": false
+    },
+    {
+      "constant": "getVehicleCategoriesUri",
+      "path": "/api/v1/rental/vehicle/category-list",
+      "referenced_in_lib": false,
+      "reference_count_lib": 0,
+      "locations_lib": [],
+      "locations_test": [],
+      "smoke_path_heuristic_match": false,
+      "needs_live_validation": false
+    },
+    {
+      "constant": "getVehicleDetailsUri",
+      "path": "/api/v1/rental/vehicle/get-vehicle-details",
+      "referenced_in_lib": false,
+      "reference_count_lib": 0,
+      "locations_lib": [],
+      "locations_test": [],
+      "smoke_path_heuristic_match": false,
+      "needs_live_validation": false
+    },
+    {
+      "constant": "get_delegateUri",
+      "path": "/api/v1/customer/delegate/get-delegate-status",
+      "referenced_in_lib": true,
+      "reference_count_lib": 1,
+      "locations_lib": [
+        "lib/features/add_delegate/domain/reposotories/delegate_repository.dart:33"
+      ],
+      "locations_test": [],
+      "smoke_path_heuristic_match": false,
+      "needs_live_validation": true
+    },
+    {
+      "constant": "get_walletUri",
+      "path": "/api/qidha-wallet/get-wallet",
+      "referenced_in_lib": true,
+      "reference_count_lib": 7,
+      "locations_lib": [
+        "lib/features/wallet_kaidha_subscription/controllers/kaidhaSub_controller.dart:992",
+        "lib/features/wallet_kaidha_subscription/controllers/kaidhaSub_controller.dart:1118",
+        "lib/features/wallet_kaidha_subscription/domain/reposotories/kaidhaSub_repository.dart:248",
+        "lib/features/wallet_kaidha_subscription/domain/reposotories/kaidhaSub_repository.dart:301",
+        "lib/features/wallet_kaidha_subscription/domain/reposotories/kaidhaSub_repository.dart:305",
+        "lib/features/wallet_kaidha_subscription/domain/reposotories/kaidhaSub_repository.dart:342",
+        "lib/features/wallet_kaidha_subscription/domain/reposotories/kaidhaSub_repository.dart:350"
+      ],
+      "locations_test": [],
+      "smoke_path_heuristic_match": true,
+      "needs_live_validation": false
+    },
+    {
+      "constant": "guestLoginUri",
+      "path": "/api/v1/auth/guest/request",
+      "referenced_in_lib": true,
+      "reference_count_lib": 1,
+      "locations_lib": [
+        "lib/features/auth/domain/reposotories/auth_repository.dart:135"
+      ],
+      "locations_test": [],
+      "smoke_path_heuristic_match": true,
+      "needs_live_validation": false
+    },
+    {
+      "constant": "historyOrderListUri",
+      "path": "/api/v1/customer/order/list",
+      "referenced_in_lib": true,
+      "reference_count_lib": 1,
+      "locations_lib": [
+        "lib/features/order/domain/repositories/order_repository.dart:179"
+      ],
+      "locations_test": [],
+      "smoke_path_heuristic_match": true,
+      "needs_live_validation": false
+    },
+    {
+      "constant": "homeUnifiedUri",
+      "path": "/api/v2/home-unified",
+      "referenced_in_lib": true,
+      "reference_count_lib": 3,
+      "locations_lib": [
+        "lib/features/home/domain/services/home_unified_service.dart:189",
+        "lib/features/home/domain/services/home_unified_service.dart:443",
+        "lib/features/home/screens/home_screen.dart:720"
+      ],
+      "locations_test": [],
+      "smoke_path_heuristic_match": true,
+      "needs_live_validation": false
+    },
+    {
+      "constant": "interestUri",
+      "path": "/api/v1/customer/update-interest",
+      "referenced_in_lib": true,
+      "reference_count_lib": 1,
+      "locations_lib": [
+        "lib/features/category/domain/reposotories/category_repository.dart:588"
+      ],
+      "locations_test": [],
+      "smoke_path_heuristic_match": false,
+      "needs_live_validation": true
+    },
+    {
+      "constant": "itemCampaignUri",
+      "path": "/api/v1/campaigns/item",
+      "referenced_in_lib": true,
+      "reference_count_lib": 1,
+      "locations_lib": [
+        "lib/features/item/domain/repositories/campaign_repository.dart:71"
+      ],
+      "locations_test": [],
+      "smoke_path_heuristic_match": false,
+      "needs_live_validation": true
+    },
+    {
+      "constant": "itemDetailsUri",
+      "path": "/api/v1/items/details/",
+      "referenced_in_lib": true,
+      "reference_count_lib": 1,
+      "locations_lib": [
+        "lib/features/item/domain/repositories/item_repository.dart:90"
+      ],
+      "locations_test": [],
+      "smoke_path_heuristic_match": false,
+      "needs_live_validation": true
+    },
+    {
+      "constant": "itemSearchUri",
+      "path": "/api/v1/items/search",
+      "referenced_in_lib": true,
+      "reference_count_lib": 1,
+      "locations_lib": [
+        "lib/features/item/domain/repositories/item_repository.dart:413"
+      ],
+      "locations_test": [],
+      "smoke_path_heuristic_match": true,
+      "needs_live_validation": false
+    },
+    {
+      "constant": "landingPageUri",
+      "path": "/api/v1/flutter-landing-page",
+      "referenced_in_lib": true,
+      "reference_count_lib": 2,
+      "locations_lib": [
+        "lib/features/splash/domain/repositories/splash_repository.dart:76",
+        "lib/features/splash/domain/repositories/splash_repository.dart:81"
+      ],
+      "locations_test": [],
+      "smoke_path_heuristic_match": true,
+      "needs_live_validation": false
+    },
+    {
+      "constant": "lastLocationUri",
+      "path": "/api/v1/delivery-man/last-location?order_id=",
+      "referenced_in_lib": true,
+      "reference_count_lib": 1,
+      "locations_lib": [
+        "lib/features/location/domain/repositories/location_repository.dart:301"
+      ],
+      "locations_test": [],
+      "smoke_path_heuristic_match": false,
+      "needs_live_validation": true
+    },
+    {
+      "constant": "latestStoreUri",
+      "path": "/api/v1/stores/latest",
+      "referenced_in_lib": true,
+      "reference_count_lib": 2,
+      "locations_lib": [
+        "lib/features/store/domain/repositories/store_repository.dart:823",
+        "lib/features/store/domain/repositories/store_repository.dart:828"
+      ],
+      "locations_test": [],
+      "smoke_path_heuristic_match": false,
+      "needs_live_validation": true
+    },
+    {
+      "constant": "loginUri",
+      "path": "/api/v1/auth/customer-login",
+      "referenced_in_lib": true,
+      "reference_count_lib": 2,
+      "locations_lib": [
+        "lib/features/auth/domain/reposotories/auth_repository.dart:83",
+        "lib/features/auth/domain/reposotories/auth_repository.dart:192"
+      ],
+      "locations_test": [],
+      "smoke_path_heuristic_match": false,
+      "needs_live_validation": true
+    },
+    {
+      "constant": "loyaltyPointTransferUri",
+      "path": "/api/v1/customer/loyalty-point/point-transfer",
+      "referenced_in_lib": true,
+      "reference_count_lib": 1,
+      "locations_lib": [
+        "lib/features/loyalty/domain/repositories/loyalty_repository.dart:17"
+      ],
+      "locations_test": [],
+      "smoke_path_heuristic_match": false,
+      "needs_live_validation": true
+    },
+    {
+      "constant": "loyaltyTransactionUri",
+      "path": "/api/v1/customer/loyalty-point/transactions",
+      "referenced_in_lib": true,
+      "reference_count_lib": 1,
+      "locations_lib": [
+        "lib/features/loyalty/domain/repositories/loyalty_repository.dart:41"
+      ],
+      "locations_test": [],
+      "smoke_path_heuristic_match": true,
+      "needs_live_validation": false
+    },
+    {
+      "constant": "messageListUri",
+      "path": "/api/v1/customer/message/details",
+      "referenced_in_lib": true,
+      "reference_count_lib": 1,
+      "locations_lib": [
+        "lib/features/chat/domain/repositories/chat_repository.dart:43"
+      ],
+      "locations_test": [],
+      "smoke_path_heuristic_match": false,
+      "needs_live_validation": true
+    },
+    {
+      "constant": "messageUri",
+      "path": "/api/v1/customer/message/get",
+      "referenced_in_lib": false,
+      "reference_count_lib": 0,
+      "locations_lib": [],
+      "locations_test": [],
+      "smoke_path_heuristic_match": false,
+      "needs_live_validation": false
+    },
+    {
+      "constant": "moduleUri",
+      "path": "/api/v1/module",
+      "referenced_in_lib": true,
+      "reference_count_lib": 4,
+      "locations_lib": [
+        "lib/features/auth/domain/reposotories/deliveryman_registration_repository.dart:147",
+        "lib/features/splash/domain/repositories/splash_repository.dart:199",
+        "lib/features/splash/domain/repositories/splash_repository.dart:204",
+        "lib/features/splash/domain/repositories/splash_repository.dart:251"
+      ],
+      "locations_test": [],
+      "smoke_path_heuristic_match": true,
+      "needs_live_validation": false
+    },
+    {
+      "constant": "mostTipsUri",
+      "path": "/api/v1/most-tips",
+      "referenced_in_lib": true,
+      "reference_count_lib": 1,
+      "locations_lib": [
+        "lib/features/checkout/domain/repositories/checkout_repository.dart:31"
+      ],
+      "locations_test": [],
+      "smoke_path_heuristic_match": true,
+      "needs_live_validation": false
+    },
+    {
+      "constant": "nafath_cancelUri",
+      "path": "/api/qidha-wallet/nafath/cancel",
+      "referenced_in_lib": true,
+      "reference_count_lib": 2,
+      "locations_lib": [
+        "lib/features/wallet_kaidha_subscription/domain/reposotories/kaidhaSub_repository.dart:731",
+        "lib/features/wallet_kaidha_subscription/domain/reposotories/kaidhaSub_repository.dart:742"
+      ],
+      "locations_test": [],
+      "smoke_path_heuristic_match": false,
+      "needs_live_validation": true
+    },
+    {
+      "constant": "nafath_checkStatusUri",
+      "path": "/api/qidha-wallet/nafath/checkStatus",
+      "referenced_in_lib": true,
+      "reference_count_lib": 2,
+      "locations_lib": [
+        "lib/features/wallet_kaidha_subscription/domain/reposotories/kaidhaSub_repository.dart:635",
+        "lib/features/wallet_kaidha_subscription/domain/reposotories/kaidhaSub_repository.dart:646"
+      ],
+      "locations_test": [],
+      "smoke_path_heuristic_match": false,
+      "needs_live_validation": true
+    },
+    {
+      "constant": "nafath_initiateUri",
+      "path": "/api/qidha-wallet/nafath/initiate",
+      "referenced_in_lib": true,
+      "reference_count_lib": 2,
+      "locations_lib": [
+        "lib/features/wallet_kaidha_subscription/domain/reposotories/kaidhaSub_repository.dart:683",
+        "lib/features/wallet_kaidha_subscription/domain/reposotories/kaidhaSub_repository.dart:694"
+      ],
+      "locations_test": [],
+      "smoke_path_heuristic_match": false,
+      "needs_live_validation": true
+    },
+    {
+      "constant": "nafath_retryUri",
+      "path": "/api/qidha-wallet/nafath/retry",
+      "referenced_in_lib": true,
+      "reference_count_lib": 2,
+      "locations_lib": [
+        "lib/features/wallet_kaidha_subscription/domain/reposotories/kaidhaSub_repository.dart:775",
+        "lib/features/wallet_kaidha_subscription/domain/reposotories/kaidhaSub_repository.dart:786"
+      ],
+      "locations_test": [],
+      "smoke_path_heuristic_match": false,
+      "needs_live_validation": true
+    },
+    {
+      "constant": "nafath_signUri",
+      "path": "/api/qidha-wallet/nafath/sign",
+      "referenced_in_lib": true,
+      "reference_count_lib": 2,
+      "locations_lib": [
+        "lib/features/wallet_kaidha_subscription/domain/reposotories/kaidhaSub_repository.dart:827",
+        "lib/features/wallet_kaidha_subscription/domain/reposotories/kaidhaSub_repository.dart:838"
+      ],
+      "locations_test": [],
+      "smoke_path_heuristic_match": false,
+      "needs_live_validation": true
+    },
+    {
+      "constant": "notificationUri",
+      "path": "/api/v1/customer/notifications",
+      "referenced_in_lib": true,
+      "reference_count_lib": 1,
+      "locations_lib": [
+        "lib/features/notification/domain/repository/notification_repository.dart:23"
+      ],
+      "locations_test": [],
+      "smoke_path_heuristic_match": true,
+      "needs_live_validation": false
+    },
+    {
+      "constant": "offersItemUri",
+      "path": "/api/v1/offers/",
+      "referenced_in_lib": true,
+      "reference_count_lib": 3,
+      "locations_lib": [
+        "lib/features/offers/domain/reposotories/offers_repository.dart:256",
+        "lib/features/offers/domain/reposotories/offers_repository.dart:330",
+        "lib/features/offers/domain/reposotories/offers_repository.dart:399"
+      ],
+      "locations_test": [],
+      "smoke_path_heuristic_match": true,
+      "needs_live_validation": false
+    },
+    {
+      "constant": "offersUri",
+      "path": "/api/v1/offers/active",
+      "referenced_in_lib": true,
+      "reference_count_lib": 4,
+      "locations_lib": [
+        "lib/features/home/screens/home_screen.dart:804",
+        "lib/features/offers/domain/reposotories/offers_repository.dart:52",
+        "lib/features/offers/domain/reposotories/offers_repository.dart:139",
+        "lib/features/offers/domain/reposotories/offers_repository.dart:144"
+      ],
+      "locations_test": [],
+      "smoke_path_heuristic_match": true,
+      "needs_live_validation": false
+    },
+    {
+      "constant": "offlineMethodListUri",
+      "path": "/api/v1/offline_payment_method_list",
+      "referenced_in_lib": true,
+      "reference_count_lib": 2,
+      "locations_lib": [
+        "lib/features/checkout/domain/repositories/checkout_repository.dart:785",
+        "lib/features/payment/domain/repositories/payement_repository.dart:37"
+      ],
+      "locations_test": [],
+      "smoke_path_heuristic_match": false,
+      "needs_live_validation": true
+    },
+    {
+      "constant": "offlinePaymentSaveInfoUri",
+      "path": "/api/v1/customer/order/offline-payment",
+      "referenced_in_lib": true,
+      "reference_count_lib": 1,
+      "locations_lib": [
+        "lib/features/payment/domain/repositories/payement_repository.dart:49"
+      ],
+      "locations_test": [],
+      "smoke_path_heuristic_match": false,
+      "needs_live_validation": true
+    },
+    {
+      "constant": "offlinePaymentUpdateInfoUri",
+      "path": "/api/v1/customer/order/offline-payment-update",
+      "referenced_in_lib": true,
+      "reference_count_lib": 1,
+      "locations_lib": [
+        "lib/features/payment/domain/repositories/payement_repository.dart:55"
+      ],
+      "locations_test": [],
+      "smoke_path_heuristic_match": false,
+      "needs_live_validation": true
+    },
+    {
+      "constant": "orderCancelUri",
+      "path": "/api/v1/customer/order/cancel",
+      "referenced_in_lib": true,
+      "reference_count_lib": 2,
+      "locations_lib": [
+        "lib/features/order/domain/repositories/order_repository.dart:59",
+        "lib/features/order/domain/repositories/order_repository.dart:60"
+      ],
+      "locations_test": [],
+      "smoke_path_heuristic_match": false,
+      "needs_live_validation": true
+    },
+    {
+      "constant": "orderCancellationUri",
+      "path": "/api/v1/customer/order/cancellation-reasons",
+      "referenced_in_lib": true,
+      "reference_count_lib": 1,
+      "locations_lib": [
+        "lib/features/order/domain/repositories/order_repository.dart:195"
+      ],
+      "locations_test": [],
+      "smoke_path_heuristic_match": false,
+      "needs_live_validation": true
+    },
+    {
+      "constant": "orderDetailsUri",
+      "path": "/api/v1/customer/order/details?order_id=",
+      "referenced_in_lib": true,
+      "reference_count_lib": 1,
+      "locations_lib": [
+        "lib/features/order/domain/repositories/order_repository.dart:120"
+      ],
+      "locations_test": [],
+      "smoke_path_heuristic_match": false,
+      "needs_live_validation": true
+    },
+    {
+      "constant": "parcelCategoryUri",
+      "path": "/api/v1/parcel-category",
+      "referenced_in_lib": true,
+      "reference_count_lib": 1,
+      "locations_lib": [
+        "lib/features/parcel/domain/repositories/parcel_repository.dart:95"
+      ],
+      "locations_test": [],
+      "smoke_path_heuristic_match": false,
+      "needs_live_validation": true
+    },
+    {
+      "constant": "parcelInstructionUri",
+      "path": "/api/v1/customer/order/parcel-instructions",
+      "referenced_in_lib": true,
+      "reference_count_lib": 1,
+      "locations_lib": [
+        "lib/features/parcel/domain/repositories/parcel_repository.dart:107"
+      ],
+      "locations_test": [],
+      "smoke_path_heuristic_match": false,
+      "needs_live_validation": true
+    },
+    {
+      "constant": "parcelOtherBannerUri",
+      "path": "/api/v1/other-banners",
+      "referenced_in_lib": true,
+      "reference_count_lib": 1,
+      "locations_lib": [
+        "lib/features/banner/domain/repositories/banner_repository.dart:279"
+      ],
+      "locations_test": [],
+      "smoke_path_heuristic_match": true,
+      "needs_live_validation": false
+    },
+    {
+      "constant": "pay_creditUri",
+      "path": "/api/qidha-wallet/credit",
+      "referenced_in_lib": true,
+      "reference_count_lib": 1,
+      "locations_lib": [
+        "lib/features/wallet_kaidha_subscription/domain/reposotories/kaidhaSub_repository.dart:578"
+      ],
+      "locations_test": [],
+      "smoke_path_heuristic_match": false,
+      "needs_live_validation": true
+    },
+    {
+      "constant": "pay_debitUri",
+      "path": "/api/qidha-wallet/debit",
+      "referenced_in_lib": true,
+      "reference_count_lib": 1,
+      "locations_lib": [
+        "lib/features/wallet_kaidha_subscription/domain/reposotories/kaidhaSub_repository.dart:607"
+      ],
+      "locations_test": [],
+      "smoke_path_heuristic_match": false,
+      "needs_live_validation": true
+    },
+    {
+      "constant": "personalInformationUri",
+      "path": "/api/v1/auth/update-info",
+      "referenced_in_lib": true,
+      "reference_count_lib": 1,
+      "locations_lib": [
+        "lib/features/auth/domain/reposotories/auth_repository.dart:175"
+      ],
+      "locations_test": [],
+      "smoke_path_heuristic_match": false,
+      "needs_live_validation": true
+    },
+    {
+      "constant": "placeDetailsUri",
+      "path": "/api/v1/config/place-api-details",
+      "referenced_in_lib": true,
+      "reference_count_lib": 2,
+      "locations_lib": [
+        "lib/features/location/domain/repositories/location_repository.dart:330",
+        "lib/features/parcel/domain/repositories/parcel_repository.dart:20"
+      ],
+      "locations_test": [],
+      "smoke_path_heuristic_match": false,
+      "needs_live_validation": true
+    },
+    {
+      "constant": "placeOrderUri",
+      "path": "/api/v1/customer/order/place",
+      "referenced_in_lib": true,
+      "reference_count_lib": 4,
+      "locations_lib": [
+        "lib/features/checkout/domain/repositories/checkout_repository.dart:334",
+        "lib/features/checkout/domain/repositories/checkout_repository.dart:529",
+        "lib/features/checkout/domain/repositories/checkout_repository.dart:532",
+        "lib/features/checkout/domain/repositories/checkout_repository.dart:537"
+      ],
+      "locations_test": [],
+      "smoke_path_heuristic_match": false,
+      "needs_live_validation": true
+    },
+    {
+      "constant": "placePrescriptionOrderUri",
+      "path": "/api/v1/customer/order/prescription/place",
+      "referenced_in_lib": true,
+      "reference_count_lib": 3,
+      "locations_lib": [
+        "lib/features/checkout/domain/repositories/checkout_repository.dart:336",
+        "lib/features/checkout/domain/repositories/checkout_repository.dart:372",
+        "lib/features/checkout/domain/repositories/checkout_repository.dart:673"
+      ],
+      "locations_test": [],
+      "smoke_path_heuristic_match": false,
+      "needs_live_validation": true
+    },
+    {
+      "constant": "popularItemUri",
+      "path": "/api/v1/items/popular",
+      "referenced_in_lib": true,
+      "reference_count_lib": 2,
+      "locations_lib": [
+        "lib/features/item/domain/repositories/item_repository.dart:175",
+        "lib/features/item/domain/repositories/item_repository.dart:180"
+      ],
+      "locations_test": [],
+      "smoke_path_heuristic_match": true,
+      "needs_live_validation": false
+    },
+    {
+      "constant": "popularStoreUri",
+      "path": "/api/v1/stores/popular",
+      "referenced_in_lib": true,
+      "reference_count_lib": 3,
+      "locations_lib": [
+        "lib/features/store/domain/repositories/store_repository.dart:707",
+        "lib/features/store/domain/repositories/store_repository.dart:713",
+        "lib/features/store/domain/repositories/store_repository.dart:729"
+      ],
+      "locations_test": [],
+      "smoke_path_heuristic_match": false,
+      "needs_live_validation": true
+    },
+    {
+      "constant": "privacyPolicyUri",
+      "path": "/api/v1/privacy-policy",
+      "referenced_in_lib": true,
+      "reference_count_lib": 1,
+      "locations_lib": [
+        "lib/features/html/domain/repositories/html_repository.dart:20"
+      ],
+      "locations_test": [],
+      "smoke_path_heuristic_match": true,
+      "needs_live_validation": false
+    },
+    {
+      "constant": "processPaymentUri",
+      "path": "/api/v1/customer/order/process-payment",
+      "referenced_in_lib": true,
+      "reference_count_lib": 1,
+      "locations_lib": [
+        "lib/features/checkout/domain/repositories/checkout_repository.dart:713"
+      ],
+      "locations_test": [],
+      "smoke_path_heuristic_match": false,
+      "needs_live_validation": true
+    },
+    {
+      "constant": "promotionalBannerUri",
+      "path": "/api/v1/other-banners",
+      "referenced_in_lib": true,
+      "reference_count_lib": 4,
+      "locations_lib": [
+        "lib/features/banner/controllers/banner_controller.dart:500",
+        "lib/features/banner/domain/repositories/banner_repository.dart:289",
+        "lib/features/banner/domain/repositories/banner_repository.dart:298",
+        "lib/features/banner/domain/repositories/banner_repository.dart:300"
+      ],
+      "locations_test": [],
+      "smoke_path_heuristic_match": true,
+      "needs_live_validation": false
+    },
+    {
+      "constant": "qidhaWalletBaseUri",
+      "path": "/api/qidha-wallet",
+      "referenced_in_lib": true,
+      "reference_count_lib": 7,
+      "locations_lib": [
+        "lib/features/statistics/data/api/qidha_wallet_api_client.dart:19",
+        "lib/features/statistics/data/api/qidha_wallet_api_client.dart:55",
+        "lib/features/statistics/data/api/qidha_wallet_api_client.dart:86",
+        "lib/features/statistics/data/api/qidha_wallet_api_client.dart:120",
+        "lib/features/statistics/data/api/qidha_wallet_api_client.dart:156",
+        "lib/features/statistics/data/api/qidha_wallet_api_client.dart:186",
+        "lib/features/statistics/data/api/qidha_wallet_api_client.dart:212"
+      ],
+      "locations_test": [],
+      "smoke_path_heuristic_match": true,
+      "needs_live_validation": false
+    },
+    {
+      "constant": "recommendedItemsUri",
+      "path": "/api/v1/items/recommended?filter=",
+      "referenced_in_lib": true,
+      "reference_count_lib": 2,
+      "locations_lib": [
+        "lib/features/item/domain/repositories/item_repository.dart:264",
+        "lib/features/item/domain/repositories/item_repository.dart:269"
+      ],
+      "locations_test": [],
+      "smoke_path_heuristic_match": true,
+      "needs_live_validation": false
+    },
+    {
+      "constant": "recommendedStoreUri",
+      "path": "/api/v1/stores/recommended",
+      "referenced_in_lib": true,
+      "reference_count_lib": 1,
+      "locations_lib": [
+        "lib/features/store/domain/repositories/store_repository.dart:1542"
+      ],
+      "locations_test": [],
+      "smoke_path_heuristic_match": false,
+      "needs_live_validation": true
+    },
+    {
+      "constant": "refundReasonUri",
+      "path": "/api/v1/customer/order/refund-reasons",
+      "referenced_in_lib": true,
+      "reference_count_lib": 1,
+      "locations_lib": [
+        "lib/features/order/domain/repositories/order_repository.dart:218"
+      ],
+      "locations_test": [],
+      "smoke_path_heuristic_match": false,
+      "needs_live_validation": true
+    },
+    {
+      "constant": "refundRequestUri",
+      "path": "/api/v1/customer/order/refund-request",
+      "referenced_in_lib": true,
+      "reference_count_lib": 1,
+      "locations_lib": [
+        "lib/features/order/domain/repositories/order_repository.dart:29"
+      ],
+      "locations_test": [],
+      "smoke_path_heuristic_match": false,
+      "needs_live_validation": true
+    },
+    {
+      "constant": "refundUri",
+      "path": "/api/v1/refund-policy",
+      "referenced_in_lib": true,
+      "reference_count_lib": 1,
+      "locations_lib": [
+        "lib/features/html/domain/repositories/html_repository.dart:27"
+      ],
+      "locations_test": [],
+      "smoke_path_heuristic_match": false,
+      "needs_live_validation": true
+    },
+    {
+      "constant": "registerUri",
+      "path": "/api/v1/auth/sign-up",
+      "referenced_in_lib": true,
+      "reference_count_lib": 1,
+      "locations_lib": [
+        "lib/features/auth/domain/reposotories/auth_repository.dart:50"
+      ],
+      "locations_test": [],
+      "smoke_path_heuristic_match": false,
+      "needs_live_validation": true
+    },
+    {
+      "constant": "registration_activityUri",
+      "path": "/api/v1/registration-activity",
+      "referenced_in_lib": true,
+      "reference_count_lib": 2,
+      "locations_lib": [
+        "lib/features/wallet_kaidha_subscription/domain/reposotories/kaidhaSub_repository.dart:867",
+        "lib/features/wallet_kaidha_subscription/domain/reposotories/kaidhaSub_repository.dart:872"
+      ],
+      "locations_test": [],
+      "smoke_path_heuristic_match": false,
+      "needs_live_validation": true
+    },
+    {
+      "constant": "removeAddressUri",
+      "path": "/api/v1/customer/address/delete?address_id=",
+      "referenced_in_lib": true,
+      "reference_count_lib": 1,
+      "locations_lib": [
+        "lib/features/address/domain/repositories/address_repository.dart:54"
+      ],
+      "locations_test": [],
+      "smoke_path_heuristic_match": false,
+      "needs_live_validation": true
+    },
+    {
+      "constant": "removeAllCarCartUri",
+      "path": "/api/v1/rental/user/cart/remove-cart",
+      "referenced_in_lib": false,
+      "reference_count_lib": 0,
+      "locations_lib": [],
+      "locations_test": [],
+      "smoke_path_heuristic_match": false,
+      "needs_live_validation": false
+    },
+    {
+      "constant": "removeAllCartUri",
+      "path": "/api/v1/customer/cart/remove",
+      "referenced_in_lib": true,
+      "reference_count_lib": 1,
+      "locations_lib": [
+        "lib/features/cart/domain/repositories/cart_repository.dart:152"
+      ],
+      "locations_test": [],
+      "smoke_path_heuristic_match": true,
+      "needs_live_validation": false
+    },
+    {
+      "constant": "removeCarCartUri",
+      "path": "/api/v1/rental/user/cart/remove-vehicle",
+      "referenced_in_lib": false,
+      "reference_count_lib": 0,
+      "locations_lib": [],
+      "locations_test": [],
+      "smoke_path_heuristic_match": false,
+      "needs_live_validation": false
+    },
+    {
+      "constant": "removeItemCartUri",
+      "path": "/api/v1/customer/cart/remove-item",
+      "referenced_in_lib": true,
+      "reference_count_lib": 1,
+      "locations_lib": [
+        "lib/features/cart/domain/repositories/cart_repository.dart:124"
+      ],
+      "locations_test": [],
+      "smoke_path_heuristic_match": true,
+      "needs_live_validation": false
+    },
+    {
+      "constant": "removeMultipleCarCartUri",
+      "path": "/api/v1/rental/user/cart/remove-multiple-cart",
+      "referenced_in_lib": false,
+      "reference_count_lib": 0,
+      "locations_lib": [],
+      "locations_test": [],
+      "smoke_path_heuristic_match": false,
+      "needs_live_validation": false
+    },
+    {
+      "constant": "removeTaxiWishListUri",
+      "path": "/api/v1/rental/user/wish-list/remove",
+      "referenced_in_lib": false,
+      "reference_count_lib": 0,
+      "locations_lib": [],
+      "locations_test": [],
+      "smoke_path_heuristic_match": true,
+      "needs_live_validation": false
+    },
+    {
+      "constant": "removeWishListUri",
+      "path": "/api/v1/customer/wish-list/remove?",
+      "referenced_in_lib": true,
+      "reference_count_lib": 1,
+      "locations_lib": [
+        "lib/features/favourite/domain/repositories/favourite_repository.dart:32"
+      ],
+      "locations_test": [],
+      "smoke_path_heuristic_match": true,
+      "needs_live_validation": false
+    },
+    {
+      "constant": "requestExchangeWalletMoney",
+      "path": "/api/v1/customer/requestExchangeWalletMoney",
+      "referenced_in_lib": true,
+      "reference_count_lib": 1,
+      "locations_lib": [
+        "lib/features/wallet/domain/repositories/wallet_repository.dart:244"
+      ],
+      "locations_test": [],
+      "smoke_path_heuristic_match": false,
+      "needs_live_validation": true
+    },
+    {
+      "constant": "resendOtpUri",
+      "path": "/api/v1/auth/send-otp-again",
+      "referenced_in_lib": true,
+      "reference_count_lib": 2,
+      "locations_lib": [
+        "lib/features/auth/domain/reposotories/auth_repository.dart:115",
+        "lib/features/auth/domain/reposotories/auth_repository.dart:125"
+      ],
+      "locations_test": [],
+      "smoke_path_heuristic_match": false,
+      "needs_live_validation": true
+    },
+    {
+      "constant": "resetPasswordUri",
+      "path": "/api/v1/auth/reset-password",
+      "referenced_in_lib": true,
+      "reference_count_lib": 1,
+      "locations_lib": [
+        "lib/features/verification/domein/reposotories/verification_repository.dart:55"
+      ],
+      "locations_test": [],
+      "smoke_path_heuristic_match": false,
+      "needs_live_validation": true
+    },
+    {
+      "constant": "reviewUri",
+      "path": "/api/v1/items/reviews/submit",
+      "referenced_in_lib": true,
+      "reference_count_lib": 1,
+      "locations_lib": [
+        "lib/features/review/domain/repositories/review_repository.dart:73"
+      ],
+      "locations_test": [],
+      "smoke_path_heuristic_match": false,
+      "needs_live_validation": true
+    },
+    {
+      "constant": "reviewedItemUri",
+      "path": "/api/v1/items/most-reviewed",
+      "referenced_in_lib": true,
+      "reference_count_lib": 2,
+      "locations_lib": [
+        "lib/features/item/domain/repositories/item_repository.dart:207",
+        "lib/features/item/domain/repositories/item_repository.dart:212"
+      ],
+      "locations_test": [],
+      "smoke_path_heuristic_match": false,
+      "needs_live_validation": true
+    },
+    {
+      "constant": "runningOrderListUri",
+      "path": "/api/v1/customer/order/running-orders",
+      "referenced_in_lib": true,
+      "reference_count_lib": 1,
+      "locations_lib": [
+        "lib/features/order/domain/repositories/order_repository.dart:163"
+      ],
+      "locations_test": [],
+      "smoke_path_heuristic_match": true,
+      "needs_live_validation": false
+    },
+    {
+      "constant": "runningTripUri",
+      "path": "/api/v1/trip/list",
+      "referenced_in_lib": false,
+      "reference_count_lib": 0,
+      "locations_lib": [],
+      "locations_test": [],
+      "smoke_path_heuristic_match": false,
+      "needs_live_validation": false
+    },
+    {
+      "constant": "savedRecipientsUri",
+      "path": "/api/v1/customer/wallet/recipients",
+      "referenced_in_lib": true,
+      "reference_count_lib": 2,
+      "locations_lib": [
+        "lib/features/wallet_transfer/data/repositories/wallet_transfer_repository.dart:31",
+        "lib/features/wallet_transfer/data/repositories/wallet_transfer_repository.dart:46"
+      ],
+      "locations_test": [],
+      "smoke_path_heuristic_match": true,
+      "needs_live_validation": false
+    },
+    {
+      "constant": "searchConversationListUri",
+      "path": "/api/v1/customer/message/search-list",
+      "referenced_in_lib": true,
+      "reference_count_lib": 1,
+      "locations_lib": [
+        "lib/features/chat/domain/repositories/chat_repository.dart:34"
+      ],
+      "locations_test": [],
+      "smoke_path_heuristic_match": true,
+      "needs_live_validation": false
+    },
+    {
+      "constant": "searchItemUri",
+      "path": "/api/v1/items/details/",
+      "referenced_in_lib": false,
+      "reference_count_lib": 0,
+      "locations_lib": [],
+      "locations_test": [],
+      "smoke_path_heuristic_match": false,
+      "needs_live_validation": false
+    },
+    {
+      "constant": "searchLocationUri",
+      "path": "/api/v1/config/place-api-autocomplete",
+      "referenced_in_lib": true,
+      "reference_count_lib": 1,
+      "locations_lib": [
+        "lib/features/location/domain/repositories/location_repository.dart:290"
+      ],
+      "locations_test": [],
+      "smoke_path_heuristic_match": false,
+      "needs_live_validation": true
+    },
+    {
+      "constant": "searchPopularCategoriesUri",
+      "path": "/api/v1/categories/popular",
+      "referenced_in_lib": true,
+      "reference_count_lib": 2,
+      "locations_lib": [
+        "lib/features/search/domain/repositories/search_repository.dart:165",
+        "lib/features/search/domain/repositories/search_repository.dart:180"
+      ],
+      "locations_test": [],
+      "smoke_path_heuristic_match": true,
+      "needs_live_validation": false
+    },
+    {
+      "constant": "searchSuggestionsUri",
+      "path": "/api/v1/items/item-or-store-search",
+      "referenced_in_lib": true,
+      "reference_count_lib": 1,
+      "locations_lib": [
+        "lib/features/search/domain/repositories/search_repository.dart:154"
+      ],
+      "locations_test": [],
+      "smoke_path_heuristic_match": false,
+      "needs_live_validation": true
+    },
+    {
+      "constant": "searchUri",
+      "path": "/api/v1/",
+      "referenced_in_lib": true,
+      "reference_count_lib": 6,
+      "locations_lib": [
+        "lib/features/category/domain/reposotories/category_repository.dart:581",
+        "lib/features/search/domain/repositories/search_repository.dart:76",
+        "lib/features/search/domain/repositories/search_repository.dart:105",
+        "lib/features/search/domain/repositories/search_repository.dart:145",
+        "lib/features/store/domain/repositories/store_repository.dart:1432",
+        "lib/features/store/domain/repositories/store_repository.dart:1465"
+      ],
+      "locations_test": [],
+      "smoke_path_heuristic_match": true,
+      "needs_live_validation": false
+    },
+    {
+      "constant": "sendMessageUri",
+      "path": "/api/v1/customer/message/send",
+      "referenced_in_lib": true,
+      "reference_count_lib": 1,
+      "locations_lib": [
+        "lib/features/chat/domain/repositories/chat_repository.dart:59"
+      ],
+      "locations_test": [],
+      "smoke_path_heuristic_match": false,
+      "needs_live_validation": true
+    },
+    {
+      "constant": "send_delegateUri",
+      "path": "/api/v1/customer/delegate/store",
+      "referenced_in_lib": true,
+      "reference_count_lib": 1,
+      "locations_lib": [
+        "lib/features/add_delegate/domain/reposotories/delegate_repository.dart:74"
+      ],
+      "locations_test": [],
+      "smoke_path_heuristic_match": false,
+      "needs_live_validation": true
+    },
+    {
+      "constant": "setMenuUri",
+      "path": "/api/v1/items/set-menu",
+      "referenced_in_lib": false,
+      "reference_count_lib": 0,
+      "locations_lib": [],
+      "locations_test": [],
+      "smoke_path_heuristic_match": false,
+      "needs_live_validation": false
+    },
+    {
+      "constant": "shippingPolicyUri",
+      "path": "/api/v1/shipping-policy",
+      "referenced_in_lib": true,
+      "reference_count_lib": 1,
+      "locations_lib": [
+        "lib/features/html/domain/repositories/html_repository.dart:24"
+      ],
+      "locations_test": [],
+      "smoke_path_heuristic_match": false,
+      "needs_live_validation": true
+    },
+    {
+      "constant": "socialLoginUri",
+      "path": "/api/v1/auth/social-login",
+      "referenced_in_lib": true,
+      "reference_count_lib": 1,
+      "locations_lib": [
+        "lib/features/auth/domain/reposotories/auth_repository.dart:181"
+      ],
+      "locations_test": [],
+      "smoke_path_heuristic_match": false,
+      "needs_live_validation": true
+    },
+    {
+      "constant": "socialRegisterUri",
+      "path": "/api/v1/auth/social-register",
+      "referenced_in_lib": false,
+      "reference_count_lib": 0,
+      "locations_lib": [],
+      "locations_test": [],
+      "smoke_path_heuristic_match": false,
+      "needs_live_validation": false
+    },
+    {
+      "constant": "statusUri",
+      "path": "/api/v1/auth/delivery-man/status",
+      "referenced_in_lib": true,
+      "reference_count_lib": 1,
+      "locations_lib": [
+        "lib/features/auth/domain/reposotories/deliveryman_registration_repository.dart:192"
+      ],
+      "locations_test": [],
+      "smoke_path_heuristic_match": false,
+      "needs_live_validation": true
+    },
+    {
+      "constant": "storeBannersUri",
+      "path": "/api/v1/banners/",
+      "referenced_in_lib": true,
+      "reference_count_lib": 1,
+      "locations_lib": [
+        "lib/features/store/domain/repositories/store_repository.dart:1519"
+      ],
+      "locations_test": [],
+      "smoke_path_heuristic_match": true,
+      "needs_live_validation": false
+    },
+    {
+      "constant": "storeDetailsUri",
+      "path": "/api/v1/stores/details/",
+      "referenced_in_lib": true,
+      "reference_count_lib": 3,
+      "locations_lib": [
+        "lib/core/sync/silent_sync_service.dart:197",
+        "lib/features/store/domain/repositories/store_repository.dart:1116",
+        "lib/features/store/domain/repositories/store_repository.dart:1674"
+      ],
+      "locations_test": [],
+      "smoke_path_heuristic_match": true,
+      "needs_live_validation": false
+    },
+    {
+      "constant": "storeItemUri",
+      "path": "/api/v1/items/latest",
+      "referenced_in_lib": true,
+      "reference_count_lib": 2,
+      "locations_lib": [
+        "lib/api/api_client.dart:604",
+        "lib/features/store/domain/repositories/store_repository.dart:1241"
+      ],
+      "locations_test": [],
+      "smoke_path_heuristic_match": true,
+      "needs_live_validation": false
+    },
+    {
+      "constant": "storePackagesUri",
+      "path": "/api/v1/vendor/package-view",
+      "referenced_in_lib": true,
+      "reference_count_lib": 2,
+      "locations_lib": [
+        "lib/features/auth/domain/reposotories/store_registration_repository.dart:203",
+        "lib/features/business/domain/repositories/business_repo.dart:35"
+      ],
+      "locations_test": [],
+      "smoke_path_heuristic_match": false,
+      "needs_live_validation": true
+    },
+    {
+      "constant": "storeRecommendedItemUri",
+      "path": "/api/v1/items/recommended",
+      "referenced_in_lib": true,
+      "reference_count_lib": 1,
+      "locations_lib": [
+        "lib/features/store/domain/repositories/store_repository.dart:1476"
+      ],
+      "locations_test": [],
+      "smoke_path_heuristic_match": true,
+      "needs_live_validation": false
+    },
+    {
+      "constant": "storeRegisterUri",
+      "path": "/api/v1/auth/vendor/register",
+      "referenced_in_lib": true,
+      "reference_count_lib": 1,
+      "locations_lib": [
+        "lib/features/auth/domain/reposotories/store_registration_repository.dart:32"
+      ],
+      "locations_test": [],
+      "smoke_path_heuristic_match": false,
+      "needs_live_validation": true
+    },
+    {
+      "constant": "storeReviewUri",
+      "path": "/api/v1/stores/reviews",
+      "referenced_in_lib": true,
+      "reference_count_lib": 1,
+      "locations_lib": [
+        "lib/features/review/domain/repositories/review_repository.dart:60"
+      ],
+      "locations_test": [],
+      "smoke_path_heuristic_match": false,
+      "needs_live_validation": true
+    },
+    {
+      "constant": "storeSubcategoriesWithSamplesBaseUri",
+      "path": "/api/v1/stores",
+      "referenced_in_lib": false,
+      "reference_count_lib": 0,
+      "locations_lib": [],
+      "locations_test": [],
+      "smoke_path_heuristic_match": true,
+      "needs_live_validation": false
+    },
+    {
+      "constant": "storeSummaryUri",
+      "path": "/api/v2/checkout/store-summary",
+      "referenced_in_lib": true,
+      "reference_count_lib": 1,
+      "locations_lib": [
+        "lib/features/checkout/controllers/checkout_controller.dart:1206"
+      ],
+      "locations_test": [],
+      "smoke_path_heuristic_match": true,
+      "needs_live_validation": false
+    },
+    {
+      "constant": "storeUri",
+      "path": "/api/v1/stores/get-stores",
+      "referenced_in_lib": true,
+      "reference_count_lib": 9,
+      "locations_lib": [
+        "lib/features/home/screens/home_screen.dart:790",
+        "lib/features/store/domain/repositories/store_repository.dart:217",
+        "lib/features/store/domain/repositories/store_repository.dart:332",
+        "lib/features/store/domain/repositories/store_repository.dart:366",
+        "lib/features/store/domain/repositories/store_repository.dart:394",
+        "lib/features/store/domain/repositories/store_repository.dart:557",
+        "lib/features/store/domain/repositories/store_repository.dart:934",
+        "lib/features/store/domain/repositories/store_repository.dart:942",
+        "lib/features/store/domain/repositories/store_repository.dart:1537"
+      ],
+      "locations_test": [],
+      "smoke_path_heuristic_match": true,
+      "needs_live_validation": false
+    },
+    {
+      "constant": "store_infoUri",
+      "path": "/api/qidha-wallet/store",
+      "referenced_in_lib": false,
+      "reference_count_lib": 0,
+      "locations_lib": [],
+      "locations_test": [],
+      "smoke_path_heuristic_match": false,
+      "needs_live_validation": false
+    },
+    {
+      "constant": "store_qidhaUri",
+      "path": "/api/qidha-wallet/store",
+      "referenced_in_lib": true,
+      "reference_count_lib": 1,
+      "locations_lib": [
+        "lib/features/wallet_kaidha_subscription/domain/reposotories/kaidhaSub_repository.dart:88"
+      ],
+      "locations_test": [],
+      "smoke_path_heuristic_match": false,
+      "needs_live_validation": true
+    },
+    {
+      "constant": "subCategoryUri",
+      "path": "/api/v1/categories/childes/",
+      "referenced_in_lib": true,
+      "reference_count_lib": 2,
+      "locations_lib": [
+        "lib/features/category/domain/reposotories/category_repository.dart:387",
+        "lib/features/store/domain/repositories/store_repository.dart:1601"
+      ],
+      "locations_test": [],
+      "smoke_path_heuristic_match": true,
+      "needs_live_validation": false
+    },
+    {
+      "constant": "subscriptionUri",
+      "path": "/api/v1/newsletter/subscribe",
+      "referenced_in_lib": true,
+      "reference_count_lib": 1,
+      "locations_lib": [
+        "lib/features/splash/domain/repositories/splash_repository.dart:367"
+      ],
+      "locations_test": [],
+      "smoke_path_heuristic_match": false,
+      "needs_live_validation": true
+    },
+    {
+      "constant": "suggestedItemUri",
+      "path": "/api/v1/customer/suggested-items",
+      "referenced_in_lib": true,
+      "reference_count_lib": 1,
+      "locations_lib": [
+        "lib/features/search/domain/repositories/search_repository.dart:61"
+      ],
+      "locations_test": [],
+      "smoke_path_heuristic_match": true,
+      "needs_live_validation": false
+    },
+    {
+      "constant": "supportReasonUri",
+      "path": "/api/v1/customer/automated-message",
+      "referenced_in_lib": true,
+      "reference_count_lib": 1,
+      "locations_lib": [
+        "lib/features/order/domain/repositories/order_repository.dart:228"
+      ],
+      "locations_test": [],
+      "smoke_path_heuristic_match": false,
+      "needs_live_validation": true
+    },
+    {
+      "constant": "taxiBannerUri",
+      "path": "/api/v1/banners/taxi",
+      "referenced_in_lib": true,
+      "reference_count_lib": 1,
+      "locations_lib": [
+        "lib/features/banner/domain/repositories/banner_repository.dart:177"
+      ],
+      "locations_test": [],
+      "smoke_path_heuristic_match": true,
+      "needs_live_validation": false
+    },
+    {
+      "constant": "taxiCouponApplyUri",
+      "path": "/api/v1/rental/coupon/apply",
+      "referenced_in_lib": true,
+      "reference_count_lib": 2,
+      "locations_lib": [
+        "lib/features/my_coupon/domain/repositories/coupon_repository.dart:61",
+        "lib/features/my_coupon/domain/repositories/coupon_repository.dart:61"
+      ],
+      "locations_test": [],
+      "smoke_path_heuristic_match": false,
+      "needs_live_validation": true
+    },
+    {
+      "constant": "taxiCouponApplyUri",
+      "path": "/api/v1/coupon/apply/taxi?code=",
+      "referenced_in_lib": true,
+      "reference_count_lib": 2,
+      "locations_lib": [
+        "lib/features/my_coupon/domain/repositories/coupon_repository.dart:61",
+        "lib/features/my_coupon/domain/repositories/coupon_repository.dart:61"
+      ],
+      "locations_test": [],
+      "smoke_path_heuristic_match": false,
+      "needs_live_validation": true
+    },
+    {
+      "constant": "taxiCouponUri",
+      "path": "/api/v1/coupon/list/taxi",
+      "referenced_in_lib": true,
+      "reference_count_lib": 1,
+      "locations_lib": [
+        "lib/features/my_coupon/domain/repositories/coupon_repository.dart:38"
+      ],
+      "locations_test": [],
+      "smoke_path_heuristic_match": true,
+      "needs_live_validation": false
+    },
+    {
+      "constant": "termsAndConditionUri",
+      "path": "/api/v1/terms-and-conditions",
+      "referenced_in_lib": true,
+      "reference_count_lib": 1,
+      "locations_lib": [
+        "lib/features/html/domain/repositories/html_repository.dart:18"
+      ],
+      "locations_test": [],
+      "smoke_path_heuristic_match": true,
+      "needs_live_validation": false
+    },
+    {
+      "constant": "tokenUri",
+      "path": "/api/v1/customer/cm-firebase-token",
+      "referenced_in_lib": true,
+      "reference_count_lib": 2,
+      "locations_lib": [
+        "lib/features/auth/domain/reposotories/auth_repository.dart:281",
+        "lib/features/auth/domain/reposotories/auth_repository.dart:406"
+      ],
+      "locations_test": [],
+      "smoke_path_heuristic_match": false,
+      "needs_live_validation": true
+    },
+    {
+      "constant": "topOfferStoreUri",
+      "path": "/api/v1/stores/top-offer-near-me",
+      "referenced_in_lib": true,
+      "reference_count_lib": 2,
+      "locations_lib": [
+        "lib/features/store/domain/repositories/store_repository.dart:871",
+        "lib/features/store/domain/repositories/store_repository.dart:876"
+      ],
+      "locations_test": [],
+      "smoke_path_heuristic_match": false,
+      "needs_live_validation": true
+    },
+    {
+      "constant": "topRatedVehiclesListUri",
+      "path": "/api/v1/vehicles/top-rated/list",
+      "referenced_in_lib": false,
+      "reference_count_lib": 0,
+      "locations_lib": [],
+      "locations_test": [],
+      "smoke_path_heuristic_match": false,
+      "needs_live_validation": false
+    },
+    {
+      "constant": "trackUri",
+      "path": "/api/v1/customer/order/track?order_id=",
+      "referenced_in_lib": true,
+      "reference_count_lib": 1,
+      "locations_lib": [
+        "lib/features/order/domain/repositories/order_repository.dart:34"
+      ],
+      "locations_test": [],
+      "smoke_path_heuristic_match": false,
+      "needs_live_validation": true
+    },
+    {
+      "constant": "tripBookingUri",
+      "path": "/api/v1/rental/user/trip/trip-booking",
+      "referenced_in_lib": false,
+      "reference_count_lib": 0,
+      "locations_lib": [],
+      "locations_test": [],
+      "smoke_path_heuristic_match": false,
+      "needs_live_validation": false
+    },
+    {
+      "constant": "tripCancelUri",
+      "path": "/api/v1/rental/user/trip/cancel-trip",
+      "referenced_in_lib": false,
+      "reference_count_lib": 0,
+      "locations_lib": [],
+      "locations_test": [],
+      "smoke_path_heuristic_match": false,
+      "needs_live_validation": false
+    },
+    {
+      "constant": "tripDetailsUri",
+      "path": "/api/v1/rental/user/trip/get-trip-details",
+      "referenced_in_lib": false,
+      "reference_count_lib": 0,
+      "locations_lib": [],
+      "locations_test": [],
+      "smoke_path_heuristic_match": false,
+      "needs_live_validation": false
+    },
+    {
+      "constant": "tripListUri",
+      "path": "/api/v1/rental/user/trip/get-trip-list",
+      "referenced_in_lib": false,
+      "reference_count_lib": 0,
+      "locations_lib": [],
+      "locations_test": [],
+      "smoke_path_heuristic_match": true,
+      "needs_live_validation": false
+    },
+    {
+      "constant": "tripPaymentUri",
+      "path": "/api/v1/rental/user/trip/payment",
+      "referenced_in_lib": false,
+      "reference_count_lib": 0,
+      "locations_lib": [],
+      "locations_test": [],
+      "smoke_path_heuristic_match": false,
+      "needs_live_validation": false
+    },
+    {
+      "constant": "tripPlaceUri",
+      "path": "/api/v1/trip/place",
+      "referenced_in_lib": false,
+      "reference_count_lib": 0,
+      "locations_lib": [],
+      "locations_test": [],
+      "smoke_path_heuristic_match": false,
+      "needs_live_validation": false
+    },
+    {
+      "constant": "tripUpdateUserDataUri",
+      "path": "/api/v1/rental/user/cart/update-user-data",
+      "referenced_in_lib": false,
+      "reference_count_lib": 0,
+      "locations_lib": [],
+      "locations_test": [],
+      "smoke_path_heuristic_match": false,
+      "needs_live_validation": false
+    },
+    {
+      "constant": "updateAddressUri",
+      "path": "/api/v1/customer/address/update/",
+      "referenced_in_lib": true,
+      "reference_count_lib": 1,
+      "locations_lib": [
+        "lib/features/address/domain/repositories/address_repository.dart:112"
+      ],
+      "locations_test": [],
+      "smoke_path_heuristic_match": false,
+      "needs_live_validation": true
+    },
+    {
+      "constant": "updateCarCartUri",
+      "path": "/api/v1/rental/user/cart/update-cart",
+      "referenced_in_lib": false,
+      "reference_count_lib": 0,
+      "locations_lib": [],
+      "locations_test": [],
+      "smoke_path_heuristic_match": false,
+      "needs_live_validation": false
+    },
+    {
+      "constant": "updateCartUri",
+      "path": "/api/v1/customer/cart/update",
+      "referenced_in_lib": true,
+      "reference_count_lib": 2,
+      "locations_lib": [
+        "lib/features/cart/domain/repositories/cart_repository.dart:343",
+        "lib/features/cart/domain/repositories/cart_repository.dart:374"
+      ],
+      "locations_test": [],
+      "smoke_path_heuristic_match": true,
+      "needs_live_validation": false
+    },
+    {
+      "constant": "updateProfileUri",
+      "path": "/api/v1/customer/update-profile",
+      "referenced_in_lib": true,
+      "reference_count_lib": 4,
+      "locations_lib": [
+        "lib/features/profile/domain/repositories/profile_repository.dart:89",
+        "lib/features/profile/domain/repositories/profile_repository.dart:107",
+        "lib/features/profile/domain/repositories/profile_repository.dart:135",
+        "lib/features/profile/domain/repositories/profile_repository.dart:154"
+      ],
+      "locations_test": [],
+      "smoke_path_heuristic_match": false,
+      "needs_live_validation": true
+    },
+    {
+      "constant": "updateZoneUri",
+      "path": "/api/v1/customer/update-zone",
+      "referenced_in_lib": true,
+      "reference_count_lib": 1,
+      "locations_lib": [
+        "lib/features/auth/domain/reposotories/auth_repository.dart:557"
+      ],
+      "locations_test": [],
+      "smoke_path_heuristic_match": false,
+      "needs_live_validation": true
+    },
+    {
+      "constant": "validateRecipientUri",
+      "path": "/api/v1/customer/wallet/validate-recipient",
+      "referenced_in_lib": true,
+      "reference_count_lib": 1,
+      "locations_lib": [
+        "lib/features/wallet_transfer/data/repositories/wallet_transfer_repository.dart:16"
+      ],
+      "locations_test": [],
+      "smoke_path_heuristic_match": false,
+      "needs_live_validation": true
+    },
+    {
+      "constant": "vehicleChargeUri",
+      "path": "/api/v1/vehicle/extra_charge",
+      "referenced_in_lib": true,
+      "reference_count_lib": 1,
+      "locations_lib": [
+        "lib/features/checkout/domain/repositories/checkout_repository.dart:84"
+      ],
+      "locations_test": [],
+      "smoke_path_heuristic_match": false,
+      "needs_live_validation": true
+    },
+    {
+      "constant": "vehicleListUri",
+      "path": "/api/v1/vehicles/list",
+      "referenced_in_lib": false,
+      "reference_count_lib": 0,
+      "locations_lib": [],
+      "locations_test": [],
+      "smoke_path_heuristic_match": false,
+      "needs_live_validation": false
+    },
+    {
+      "constant": "vehiclesUri",
+      "path": "/api/v1/get-vehicles",
+      "referenced_in_lib": true,
+      "reference_count_lib": 1,
+      "locations_lib": [
+        "lib/features/auth/domain/reposotories/deliveryman_registration_repository.dart:169"
+      ],
+      "locations_test": [],
+      "smoke_path_heuristic_match": false,
+      "needs_live_validation": true
+    },
+    {
+      "constant": "verifyEmailUri",
+      "path": "/api/v1/auth/verify-email",
+      "referenced_in_lib": false,
+      "reference_count_lib": 0,
+      "locations_lib": [],
+      "locations_test": [],
+      "smoke_path_heuristic_match": false,
+      "needs_live_validation": false
+    },
+    {
+      "constant": "verifyLoginOtpUri",
+      "path": "/api/v1/auth/verify-login-otp",
+      "referenced_in_lib": true,
+      "reference_count_lib": 1,
+      "locations_lib": [
+        "lib/features/auth/domain/reposotories/auth_repository.dart:97"
+      ],
+      "locations_test": [],
+      "smoke_path_heuristic_match": false,
+      "needs_live_validation": true
+    },
+    {
+      "constant": "verifyPhoneUri",
+      "path": "/api/v1/auth/verify-phone",
+      "referenced_in_lib": true,
+      "reference_count_lib": 3,
+      "locations_lib": [
+        "lib/features/auth/domain/reposotories/auth_repository.dart:112",
+        "lib/features/verification/domein/reposotories/verification_repository.dart:80",
+        "lib/features/verification/domein/reposotories/verification_repository.dart:93"
+      ],
+      "locations_test": [],
+      "smoke_path_heuristic_match": false,
+      "needs_live_validation": true
+    },
+    {
+      "constant": "verifyTokenUri",
+      "path": "/api/v1/auth/verify-token",
+      "referenced_in_lib": true,
+      "reference_count_lib": 1,
+      "locations_lib": [
+        "lib/features/verification/domein/reposotories/verification_repository.dart:167"
+      ],
+      "locations_test": [],
+      "smoke_path_heuristic_match": false,
+      "needs_live_validation": true
+    },
+    {
+      "constant": "videoContentUri",
+      "path": "/api/v1/other-banners/video-content",
+      "referenced_in_lib": true,
+      "reference_count_lib": 2,
+      "locations_lib": [
+        "lib/features/parcel/domain/repositories/parcel_repository.dart:44",
+        "lib/features/parcel/domain/repositories/parcel_repository.dart:48"
+      ],
+      "locations_test": [],
+      "smoke_path_heuristic_match": true,
+      "needs_live_validation": false
+    },
+    {
+      "constant": "visitAgainStoreUri",
+      "path": "/api/v1/customer/visit-again",
+      "referenced_in_lib": true,
+      "reference_count_lib": 2,
+      "locations_lib": [
+        "lib/features/store/domain/repositories/store_repository.dart:1003",
+        "lib/features/store/domain/repositories/store_repository.dart:1008"
+      ],
+      "locations_test": [],
+      "smoke_path_heuristic_match": true,
+      "needs_live_validation": false
+    },
+    {
+      "constant": "walletBonusUri",
+      "path": "/api/v1/customer/wallet/bonuses",
+      "referenced_in_lib": true,
+      "reference_count_lib": 1,
+      "locations_lib": [
+        "lib/features/wallet/domain/repositories/wallet_repository.dart:150"
+      ],
+      "locations_test": [],
+      "smoke_path_heuristic_match": true,
+      "needs_live_validation": false
+    },
+    {
+      "constant": "walletTransactionUri",
+      "path": "/api/v1/customer/wallet/transactions",
+      "referenced_in_lib": true,
+      "reference_count_lib": 1,
+      "locations_lib": [
+        "lib/features/wallet/domain/repositories/wallet_repository.dart:71"
+      ],
+      "locations_test": [],
+      "smoke_path_heuristic_match": true,
+      "needs_live_validation": false
+    },
+    {
+      "constant": "walletTransferUri",
+      "path": "/api/v1/customer/wallet/transfer",
+      "referenced_in_lib": true,
+      "reference_count_lib": 1,
+      "locations_lib": [
+        "lib/features/wallet_transfer/data/repositories/wallet_transfer_repository.dart:24"
+      ],
+      "locations_test": [],
+      "smoke_path_heuristic_match": false,
+      "needs_live_validation": true
+    },
+    {
+      "constant": "whyChooseUri",
+      "path": "/api/v1/other-banners/why-choose",
+      "referenced_in_lib": true,
+      "reference_count_lib": 2,
+      "locations_lib": [
+        "lib/features/parcel/domain/repositories/parcel_repository.dart:65",
+        "lib/features/parcel/domain/repositories/parcel_repository.dart:69"
+      ],
+      "locations_test": [],
+      "smoke_path_heuristic_match": true,
+      "needs_live_validation": false
+    },
+    {
+      "constant": "wishListGetUri",
+      "path": "/api/v1/customer/wish-list",
+      "referenced_in_lib": true,
+      "reference_count_lib": 1,
+      "locations_lib": [
+        "lib/features/favourite/domain/repositories/favourite_repository.dart:14"
+      ],
+      "locations_test": [],
+      "smoke_path_heuristic_match": true,
+      "needs_live_validation": false
+    },
+    {
+      "constant": "zoneListUri",
+      "path": "/api/v1/zone/list",
+      "referenced_in_lib": true,
+      "reference_count_lib": 1,
+      "locations_lib": [
+        "lib/features/auth/domain/reposotories/deliveryman_registration_repository.dart:115"
+      ],
+      "locations_test": [],
+      "smoke_path_heuristic_match": true,
+      "needs_live_validation": false
+    },
+    {
+      "constant": "zoneUri",
+      "path": "/api/v1/config/get-zone-id",
+      "referenced_in_lib": true,
+      "reference_count_lib": 1,
+      "locations_lib": [
+        "lib/features/location/domain/repositories/location_repository.dart:209"
+      ],
+      "locations_test": [],
+      "smoke_path_heuristic_match": true,
+      "needs_live_validation": false
+    }
+  ],
+  "notes": [
+    "Usage = textual match of AppConstants.<name> in source; aliases/prefix imports may be missed.",
+    "Dynamic URL building may reference a constant in an expression not matching the simple pattern.",
+    "Smoke coverage = string literals in test/api_traffic_trace/*.dart only; partial vs run_all_traces.",
+    "needs_live_validation = referenced in lib but path not matched by smoke heuristic."
+  ]
+}

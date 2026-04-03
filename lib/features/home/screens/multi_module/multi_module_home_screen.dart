@@ -248,16 +248,27 @@ class _MultiModuleHomeScreenState extends State<MultiModuleHomeScreen> {
                                 }
                               });
                             }
-                            if (!splashController.isPromotionalContentReady &&
-                                !hasData &&
-                                !hasPromotionalBanner) {
+                            if (!hasData && !hasPromotionalBanner) {
+                              if (!splashController
+                                  .hasAttemptedPromotionalLoad) {
+                                return SizedBox(
+                                  height: 200,
+                                  child: Center(
+                                    child: CircularProgressIndicator(
+                                      color:
+                                          Theme.of(context).primaryColor,
+                                    ),
+                                  ),
+                                );
+                              }
                               return ErrorStateView(
                                 onRetry: () {
                                   _hasTriggeredPromotionalRecovery = false;
                                   splashController
                                       .loadAndCachePromotionalContent(
                                     moduleId:
-                                        MultiModuleHomeScreen.kPromotionalModuleId,
+                                        MultiModuleHomeScreen
+                                            .kPromotionalModuleId,
                                   );
                                 },
                               );

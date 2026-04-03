@@ -14,7 +14,7 @@ class ItemViewWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: GetBuilder<search.Search_Controller>(builder: (searchController) {
+      body: GetBuilder<search.SearchController>(builder: (searchController) {
         return SingleChildScrollView(
           child: FooterView(
             child: SizedBox(

@@ -218,18 +218,18 @@ class ChatController extends GetxController implements GetxService {
   Future<void> getMessages(int offset, NotificationBodyModel? notificationBody,
       User? user, int? conversationID,
       {bool firstLoad = false}) async {
-    const String _o = '\x1B[38;5;208m[CHAT:getMessages]';
-    const String _r = '\x1B[0m';
+    const String logPrefixOrange = '\x1B[38;5;208m[CHAT:getMessages]';
+    const String logReset = '\x1B[0m';
     Response? response;
     final int? effectiveConversationId =
         conversationID ?? notificationBody?.conversationId;
 
-    debugPrint('$_o START offset=$offset firstLoad=$firstLoad '
+    debugPrint('$logPrefixOrange START offset=$offset firstLoad=$firstLoad '
         'convID=$conversationID effectiveConvID=$effectiveConversationId '
         'adminId=${notificationBody?.adminId} '
         'restaurantId=${notificationBody?.restaurantId} '
         'deliverymanId=${notificationBody?.deliverymanId} '
-        'user.id=${user?.id}$_r');
+        'user.id=${user?.id}$logReset');
 
     if (firstLoad) {
       _messageModel = null;
@@ -248,28 +248,28 @@ class ChatController extends GetxController implements GetxService {
           : notificationBody?.deliverymanId != null
               ? UserType.delivery_man.name
               : UserType.vendor.name;
-      debugPrint('$_o BRANCH=conversationId userId=$fallbackUserId type=$fallbackUserType convId=$effectiveConversationId$_r');
+      debugPrint('$logPrefixOrange BRANCH=conversationId userId=$fallbackUserId type=$fallbackUserType convId=$effectiveConversationId$logReset');
       response = await chatServiceInterface.getMessages(
           offset, fallbackUserId, fallbackUserType, effectiveConversationId);
     } else if (notificationBody == null || notificationBody.adminId != null) {
-      debugPrint('$_o BRANCH=admin userId=0$_r');
+      debugPrint('$logPrefixOrange BRANCH=admin userId=0$logReset');
       response = await chatServiceInterface.getMessages(
           offset, 0, UserType.admin.name, null);
     } else if (notificationBody.restaurantId != null) {
-      debugPrint('$_o BRANCH=vendor restaurantId=${notificationBody.restaurantId}$_r');
+      debugPrint('$logPrefixOrange BRANCH=vendor restaurantId=${notificationBody.restaurantId}$logReset');
       response = await chatServiceInterface.getMessages(
           offset, notificationBody.restaurantId, UserType.vendor.name, null);
     } else if (notificationBody.deliverymanId != null) {
-      debugPrint('$_o BRANCH=delivery_man deliverymanId=${notificationBody.deliverymanId}$_r');
+      debugPrint('$logPrefixOrange BRANCH=delivery_man deliverymanId=${notificationBody.deliverymanId}$logReset');
       response = await chatServiceInterface.getMessages(offset,
           notificationBody.deliverymanId, UserType.delivery_man.name, null);
     } else {
-      debugPrint('$_o BRANCH=NONE — missing all ids, request skipped$_r');
+      debugPrint('$logPrefixOrange BRANCH=NONE — missing all ids, request skipped$logReset');
     }
 
     final dynamic responseBody = response?.body;
-    debugPrint('$_o RESPONSE status=${response?.statusCode} bodyType=${responseBody.runtimeType} '
-        'bodyIsMap=${responseBody is Map<String, dynamic>}$_r');
+    debugPrint('$logPrefixOrange RESPONSE status=${response?.statusCode} bodyType=${responseBody.runtimeType} '
+        'bodyIsMap=${responseBody is Map<String, dynamic>}$logReset');
 
     final bool isSuccess = response != null &&
         response.statusCode != null &&
@@ -277,7 +277,7 @@ class ChatController extends GetxController implements GetxService {
         response.statusCode! < 300 &&
         responseBody is Map<String, dynamic>;
 
-    debugPrint('$_o isSuccess=$isSuccess firstLoad=$firstLoad$_r');
+    debugPrint('$logPrefixOrange isSuccess=$isSuccess firstLoad=$firstLoad$logReset');
 
     if (isSuccess) {
       _isGetMessageError = false;
@@ -303,12 +303,12 @@ class ChatController extends GetxController implements GetxService {
             ChatModel.fromJson(response.body as Map<String, dynamic>);
         _messageModel!.messages ??=
             []; // ensure non-null for new/empty conversations
-        debugPrint('$_o SUCCESS parsed model: '
+        debugPrint('$logPrefixOrange SUCCESS parsed model: '
             'messageCount=${_messageModel!.messages!.length} '
             'status=${_messageModel!.status} '
-            'hasConversation=${_messageModel!.conversation != null}$_r');
+            'hasConversation=${_messageModel!.conversation != null}$logReset');
         if (_messageModel!.conversation == null) {
-          debugPrint('$_o conversation==null → building from user param$_r');
+          debugPrint('$logPrefixOrange conversation==null → building from user param$logReset');
           _messageModel!.conversation = Conversation(
               sender: User(
                 id: Get.find<ProfileController>().userInfoModel!.id,
@@ -336,12 +336,12 @@ class ChatController extends GetxController implements GetxService {
         _messageModel!.totalSize = chatModel.totalSize;
         _messageModel!.offset = chatModel.offset;
         _messageModel!.messages!.addAll(chatModel.messages!);
-        debugPrint('$_o PAGINATE loaded ${chatModel.messages?.length ?? 0} more messages$_r');
+        debugPrint('$logPrefixOrange PAGINATE loaded ${chatModel.messages?.length ?? 0} more messages$logReset');
       }
     } else if (firstLoad) {
       // 404 means no conversation exists yet (new chat) — treat as empty, not error
       if (response == null || response.statusCode == 404) {
-        debugPrint('$_o 404/null → new conversation, showing empty chat$_r');
+        debugPrint('$logPrefixOrange 404/null → new conversation, showing empty chat$logReset');
         _isGetMessageError = false;
         if (Get.find<ProfileController>().userInfoModel == null) {
           await Get.find<ProfileController>().getUserInfo();
@@ -370,7 +370,7 @@ class ChatController extends GetxController implements GetxService {
           ),
         );
       } else {
-        debugPrint('$_o ERROR status=${response.statusCode} → setting isGetMessageError=true$_r');
+        debugPrint('$logPrefixOrange ERROR status=${response.statusCode} → setting isGetMessageError=true$logReset');
         _isGetMessageError = true;
       }
     }
@@ -580,20 +580,20 @@ class ChatController extends GetxController implements GetxService {
   /// the latest message ID or count has changed.
   Future<void> timerRefreshMessages(
       NotificationBodyModel? notificationBody, int? conversationID) async {
-    const String _p = '\x1B[38;5;208m[CHAT:poll]';
-    const String _r = '\x1B[0m';
+    const String logPrefixPoll = '\x1B[38;5;208m[CHAT:poll]';
+    const String logReset = '\x1B[0m';
 
     if (_messageModel == null) {
-      debugPrint('$_p skip — _messageModel is null$_r');
+      debugPrint('$logPrefixPoll skip — _messageModel is null$logReset');
       return;
     }
 
     final int? effectiveConversationId =
         conversationID ?? notificationBody?.conversationId ?? _messageModel?.conversation?.id;
 
-    debugPrint('$_p tick convID=$conversationID effectiveConvID=$effectiveConversationId '
+    debugPrint('$logPrefixPoll tick convID=$conversationID effectiveConvID=$effectiveConversationId '
         'currentMsgCount=${_messageModel!.messages?.length ?? 0} '
-        'latestId=${_messageModel!.messages?.isNotEmpty == true ? _messageModel!.messages!.first.id : null}$_r');
+        'latestId=${_messageModel!.messages?.isNotEmpty == true ? _messageModel!.messages!.first.id : null}$logReset');
 
     Response? response;
     if (effectiveConversationId != null) {
@@ -606,24 +606,24 @@ class ChatController extends GetxController implements GetxService {
           : notificationBody?.deliverymanId != null
               ? UserType.delivery_man.name
               : UserType.vendor.name;
-      debugPrint('$_p fetching by convId=$effectiveConversationId userId=$fallbackUserId type=$fallbackUserType$_r');
+      debugPrint('$logPrefixPoll fetching by convId=$effectiveConversationId userId=$fallbackUserId type=$fallbackUserType$logReset');
       response = await chatServiceInterface.getMessages(
           1, fallbackUserId, fallbackUserType, effectiveConversationId);
     } else if (notificationBody == null || notificationBody.adminId != null) {
-      debugPrint('$_p fetching admin (no convId)$_r');
+      debugPrint('$logPrefixPoll fetching admin (no convId)$logReset');
       response = await chatServiceInterface.getMessages(1, 0, UserType.admin.name, null);
     } else if (notificationBody.restaurantId != null) {
-      debugPrint('$_p fetching vendor restaurantId=${notificationBody.restaurantId}$_r');
+      debugPrint('$logPrefixPoll fetching vendor restaurantId=${notificationBody.restaurantId}$logReset');
       response = await chatServiceInterface.getMessages(
           1, notificationBody.restaurantId, UserType.vendor.name, null);
     } else if (notificationBody.deliverymanId != null) {
-      debugPrint('$_p fetching delivery_man deliverymanId=${notificationBody.deliverymanId}$_r');
+      debugPrint('$logPrefixPoll fetching delivery_man deliverymanId=${notificationBody.deliverymanId}$logReset');
       response = await chatServiceInterface.getMessages(
           1, notificationBody.deliverymanId, UserType.delivery_man.name, null);
     }
 
     final dynamic body = response?.body;
-    debugPrint('$_p response status=${response?.statusCode} bodyIsMap=${body is Map<String, dynamic>}$_r');
+    debugPrint('$logPrefixPoll response status=${response?.statusCode} bodyIsMap=${body is Map<String, dynamic>}$logReset');
 
     if (response?.statusCode != null &&
         response!.statusCode! >= 200 &&
@@ -637,18 +637,18 @@ class ChatController extends GetxController implements GetxService {
       final int? freshLatestId =
           fresh.messages!.isNotEmpty ? fresh.messages!.first.id : null;
 
-      debugPrint('$_p compare: existingLatestId=$existingLatestId freshLatestId=$freshLatestId '
-          'existingCount=${_messageModel!.messages?.length ?? 0} freshCount=${fresh.messages!.length}$_r');
+      debugPrint('$logPrefixPoll compare: existingLatestId=$existingLatestId freshLatestId=$freshLatestId '
+          'existingCount=${_messageModel!.messages?.length ?? 0} freshCount=${fresh.messages!.length}$logReset');
 
       if (freshLatestId != existingLatestId ||
           fresh.messages!.length != (_messageModel!.messages?.length ?? 0)) {
-        debugPrint('$_p NEW MESSAGES DETECTED — updating UI$_r');
+        debugPrint('$logPrefixPoll NEW MESSAGES DETECTED — updating UI$logReset');
         _messageModel!.messages = fresh.messages;
         _messageModel!.totalSize = fresh.totalSize;
         _messageModel!.offset = fresh.offset;
         update();
       } else {
-        debugPrint('$_p no change$_r');
+        debugPrint('$logPrefixPoll no change$logReset');
       }
     }
   }

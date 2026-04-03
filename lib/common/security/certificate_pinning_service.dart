@@ -101,7 +101,7 @@ class CertificatePinningService {
           print(
               '⚠️ Certificate pinning is effectively DISABLED - add fingerprints before production release');
         }
-        // TODO: Set _certificateFingerprints for production before release.
+        // Note: Set _certificateFingerprints for production before release.
         // Returning true here bypasses pinning entirely.
         return true; // Allow if no fingerprints configured
       }

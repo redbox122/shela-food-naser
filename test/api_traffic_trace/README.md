@@ -195,3 +195,57 @@ Each screen generates a report with:
 - Check network connectivity
 - Some endpoints (store details) are known slow
 
+---
+
+## Project-wide API audit (evidence-based)
+
+### What earlier trace runs **do not** prove
+
+- They do **not** verify that **all** backend routes are healthy. Scripts cover a **small subset** of calls (guest flows, optional authenticated sweep).
+- A **200** on a smoke test does **not** mean every module, query combination, or edge case works.
+- **4xx** may be **expected** (wrong method, missing `id`, auth scope) or **bugs** — only the response body + contract tests distinguish them.
+- **Performance** notes (slow endpoints) are observations on **specific requests**, not SLAs for the whole API surface.
+
+### What “everything is fine” would require
+
+1. **Inventory** — all paths the client can call (constants + dynamic URL building).  
+   - Generated evidence: run `dart run tool/api_endpoint_inventory.dart` → `test/api_traffic_trace/generated/api_endpoint_inventory.json` (paths declared in `AppConstants`, filtered to API-style constants; **~220 unique path strings** in a typical run).
+2. **Usage map** (optional) — grep/code search for each constant or `getData`/`postData` in `lib/` to see **which** routes are used in production paths.
+3. **Runtime matrix** — for **each** environment (`dev` / `staging` / prod): for each route **method** (GET/POST/…), **auth** (guest / user / admin), and **minimal valid body** where required, record HTTP status + schema check. That is **orders of magnitude** larger than `quick_trace` or `authenticated_api_sweep`.
+4. **Non-functional** — latency SLOs, error rate, idempotency, rate limits — usually **APM + backend logs**, not only the Flutter app.
+
+### Evidence artifacts in this repo
+
+| Artifact | Proves |
+|----------|--------|
+| `tool/api_endpoint_inventory.dart` | Repeatable extraction of route **strings** from `lib/util/app_constants.dart`. |
+| `test/api_traffic_trace/generated/api_endpoint_inventory.json` | Snapshot of those paths (regenerate after changing constants). |
+| `authenticated_api_sweep.dart` | Optional **GET** checks with Bearer token — partial coverage only. |
+| `run_all_traces.dart` | Screen-flow **smoke** tests — partial coverage. |
+
+**Regenerate inventory:** `dart run tool/api_endpoint_inventory.dart`
+
+### Usage map + gap report (declared vs used vs smoke)
+
+Cross-references `AppConstants.*` references under `lib/` and `test/` with the inventory and a **heuristic** smoke list (path literals inside `test/api_traffic_trace/*.dart`).
+
+```bash
+dart run tool/api_usage_map.dart
+```
+
+**Outputs**
+
+| File | Contents |
+|------|----------|
+| `test/api_traffic_trace/generated/api_usage_map.json` | Per-constant: path, `locations_lib`, `locations_test`, `referenced_in_lib`, `smoke_path_heuristic_match`, `needs_live_validation` |
+| `test/api_traffic_trace/generated/gap_report.txt` | Short human-readable summary |
+
+**How to read the gap**
+
+- **Declared only** — constant exists in `AppConstants` but `AppConstants.<name>` never appears in `lib/` or `test/` (dead code or typo risk; or built without this constant name).
+- **Used in app** — at least one `AppConstants.<name>` hit under `lib/` (see `locations_lib`).
+- **Smoke approx** — declared path matched trace-test strings (partial; not Postman parity).
+- **Needs live validation** — used in `lib/` but no smoke string match → queue for manual/contract tests.
+
+**Limits:** misses renamed imports (`as x`), dynamic construction without the constant token, and smoke detection only scans `test/api_traffic_trace/` Dart sources.
+

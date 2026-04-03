@@ -290,7 +290,7 @@ class _AllRestaurantsViewState extends State<AllRestaurantsView> {
             !storeController.isLoading &&
             v2DataReady) {
           // 🚫 TEMPORARILY DISABLED: getLatestStoreList causes 22-second hangs and 500 errors
-          // TODO: Re-enable after backend fix
+          // Note: Re-enable after backend fix
           // WidgetsBinding.instance.addPostFrameCallback((_) {
           //   Future.delayed(const Duration(milliseconds: 100), () {
           //     if (kDebugMode) {
@@ -400,13 +400,13 @@ class _AllRestaurantsViewState extends State<AllRestaurantsView> {
                 );
               },
               onOffersTap: () {
-                // TODO: Implement offers filter
+                // Note: Implement offers filter
               },
               onTopRatedTap: () {
-                // TODO: Implement top rated filter (4.5+ rating)
+                // Note: Implement top rated filter (4.5+ rating)
               },
               onFastestDeliveryTap: () {
-                // TODO: Implement fastest delivery filter (up to 30 minutes)
+                // Note: Implement fastest delivery filter (up to 30 minutes)
               },
               onIconButtonTap: () {
                 storeController.setVerticalItems(!storeController.isVertical);

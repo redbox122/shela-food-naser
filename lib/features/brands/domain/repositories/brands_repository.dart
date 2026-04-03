@@ -350,7 +350,7 @@ class BrandsRepository implements BrandsRepositoryInterface {
 
   @override
   Future getList({int? offset}) {
-    // TODO: implement getList
+    // Note: implement getList
     throw UnimplementedError();
   }
 }

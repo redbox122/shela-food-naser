@@ -44,7 +44,7 @@ class AvailableCouponWidget extends StatelessWidget {
           padding: EdgeInsets.zero,
           itemCount: availableCoupons.length,
           itemBuilder: (context, index) {
-            return buildCouponList(index: index, list: availableCoupons, isAvailable: true,);
+            return BuildCouponList(index: index, list: availableCoupons, isAvailable: true,);
           },
         ): Expanded(
           child: ListView.builder(
@@ -52,7 +52,7 @@ class AvailableCouponWidget extends StatelessWidget {
                 padding: EdgeInsets.zero,
                 itemCount: availableCoupons.length,
                 itemBuilder: (context, index) {
-                  return buildCouponList(index: index, list: availableCoupons, isAvailable: true,);
+                  return BuildCouponList(index: index, list: availableCoupons, isAvailable: true,);
                 },),
         ),
         Container(

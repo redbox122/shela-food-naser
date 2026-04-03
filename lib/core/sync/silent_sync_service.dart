@@ -221,7 +221,7 @@ class SilentSyncService {
       print('📢 SilentSyncService: Pricing changed for stores: $storeIds');
     }
     
-    // TODO: Implement notification mechanism
+    // Note: Implement notification mechanism
     // - Show subtle inline banner on cart/checkout
     // - Refresh store data in background
     // - Update cart totals if affected

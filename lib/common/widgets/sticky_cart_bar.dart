@@ -367,7 +367,7 @@ class _StickyCartWideStrip extends StatelessWidget {
   Widget build(BuildContext context) {
     final ThemeData theme = Theme.of(context);
     final Color primary = theme.primaryColor;
-    final Color ctaOnAccent = AppColors.wtColor;
+    const Color ctaOnAccent = AppColors.wtColor;
     final TextDirection dir = Directionality.of(context);
     return Semantics(
       button: true,

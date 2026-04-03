@@ -33,7 +33,7 @@ class ExpiredCouponWidget extends StatelessWidget {
           padding: EdgeInsets.zero,
           itemCount: unAvailableCoupons.length,
           itemBuilder: (context, index) {
-            return buildCouponList(index: index, list: unAvailableCoupons, isAvailable: false,);
+            return BuildCouponList(index: index, list: unAvailableCoupons, isAvailable: false,);
           },
         ),
       ],

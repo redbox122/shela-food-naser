@@ -281,7 +281,7 @@ class _ProductFilterScreenState extends State<ProductFilterScreen> {
                                 onPressed: () async {
                                   //
 
-                                  Get.find<search.Search_Controller>()
+                                  Get.find<search.SearchController>()
                                       .applyFilters(
                                     research_Name:
                                         nameController.text.isNotEmpty

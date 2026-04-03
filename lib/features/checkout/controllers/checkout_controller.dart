@@ -2191,7 +2191,7 @@ class CheckoutController extends GetxController implements GetxService {
         // 🥇 Update flow state - نجحت العملية
         _paymentFlowState = PaymentFlowState.success;
 
-        final String successMessage = 'تم انشاء الطلب وتم الدفع بنجاح';
+        const String successMessage = 'تم انشاء الطلب وتم الدفع بنجاح';
 
         // Show success message only after full successful flow
         Future.delayed(const Duration(seconds: 1), () {

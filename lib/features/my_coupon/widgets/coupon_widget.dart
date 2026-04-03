@@ -12,11 +12,11 @@ import '../../../util/styles.dart';
 import '../../splash/controllers/splash_controller.dart';
 import '../domain/models/my_coupon_models.dart';
 
-class buildCouponList extends StatelessWidget {
+class BuildCouponList extends StatelessWidget {
   final int index;
   final List<CouponModel> list;
   final bool isAvailable;
-  const buildCouponList({super.key,required this.index, required this.list, required this.isAvailable});
+  const BuildCouponList({super.key,required this.index, required this.list, required this.isAvailable});
 
   @override
   Widget build(BuildContext context) {

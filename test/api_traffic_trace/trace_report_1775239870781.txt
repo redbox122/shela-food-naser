@@ -1,0 +1,106 @@
+
+╔═══════════════════════════════════════════════════════════════════╗
+║         QUICK API TRAFFIC TRACE                                   ║
+║         2026-04-03T20:10:54.488852                            ║
+╚═══════════════════════════════════════════════════════════════════╝
+
+═══════════════════════════════════════════════════════════════════
+1. SPLASH SCREEN (The Gatekeeper)
+═══════════════════════════════════════════════════════════════════
+📡 /api/v1/app-init...
+   Status: 200 | Latency: 610ms | Size: 15632 bytes
+📡 /api/v2/home-unified (banners,offers only)...
+   Status: 200 | Latency: 388ms | Size: 7741 bytes
+📡 /api/v1/auth/guest/request...
+   Status: 200 | Latency: 717ms | Guest ID: 4433
+
+═══════════════════════════════════════════════════════════════════
+2. MULTI-MODULE HOME (The Hub)
+═══════════════════════════════════════════════════════════════════
+📡 /api/v1/module...
+   Status: 200 | Latency: 354ms | Size: 4575 bytes
+
+═══════════════════════════════════════════════════════════════════
+3. MODULE-SPECIFIC HOME
+═══════════════════════════════════════════════════════════════════
+
+── Module 1: Food ──
+📡 /api/v2/home-unified (module 1)...
+   Status: 200 | Latency: 295ms | Size: 4842 bytes
+📡 /api/v1/stores/get-stores/all (module 1)...
+   Status: 200 | Latency: 264ms | Size: 54 bytes
+📡 /api/v1/items/latest (module 1)...
+   Status: 403 | Latency: 248ms | Size: 144 bytes
+
+── Module 2: Grocery ──
+📡 /api/v2/home-unified (module 2)...
+   Status: 200 | Latency: 262ms | Size: 4842 bytes
+📡 /api/v1/stores/get-stores/all (module 2)...
+   Status: 200 | Latency: 239ms | Size: 54 bytes
+📡 /api/v1/items/latest (module 2)...
+   Status: 403 | Latency: 249ms | Size: 144 bytes
+
+── Module 3: Ecommerce ──
+📡 /api/v2/home-unified (module 3)...
+   Status: 200 | Latency: 247ms | Size: 23276 bytes
+📡 /api/v1/stores/get-stores/all (module 3)...
+   Status: 200 | Latency: 270ms | Size: 1483 bytes
+📡 /api/v1/items/latest (module 3)...
+   Status: 200 | Latency: 291ms | Size: 68 bytes
+
+═══════════════════════════════════════════════════════════════════
+4. STORE DETAILS (The Bottleneck) ⚠️
+═══════════════════════════════════════════════════════════════════
+
+── Store 1 ──
+📡 /api/v1/stores/details/1... ⏱️
+   Status: 200 | Latency: 326ms ✅ OK | Size: 55135 bytes
+📡 /api/v1/items/latest?store_id=1...
+   Status: 200 | Latency: 9537ms | Size: 26614 bytes
+
+── Store 2 ──
+📡 /api/v1/stores/details/2... ⏱️
+   Status: 404 | Latency: 253ms ✅ OK | Size: 45 bytes
+📡 /api/v1/items/latest?store_id=2...
+   Status: 200 | Latency: 286ms | Size: 68 bytes
+
+── Store 3 ──
+📡 /api/v1/stores/details/3... ⏱️
+   Status: 404 | Latency: 266ms ✅ OK | Size: 45 bytes
+📡 /api/v1/items/latest?store_id=3...
+   Status: 200 | Latency: 269ms | Size: 68 bytes
+
+═══════════════════════════════════════════════════════════════════
+5. CART & CHECKOUT (The Money)
+═══════════════════════════════════════════════════════════════════
+📡 /api/v1/customer/cart/list...
+   Status: 403 | Latency: 265ms | Size: 151 bytes
+📡 /api/v1/coupon/list...
+   Status: 401 | Latency: 327ms | Size: 90 bytes
+📡 /api/v2/checkout/store-summary/1...
+   Status: 404 | Latency: 273ms | Size: 376 bytes
+
+╔═══════════════════════════════════════════════════════════════════╗
+║                        SUMMARY REPORT                             ║
+╚═══════════════════════════════════════════════════════════════════╝
+
+📊 METRICS:
+   Total API Calls:     22
+   Total Latency:       16236ms
+   Total Data Transfer: 142.0 KB
+   Errors:              7
+
+⚠️ BOTTLENECKS (>2000ms):
+   🐢 /api/v1/items/latest: 9537ms
+
+❌ ERRORS:
+   ⚠️ /api/v1/items/latest: Status 403
+   ⚠️ /api/v1/items/latest: Status 403
+   ⚠️ /api/v1/stores/details/2: Status 404
+   ⚠️ /api/v1/stores/details/3: Status 404
+   ⚠️ /api/v1/customer/cart/list: Status 403
+   ⚠️ /api/v1/coupon/list: Status 401
+   ⚠️ /api/v2/checkout/store-summary/1: Status 404
+
+═══════════════════════════════════════════════════════════════════
+

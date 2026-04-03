@@ -1,0 +1,109 @@
+
+╔═══════════════════════════════════════════════════════════════════╗
+║         QUICK API TRAFFIC TRACE                                   ║
+║         2026-04-03T19:24:39.140741                            ║
+╚═══════════════════════════════════════════════════════════════════╝
+
+═══════════════════════════════════════════════════════════════════
+1. SPLASH SCREEN (The Gatekeeper)
+═══════════════════════════════════════════════════════════════════
+📡 /api/v1/app-init...
+   Status: 200 | Latency: 542ms | Size: 15687 bytes
+📡 /api/v2/home-unified (banners,offers only)...
+   Status: 200 | Latency: 244ms | Size: 7742 bytes
+📡 /api/v1/auth/guest/request...
+   Status: 200 | Latency: 234ms | Guest ID: 4432
+
+═══════════════════════════════════════════════════════════════════
+2. MULTI-MODULE HOME (The Hub)
+═══════════════════════════════════════════════════════════════════
+📡 /api/v1/module...
+   Status: 200 | Latency: 250ms | Size: 4575 bytes
+
+═══════════════════════════════════════════════════════════════════
+3. MODULE-SPECIFIC HOME
+═══════════════════════════════════════════════════════════════════
+
+── Module 1: Food ──
+📡 /api/v2/home-unified (module 1)...
+   Status: 200 | Latency: 280ms | Size: 4844 bytes
+📡 /api/v1/stores/get-stores/all (module 1)...
+   Status: 200 | Latency: 5506ms | Size: 54 bytes
+📡 /api/v1/items/latest (module 1)...
+   Status: 403 | Latency: 404ms | Size: 144 bytes
+
+── Module 2: Grocery ──
+📡 /api/v2/home-unified (module 2)...
+   Status: 200 | Latency: 421ms | Size: 4844 bytes
+📡 /api/v1/stores/get-stores/all (module 2)...
+   Status: 200 | Latency: 5448ms | Size: 54 bytes
+📡 /api/v1/items/latest (module 2)...
+   Status: 403 | Latency: 258ms | Size: 144 bytes
+
+── Module 3: Ecommerce ──
+📡 /api/v2/home-unified (module 3)...
+   Status: 200 | Latency: 3449ms | Size: 23280 bytes
+📡 /api/v1/stores/get-stores/all (module 3)...
+   Status: 200 | Latency: 357ms | Size: 1483 bytes
+📡 /api/v1/items/latest (module 3)...
+   Status: 200 | Latency: 283ms | Size: 68 bytes
+
+═══════════════════════════════════════════════════════════════════
+4. STORE DETAILS (The Bottleneck) ⚠️
+═══════════════════════════════════════════════════════════════════
+
+── Store 1 ──
+📡 /api/v1/stores/details/1... ⏱️
+   Status: 200 | Latency: 265ms ✅ OK | Size: 55135 bytes
+📡 /api/v1/items/latest?store_id=1...
+   Status: 200 | Latency: 7607ms | Size: 26614 bytes
+
+── Store 2 ──
+📡 /api/v1/stores/details/2... ⏱️
+   Status: 404 | Latency: 301ms ✅ OK | Size: 45 bytes
+📡 /api/v1/items/latest?store_id=2...
+   Status: 200 | Latency: 272ms | Size: 68 bytes
+
+── Store 3 ──
+📡 /api/v1/stores/details/3... ⏱️
+   Status: 404 | Latency: 239ms ✅ OK | Size: 45 bytes
+📡 /api/v1/items/latest?store_id=3...
+   Status: 200 | Latency: 264ms | Size: 68 bytes
+
+═══════════════════════════════════════════════════════════════════
+5. CART & CHECKOUT (The Money)
+═══════════════════════════════════════════════════════════════════
+📡 /api/v1/customer/cart/list...
+   Status: 403 | Latency: 299ms | Size: 151 bytes
+📡 /api/v1/coupon/list...
+   Status: 401 | Latency: 259ms | Size: 90 bytes
+📡 /api/v2/checkout/store-summary/1...
+   Status: 404 | Latency: 246ms | Size: 376 bytes
+
+╔═══════════════════════════════════════════════════════════════════╗
+║                        SUMMARY REPORT                             ║
+╚═══════════════════════════════════════════════════════════════════╝
+
+📊 METRICS:
+   Total API Calls:     22
+   Total Latency:       27428ms
+   Total Data Transfer: 142.1 KB
+   Errors:              7
+
+⚠️ BOTTLENECKS (>2000ms):
+   🐢 /api/v1/stores/get-stores/all: 5506ms
+   🐢 /api/v1/stores/get-stores/all: 5448ms
+   🐢 /api/v2/home-unified: 3449ms
+   🐢 /api/v1/items/latest: 7607ms
+
+❌ ERRORS:
+   ⚠️ /api/v1/items/latest: Status 403
+   ⚠️ /api/v1/items/latest: Status 403
+   ⚠️ /api/v1/stores/details/2: Status 404
+   ⚠️ /api/v1/stores/details/3: Status 404
+   ⚠️ /api/v1/customer/cart/list: Status 403
+   ⚠️ /api/v1/coupon/list: Status 401
+   ⚠️ /api/v2/checkout/store-summary/1: Status 404
+
+═══════════════════════════════════════════════════════════════════
+

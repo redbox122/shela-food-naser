@@ -1,0 +1,164 @@
+{
+  "timestamp": "2026-04-03T20:11:10.800931",
+  "summary": {
+    "total_calls": 22,
+    "total_latency_ms": 16236,
+    "total_size_bytes": 145447,
+    "errors": 7
+  },
+  "results": [
+    {
+      "endpoint": "/api/v1/app-init",
+      "status": 200,
+      "latency_ms": 610,
+      "size_bytes": 15632,
+      "has_etag": true
+    },
+    {
+      "endpoint": "/api/v2/home-unified",
+      "status": 200,
+      "latency_ms": 388,
+      "size_bytes": 7741,
+      "has_etag": true
+    },
+    {
+      "endpoint": "/api/v1/auth/guest/request",
+      "status": 200,
+      "latency_ms": 717,
+      "guest_id": "4433"
+    },
+    {
+      "endpoint": "/api/v1/module",
+      "status": 200,
+      "latency_ms": 354,
+      "size_bytes": 4575,
+      "has_etag": true
+    },
+    {
+      "endpoint": "/api/v2/home-unified",
+      "status": 200,
+      "latency_ms": 295,
+      "size_bytes": 4842,
+      "has_etag": true
+    },
+    {
+      "endpoint": "/api/v1/stores/get-stores/all",
+      "status": 200,
+      "latency_ms": 264,
+      "size_bytes": 54,
+      "has_etag": true
+    },
+    {
+      "endpoint": "/api/v1/items/latest",
+      "status": 403,
+      "latency_ms": 248,
+      "size_bytes": 144,
+      "has_etag": false
+    },
+    {
+      "endpoint": "/api/v2/home-unified",
+      "status": 200,
+      "latency_ms": 262,
+      "size_bytes": 4842,
+      "has_etag": true
+    },
+    {
+      "endpoint": "/api/v1/stores/get-stores/all",
+      "status": 200,
+      "latency_ms": 239,
+      "size_bytes": 54,
+      "has_etag": true
+    },
+    {
+      "endpoint": "/api/v1/items/latest",
+      "status": 403,
+      "latency_ms": 249,
+      "size_bytes": 144,
+      "has_etag": false
+    },
+    {
+      "endpoint": "/api/v2/home-unified",
+      "status": 200,
+      "latency_ms": 247,
+      "size_bytes": 23276,
+      "has_etag": true
+    },
+    {
+      "endpoint": "/api/v1/stores/get-stores/all",
+      "status": 200,
+      "latency_ms": 270,
+      "size_bytes": 1483,
+      "has_etag": true
+    },
+    {
+      "endpoint": "/api/v1/items/latest",
+      "status": 200,
+      "latency_ms": 291,
+      "size_bytes": 68,
+      "has_etag": false
+    },
+    {
+      "endpoint": "/api/v1/stores/details/1",
+      "status": 200,
+      "latency_ms": 326,
+      "size_bytes": 55135,
+      "has_etag": false
+    },
+    {
+      "endpoint": "/api/v1/items/latest",
+      "status": 200,
+      "latency_ms": 9537,
+      "size_bytes": 26614,
+      "has_etag": false
+    },
+    {
+      "endpoint": "/api/v1/stores/details/2",
+      "status": 404,
+      "latency_ms": 253,
+      "size_bytes": 45,
+      "has_etag": false
+    },
+    {
+      "endpoint": "/api/v1/items/latest",
+      "status": 200,
+      "latency_ms": 286,
+      "size_bytes": 68,
+      "has_etag": false
+    },
+    {
+      "endpoint": "/api/v1/stores/details/3",
+      "status": 404,
+      "latency_ms": 266,
+      "size_bytes": 45,
+      "has_etag": false
+    },
+    {
+      "endpoint": "/api/v1/items/latest",
+      "status": 200,
+      "latency_ms": 269,
+      "size_bytes": 68,
+      "has_etag": false
+    },
+    {
+      "endpoint": "/api/v1/customer/cart/list",
+      "status": 403,
+      "latency_ms": 265,
+      "size_bytes": 151,
+      "has_etag": false
+    },
+    {
+      "endpoint": "/api/v1/coupon/list",
+      "status": 401,
+      "latency_ms": 327,
+      "size_bytes": 90,
+      "has_etag": false
+    },
+    {
+      "endpoint": "/api/v2/checkout/store-summary/1",
+      "status": 404,
+      "latency_ms": 273,
+      "size_bytes": 376,
+      "has_etag": false
+    }
+  ]
+}

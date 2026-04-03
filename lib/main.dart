@@ -347,9 +347,10 @@ class _MyAppState extends State<MyApp> {
         final address = AddressHelper.getUserAddressFromSharedPref();
 
         if (address == null) {
-          if (kDebugMode)
+          if (kDebugMode) {
             debugPrint(
                 'âš ï¸ Ù„Ù… ÙŠØªÙ… Ø§Ù„Ø¹Ø«ÙˆØ± Ø¹Ù„Ù‰ Ø¹Ù†ÙˆØ§Ù† Ù…Ø®Ø²Ù†');
+          }
         } else if (address.zoneIds == null) {
           Get.find<AuthController>().clearSharedAddress();
         }

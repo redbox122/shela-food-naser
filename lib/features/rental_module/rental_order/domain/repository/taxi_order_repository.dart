@@ -8,48 +8,53 @@ class TaxiOrderRepository implements TaxiOrderRepositoryInterface {
 
   TaxiOrderRepository({required this.apiClient});
 
+  @override
   Future add(value) {
-    // TODO: implement add
+    // Note: implement add
     throw UnimplementedError();
   }
 
   Future<bool> addVehicleReview({required int tripId, required int vehicleId, required int vehicleIdentityId, required int rating, required String comment}) {
-    // TODO: implement addVehicleReview
+    // Note: implement addVehicleReview
     throw UnimplementedError();
   }
 
+  @override
   Future delete(int? id) {
-    // TODO: implement delete
+    // Note: implement delete
     throw UnimplementedError();
   }
 
+  @override
   Future get(String? id) {
-    // TODO: implement get
+    // Note: implement get
     throw UnimplementedError();
   }
 
+  @override
   Future getList({int? offset}) {
-    // TODO: implement getList
+    // Note: implement getList
     throw UnimplementedError();
   }
 
   Future<dynamic> getTripDetails({required int id, String? phone}) {
-    // TODO: implement getTripDetails
+    // Note: implement getTripDetails
     throw UnimplementedError();
   }
 
   Future<dynamic> getTripList({required int offset, required String type}) {
-    // TODO: implement getTripList
+    // Note: implement getTripList
     throw UnimplementedError();
   }
 
   Future<Response> makeTripPayment({required int id, required String paymentMethod, String? paymentGateWayName}) {
-    // TODO: implement makeTripPayment
+    // Note: implement makeTripPayment
     throw UnimplementedError();
   }
 
+  @override
   Future update(Map<String, dynamic> body, int? id) {
-    // TODO: implement update
+    // Note: implement update
     throw UnimplementedError();
   }
 

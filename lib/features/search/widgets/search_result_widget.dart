@@ -34,7 +34,7 @@ class SearchResultWidgetState extends State<SearchResultWidget> with TickerProvi
   Widget build(BuildContext context) {
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       // ✅ شريط الفلاتر الجديد
-      GetBuilder<search.Search_Controller>(
+      GetBuilder<search.SearchController>(
         builder: (searchController) {
           final isNull = searchController.isStore
               ? searchController.searchStoreList == null
@@ -75,8 +75,8 @@ class SearchResultWidgetState extends State<SearchResultWidget> with TickerProvi
           child: NotificationListener(
         onNotification: (dynamic scrollNotification) {
           if (scrollNotification is ScrollEndNotification) {
-            Get.find<search.Search_Controller>().setStore(_tabController!.index == 1);
-            Get.find<search.Search_Controller>().searchData(fromHome: false);
+            Get.find<search.SearchController>().setStore(_tabController!.index == 1);
+            Get.find<search.SearchController>().searchData(fromHome: false);
           }
           return false;
         },

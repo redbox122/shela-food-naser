@@ -464,7 +464,7 @@ class AuthService implements AuthServiceInterface {
     return authRepositoryInterface.getGuestContactNumber();
   }
 
-  ///Todo:
+  /// Persists the selected delivery-man tip index.
   @override
   Future<bool> saveDmTipIndex(String index) async {
     return await authRepositoryInterface.saveDmTipIndex(index);

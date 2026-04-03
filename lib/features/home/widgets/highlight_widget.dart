@@ -223,7 +223,7 @@ class HighlightStoreWidget extends StatelessWidget {
                       ]),
                       const SizedBox(height: 3),
                       Text(
-                        (advertisement.description ?? '') as String,
+                        advertisement.description ?? '',
                         style: robotoRegular.copyWith(fontSize: Dimensions.fontSizeSmall, color: Theme.of(context).hintColor),
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
@@ -347,7 +347,7 @@ class _HighlightVideoWidgetState extends State<HighlightVideoWidget> {
                 Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
                   Expanded(
                     child: Text(
-                      (widget.advertisement.description ?? '') as String,
+                      widget.advertisement.description ?? '',
                       style: robotoRegular.copyWith(fontSize: Dimensions.fontSizeSmall, color: Theme.of(context).hintColor),
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,

@@ -192,7 +192,7 @@ class DeliverymanRegistrationRepository
       AppConstants.statusUri,
       '/api/v1/delivery-man/status',
       '/api/v1/customer/delivery-man/status',
-    ].toSet().toList();
+    ];
 
     Response? lastResponse;
     for (final uri in endpointCandidates) {

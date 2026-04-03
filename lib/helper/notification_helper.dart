@@ -296,7 +296,7 @@ if (image != null && image.isNotEmpty) {
       body,
       orderID,
       notificationBody,
-      image ?? '',
+      image,
       fln,
     );
   } catch (e) {
@@ -337,7 +337,7 @@ if (image != null && image.isNotEmpty) {
     );
     const NotificationDetails platformChannelSpecifics =
         NotificationDetails(android: androidPlatformChannelSpecifics);
-    await fln.show(0, title, body ?? '', platformChannelSpecifics,
+    await fln.show(0, title, body, platformChannelSpecifics,
         payload: notificationBody != null
             ? jsonEncode(notificationBody.toJson())
             : null);

@@ -4,7 +4,8 @@ class NetworkInfo {
   final Connectivity _connectivity = Connectivity();
 
   Future<bool> get isConnected async {
-    final connectivityResult = await _connectivity.checkConnectivity();
-    return connectivityResult != ConnectivityResult.none;
+    final List<ConnectivityResult> connectivityResults =
+        await _connectivity.checkConnectivity();
+    return !connectivityResults.contains(ConnectivityResult.none);
   }
 }

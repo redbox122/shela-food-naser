@@ -1,0 +1,25 @@
+API USAGE GAP REPORT (generated)
+====================================
+
+INVENTORY
+  Declared API-style constants: 226
+  Unique path strings:          220
+
+USAGE (lib/)
+  Constants referenced:         181
+  Never referenced (lib+test): 44
+  Referenced only under test/:  0
+
+SMOKE TEST HEURISTIC (strings in test/api_traffic_trace/*.dart)
+  Distinct /api or /cart paths extracted: 64
+  Referenced in lib AND matched by smoke: 79
+  Referenced in lib BUT not matched:      103  <-- prioritize live checks
+
+CATEGORIES
+  [declared only]     = in AppConstants, never AppConstants.name in lib or test
+  [used in app]       = AppConstants.name appears under lib/
+  [smoke approx]      = path string found in trace *.dart (not full matrix)
+  [needs validation]  = used in lib, no smoke string match
+
+Full JSON: test/api_traffic_trace/generated/api_usage_map.json
+

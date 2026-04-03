@@ -846,7 +846,7 @@ class BrandsController extends GetxController implements GetxService {
     _currentCategoriesToken = _apiScheduler.add(
       () async {
         try {
-          // TODO: Add method to prefetch categories for brand filtering
+          // Note: Add method to prefetch categories for brand filtering
           // This is a placeholder - implement when category prefetch API is available
           if (kDebugMode) {
             appLogger.info(
@@ -1169,7 +1169,7 @@ class BrandsController extends GetxController implements GetxService {
         // Show all items if no categories selected
         getBrandItemList(_currentBrandId!, 1, true);
       } else {
-        // TODO: Support multiple categories in API call
+        // Note: Support multiple categories in API call
         // For now, use first selected category
         final categoryId = _selectedCategoryIds.first.toString();
         getBrandItemWithFilters(

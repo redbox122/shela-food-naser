@@ -8,7 +8,7 @@ class AdvertisementModel {
   int? storeId;
   String? addType;
   String? title;
-  var description;
+  String? description;
   String? startDate;
   String? endDate;
   String? pauseNote;

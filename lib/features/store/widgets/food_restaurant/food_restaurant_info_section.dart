@@ -49,7 +49,6 @@ class FoodRestaurantInfoSection extends StatelessWidget {
       builder: (localizationController) {
         final bool isLtr = localizationController.isLtr;
         final theme = Theme.of(context);
-        final tokens = theme.extension<AppColorTokens>()!;
 
         return Container(
           width: double.infinity,

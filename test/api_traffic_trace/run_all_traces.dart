@@ -15,6 +15,7 @@
 ///   --verbose        Show detailed logs
 library;
 
+import 'dart:io';
 
 import '01_splash_trace_test.dart';
 import '02_home_trace_test.dart';
@@ -60,6 +61,14 @@ void main(List<String> args) async {
     }
     if (args[i] == '--store-id' && i + 1 < args.length) {
       storeId = int.tryParse(args[i + 1]);
+    }
+  }
+
+  if (userToken == null || userToken.isEmpty) {
+    final String? envToken = Platform.environment['SHELLA_API_TOKEN'];
+    if (envToken != null && envToken.trim().isNotEmpty) {
+      userToken = envToken.trim();
+      print('🔑 Using bearer token from SHELLA_API_TOKEN');
     }
   }
 

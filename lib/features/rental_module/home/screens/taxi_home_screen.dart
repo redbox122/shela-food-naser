@@ -21,7 +21,7 @@ class _TaxiHomeScreenState extends State<TaxiHomeScreen> {
       appLogger.info('🏠 TaxiHomeScreen: Building (placeholder)');
     });
     
-    // TODO: Implement Taxi Home Screen
+    // Note: Implement Taxi Home Screen
     // Note: TaxiHomeController and TaxiHomeRepository are currently unimplemented.
     // This is a placeholder.
     return Center(

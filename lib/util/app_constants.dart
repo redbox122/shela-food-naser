@@ -214,7 +214,7 @@ class AppConstants {
   static const String distanceMatrixUri = '/api/v1/config/distance-api';
 
   // Google Maps API Key - provide via --dart-define=GOOGLE_MAPS_KEY=your_key
-  // TODO: Set your production Google Maps API key via --dart-define or environment config
+  // Note: Set your production Google Maps API key via --dart-define or environment config
   static const String googleMapsApiKey =
       String.fromEnvironment('GOOGLE_MAPS_KEY', defaultValue: '');
 

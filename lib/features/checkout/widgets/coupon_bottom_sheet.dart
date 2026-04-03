@@ -72,7 +72,7 @@ class CouponBottomSheet extends StatelessWidget {
                     }
                     Get.back();
                   },
-                  child: buildCouponList(list: couponList!, index: index, isAvailable: true,),
+                  child: BuildCouponList(list: couponList!, index: index, isAvailable: true,),
                 );
               },
             ) : Column(children: [

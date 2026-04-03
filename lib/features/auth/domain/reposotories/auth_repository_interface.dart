@@ -42,7 +42,7 @@ abstract class AuthRepositoryInterface extends RepositoryInterface {
   Future<bool> saveGuestContactNumber(String number);
   String getGuestContactNumber();
 
-  ///Todo:
+  /// Persists the selected delivery-man tip index.
   Future<bool> saveDmTipIndex(String index);
   String getDmTipIndex();
   Future<bool> saveEarningPoint(String point);

@@ -569,7 +569,7 @@ class AuthRepository implements AuthRepositoryInterface {
     return sharedPreferences.getString(AppConstants.guestNumber) ?? '';
   }
 
-  ///Todo:
+  /// Persists the selected delivery-man tip index.
   @override
   Future<bool> saveDmTipIndex(String index) async {
     debugPrint('\x1B[32m     ${AppConstants.dmTipIndex} ----  $index  \x1B[0m');

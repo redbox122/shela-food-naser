@@ -127,7 +127,9 @@ class FavouriteController extends GetxController implements GetxService {
         _wishItemIdList = [];
 
         if ((response.body as Map<String, dynamic>)['item'] != null) {
-          ((response.body as Map<String, dynamic>)['item'] as List).forEach((item) async {
+          final List<dynamic> itemList =
+              (response.body as Map<String, dynamic>)['item'] as List;
+          for (final dynamic item in itemList) {
             final itemMap = item as Map<String, dynamic>;
             final moduleType = itemMap['module_type'] as String?;
             if (moduleType == null ||
@@ -144,10 +146,12 @@ class FavouriteController extends GetxController implements GetxService {
                 _wishItemIdList.add(i.id);
               }
             }
-          });
+          }
         }
 
-        ((response.body as Map<String, dynamic>)['store'] as List).forEach((store) async {
+        final List<dynamic> storeList =
+            (response.body as Map<String, dynamic>)['store'] as List;
+        for (final dynamic store in storeList) {
           final storeMap = store as Map<String, dynamic>;
           if (Get.find<SplashController>().module == null) {
             _wishStoreList!.addAll(favouriteServiceInterface.wishStoreList(storeMap));
@@ -164,7 +168,7 @@ class FavouriteController extends GetxController implements GetxService {
               _wishStoreIdList.add(s.id);
             }
           }
-        });
+        }
       } else {
         _hasError = true;
         _wishItemList = <Item?>[];

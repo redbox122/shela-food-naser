@@ -45,8 +45,8 @@ class SplashScreenState extends State<SplashScreen> {
     _onConnectivityChanged = Connectivity()
         .onConnectivityChanged
         .listen((List<ConnectivityResult> result) async {
-      final bool isConnected = result.contains(ConnectivityResult.wifi) ||
-          result.contains(ConnectivityResult.mobile);
+      // Treat any link that is not [none] as connected (Wi‑Fi, mobile, ethernet, VPN, etc.).
+      final bool isConnected = !result.contains(ConnectivityResult.none);
 
       // Only handle connectivity changes after initial splash loading is complete
       if (!firstTime) {
@@ -196,13 +196,23 @@ class SplashScreenState extends State<SplashScreen> {
         if (kDebugMode) {
           debugPrint('⏳ SplashScreen: Waiting for module list to be ready...');
         }
-        await splashController.waitUntilReady();
+        // Align with the other splash branch: do not block up to 10s on waitUntilReady.
+        try {
+          await splashController
+              .waitUntilReady()
+              .timeout(const Duration(seconds: 2));
+        } on TimeoutException {
+          if (kDebugMode) {
+            debugPrint(
+                '⏱️ SplashScreen: waitUntilReady timed out (multi-module) — continuing to route');
+          }
+        }
 
         // احسب الوقت
         final elapsed = DateTime.now().difference(startTime);
 
-        // مدة splash ثابتة = 1.5 ثانية (cache already loaded, keep it snappy)
-        const minSplashDuration = Duration(milliseconds: 1500);
+        // مدة splash ثابتة = 9.5 ثانية — تطابق مدة logo.gif (271 frame / ~9s)
+        const minSplashDuration = Duration(milliseconds: 9500);
 
         if (elapsed < minSplashDuration) {
           final remainingTime = minSplashDuration - elapsed;
@@ -221,6 +231,7 @@ class SplashScreenState extends State<SplashScreen> {
 
         // Route directly to multi-module screen - it's the main entry point
         splashController.markSplashFlowStopped();
+        // ignore: use_build_context_synchronously
         route(context, body: widget.body);
 
         // ⚡ Check notification popup AFTER routing (non-blocking)
@@ -293,8 +304,8 @@ class SplashScreenState extends State<SplashScreen> {
       // احسب الوقت
       final elapsed = DateTime.now().difference(startTime);
 
-      // مدة splash ثابتة = 1.5 ثانية (cache loaded, keep it snappy)
-      const minSplashDuration = Duration(milliseconds: 1500);
+      // مدة splash ثابتة = 9.5 ثانية — تطابق مدة logo.gif (271 frame / ~9s)
+      const minSplashDuration = Duration(milliseconds: 9500);
 
       if (elapsed < minSplashDuration) {
         final remainingTime = minSplashDuration - elapsed;
@@ -314,6 +325,7 @@ class SplashScreenState extends State<SplashScreen> {
       // Now perform the routing
       debugPrint('🚀 SplashScreen: Routing to home screen...');
       splashController.markSplashFlowStopped();
+      // ignore: use_build_context_synchronously
       route(context, body: widget.body);
 
       // ⚡ Check notification popup AFTER routing (non-blocking)

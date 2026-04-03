@@ -86,7 +86,7 @@ class BonusBannerWidget extends StatelessWidget {
                                           ),
                                           Text(
                                             ' ${'and_enjoy'.tr} ${walletController.fundBonusList![index].bonusAmount} '
-                                            '${walletController.fundBonusList![index].bonusType == 'amount' ? Get.find<SplashController>().configModel!.currencySymbol : '%'} ${'bonus'.tr}',
+                                            '${walletController.fundBonusList![index].bonusType?.name == 'amount' ? Get.find<SplashController>().configModel!.currencySymbol : '%'} ${'bonus'.tr}',
                                             style: robotoRegular.copyWith(
                                               fontSize: Dimensions.fontSizeSmall,
                                               color: Theme.of(context).primaryColor,

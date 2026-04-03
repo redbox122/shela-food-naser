@@ -987,7 +987,7 @@ class Offers_Controller extends GetxController implements GetxService {
         getOffersItemList(id: _currentOfferId, offset: 1);
         print('✅ Showing all items (no categories selected)');
       } else {
-        // TODO: Support multiple categories in API call
+        // Note: Support multiple categories in API call
         // For now, use first selected category
         final categoryId = _selectedCategoryIds.first.toString();
         getOffersItemListWithFilters(

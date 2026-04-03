@@ -734,10 +734,12 @@ class _MenuScreenState extends State<MenuScreen> {
                                                 final balance =
                                                     wallet.availableBalance;
                                                 if (balance == null) return 0.0;
-                                                if (balance is double)
+                                                if (balance is double) {
                                                   return balance;
-                                                if (balance is int)
+                                                }
+                                                if (balance is int) {
                                                   return balance.toDouble();
+                                                }
                                                 if (balance is String) {
                                                   return double.tryParse(
                                                           balance) ??

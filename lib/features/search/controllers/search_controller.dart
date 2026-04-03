@@ -9,9 +9,9 @@ import 'package:sixam_mart/features/store/domain/models/store_model.dart';
 import 'package:get/get.dart';
 import 'package:sixam_mart/features/search/domain/services/search_service_interface.dart';
 
-class Search_Controller extends GetxController implements GetxService {
+class SearchController extends GetxController implements GetxService {
   final SearchServiceInterface searchServiceInterface;
-  Search_Controller({required this.searchServiceInterface});
+  SearchController({required this.searchServiceInterface});
 
   List<Item>? _searchItemList;
   List<Item>? get searchItemList => _searchItemList;

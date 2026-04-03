@@ -22,7 +22,7 @@ class FilterWidget extends StatelessWidget {
       child: Container(
         width: 600,
         padding: const EdgeInsets.all(Dimensions.paddingSizeSmall),
-        child: GetBuilder<search.Search_Controller>(builder: (searchController) {
+        child: GetBuilder<search.SearchController>(builder: (searchController) {
           return SingleChildScrollView(
             child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
               Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [

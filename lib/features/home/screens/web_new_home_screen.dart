@@ -44,7 +44,7 @@ import 'package:get/get.dart';
 import 'package:sixam_mart/features/home/widgets/bad_weather_widget.dart';
 import 'package:sixam_mart/common/utils/app_logger.dart';
 
-// TODO: UPGRADE TO V2 - This screen uses individual controllers (BannerController, StoreController, etc.)
+// Note: UPGRADE TO V2 - This screen uses individual controllers (BannerController, StoreController, etc.)
 // instead of HomeUnifiedController. Consider migrating to BFF v2 unified endpoint for consistency.
 
 class WebNewHomeScreen extends StatefulWidget {

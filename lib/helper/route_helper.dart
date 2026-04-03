@@ -99,7 +99,7 @@ import 'package:sixam_mart/features/search/screens/search_screen.dart';
 import 'package:sixam_mart/features/splash/screens/splash_screen.dart';
 import 'package:sixam_mart/features/support/screens/support_screen.dart';
 import 'package:sixam_mart/features/update/screens/update_screen.dart';
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide SearchController;
 import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
 
@@ -1400,7 +1400,7 @@ class RouteHelper {
       Get.lazyPut<SearchServiceInterface>(
           () => SearchService(searchRepositoryInterface: Get.find()));
 
-      Get.lazyPut(() => Search_Controller(
+      Get.lazyPut(() => SearchController(
             searchServiceInterface: Get.find(),
           ));
     }

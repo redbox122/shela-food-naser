@@ -113,7 +113,7 @@ class _ItemBottomSheetState extends State<ItemBottomSheet> {
       return -1;
     }
     final List<CartModel> cartList = cartController.cartList;
-    final List<List<bool?>>? variations = itemController.selectedVariations;
+    final List<List<bool?>> variations = itemController.selectedVariations;
     final bool useFoodMatch = sheetItem?.foodVariations != null &&
         sheetItem!.foodVariations!.isNotEmpty;
     if (useFoodMatch) {
@@ -121,7 +121,7 @@ class _ItemBottomSheetState extends State<ItemBottomSheet> {
         if (cartList[index].item?.id != itemId) {
           continue;
         }
-        if (variations != null && variations.isNotEmpty) {
+        if (variations.isNotEmpty) {
           if (cartList[index].foodVariations == null ||
               cartList[index].foodVariations!.isEmpty) {
             continue;

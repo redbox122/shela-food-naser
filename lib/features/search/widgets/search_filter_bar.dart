@@ -69,7 +69,7 @@ class _SearchFilterBarState extends State<SearchFilterBar> {
   }
 
   void _applyFilters() {
-    final searchController = Get.find<search.Search_Controller>();
+    final searchController = Get.find<search.SearchController>();
     searchController.applyFilters(
       research_Name: _productNameController.text.isNotEmpty
           ? _productNameController.text
@@ -128,7 +128,7 @@ class _SearchFilterBarState extends State<SearchFilterBar> {
       child: Row(
         children: [
           // زر العرض (Grid/List)
-          GetBuilder<search.Search_Controller>(
+          GetBuilder<search.SearchController>(
             builder: (searchController) {
               return InkWell(
                 onTap: () {
@@ -153,7 +153,7 @@ class _SearchFilterBarState extends State<SearchFilterBar> {
           const SizedBox(width: Dimensions.paddingSizeSmall),
 
           // زر ترتيب السعر (موجود بالفعل)
-          GetBuilder<search.Search_Controller>(
+          GetBuilder<search.SearchController>(
             builder: (searchController) {
               return InkWell(
                 onTap: () {
@@ -215,7 +215,7 @@ class _SearchFilterBarState extends State<SearchFilterBar> {
           const Spacer(),
 
           // عدد النتائج
-          GetBuilder<search.Search_Controller>(
+          GetBuilder<search.SearchController>(
             builder: (searchController) {
               final length = widget.isStore
                   ? (searchController.searchStoreList?.length ?? 0)

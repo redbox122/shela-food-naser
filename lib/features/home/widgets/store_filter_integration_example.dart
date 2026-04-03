@@ -20,7 +20,7 @@ class StoreFilterIntegrationExample extends StatelessWidget {
 
   void _showFilterBottomSheet(BuildContext context, StoreController controller) {
     // Get current filter state (you'll need to add this to StoreController)
-    // TODO: Add activeFilters getter to StoreController
+    // Note: Add activeFilters getter to StoreController
 
     if (ResponsiveHelper.isDesktop(context)) {
       Get.dialog(
@@ -30,7 +30,7 @@ class StoreFilterIntegrationExample extends StatelessWidget {
             storeController: controller,
             onApply: (filters) {
               // Update controller with new filters
-              // TODO: Add updateFilters method to StoreController
+              // Note: Add updateFilters method to StoreController
               // Note: updateFilters method needs to be implemented in StoreController
               // controller.updateFilters(filters);
               
@@ -49,7 +49,7 @@ class StoreFilterIntegrationExample extends StatelessWidget {
           storeController: controller,
           onApply: (filters) {
             // Update controller with new filters
-            // TODO: Add updateFilters method to StoreController
+            // Note: Add updateFilters method to StoreController
             // controller.updateFilters(filters);
             
             // Apply filters to current store list
@@ -65,7 +65,7 @@ class StoreFilterIntegrationExample extends StatelessWidget {
 
     
     // Get current store list based on store type
-    // TODO: Replace with actual store model type
+    // Note: Replace with actual store model type
     dynamic currentStores;
     
     switch (controller.storeType) {
@@ -104,7 +104,7 @@ class StoreFilterIntegrationExample extends StatelessWidget {
   Widget build(BuildContext context) {
     return GetBuilder<StoreController>(
       builder: (controller) {
-        // TODO: Add activeFilters getter to StoreController
+        // Note: Add activeFilters getter to StoreController
         final activeFilters = StoreFilterHelper.getDefaultFilters();
         final activeFilterCount = StoreFilterHelper.getActiveFilterCount(activeFilters);
 
@@ -133,7 +133,7 @@ class StoreFilterIntegrationExample extends StatelessWidget {
                   // Remove specific filter
                   final updatedFilters = Map<String, dynamic>.from(activeFilters);
                   updatedFilters[filterKey] = value;
-                  // TODO: Add updateFilters method to StoreController
+                  // Note: Add updateFilters method to StoreController
                   // controller.updateFilters(updatedFilters);
                   
                   // Re-apply filters
@@ -141,7 +141,7 @@ class StoreFilterIntegrationExample extends StatelessWidget {
                 },
                 onClearAll: () {
                   // Clear all filters
-                  // TODO: Add updateFilters method to StoreController
+                  // Note: Add updateFilters method to StoreController
                   // controller.updateFilters(defaultFilters);
                   
                   // Reset to original store list

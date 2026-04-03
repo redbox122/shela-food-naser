@@ -1,0 +1,1140 @@
+{
+  "generated_at": "2026-04-03T17:47:59.208744Z",
+  "source_file": "lib/util/app_constants.dart",
+  "raw_parsed_constants": 294,
+  "api_filtered_entries": 226,
+  "unique_path_strings": 220,
+  "entries": [
+    {
+      "constant": "aboutUsUri",
+      "path": "/api/v1/about-us"
+    },
+    {
+      "constant": "addAddressUri",
+      "path": "/api/v1/customer/address/add"
+    },
+    {
+      "constant": "addCartUri",
+      "path": "/api/v1/customer/cart/add"
+    },
+    {
+      "constant": "addFundUri",
+      "path": "/api/v1/customer/wallet/add-fund"
+    },
+    {
+      "constant": "addRecipientUri",
+      "path": "/api/v1/customer/wallet/recipients/add"
+    },
+    {
+      "constant": "addTaxiReviewUri",
+      "path": "/api/v1/rental/user/review/add"
+    },
+    {
+      "constant": "addTaxiWishListUri",
+      "path": "/api/v1/rental/user/wish-list/add"
+    },
+    {
+      "constant": "addToCarCartUri",
+      "path": "/api/v1/rental/user/cart/add-to-cart"
+    },
+    {
+      "constant": "addWishListUri",
+      "path": "/api/v1/customer/wish-list/add?"
+    },
+    {
+      "constant": "addressListUri",
+      "path": "/api/v1/customer/address/list"
+    },
+    {
+      "constant": "advertisementListUri",
+      "path": "/api/v1/advertisement/list"
+    },
+    {
+      "constant": "allZonesUri",
+      "path": "/api/v1/zone/list"
+    },
+    {
+      "constant": "analyticsBaseUri",
+      "path": "/api/v1/customer/analytics"
+    },
+    {
+      "constant": "analyticsCategoryBreakdownUri",
+      "path": "/api/v1/customer/analytics/category-breakdown"
+    },
+    {
+      "constant": "analyticsExportUri",
+      "path": "/api/v1/customer/analytics/export"
+    },
+    {
+      "constant": "analyticsInsightsUri",
+      "path": "/api/v1/customer/analytics/insights"
+    },
+    {
+      "constant": "analyticsMostPurchasedProductsUri",
+      "path": "/api/v1/customer/analytics/most-purchased-products"
+    },
+    {
+      "constant": "analyticsProductDetailsUri",
+      "path": "/api/v1/customer/analytics/product-details"
+    },
+    {
+      "constant": "analyticsProductTransactionHistoryUri",
+      "path": "/api/v1/customer/analytics/product-transaction-history"
+    },
+    {
+      "constant": "analyticsSpendingTrendsUri",
+      "path": "/api/v1/customer/analytics/spending-trends"
+    },
+    {
+      "constant": "analyticsSummaryUri",
+      "path": "/api/v1/customer/analytics/summary"
+    },
+    {
+      "constant": "appInitUri",
+      "path": "/api/v1/app-init"
+    },
+    {
+      "constant": "appVersionCheckUri",
+      "path": "/api/v1/app/version/check"
+    },
+    {
+      "constant": "bandListUri",
+      "path": "/api/v1/vehicles/brand/list"
+    },
+    {
+      "constant": "bannerUri",
+      "path": "/api/v1/banners"
+    },
+    {
+      "constant": "basicCampaignDetailsUri",
+      "path": "/api/v1/campaigns/basic-campaign-details?basic_campaign_id="
+    },
+    {
+      "constant": "basicCampaignUri",
+      "path": "/api/v1/campaigns/basic"
+    },
+    {
+      "constant": "basicMedicineUri",
+      "path": "/api/v1/items/basic"
+    },
+    {
+      "constant": "bootstrapUri",
+      "path": "/api/v1/bootstrap"
+    },
+    {
+      "constant": "brandFilterItemUri",
+      "path": "/api/v1/brand/items/filter"
+    },
+    {
+      "constant": "brandItemUri",
+      "path": "/api/v1/brand/items"
+    },
+    {
+      "constant": "brandListUri",
+      "path": "/api/v1/brands"
+    },
+    {
+      "constant": "brandSearchItemUri",
+      "path": "/api/v1/brand/items/search"
+    },
+    {
+      "constant": "businessPlanPaymentUri",
+      "path": "/api/v1/vendor/subscription/payment/api"
+    },
+    {
+      "constant": "businessPlanUri",
+      "path": "/api/v1/vendor/business_plan"
+    },
+    {
+      "constant": "business_SettingsUri",
+      "path": "/api/v1/business-settings/mobile-app-home-screen-setup"
+    },
+    {
+      "constant": "cancellationUri",
+      "path": "/api/v1/cancelation"
+    },
+    {
+      "constant": "cartMergeUri",
+      "path": "/cart/merge"
+    },
+    {
+      "constant": "cartStoreSuggestedItemsUri",
+      "path": "/api/v1/items/suggested"
+    },
+    {
+      "constant": "cashBackOfferListUri",
+      "path": "/api/v1/cashback/list"
+    },
+    {
+      "constant": "categoryItemUri",
+      "path": "/api/v1/categories/items/"
+    },
+    {
+      "constant": "categoryStoreUri",
+      "path": "/api/v1/categories/stores/"
+    },
+    {
+      "constant": "categoryUri",
+      "path": "/api/v1/categories"
+    },
+    {
+      "constant": "checkEmailUri",
+      "path": "/api/v1/auth/check-email"
+    },
+    {
+      "constant": "checkZoneUri",
+      "path": "/api/v1/zone/check"
+    },
+    {
+      "constant": "codSwitchUri",
+      "path": "/api/v1/customer/order/payment-method"
+    },
+    {
+      "constant": "commonConditionUri",
+      "path": "/api/v1/common-condition"
+    },
+    {
+      "constant": "conditionWiseItemUri",
+      "path": "/api/v1/common-condition/items/"
+    },
+    {
+      "constant": "configUri",
+      "path": "/api/v1/config"
+    },
+    {
+      "constant": "conversationListUri",
+      "path": "/api/v1/customer/message/list"
+    },
+    {
+      "constant": "couponApplyUri",
+      "path": "/api/v1/coupon/apply?code="
+    },
+    {
+      "constant": "couponUri",
+      "path": "/api/v1/coupon/list"
+    },
+    {
+      "constant": "customerDmCheckRegistrationUri",
+      "path": "/api/v1/customer/delivery-man/check-registration"
+    },
+    {
+      "constant": "customerInfoUri",
+      "path": "/api/v1/customer/info"
+    },
+    {
+      "constant": "customerRemoveUri",
+      "path": "/api/v1/customer/remove-account"
+    },
+    {
+      "constant": "deliveryManReviewUri",
+      "path": "/api/v1/delivery-man/reviews/submit"
+    },
+    {
+      "constant": "directionUri",
+      "path": "/api/v1/config/direction-api"
+    },
+    {
+      "constant": "discountedItemsUri",
+      "path": "/api/v1/items/discounted"
+    },
+    {
+      "constant": "distanceMatrixUri",
+      "path": "/api/v1/config/distance-api"
+    },
+    {
+      "constant": "dmCheckRegistrationUri",
+      "path": "/api/v1/auth/delivery-man/check-registration"
+    },
+    {
+      "constant": "dmRegisterUri",
+      "path": "/api/v1/auth/delivery-man/store"
+    },
+    {
+      "constant": "editOrderAddressUri",
+      "path": "/api/v1/customer/order/edit-address"
+    },
+    {
+      "constant": "exchangeWalletMoney",
+      "path": "/api/v1/customer/ExchangeWalletMoney"
+    },
+    {
+      "constant": "featuredCategoriesItemsUri",
+      "path": "/api/v1/categories/featured/items"
+    },
+    {
+      "constant": "firebaseAuthVerify",
+      "path": "/api/v1/auth/firebase-verify-token"
+    },
+    {
+      "constant": "firebaseResetPassword",
+      "path": "/api/v1/auth/firebase-reset-password"
+    },
+    {
+      "constant": "flashSaleProductsUri",
+      "path": "/api/v1/flash-sales/items"
+    },
+    {
+      "constant": "flashSaleUri",
+      "path": "/api/v1/flash-sales"
+    },
+    {
+      "constant": "forgetPasswordUri",
+      "path": "/api/v1/auth/forgot-password"
+    },
+    {
+      "constant": "geocodeUri",
+      "path": "/api/v1/config/geocode-api"
+    },
+    {
+      "constant": "getCarCartListUri",
+      "path": "/api/v1/rental/user/cart/get-cart"
+    },
+    {
+      "constant": "getCartListUri",
+      "path": "/api/v1/customer/cart/list"
+    },
+    {
+      "constant": "getCashBackAmountUri",
+      "path": "/api/v1/cashback/getCashback"
+    },
+    {
+      "constant": "getPopularTaxiSuggestionUri",
+      "path": "/api/v1/rental/vehicle/popular-suggestion/"
+    },
+    {
+      "constant": "getProviderBannerUri",
+      "path": "/api/v1/rental/banners"
+    },
+    {
+      "constant": "getProviderDetailsUri",
+      "path": "/api/v1/rental/provider/get-provider-details"
+    },
+    {
+      "constant": "getProviderVehicleCategoryListUri",
+      "path": "/api/v1/rental/vehicle/category-list"
+    },
+    {
+      "constant": "getProviderVehicleListUri",
+      "path": "/api/v1/rental/vehicle/get-provider-vehicles"
+    },
+    {
+      "constant": "getSearchVehicleSuggestionUri",
+      "path": "/api/v1/rental/vehicle/search/suggestion"
+    },
+    {
+      "constant": "getSelectVehiclesUri",
+      "path": "/api/v1/rental/vehicle/search/"
+    },
+    {
+      "constant": "getTaxiBannerUri",
+      "path": "/api/v1/rental/banners"
+    },
+    {
+      "constant": "getTaxiBrandListUri",
+      "path": "/api/v1/rental/vehicle/brand-list"
+    },
+    {
+      "constant": "getTaxiCouponUri",
+      "path": "/api/v1/rental/coupon/list"
+    },
+    {
+      "constant": "getTaxiProviderReviewUri",
+      "path": "/api/v1/rental/provider/get-provider-reviews"
+    },
+    {
+      "constant": "getTaxiWishListUri",
+      "path": "/api/v1/rental/user/wish-list"
+    },
+    {
+      "constant": "getTopRatedCarsUri",
+      "path": "/api/v1/rental/vehicle/top-rated"
+    },
+    {
+      "constant": "getVehicleCategoriesUri",
+      "path": "/api/v1/rental/vehicle/category-list"
+    },
+    {
+      "constant": "getVehicleDetailsUri",
+      "path": "/api/v1/rental/vehicle/get-vehicle-details"
+    },
+    {
+      "constant": "get_delegateUri",
+      "path": "/api/v1/customer/delegate/get-delegate-status"
+    },
+    {
+      "constant": "get_walletUri",
+      "path": "/api/qidha-wallet/get-wallet"
+    },
+    {
+      "constant": "guestLoginUri",
+      "path": "/api/v1/auth/guest/request"
+    },
+    {
+      "constant": "historyOrderListUri",
+      "path": "/api/v1/customer/order/list"
+    },
+    {
+      "constant": "homeUnifiedUri",
+      "path": "/api/v2/home-unified"
+    },
+    {
+      "constant": "interestUri",
+      "path": "/api/v1/customer/update-interest"
+    },
+    {
+      "constant": "itemCampaignUri",
+      "path": "/api/v1/campaigns/item"
+    },
+    {
+      "constant": "itemDetailsUri",
+      "path": "/api/v1/items/details/"
+    },
+    {
+      "constant": "itemSearchUri",
+      "path": "/api/v1/items/search"
+    },
+    {
+      "constant": "landingPageUri",
+      "path": "/api/v1/flutter-landing-page"
+    },
+    {
+      "constant": "lastLocationUri",
+      "path": "/api/v1/delivery-man/last-location?order_id="
+    },
+    {
+      "constant": "latestStoreUri",
+      "path": "/api/v1/stores/latest"
+    },
+    {
+      "constant": "loginUri",
+      "path": "/api/v1/auth/customer-login"
+    },
+    {
+      "constant": "loyaltyPointTransferUri",
+      "path": "/api/v1/customer/loyalty-point/point-transfer"
+    },
+    {
+      "constant": "loyaltyTransactionUri",
+      "path": "/api/v1/customer/loyalty-point/transactions"
+    },
+    {
+      "constant": "messageListUri",
+      "path": "/api/v1/customer/message/details"
+    },
+    {
+      "constant": "messageUri",
+      "path": "/api/v1/customer/message/get"
+    },
+    {
+      "constant": "moduleUri",
+      "path": "/api/v1/module"
+    },
+    {
+      "constant": "mostTipsUri",
+      "path": "/api/v1/most-tips"
+    },
+    {
+      "constant": "nafath_cancelUri",
+      "path": "/api/qidha-wallet/nafath/cancel"
+    },
+    {
+      "constant": "nafath_checkStatusUri",
+      "path": "/api/qidha-wallet/nafath/checkStatus"
+    },
+    {
+      "constant": "nafath_initiateUri",
+      "path": "/api/qidha-wallet/nafath/initiate"
+    },
+    {
+      "constant": "nafath_retryUri",
+      "path": "/api/qidha-wallet/nafath/retry"
+    },
+    {
+      "constant": "nafath_signUri",
+      "path": "/api/qidha-wallet/nafath/sign"
+    },
+    {
+      "constant": "notificationUri",
+      "path": "/api/v1/customer/notifications"
+    },
+    {
+      "constant": "offersItemUri",
+      "path": "/api/v1/offers/"
+    },
+    {
+      "constant": "offersUri",
+      "path": "/api/v1/offers/active"
+    },
+    {
+      "constant": "offlineMethodListUri",
+      "path": "/api/v1/offline_payment_method_list"
+    },
+    {
+      "constant": "offlinePaymentSaveInfoUri",
+      "path": "/api/v1/customer/order/offline-payment"
+    },
+    {
+      "constant": "offlinePaymentUpdateInfoUri",
+      "path": "/api/v1/customer/order/offline-payment-update"
+    },
+    {
+      "constant": "orderCancelUri",
+      "path": "/api/v1/customer/order/cancel"
+    },
+    {
+      "constant": "orderCancellationUri",
+      "path": "/api/v1/customer/order/cancellation-reasons"
+    },
+    {
+      "constant": "orderDetailsUri",
+      "path": "/api/v1/customer/order/details?order_id="
+    },
+    {
+      "constant": "parcelCategoryUri",
+      "path": "/api/v1/parcel-category"
+    },
+    {
+      "constant": "parcelInstructionUri",
+      "path": "/api/v1/customer/order/parcel-instructions"
+    },
+    {
+      "constant": "parcelOtherBannerUri",
+      "path": "/api/v1/other-banners"
+    },
+    {
+      "constant": "pay_creditUri",
+      "path": "/api/qidha-wallet/credit"
+    },
+    {
+      "constant": "pay_debitUri",
+      "path": "/api/qidha-wallet/debit"
+    },
+    {
+      "constant": "personalInformationUri",
+      "path": "/api/v1/auth/update-info"
+    },
+    {
+      "constant": "placeDetailsUri",
+      "path": "/api/v1/config/place-api-details"
+    },
+    {
+      "constant": "placeOrderUri",
+      "path": "/api/v1/customer/order/place"
+    },
+    {
+      "constant": "placePrescriptionOrderUri",
+      "path": "/api/v1/customer/order/prescription/place"
+    },
+    {
+      "constant": "popularItemUri",
+      "path": "/api/v1/items/popular"
+    },
+    {
+      "constant": "popularStoreUri",
+      "path": "/api/v1/stores/popular"
+    },
+    {
+      "constant": "privacyPolicyUri",
+      "path": "/api/v1/privacy-policy"
+    },
+    {
+      "constant": "processPaymentUri",
+      "path": "/api/v1/customer/order/process-payment"
+    },
+    {
+      "constant": "promotionalBannerUri",
+      "path": "/api/v1/other-banners"
+    },
+    {
+      "constant": "qidhaWalletBaseUri",
+      "path": "/api/qidha-wallet"
+    },
+    {
+      "constant": "recommendedItemsUri",
+      "path": "/api/v1/items/recommended?filter="
+    },
+    {
+      "constant": "recommendedStoreUri",
+      "path": "/api/v1/stores/recommended"
+    },
+    {
+      "constant": "refundReasonUri",
+      "path": "/api/v1/customer/order/refund-reasons"
+    },
+    {
+      "constant": "refundRequestUri",
+      "path": "/api/v1/customer/order/refund-request"
+    },
+    {
+      "constant": "refundUri",
+      "path": "/api/v1/refund-policy"
+    },
+    {
+      "constant": "registerUri",
+      "path": "/api/v1/auth/sign-up"
+    },
+    {
+      "constant": "registration_activityUri",
+      "path": "/api/v1/registration-activity"
+    },
+    {
+      "constant": "removeAddressUri",
+      "path": "/api/v1/customer/address/delete?address_id="
+    },
+    {
+      "constant": "removeAllCarCartUri",
+      "path": "/api/v1/rental/user/cart/remove-cart"
+    },
+    {
+      "constant": "removeAllCartUri",
+      "path": "/api/v1/customer/cart/remove"
+    },
+    {
+      "constant": "removeCarCartUri",
+      "path": "/api/v1/rental/user/cart/remove-vehicle"
+    },
+    {
+      "constant": "removeItemCartUri",
+      "path": "/api/v1/customer/cart/remove-item"
+    },
+    {
+      "constant": "removeMultipleCarCartUri",
+      "path": "/api/v1/rental/user/cart/remove-multiple-cart"
+    },
+    {
+      "constant": "removeTaxiWishListUri",
+      "path": "/api/v1/rental/user/wish-list/remove"
+    },
+    {
+      "constant": "removeWishListUri",
+      "path": "/api/v1/customer/wish-list/remove?"
+    },
+    {
+      "constant": "requestExchangeWalletMoney",
+      "path": "/api/v1/customer/requestExchangeWalletMoney"
+    },
+    {
+      "constant": "resendOtpUri",
+      "path": "/api/v1/auth/send-otp-again"
+    },
+    {
+      "constant": "resetPasswordUri",
+      "path": "/api/v1/auth/reset-password"
+    },
+    {
+      "constant": "reviewUri",
+      "path": "/api/v1/items/reviews/submit"
+    },
+    {
+      "constant": "reviewedItemUri",
+      "path": "/api/v1/items/most-reviewed"
+    },
+    {
+      "constant": "runningOrderListUri",
+      "path": "/api/v1/customer/order/running-orders"
+    },
+    {
+      "constant": "runningTripUri",
+      "path": "/api/v1/trip/list"
+    },
+    {
+      "constant": "savedRecipientsUri",
+      "path": "/api/v1/customer/wallet/recipients"
+    },
+    {
+      "constant": "searchConversationListUri",
+      "path": "/api/v1/customer/message/search-list"
+    },
+    {
+      "constant": "searchItemUri",
+      "path": "/api/v1/items/details/"
+    },
+    {
+      "constant": "searchLocationUri",
+      "path": "/api/v1/config/place-api-autocomplete"
+    },
+    {
+      "constant": "searchPopularCategoriesUri",
+      "path": "/api/v1/categories/popular"
+    },
+    {
+      "constant": "searchSuggestionsUri",
+      "path": "/api/v1/items/item-or-store-search"
+    },
+    {
+      "constant": "searchUri",
+      "path": "/api/v1/"
+    },
+    {
+      "constant": "sendMessageUri",
+      "path": "/api/v1/customer/message/send"
+    },
+    {
+      "constant": "send_delegateUri",
+      "path": "/api/v1/customer/delegate/store"
+    },
+    {
+      "constant": "setMenuUri",
+      "path": "/api/v1/items/set-menu"
+    },
+    {
+      "constant": "shippingPolicyUri",
+      "path": "/api/v1/shipping-policy"
+    },
+    {
+      "constant": "socialLoginUri",
+      "path": "/api/v1/auth/social-login"
+    },
+    {
+      "constant": "socialRegisterUri",
+      "path": "/api/v1/auth/social-register"
+    },
+    {
+      "constant": "statusUri",
+      "path": "/api/v1/auth/delivery-man/status"
+    },
+    {
+      "constant": "storeBannersUri",
+      "path": "/api/v1/banners/"
+    },
+    {
+      "constant": "storeDetailsUri",
+      "path": "/api/v1/stores/details/"
+    },
+    {
+      "constant": "storeItemUri",
+      "path": "/api/v1/items/latest"
+    },
+    {
+      "constant": "storePackagesUri",
+      "path": "/api/v1/vendor/package-view"
+    },
+    {
+      "constant": "storeRecommendedItemUri",
+      "path": "/api/v1/items/recommended"
+    },
+    {
+      "constant": "storeRegisterUri",
+      "path": "/api/v1/auth/vendor/register"
+    },
+    {
+      "constant": "storeReviewUri",
+      "path": "/api/v1/stores/reviews"
+    },
+    {
+      "constant": "storeSubcategoriesWithSamplesBaseUri",
+      "path": "/api/v1/stores"
+    },
+    {
+      "constant": "storeSummaryUri",
+      "path": "/api/v2/checkout/store-summary"
+    },
+    {
+      "constant": "storeUri",
+      "path": "/api/v1/stores/get-stores"
+    },
+    {
+      "constant": "store_infoUri",
+      "path": "/api/qidha-wallet/store"
+    },
+    {
+      "constant": "store_qidhaUri",
+      "path": "/api/qidha-wallet/store"
+    },
+    {
+      "constant": "subCategoryUri",
+      "path": "/api/v1/categories/childes/"
+    },
+    {
+      "constant": "subscriptionUri",
+      "path": "/api/v1/newsletter/subscribe"
+    },
+    {
+      "constant": "suggestedItemUri",
+      "path": "/api/v1/customer/suggested-items"
+    },
+    {
+      "constant": "supportReasonUri",
+      "path": "/api/v1/customer/automated-message"
+    },
+    {
+      "constant": "taxiBannerUri",
+      "path": "/api/v1/banners/taxi"
+    },
+    {
+      "constant": "taxiCouponApplyUri",
+      "path": "/api/v1/rental/coupon/apply"
+    },
+    {
+      "constant": "taxiCouponApplyUri",
+      "path": "/api/v1/coupon/apply/taxi?code="
+    },
+    {
+      "constant": "taxiCouponUri",
+      "path": "/api/v1/coupon/list/taxi"
+    },
+    {
+      "constant": "termsAndConditionUri",
+      "path": "/api/v1/terms-and-conditions"
+    },
+    {
+      "constant": "tokenUri",
+      "path": "/api/v1/customer/cm-firebase-token"
+    },
+    {
+      "constant": "topOfferStoreUri",
+      "path": "/api/v1/stores/top-offer-near-me"
+    },
+    {
+      "constant": "topRatedVehiclesListUri",
+      "path": "/api/v1/vehicles/top-rated/list"
+    },
+    {
+      "constant": "trackUri",
+      "path": "/api/v1/customer/order/track?order_id="
+    },
+    {
+      "constant": "tripBookingUri",
+      "path": "/api/v1/rental/user/trip/trip-booking"
+    },
+    {
+      "constant": "tripCancelUri",
+      "path": "/api/v1/rental/user/trip/cancel-trip"
+    },
+    {
+      "constant": "tripDetailsUri",
+      "path": "/api/v1/rental/user/trip/get-trip-details"
+    },
+    {
+      "constant": "tripListUri",
+      "path": "/api/v1/rental/user/trip/get-trip-list"
+    },
+    {
+      "constant": "tripPaymentUri",
+      "path": "/api/v1/rental/user/trip/payment"
+    },
+    {
+      "constant": "tripPlaceUri",
+      "path": "/api/v1/trip/place"
+    },
+    {
+      "constant": "tripUpdateUserDataUri",
+      "path": "/api/v1/rental/user/cart/update-user-data"
+    },
+    {
+      "constant": "updateAddressUri",
+      "path": "/api/v1/customer/address/update/"
+    },
+    {
+      "constant": "updateCarCartUri",
+      "path": "/api/v1/rental/user/cart/update-cart"
+    },
+    {
+      "constant": "updateCartUri",
+      "path": "/api/v1/customer/cart/update"
+    },
+    {
+      "constant": "updateProfileUri",
+      "path": "/api/v1/customer/update-profile"
+    },
+    {
+      "constant": "updateZoneUri",
+      "path": "/api/v1/customer/update-zone"
+    },
+    {
+      "constant": "validateRecipientUri",
+      "path": "/api/v1/customer/wallet/validate-recipient"
+    },
+    {
+      "constant": "vehicleChargeUri",
+      "path": "/api/v1/vehicle/extra_charge"
+    },
+    {
+      "constant": "vehicleListUri",
+      "path": "/api/v1/vehicles/list"
+    },
+    {
+      "constant": "vehiclesUri",
+      "path": "/api/v1/get-vehicles"
+    },
+    {
+      "constant": "verifyEmailUri",
+      "path": "/api/v1/auth/verify-email"
+    },
+    {
+      "constant": "verifyLoginOtpUri",
+      "path": "/api/v1/auth/verify-login-otp"
+    },
+    {
+      "constant": "verifyPhoneUri",
+      "path": "/api/v1/auth/verify-phone"
+    },
+    {
+      "constant": "verifyTokenUri",
+      "path": "/api/v1/auth/verify-token"
+    },
+    {
+      "constant": "videoContentUri",
+      "path": "/api/v1/other-banners/video-content"
+    },
+    {
+      "constant": "visitAgainStoreUri",
+      "path": "/api/v1/customer/visit-again"
+    },
+    {
+      "constant": "walletBonusUri",
+      "path": "/api/v1/customer/wallet/bonuses"
+    },
+    {
+      "constant": "walletTransactionUri",
+      "path": "/api/v1/customer/wallet/transactions"
+    },
+    {
+      "constant": "walletTransferUri",
+      "path": "/api/v1/customer/wallet/transfer"
+    },
+    {
+      "constant": "whyChooseUri",
+      "path": "/api/v1/other-banners/why-choose"
+    },
+    {
+      "constant": "wishListGetUri",
+      "path": "/api/v1/customer/wish-list"
+    },
+    {
+      "constant": "zoneListUri",
+      "path": "/api/v1/zone/list"
+    },
+    {
+      "constant": "zoneUri",
+      "path": "/api/v1/config/get-zone-id"
+    }
+  ],
+  "unique_paths_sorted": [
+    "/api/qidha-wallet",
+    "/api/qidha-wallet/credit",
+    "/api/qidha-wallet/debit",
+    "/api/qidha-wallet/get-wallet",
+    "/api/qidha-wallet/nafath/cancel",
+    "/api/qidha-wallet/nafath/checkStatus",
+    "/api/qidha-wallet/nafath/initiate",
+    "/api/qidha-wallet/nafath/retry",
+    "/api/qidha-wallet/nafath/sign",
+    "/api/qidha-wallet/store",
+    "/api/v1/",
+    "/api/v1/about-us",
+    "/api/v1/advertisement/list",
+    "/api/v1/app-init",
+    "/api/v1/app/version/check",
+    "/api/v1/auth/check-email",
+    "/api/v1/auth/customer-login",
+    "/api/v1/auth/delivery-man/check-registration",
+    "/api/v1/auth/delivery-man/status",
+    "/api/v1/auth/delivery-man/store",
+    "/api/v1/auth/firebase-reset-password",
+    "/api/v1/auth/firebase-verify-token",
+    "/api/v1/auth/forgot-password",
+    "/api/v1/auth/guest/request",
+    "/api/v1/auth/reset-password",
+    "/api/v1/auth/send-otp-again",
+    "/api/v1/auth/sign-up",
+    "/api/v1/auth/social-login",
+    "/api/v1/auth/social-register",
+    "/api/v1/auth/update-info",
+    "/api/v1/auth/vendor/register",
+    "/api/v1/auth/verify-email",
+    "/api/v1/auth/verify-login-otp",
+    "/api/v1/auth/verify-phone",
+    "/api/v1/auth/verify-token",
+    "/api/v1/banners",
+    "/api/v1/banners/",
+    "/api/v1/banners/taxi",
+    "/api/v1/bootstrap",
+    "/api/v1/brand/items",
+    "/api/v1/brand/items/filter",
+    "/api/v1/brand/items/search",
+    "/api/v1/brands",
+    "/api/v1/business-settings/mobile-app-home-screen-setup",
+    "/api/v1/campaigns/basic",
+    "/api/v1/campaigns/basic-campaign-details?basic_campaign_id=",
+    "/api/v1/campaigns/item",
+    "/api/v1/cancelation",
+    "/api/v1/cashback/getCashback",
+    "/api/v1/cashback/list",
+    "/api/v1/categories",
+    "/api/v1/categories/childes/",
+    "/api/v1/categories/featured/items",
+    "/api/v1/categories/items/",
+    "/api/v1/categories/popular",
+    "/api/v1/categories/stores/",
+    "/api/v1/common-condition",
+    "/api/v1/common-condition/items/",
+    "/api/v1/config",
+    "/api/v1/config/direction-api",
+    "/api/v1/config/distance-api",
+    "/api/v1/config/geocode-api",
+    "/api/v1/config/get-zone-id",
+    "/api/v1/config/place-api-autocomplete",
+    "/api/v1/config/place-api-details",
+    "/api/v1/coupon/apply/taxi?code=",
+    "/api/v1/coupon/apply?code=",
+    "/api/v1/coupon/list",
+    "/api/v1/coupon/list/taxi",
+    "/api/v1/customer/ExchangeWalletMoney",
+    "/api/v1/customer/address/add",
+    "/api/v1/customer/address/delete?address_id=",
+    "/api/v1/customer/address/list",
+    "/api/v1/customer/address/update/",
+    "/api/v1/customer/analytics",
+    "/api/v1/customer/analytics/category-breakdown",
+    "/api/v1/customer/analytics/export",
+    "/api/v1/customer/analytics/insights",
+    "/api/v1/customer/analytics/most-purchased-products",
+    "/api/v1/customer/analytics/product-details",
+    "/api/v1/customer/analytics/product-transaction-history",
+    "/api/v1/customer/analytics/spending-trends",
+    "/api/v1/customer/analytics/summary",
+    "/api/v1/customer/automated-message",
+    "/api/v1/customer/cart/add",
+    "/api/v1/customer/cart/list",
+    "/api/v1/customer/cart/remove",
+    "/api/v1/customer/cart/remove-item",
+    "/api/v1/customer/cart/update",
+    "/api/v1/customer/cm-firebase-token",
+    "/api/v1/customer/delegate/get-delegate-status",
+    "/api/v1/customer/delegate/store",
+    "/api/v1/customer/delivery-man/check-registration",
+    "/api/v1/customer/info",
+    "/api/v1/customer/loyalty-point/point-transfer",
+    "/api/v1/customer/loyalty-point/transactions",
+    "/api/v1/customer/message/details",
+    "/api/v1/customer/message/get",
+    "/api/v1/customer/message/list",
+    "/api/v1/customer/message/search-list",
+    "/api/v1/customer/message/send",
+    "/api/v1/customer/notifications",
+    "/api/v1/customer/order/cancel",
+    "/api/v1/customer/order/cancellation-reasons",
+    "/api/v1/customer/order/details?order_id=",
+    "/api/v1/customer/order/edit-address",
+    "/api/v1/customer/order/list",
+    "/api/v1/customer/order/offline-payment",
+    "/api/v1/customer/order/offline-payment-update",
+    "/api/v1/customer/order/parcel-instructions",
+    "/api/v1/customer/order/payment-method",
+    "/api/v1/customer/order/place",
+    "/api/v1/customer/order/prescription/place",
+    "/api/v1/customer/order/process-payment",
+    "/api/v1/customer/order/refund-reasons",
+    "/api/v1/customer/order/refund-request",
+    "/api/v1/customer/order/running-orders",
+    "/api/v1/customer/order/track?order_id=",
+    "/api/v1/customer/remove-account",
+    "/api/v1/customer/requestExchangeWalletMoney",
+    "/api/v1/customer/suggested-items",
+    "/api/v1/customer/update-interest",
+    "/api/v1/customer/update-profile",
+    "/api/v1/customer/update-zone",
+    "/api/v1/customer/visit-again",
+    "/api/v1/customer/wallet/add-fund",
+    "/api/v1/customer/wallet/bonuses",
+    "/api/v1/customer/wallet/recipients",
+    "/api/v1/customer/wallet/recipients/add",
+    "/api/v1/customer/wallet/transactions",
+    "/api/v1/customer/wallet/transfer",
+    "/api/v1/customer/wallet/validate-recipient",
+    "/api/v1/customer/wish-list",
+    "/api/v1/customer/wish-list/add?",
+    "/api/v1/customer/wish-list/remove?",
+    "/api/v1/delivery-man/last-location?order_id=",
+    "/api/v1/delivery-man/reviews/submit",
+    "/api/v1/flash-sales",
+    "/api/v1/flash-sales/items",
+    "/api/v1/flutter-landing-page",
+    "/api/v1/get-vehicles",
+    "/api/v1/items/basic",
+    "/api/v1/items/details/",
+    "/api/v1/items/discounted",
+    "/api/v1/items/item-or-store-search",
+    "/api/v1/items/latest",
+    "/api/v1/items/most-reviewed",
+    "/api/v1/items/popular",
+    "/api/v1/items/recommended",
+    "/api/v1/items/recommended?filter=",
+    "/api/v1/items/reviews/submit",
+    "/api/v1/items/search",
+    "/api/v1/items/set-menu",
+    "/api/v1/items/suggested",
+    "/api/v1/module",
+    "/api/v1/most-tips",
+    "/api/v1/newsletter/subscribe",
+    "/api/v1/offers/",
+    "/api/v1/offers/active",
+    "/api/v1/offline_payment_method_list",
+    "/api/v1/other-banners",
+    "/api/v1/other-banners/video-content",
+    "/api/v1/other-banners/why-choose",
+    "/api/v1/parcel-category",
+    "/api/v1/privacy-policy",
+    "/api/v1/refund-policy",
+    "/api/v1/registration-activity",
+    "/api/v1/rental/banners",
+    "/api/v1/rental/coupon/apply",
+    "/api/v1/rental/coupon/list",
+    "/api/v1/rental/provider/get-provider-details",
+    "/api/v1/rental/provider/get-provider-reviews",
+    "/api/v1/rental/user/cart/add-to-cart",
+    "/api/v1/rental/user/cart/get-cart",
+    "/api/v1/rental/user/cart/remove-cart",
+    "/api/v1/rental/user/cart/remove-multiple-cart",
+    "/api/v1/rental/user/cart/remove-vehicle",
+    "/api/v1/rental/user/cart/update-cart",
+    "/api/v1/rental/user/cart/update-user-data",
+    "/api/v1/rental/user/review/add",
+    "/api/v1/rental/user/trip/cancel-trip",
+    "/api/v1/rental/user/trip/get-trip-details",
+    "/api/v1/rental/user/trip/get-trip-list",
+    "/api/v1/rental/user/trip/payment",
+    "/api/v1/rental/user/trip/trip-booking",
+    "/api/v1/rental/user/wish-list",
+    "/api/v1/rental/user/wish-list/add",
+    "/api/v1/rental/user/wish-list/remove",
+    "/api/v1/rental/vehicle/brand-list",
+    "/api/v1/rental/vehicle/category-list",
+    "/api/v1/rental/vehicle/get-provider-vehicles",
+    "/api/v1/rental/vehicle/get-vehicle-details",
+    "/api/v1/rental/vehicle/popular-suggestion/",
+    "/api/v1/rental/vehicle/search/",
+    "/api/v1/rental/vehicle/search/suggestion",
+    "/api/v1/rental/vehicle/top-rated",
+    "/api/v1/shipping-policy",
+    "/api/v1/stores",
+    "/api/v1/stores/details/",
+    "/api/v1/stores/get-stores",
+    "/api/v1/stores/latest",
+    "/api/v1/stores/popular",
+    "/api/v1/stores/recommended",
+    "/api/v1/stores/reviews",
+    "/api/v1/stores/top-offer-near-me",
+    "/api/v1/terms-and-conditions",
+    "/api/v1/trip/list",
+    "/api/v1/trip/place",
+    "/api/v1/vehicle/extra_charge",
+    "/api/v1/vehicles/brand/list",
+    "/api/v1/vehicles/list",
+    "/api/v1/vehicles/top-rated/list",
+    "/api/v1/vendor/business_plan",
+    "/api/v1/vendor/package-view",
+    "/api/v1/vendor/subscription/payment/api",
+    "/api/v1/zone/check",
+    "/api/v1/zone/list",
+    "/api/v2/checkout/store-summary",
+    "/api/v2/home-unified",
+    "/cart/merge"
+  ],
+  "notes": [
+    "Paths are string constants in the client — not proof they are called, GET vs POST, or healthy.",
+    "Some calls build URLs by concatenation; those may not appear as full paths here.",
+    "Runtime verification requires per-method, per-auth, per-body matrix against each environment."
+  ]
+}

@@ -110,11 +110,11 @@ class ParcelAppBarWidget extends StatelessWidget
             ),
           )),
           InkWell(
+            onTap: _openNotificationCenterFromParcel,
             child: _AnimatedNotificationIconParcel(
               iconColor:
                   Theme.of(context).textTheme.bodyLarge?.color ?? Colors.black,
             ),
-            onTap: _openNotificationCenterFromParcel,
           ),
         ]);
       }),

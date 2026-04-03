@@ -37,7 +37,7 @@ class SearchScreenState extends State<SearchScreen>
     with TickerProviderStateMixin {
   TabController? _tabController;
 
-  final TextEditingController _Search_Controller = TextEditingController();
+  final TextEditingController _SearchController = TextEditingController();
   final FocusNode _searchFocusNode = FocusNode();
   late bool _isLoggedIn;
 
@@ -75,7 +75,7 @@ class SearchScreenState extends State<SearchScreen>
       }
     });
 
-    Get.find<search.Search_Controller>().setSearchMode(true, canUpdate: false);
+    Get.find<search.SearchController>().setSearchMode(true, canUpdate: false);
 
     // Set default module to Module 3 (هايبر شله/Ecommerce) if not set
     final splashController = Get.find<SplashController>();
@@ -95,14 +95,14 @@ class SearchScreenState extends State<SearchScreen>
     // For Module 3 (ecommerce): default to Items (false)
     // For other modules: default to Stores (true)
     final isEcommerce = splashController.module?.moduleType == 'ecommerce';
-    Get.find<search.Search_Controller>().setStore(!isEcommerce);
+    Get.find<search.SearchController>().setStore(!isEcommerce);
 
-    Get.find<search.Search_Controller>().getPopularCategories();
-    Get.find<search.Search_Controller>().getTrendingCategories();
+    Get.find<search.SearchController>().getPopularCategories();
+    Get.find<search.SearchController>().getTrendingCategories();
     if (_isLoggedIn) {
-      Get.find<search.Search_Controller>().getSuggestedItems();
+      Get.find<search.SearchController>().getSuggestedItems();
     }
-    Get.find<search.Search_Controller>().getHistoryList();
+    Get.find<search.SearchController>().getHistoryList();
     if (widget.queryText!.isNotEmpty) {
       _actionSearch(true, widget.queryText, true);
     }
@@ -128,7 +128,7 @@ class SearchScreenState extends State<SearchScreen>
     });
 
     _debounceTimer = Timer(_debounceDelay, () async {
-      await Get.find<search.Search_Controller>().getSearchSuggestions(query);
+      await Get.find<search.SearchController>().getSearchSuggestions(query);
       if (mounted) {
         setState(() {
           _isLoadingSuggestions = false;
@@ -149,7 +149,7 @@ class SearchScreenState extends State<SearchScreen>
             '🔍 Search triggered: $queryText, isStore: $isStore, fromHome: $fromHome');
       }
 
-      final searchController = Get.find<search.Search_Controller>();
+      final searchController = Get.find<search.SearchController>();
 
       // Set store mode first to update UI immediately
       searchController.setStore(isStore);
@@ -166,9 +166,9 @@ class SearchScreenState extends State<SearchScreen>
   }
 
   void _resetSearchStateForModuleSwitch(
-      search.Search_Controller searchController, ModuleModel module) {
+      search.SearchController searchController, ModuleModel module) {
     _debounceTimer?.cancel();
-    _Search_Controller.clear();
+    _SearchController.clear();
     _showSuggestion = false;
     _isLoadingSuggestions = false;
     _storeVisibleItemCount.clear();
@@ -224,7 +224,7 @@ class SearchScreenState extends State<SearchScreen>
   }
 
   void _switchTab(bool isStore) {
-    final searchController = Get.find<search.Search_Controller>();
+    final searchController = Get.find<search.SearchController>();
 
     // Only switch if different from current mode
     if (searchController.isStore != isStore) {
@@ -238,25 +238,25 @@ class SearchScreenState extends State<SearchScreen>
   Widget build(BuildContext context) {
     return PopScope(
       onPopInvokedWithResult: (didPop, result) async {
-        if (Get.find<search.Search_Controller>().isSearchMode) {
+        if (Get.find<search.SearchController>().isSearchMode) {
           return;
         } else {
-          Get.find<search.Search_Controller>().setSearchMode(true);
+          Get.find<search.SearchController>().setSearchMode(true);
         }
       },
       child: Scaffold(
         appBar: ResponsiveHelper.isDesktop(context) ? const WebMenuBar() : null,
         body: SafeArea(
-          child: GetBuilder<search.Search_Controller>(
+          child: GetBuilder<search.SearchController>(
             builder: (searchController) {
               if (!GetPlatform.isWeb) {
                 final String desiredText = searchController.searchText ?? '';
-                if (_Search_Controller.text != desiredText) {
+                if (_SearchController.text != desiredText) {
                   WidgetsBinding.instance.addPostFrameCallback((_) {
                     if (!mounted) return;
-                    if (_Search_Controller.text == desiredText) return;
+                    if (_SearchController.text == desiredText) return;
                     _isSyncingSearchText = true;
-                    _Search_Controller.value = TextEditingValue(
+                    _SearchController.value = TextEditingValue(
                       text: desiredText,
                       selection:
                           TextSelection.collapsed(offset: desiredText.length),
@@ -383,7 +383,7 @@ class SearchScreenState extends State<SearchScreen>
                         await splashController.setModule(module);
 
                         final searchController =
-                            Get.find<search.Search_Controller>();
+                            Get.find<search.SearchController>();
 
                         // Reset search first so no stale results are shown.
                         _resetSearchStateForModuleSwitch(
@@ -560,7 +560,7 @@ class SearchScreenState extends State<SearchScreen>
   // Removed: _LocationSection() - No longer used after redesign
 
   /// Search input field with magnifying glass, clear button, back button, and focus animations
-  Widget _SearchInputField(search.Search_Controller searchController) {
+  Widget _SearchInputField(search.SearchController searchController) {
     final isRtl = Get.locale?.languageCode == 'ar';
 
     return Column(
@@ -587,7 +587,7 @@ class SearchScreenState extends State<SearchScreen>
                               : DesignTokens.shadowMedium,
                         ),
                         child: TextField(
-                          controller: _Search_Controller,
+                          controller: _SearchController,
                           focusNode: _searchFocusNode,
                           textAlignVertical: TextAlignVertical.center,
                           style: const TextStyle(
@@ -621,10 +621,10 @@ class SearchScreenState extends State<SearchScreen>
                               color: DesignTokens.secondaryOrange,
                               size: 22,
                             ),
-                            suffixIcon: _Search_Controller.text.isNotEmpty
+                            suffixIcon: _SearchController.text.isNotEmpty
                                 ? IconButton(
                                     onPressed: () {
-                                      _Search_Controller.clear();
+                                      _SearchController.clear();
                                       _showSuggestion = false;
                                       if (_isSyncingSearchText) return;
                                       searchController.setSearchText('');
@@ -741,7 +741,7 @@ class SearchScreenState extends State<SearchScreen>
                               : DesignTokens.shadowMedium,
                         ),
                         child: TextField(
-                          controller: _Search_Controller,
+                          controller: _SearchController,
                           focusNode: _searchFocusNode,
                           textAlignVertical: TextAlignVertical.center,
                           style: const TextStyle(
@@ -775,10 +775,10 @@ class SearchScreenState extends State<SearchScreen>
                               color: DesignTokens.secondaryOrange,
                               size: 22,
                             ),
-                            suffixIcon: _Search_Controller.text.isNotEmpty
+                            suffixIcon: _SearchController.text.isNotEmpty
                                 ? IconButton(
                                     onPressed: () {
-                                      _Search_Controller.clear();
+                                      _SearchController.clear();
                                       _showSuggestion = false;
                                       if (_isSyncingSearchText) return;
                                       searchController.setSearchText('');
@@ -834,13 +834,13 @@ class SearchScreenState extends State<SearchScreen>
         ),
         // Suggestions dropdown - hidden when search is active to prevent list under search bar
         if (_showSuggestion &&
-            _Search_Controller.text.isNotEmpty &&
+            _SearchController.text.isNotEmpty &&
             !searchController.isSearchMode)
           SearchSuggestionsDropdown(
             suggestionModel: searchController.searchSuggestionModel,
             isLoading: _isLoadingSuggestions,
             onSuggestionTap: (name, isStore, id) {
-              _Search_Controller.text = name;
+              _SearchController.text = name;
               searchController.setSearchText(name);
               _showSuggestion = false;
               _actionSearch(isStore, name, false);
@@ -855,7 +855,7 @@ class SearchScreenState extends State<SearchScreen>
   Widget _SearchCategoryTabs() {
     return GetBuilder<SplashController>(
       builder: (splashController) {
-        return GetBuilder<search.Search_Controller>(
+        return GetBuilder<search.SearchController>(
           builder: (searchController) {
             final isStoreTab = searchController.isStore;
             final isEcommerce =
@@ -1016,7 +1016,7 @@ class SearchScreenState extends State<SearchScreen>
   }
 
   /// Recent searches section
-  Widget _RecentSearchesSection(search.Search_Controller searchController) {
+  Widget _RecentSearchesSection(search.SearchController searchController) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1136,7 +1136,7 @@ class SearchScreenState extends State<SearchScreen>
   }
 
   /// Most searched section with product grid
-  Widget _MostSearchedSection(search.Search_Controller searchController) {
+  Widget _MostSearchedSection(search.SearchController searchController) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1259,7 +1259,7 @@ class SearchScreenState extends State<SearchScreen>
   }
 
   /// Search results section - filtered by selected tab (Products vs Stores)
-  Widget _SearchResultsSection(search.Search_Controller searchController) {
+  Widget _SearchResultsSection(search.SearchController searchController) {
     final isStoreTab = searchController.isStore;
     if (!searchController.isLoading && searchController.hasError) {
       return ErrorStateView(
@@ -1334,7 +1334,7 @@ class SearchScreenState extends State<SearchScreen>
   }
 
   /// Widget to display stores with their items in a compact grid
-  Widget _StoresWithItemsView(search.Search_Controller searchController) {
+  Widget _StoresWithItemsView(search.SearchController searchController) {
     final String currentQuery = searchController.searchText ?? '';
     if (_lastSearchResultsQuery != currentQuery) {
       _lastSearchResultsQuery = currentQuery;
@@ -1498,8 +1498,8 @@ class SearchScreenState extends State<SearchScreen>
             onTap: disableStoreNavigationInHyper
                 ? null
                 : () {
-                    final int? targetStoreId = store?.id ?? storeId;
-                    if (targetStoreId != null && targetStoreId > 0) {
+                    final int targetStoreId = store?.id ?? storeId;
+                    if (targetStoreId > 0) {
                       Get.toNamed(RouteHelper.getStoreRoute(
                           id: targetStoreId, page: 'store'));
                     }
@@ -1953,7 +1953,7 @@ class SearchScreenState extends State<SearchScreen>
     _tabController?.dispose();
     _searchFocusNode.dispose();
     _focusAnimationController.dispose();
-    _Search_Controller.dispose();
+    _SearchController.dispose();
     super.dispose();
   }
 }

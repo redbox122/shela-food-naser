@@ -113,8 +113,9 @@ class HiveHomeCacheService {
   /// Check if online
   Future<bool> _isOnline() async {
     try {
-      final connectivityResult = await _connectivity.checkConnectivity();
-      return connectivityResult != ConnectivityResult.none;
+      final List<ConnectivityResult> connectivityResults =
+          await _connectivity.checkConnectivity();
+      return !connectivityResults.contains(ConnectivityResult.none);
     } catch (e) {
       // Assume online if check fails
       return true;

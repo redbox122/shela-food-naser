@@ -658,7 +658,7 @@ Future<Map<String, Map<String, String>>> init() async {
       HomeUnifiedController(
           homeUnifiedService: HomeUnifiedService(apiClient: Get.find())),
       permanent: true);
-  Get.lazyPut(() => Search_Controller(
+  Get.lazyPut(() => SearchController(
         searchServiceInterface: Get.find(),
       ));
   Get.lazyPut(() => CouponController(couponServiceInterface: Get.find()));

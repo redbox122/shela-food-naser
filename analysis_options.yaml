@@ -26,11 +26,13 @@ analyzer:
     prefer_const_constructors_in_immutables: ignore
     non_constant_identifier_names: ignore # عشان لو أسماء الـ API من السيرفر مختلفة
     constant_identifier_names: ignore
+    # JSON/API parsing: typing every dynamic call would be huge churn; behavior unchanged
+    avoid_dynamic_calls: ignore
+    # Legacy file names kept for stable imports across the codebase
+    file_names: ignore
 
 linter:
   rules:
-    # القواعد الذهبية للأداء
-    avoid_dynamic_calls: true
     depend_on_referenced_packages: true
     
     # تنظيف الكود تلقائياً

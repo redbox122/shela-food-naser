@@ -37,7 +37,6 @@ import 'package:sixam_mart/features/store/domain/models/slim_menu_model.dart';
 // Minimal mocks - just return null for all methods
 // Minimal mock – matches StoreServiceInterface exactly
 class MockStoreServiceInterface implements StoreServiceInterface {
-
   @override
   Future<StoreModel?> getStoreList(
     int offset,
@@ -203,36 +202,38 @@ class MockStoreServiceInterface implements StoreServiceInterface {
   }
 
   // 🔴 الميثود اللي كانت ناقصة
-@override
-Future<SlimMenuResponse?> getSlimMenu(
-  int? storeId, {
-  CancelToken? cancelToken,
-}) async {
-  return null;
+  @override
+  Future<SlimMenuResponse?> getSlimMenu(
+    int? storeId, {
+    CancelToken? cancelToken,
+  }) async {
+    return null;
+  }
 }
-
-}
-
 
 class MockCategoryServiceInterface implements CategoryServiceInterface {
   @override
   Future<List<CategoryModel>?> getCategoryList(bool allCategory,
-      {DataSourceEnum? source}) async => null;
+          {DataSourceEnum? source}) async =>
+      null;
 
   @override
-  Future<List<CategoryModel>?> getSubCategoryList(String? parentID) async => null;
+  Future<List<CategoryModel>?> getSubCategoryList(String? parentID) async =>
+      null;
 
   @override
   Future<ItemModel?> getCategoryItemList(
-      String? categoryID, int offset, String type,
-      {bool? includeChildren, CancelToken? cancelToken}) async => null;
+          String? categoryID, int offset, String type,
+          {bool? includeChildren, CancelToken? cancelToken}) async =>
+      null;
 
   @override
   Future<void> clearCategoryItemCache(int categoryId) async {}
 
   @override
   Future<StoreModel?> getCategoryStoreList(
-      String? categoryID, int offset, String type) async => null;
+          String? categoryID, int offset, String type) async =>
+      null;
 
   @override
   Future<Response<dynamic>> getSearchData(
@@ -251,7 +252,8 @@ class MockSearchServiceInterface implements SearchServiceInterface {
   }
 
   @override
-  Future<Response<dynamic>> getNewSearchFilter(Search_FilterModel? searchFilterModel, bool isStore) async {
+  Future<Response<dynamic>> getNewSearchFilter(
+      Search_FilterModel? searchFilterModel, bool isStore) async {
     throw UnimplementedError();
   }
 
@@ -267,14 +269,32 @@ class MockSearchServiceInterface implements SearchServiceInterface {
   @override
   Future<bool> clearSearchHistory() async => false;
 
-  List<Item>? sortItemSearchList(List<Item>? allItemList, double upperValue, double lowerValue, int rating, bool veg, bool nonVeg,
-      bool isAvailableItems, bool isDiscountedItems, int sortIndex) => null;
+  List<Item>? sortItemSearchList(
+          List<Item>? allItemList,
+          double upperValue,
+          double lowerValue,
+          int rating,
+          bool veg,
+          bool nonVeg,
+          bool isAvailableItems,
+          bool isDiscountedItems,
+          int sortIndex) =>
+      null;
 
-  List<Store>? sortStoreSearchList(List<Store>? allStoreList, int storeRating, bool storeVeg, bool storeNonVeg, bool isAvailableStore,
-      bool isDiscountedStore, int storeSortIndex) => null;
+  List<Store>? sortStoreSearchList(
+          List<Store>? allStoreList,
+          int storeRating,
+          bool storeVeg,
+          bool storeNonVeg,
+          bool isAvailableStore,
+          bool isDiscountedStore,
+          int storeSortIndex) =>
+      null;
 
   @override
-  Future<SearchSuggestionModel?> getSearchSuggestions(String searchText) async => null;
+  Future<SearchSuggestionModel?> getSearchSuggestions(
+          String searchText) async =>
+      null;
 
   @override
   Future<List<PopularCategoryModel?>?> getPopularCategories() async => null;
@@ -285,7 +305,8 @@ class MockSearchServiceInterface implements SearchServiceInterface {
 
 class MockSplashServiceInterface implements SplashServiceInterface {
   @override
-  Future<Response<dynamic>> getConfigData({required DataSourceEnum source}) async {
+  Future<Response<dynamic>> getConfigData(
+      {required DataSourceEnum source}) async {
     throw UnimplementedError();
   }
 
@@ -293,7 +314,9 @@ class MockSplashServiceInterface implements SplashServiceInterface {
   ConfigModel? prepareConfigData(Response<dynamic> response) => null;
 
   @override
-  Future<LandingModel?> getLandingPageData({required DataSourceEnum source}) async => null;
+  Future<LandingModel?> getLandingPageData(
+          {required DataSourceEnum source}) async =>
+      null;
 
   @override
   Future<ModuleModel?> initSharedData() async => null;
@@ -308,7 +331,10 @@ class MockSplashServiceInterface implements SplashServiceInterface {
   Future<void> setStoreCategory(int storeCategoryID) async {}
 
   @override
-  Future<List<ModuleModel>?> getModules({Map<String, String>? headers, required DataSourceEnum source}) async => null;
+  Future<List<ModuleModel>?> getModules(
+          {Map<String, String>? headers,
+          required DataSourceEnum source}) async =>
+      null;
 
   @override
   Future<void> setModule(ModuleModel? module) async {}
@@ -412,7 +438,7 @@ void main() {
       SharedPreferences.setMockInitialValues({});
       final prefs = await SharedPreferences.getInstance();
       Get.testMode = true;
-      
+
       // Register ThemeController first
       if (!Get.isRegistered<ThemeController>()) {
         Get.put<ThemeController>(
@@ -426,12 +452,12 @@ void main() {
       // Reset Get before each test
       Get.reset();
       Get.testMode = true;
-      
+
       storeController = StoreController(
         storeServiceInterface: MockStoreServiceInterface(),
       );
       Get.put<StoreController>(storeController, permanent: true);
-      
+
       if (!Get.isRegistered<CategoryController>()) {
         Get.put<CategoryController>(
           CategoryController(
@@ -441,10 +467,11 @@ void main() {
           permanent: true,
         );
       }
-      
+
       if (!Get.isRegistered<SplashController>()) {
         Get.put<SplashController>(
-          SplashController(splashServiceInterface: MockSplashServiceInterface()),
+          SplashController(
+              splashServiceInterface: MockSplashServiceInterface()),
           permanent: true,
         );
       }
@@ -452,7 +479,8 @@ void main() {
       // Add LocalizationController
       if (!Get.isRegistered<LocalizationController>()) {
         Get.put<LocalizationController>(
-          LocalizationController(languageServiceInterface: MockLanguageServiceInterface()),
+          LocalizationController(
+              languageServiceInterface: MockLanguageServiceInterface()),
           permanent: true,
         );
       }
@@ -460,7 +488,8 @@ void main() {
       // Add FavouriteController
       if (!Get.isRegistered<FavouriteController>()) {
         Get.put<FavouriteController>(
-          FavouriteController(favouriteServiceInterface: MockFavouriteServiceInterface()),
+          FavouriteController(
+              favouriteServiceInterface: MockFavouriteServiceInterface()),
           permanent: true,
         );
       }
@@ -470,7 +499,9 @@ void main() {
       Get.reset();
     });
 
-    testWidgets('should render without error when widget.store is provided even if storeController.store is null', (WidgetTester tester) async {
+    testWidgets(
+        'should render without error when widget.store is provided even if storeController.store is null',
+        (WidgetTester tester) async {
       // Arrange: Create a Store with name and logo
       final testStore = Store(
         id: 1,
@@ -504,11 +535,14 @@ void main() {
       expect(
         find.byType(CircularProgressIndicator),
         findsNothing,
-        reason: 'Should not show full-screen loading indicator when widget.store is provided',
+        reason:
+            'Should not show full-screen loading indicator when widget.store is provided',
       );
     });
 
-    testWidgets('should use widget.store fallback when storeController.store is null', (WidgetTester tester) async {
+    testWidgets(
+        'should use widget.store fallback when storeController.store is null',
+        (WidgetTester tester) async {
       // Arrange: Create a Store
       final testStore = Store(
         id: 1,
@@ -537,7 +571,9 @@ void main() {
       );
     });
 
-    testWidgets('should not show CircularProgressIndicator as full-screen loader when widget.store is provided', (WidgetTester tester) async {
+    testWidgets(
+        'should not show CircularProgressIndicator as full-screen loader when widget.store is provided',
+        (WidgetTester tester) async {
       // Arrange: Create a Store
       final testStore = Store(
         id: 1,
@@ -562,7 +598,8 @@ void main() {
       expect(
         find.byType(CircularProgressIndicator),
         findsNothing,
-        reason: 'Should not show full-screen CircularProgressIndicator when widget.store is provided',
+        reason:
+            'Should not show full-screen CircularProgressIndicator when widget.store is provided',
       );
     });
   });
