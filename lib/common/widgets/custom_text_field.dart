@@ -155,6 +155,7 @@ class CustomTextFieldState extends State<CustomTextField> {
             maxLines: widget.maxLines,
             controller: widget.controller,
             focusNode: widget.focusNode,
+            textDirection: widget.isPhone ? TextDirection.ltr : null,
             textAlign: widget.textAlign,
             validator: widget.validator,
             style: robotoRegular.copyWith(fontSize: Dimensions.fontSizeLarge),

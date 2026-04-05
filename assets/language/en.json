@@ -622,6 +622,7 @@
   "tap_to_copy": "Tap to copy",
   "share": "Share",
   "refer_code": "Refer Code(optional)",
+  "referral_or_invitation_code": "Referral / invitation code (optional)",
   "invalid_refer_code": "Invalid refer code",
   "wallet": "Wallet",
   "add_amount": "Add Amount",

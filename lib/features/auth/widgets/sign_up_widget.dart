@@ -86,12 +86,12 @@ class SignUpWidgetState extends State<SignUpWidget> {
                 isDesktop
                     ? Padding(
                         padding: const EdgeInsets.symmetric(vertical: Dimensions.paddingSizeLarge),
-                        child: Image.asset(Images.logo, width: 125),
+                        child: Image.asset(Images.logo, width: 150),
                       )
                     : const SizedBox(),
                 isDesktop
                     ? Align(
-                        alignment: Alignment.topLeft,
+                        alignment: AlignmentDirectional.topStart,
                         child: Text('sign_up'.tr, style: robotoBold.copyWith(fontSize: Dimensions.fontSizeExtraLarge)),
                       )
                     : const SizedBox(),
@@ -118,8 +118,8 @@ class SignUpWidgetState extends State<SignUpWidget> {
                   (Get.find<SplashController>().configModel!.refEarningStatus == 1 && isDesktop)
                       ? Expanded(
                           child: CustomTextField(
-                            titleText: 'refer_code'.tr,
-                            labelText: 'refer_code'.tr,
+                            titleText: 'referral_or_invitation_code'.tr,
+                            labelText: 'referral_or_invitation_code'.tr,
                             controller: _referCodeController,
                             focusNode: _referCodeFocus,
                             nextFocus: isDesktop ? _emailFocus : _phoneFocus,
@@ -251,8 +251,8 @@ class SignUpWidgetState extends State<SignUpWidget> {
                 SizedBox(height: !isDesktop ? Dimensions.paddingSizeLarge : 0),
                 (Get.find<SplashController>().configModel!.refEarningStatus == 1 && !isDesktop)
                     ? CustomTextField(
-                        titleText: 'refer_code'.tr,
-                        labelText: 'refer_code'.tr,
+                        titleText: 'referral_or_invitation_code'.tr,
+                        labelText: 'referral_or_invitation_code'.tr,
                         controller: _referCodeController,
                         focusNode: _referCodeFocus,
                         inputAction: TextInputAction.done,

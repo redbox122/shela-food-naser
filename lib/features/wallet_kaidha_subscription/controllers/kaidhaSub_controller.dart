@@ -159,9 +159,11 @@ class KaidhaSubscription_Controller extends GetxController
   bool get isLoading => _isLoading;
 
   bool isLoading_wallet = false;
-  bool hasWalletError = false; // 🔧 FIX: Track wallet API errors (401, 500, etc.)
+  bool hasWalletError =
+      false; // 🔧 FIX: Track wallet API errors (401, 500, etc.)
   String? walletErrorMessage; // Optional error message
-  bool hasNoWallet = false; // 🔧 FIX: Track when user has no wallet (wallet: null from API)
+  bool hasNoWallet =
+      false; // 🔧 FIX: Track when user has no wallet (wallet: null from API)
 
   bool get isCompleted => currentStage >= 4;
 
@@ -549,7 +551,8 @@ class KaidhaSubscription_Controller extends GetxController
         if (!silent && statusChanged) {
           showCustomSnackBar('انتهت صلاحية طلب نفاذ.');
         }
-      } else if (onValue.status == 'cancelled' || onValue.status == 'no_request') {
+      } else if (onValue.status == 'cancelled' ||
+          onValue.status == 'no_request') {
         _nafath_checkStatus = NafathCheckStatusModel(
           status: onValue.status,
           requestId: onValue.requestId,
@@ -732,14 +735,15 @@ class KaidhaSubscription_Controller extends GetxController
         update();
         return null;
       }
-      final Response response1 = await kaidhaSubServiceInterface.Nafath_send_All_Data(
-          context,
-          national_id,
-          city,
-          neighborhood,
-          house_type,
-          kaidhaSub,
-          All_files);
+      final Response response1 =
+          await kaidhaSubServiceInterface.Nafath_send_All_Data(
+              context,
+              national_id,
+              city,
+              neighborhood,
+              house_type,
+              kaidhaSub,
+              All_files);
 
       if (response1.statusCode != 200 &&
           response1.statusCode != 201 &&
@@ -754,7 +758,8 @@ class KaidhaSubscription_Controller extends GetxController
       debugPrint('🔄 Step 3 Phase 2: Updating signature status to 1');
       final userInfo = Get.find<ProfileController>().userInfoModel;
       if (userInfo?.id != null) {
-        final Map<String, dynamic> savedData = await getState_kaidha_SharedPre();
+        final Map<String, dynamic> savedData =
+            await getState_kaidha_SharedPre();
         await kaidhaSubServiceInterface.SendState_kaidha(
             userInfo!.id!, 'approved', savedData);
       }
@@ -820,15 +825,17 @@ class KaidhaSubscription_Controller extends GetxController
     required bool active,
     String? balance,
   }) {
-    print('💳 KaidhaSubscription_Controller: Setting wallet state from login response...');
+    print(
+        '💳 KaidhaSubscription_Controller: Setting wallet state from login response...');
     print('   - Signed: $signed');
     print('   - Active: $active');
     print('   - Balance: ${balance ?? 'null'}');
-    
+
     // Create minimal wallet model from login response flags
     // This allows menu screen to render wallet buttons immediately without API call
     if (signed && active && balance != null) {
-      print('✅ KaidhaSubscription_Controller: Wallet is signed and active - creating minimal wallet model');
+      print(
+          '✅ KaidhaSubscription_Controller: Wallet is signed and active - creating minimal wallet model');
       // Convert balance string to double for consistency with API response (API returns double)
       final double? balanceValue = double.tryParse(balance);
       // ⚡ TASK 2: Default creditLimit to 5000.0 if qidha_wallet_balance exists
@@ -846,10 +853,13 @@ class KaidhaSubscription_Controller extends GetxController
           updatedAt: '',
           completedAt: '',
           completedBy: 0,
-          creditLimit: defaultCreditLimit, // ⚡ TASK 2: Default to 5000.0 for instant display
+          creditLimit:
+              defaultCreditLimit, // ⚡ TASK 2: Default to 5000.0 for instant display
           minimumDue: '',
-          availableBalance: balanceValue, // Key field for menu display - converted to double to match API
-          usedBalance: null, // ⚡ TASK 1: Use null to represent "No Data", not truthy empty string
+          availableBalance:
+              balanceValue, // Key field for menu display - converted to double to match API
+          usedBalance:
+              null, // ⚡ TASK 1: Use null to represent "No Data", not truthy empty string
           usagePercentageLimit: '',
           status: 'Active',
           autoLockDay: '',
@@ -858,7 +868,8 @@ class KaidhaSubscription_Controller extends GetxController
           signaturePath: '',
           signatureStatus: 1, // Signed - key field for menu logic
           lockDay: '',
-          minimumDueLimit: null, // ⚡ TASK 1: Use null to represent "No Data", not truthy empty string
+          minimumDueLimit:
+              null, // ⚡ TASK 1: Use null to represent "No Data", not truthy empty string
           purchaseLimit: '',
           usedPercentage: '',
           totalAvilableBalance: '',
@@ -867,85 +878,97 @@ class KaidhaSubscription_Controller extends GetxController
       hasWalletError = false;
       hasNoWallet = false;
       isLoading_wallet = false;
-      print('✅ KaidhaSubscription_Controller: Wallet state set - menu can show Qidha Wallet button immediately');
+      print(
+          '✅ KaidhaSubscription_Controller: Wallet state set - menu can show Qidha Wallet button immediately');
     } else {
       // Wallet exists but not signed/active - set flags for menu logic
-      print('ℹ️ KaidhaSubscription_Controller: Wallet exists but not signed/active - menu will show subscription button');
+      print(
+          'ℹ️ KaidhaSubscription_Controller: Wallet exists but not signed/active - menu will show subscription button');
       walletKaidhaModel = null; // Menu will show subscription button
       hasWalletError = false;
       hasNoWallet = false; // Wallet exists, just not active
       isLoading_wallet = false;
     }
     update();
-    print('✅ KaidhaSubscription_Controller: Wallet state updated - UI notified');
+    print(
+        '✅ KaidhaSubscription_Controller: Wallet state updated - UI notified');
   }
 
   Future get_Wallet_Kaidh({bool forceRefresh = false}) async {
     if (kDebugMode) {
       debugPrint('═══════════════════════════════════════════════════════════');
-      debugPrint('💳 [KaidhaSubscription_Controller] get_Wallet_Kaidh() called');
+      debugPrint(
+          '💳 [KaidhaSubscription_Controller] get_Wallet_Kaidh() called');
       debugPrint('   🔄 forceRefresh: $forceRefresh');
       debugPrint('   ⏰ Timestamp: ${DateTime.now().toIso8601String()}');
       debugPrint('═══════════════════════════════════════════════════════════');
     }
-    
+
     // Preserve existing wallet state if already set (from login response)
     final existingWallet = walletKaidhaModel;
     final bool hadExistingWallet = existingWallet != null;
-    
+
     if (kDebugMode) {
       debugPrint('💳 [KaidhaSubscription_Controller] Current wallet state:');
       debugPrint('   📊 hadExistingWallet: $hadExistingWallet');
       if (hadExistingWallet) {
         debugPrint('   💰 Status: ${existingWallet.wallet?.status}');
-        debugPrint('   💵 availableBalance: ${existingWallet.wallet?.availableBalance}');
+        debugPrint(
+            '   💵 availableBalance: ${existingWallet.wallet?.availableBalance}');
         debugPrint('   💵 usedBalance: ${existingWallet.wallet?.usedBalance}');
-        debugPrint('   💵 minimumDueLimit: ${existingWallet.wallet?.minimumDueLimit}');
-        debugPrint('   📝 signatureStatus: ${existingWallet.wallet?.signatureStatus}');
+        debugPrint(
+            '   💵 minimumDueLimit: ${existingWallet.wallet?.minimumDueLimit}');
+        debugPrint(
+            '   📝 signatureStatus: ${existingWallet.wallet?.signatureStatus}');
       }
     }
-    
+
     // ⚡ TASK 2: Hardened bypass logic - only skip API call if we have FULL wallet data
     // Must have creditLimit, usedBalance, and minimumDueLimit all as valid numbers
     final creditLimit = existingWallet?.wallet?.creditLimit;
     final usedBalance = existingWallet?.wallet?.usedBalance;
     final minimumDueLimit = existingWallet?.wallet?.minimumDueLimit;
-    
+
     // Validate usedBalance is a valid number (not null, not empty string, parseable as number)
-    final hasValidUsedBalance = usedBalance != null && 
-                                usedBalance.toString().trim().isNotEmpty && 
-                                (usedBalance is num || double.tryParse(usedBalance.toString()) != null);
-    
+    final hasValidUsedBalance = usedBalance != null &&
+        usedBalance.toString().trim().isNotEmpty &&
+        (usedBalance is num || double.tryParse(usedBalance.toString()) != null);
+
     // Validate minimumDueLimit is a valid number
-    final hasValidMinimumDueLimit = minimumDueLimit != null && 
-                                     minimumDueLimit.toString().trim().isNotEmpty && 
-                                     (minimumDueLimit is num || double.tryParse(minimumDueLimit.toString()) != null);
-    
-    final hasFullWalletData = hadExistingWallet && 
-                              creditLimit != null && 
-                              creditLimit.toString().trim().isNotEmpty &&
-                              hasValidUsedBalance &&
-                              hasValidMinimumDueLimit;
-    
+    final hasValidMinimumDueLimit = minimumDueLimit != null &&
+        minimumDueLimit.toString().trim().isNotEmpty &&
+        (minimumDueLimit is num ||
+            double.tryParse(minimumDueLimit.toString()) != null);
+
+    final hasFullWalletData = hadExistingWallet &&
+        creditLimit != null &&
+        creditLimit.toString().trim().isNotEmpty &&
+        hasValidUsedBalance &&
+        hasValidMinimumDueLimit;
+
     if (!forceRefresh && hasFullWalletData) {
       if (kDebugMode) {
-        debugPrint('💳 [KaidhaSubscription_Controller] ⏭️ Full wallet data already set - skipping API call');
+        debugPrint(
+            '💳 [KaidhaSubscription_Controller] ⏭️ Full wallet data already set - skipping API call');
         debugPrint('   💡 Use forceRefresh: true to override');
         debugPrint('   💰 Wallet Status: ${existingWallet.wallet?.status}');
-        debugPrint('   💵 Wallet Balance: ${existingWallet.wallet?.availableBalance}');
+        debugPrint(
+            '   💵 Wallet Balance: ${existingWallet.wallet?.availableBalance}');
         debugPrint('   💵 Credit Limit: ${existingWallet.wallet?.creditLimit}');
       }
       return; // Don't overwrite existing state
     }
-    
+
     if (kDebugMode) {
-      debugPrint('💳 [KaidhaSubscription_Controller] Starting wallet data fetch...');
+      debugPrint(
+          '💳 [KaidhaSubscription_Controller] Starting wallet data fetch...');
       debugPrint('   📡 API: /api/v1/customer/wallet-kaidha');
       if (hadExistingWallet && !hasFullWalletData) {
-        debugPrint('   ⚡ Partial data exists (balance only) - fetching to get credit limit');
+        debugPrint(
+            '   ⚡ Partial data exists (balance only) - fetching to get credit limit');
       }
     }
-    
+
     // ⚡ FIX: Don't set loading state if we already have wallet data (prevents flicker)
     // Only set loading if we have no wallet data at all
     if (!hadExistingWallet) {
@@ -957,7 +980,8 @@ class KaidhaSubscription_Controller extends GetxController
     } else {
       // We have partial data - update silently in background without showing loader
       if (kDebugMode) {
-        debugPrint('💳 [KaidhaSubscription_Controller] ⚡ Background update - not setting loading state');
+        debugPrint(
+            '💳 [KaidhaSubscription_Controller] ⚡ Background update - not setting loading state');
       }
     }
 
@@ -977,39 +1001,49 @@ class KaidhaSubscription_Controller extends GetxController
         if (walletKaidhaModel?.wallet != null) {
           // ⚡ TASK 3: Controller Hardening - Check if usedBalance is still null after fetch
           final usedBalance = walletKaidhaModel!.wallet!.usedBalance;
-          final hasValidUsedBalance = usedBalance != null && 
-                                     usedBalance.toString().trim().isNotEmpty &&
-                                     (usedBalance is num || double.tryParse(usedBalance.toString()) != null);
-          
+          final hasValidUsedBalance = usedBalance != null &&
+              usedBalance.toString().trim().isNotEmpty &&
+              (usedBalance is num ||
+                  double.tryParse(usedBalance.toString()) != null);
+
           if (!hasValidUsedBalance) {
             // ⚡ TASK 3: Skeleton data still present - clear ETag and force refresh
             if (kDebugMode) {
-              debugPrint('💳 [KaidhaSubscription_Controller] ⚠️ Skeleton data detected after fetch - clearing ETag and retrying');
+              debugPrint(
+                  '💳 [KaidhaSubscription_Controller] ⚠️ Skeleton data detected after fetch - clearing ETag and retrying');
             }
-            
+
             // Clear ETag and force refresh
             final cacheService = HiveHomeCacheService();
             await cacheService.clearEtag(AppConstants.get_walletUri);
-            
+
             // Retry with force refresh
-            final retryWallet = await kaidhaSubServiceInterface.getWalletKaidh(forceRefresh: true);
+            final retryWallet = await kaidhaSubServiceInterface.getWalletKaidh(
+                forceRefresh: true);
             if (retryWallet != null && retryWallet.wallet != null) {
               walletKaidhaModel = retryWallet;
               if (kDebugMode) {
-                debugPrint('💳 [KaidhaSubscription_Controller] ✅ Wallet hydrated after ETag clear');
+                debugPrint(
+                    '💳 [KaidhaSubscription_Controller] ✅ Wallet hydrated after ETag clear');
               }
             }
           }
-          
+
           if (kDebugMode) {
-            debugPrint('💳 [KaidhaSubscription_Controller] ✅ Wallet loaded successfully');
+            debugPrint(
+                '💳 [KaidhaSubscription_Controller] ✅ Wallet loaded successfully');
             debugPrint('   💰 Status: ${walletKaidhaModel!.wallet!.status}');
             debugPrint('   🆔 Wallet ID: ${walletKaidhaModel!.wallet!.id}');
-            debugPrint('   💵 availableBalance: ${walletKaidhaModel!.wallet!.availableBalance}');
-            debugPrint('   💵 usedBalance: ${walletKaidhaModel!.wallet!.usedBalance}');
-            debugPrint('   💵 minimumDueLimit: ${walletKaidhaModel!.wallet!.minimumDueLimit}');
-            debugPrint('   💵 creditLimit: ${walletKaidhaModel!.wallet!.creditLimit}');
-            debugPrint('   📝 signatureStatus: ${walletKaidhaModel!.wallet!.signatureStatus}');
+            debugPrint(
+                '   💵 availableBalance: ${walletKaidhaModel!.wallet!.availableBalance}');
+            debugPrint(
+                '   💵 usedBalance: ${walletKaidhaModel!.wallet!.usedBalance}');
+            debugPrint(
+                '   💵 minimumDueLimit: ${walletKaidhaModel!.wallet!.minimumDueLimit}');
+            debugPrint(
+                '   💵 creditLimit: ${walletKaidhaModel!.wallet!.creditLimit}');
+            debugPrint(
+                '   📝 signatureStatus: ${walletKaidhaModel!.wallet!.signatureStatus}');
             debugPrint('   📅 lockDay: ${walletKaidhaModel!.wallet!.lockDay}');
           }
           hasWalletError = false; // Success - no error
@@ -1019,7 +1053,8 @@ class KaidhaSubscription_Controller extends GetxController
         // API returned null AND wallet wasn't previously set - user has no wallet
         walletKaidhaModel = null;
         if (kDebugMode) {
-          debugPrint('💳 [KaidhaSubscription_Controller] ℹ️ No wallet data found - user has no wallet');
+          debugPrint(
+              '💳 [KaidhaSubscription_Controller] ℹ️ No wallet data found - user has no wallet');
         }
         hasWalletError = false;
         hasNoWallet = true;
@@ -1027,17 +1062,21 @@ class KaidhaSubscription_Controller extends GetxController
         // ⚡ TASK 3: Controller Hardening - Don't preserve skeleton state if fetch returns null
         // Check if existing wallet is skeleton data (missing critical fields)
         final existingUsedBalance = existingWallet.wallet?.usedBalance;
-        final hasValidExistingData = existingUsedBalance != null && 
-                                    existingUsedBalance.toString().trim().isNotEmpty &&
-                                    (existingUsedBalance is num || double.tryParse(existingUsedBalance.toString()) != null);
-        
+        final hasValidExistingData = existingUsedBalance != null &&
+            existingUsedBalance.toString().trim().isNotEmpty &&
+            (existingUsedBalance is num ||
+                double.tryParse(existingUsedBalance.toString()) != null);
+
         if (hasValidExistingData) {
           // Valid existing data - preserve it
           walletKaidhaModel = existingWallet;
           if (kDebugMode) {
-            debugPrint('💳 [KaidhaSubscription_Controller] ⚠️ API returned null but wallet has valid data - preserving');
-            debugPrint('   💰 Preserved Wallet Status: ${existingWallet.wallet?.status}');
-            debugPrint('   💵 Preserved Wallet Balance: ${existingWallet.wallet?.availableBalance}');
+            debugPrint(
+                '💳 [KaidhaSubscription_Controller] ⚠️ API returned null but wallet has valid data - preserving');
+            debugPrint(
+                '   💰 Preserved Wallet Status: ${existingWallet.wallet?.status}');
+            debugPrint(
+                '   💵 Preserved Wallet Balance: ${existingWallet.wallet?.availableBalance}');
           }
           hasWalletError = false;
           hasNoWallet = false;
@@ -1046,7 +1085,8 @@ class KaidhaSubscription_Controller extends GetxController
           // Better to show loading shimmer than permanent "0" balance
           walletKaidhaModel = null;
           if (kDebugMode) {
-            debugPrint('💳 [KaidhaSubscription_Controller] ⚠️ API returned null and existing wallet is skeleton - clearing state');
+            debugPrint(
+                '💳 [KaidhaSubscription_Controller] ⚠️ API returned null and existing wallet is skeleton - clearing state');
             debugPrint('   💡 Will show loading state instead of broken UI');
           }
           hasWalletError = false;
@@ -1055,18 +1095,21 @@ class KaidhaSubscription_Controller extends GetxController
       }
     } catch (e, stackTrace) {
       if (kDebugMode) {
-        debugPrint('💳 [KaidhaSubscription_Controller] ❌ Error fetching wallet');
+        debugPrint(
+            '💳 [KaidhaSubscription_Controller] ❌ Error fetching wallet');
         debugPrint('   📋 Error: $e');
         debugPrint('   📋 Stack trace: $stackTrace');
       }
-      
+
       // On error, preserve existing wallet state if it existed
       if (hadExistingWallet) {
         walletKaidhaModel = existingWallet; // Restore existing state
         if (kDebugMode) {
-          debugPrint('💳 [KaidhaSubscription_Controller] ⚠️ API error but wallet was already set');
+          debugPrint(
+              '💳 [KaidhaSubscription_Controller] ⚠️ API error but wallet was already set');
           debugPrint('   💡 Preserving existing state');
-          debugPrint('   💰 Preserved Wallet Status: ${existingWallet.wallet?.status}');
+          debugPrint(
+              '   💰 Preserved Wallet Status: ${existingWallet.wallet?.status}');
         }
         hasWalletError = false; // Don't mark as error if we have existing state
         hasNoWallet = false;
@@ -1074,31 +1117,37 @@ class KaidhaSubscription_Controller extends GetxController
       } else {
         // No existing wallet - treat as error
         if (kDebugMode) {
-          debugPrint('💳 [KaidhaSubscription_Controller] ❌ No existing wallet - marking as error');
+          debugPrint(
+              '💳 [KaidhaSubscription_Controller] ❌ No existing wallet - marking as error');
         }
         hasWalletError = true;
         hasNoWallet = false; // Error is different from no wallet
         walletErrorMessage = e.toString();
-        
+
         // Check if it's a specific HTTP error
-        if (e.toString().contains('401') || e.toString().contains('Unauthorized')) {
+        if (e.toString().contains('401') ||
+            e.toString().contains('Unauthorized')) {
           walletErrorMessage = 'Unauthorized - Please login again';
           if (kDebugMode) {
-            debugPrint('💳 [KaidhaSubscription_Controller] 🔐 401 Unauthorized error detected');
+            debugPrint(
+                '💳 [KaidhaSubscription_Controller] 🔐 401 Unauthorized error detected');
           }
-        } else if (e.toString().contains('500') || e.toString().contains('Internal Server Error')) {
+        } else if (e.toString().contains('500') ||
+            e.toString().contains('Internal Server Error')) {
           walletErrorMessage = 'Server error - Please try again later';
           if (kDebugMode) {
-            debugPrint('💳 [KaidhaSubscription_Controller] 🔥 500 Server error detected');
+            debugPrint(
+                '💳 [KaidhaSubscription_Controller] 🔥 500 Server error detected');
           }
         }
       }
     }
     isLoading_wallet = false;
     update();
-    
+
     if (kDebugMode) {
-      debugPrint('💳 [KaidhaSubscription_Controller] get_Wallet_Kaidh() completed');
+      debugPrint(
+          '💳 [KaidhaSubscription_Controller] get_Wallet_Kaidh() completed');
       debugPrint('   📊 isLoading_wallet: $isLoading_wallet');
       debugPrint('   ❌ hasWalletError: $hasWalletError');
       debugPrint('   📭 hasNoWallet: $hasNoWallet');
@@ -1110,42 +1159,47 @@ class KaidhaSubscription_Controller extends GetxController
   /// Forces a completely fresh download from server, ignoring all local state
   Future<void> nuclearRemoteFetch() async {
     if (kDebugMode) {
-      debugPrint('💳 [KaidhaSubscription_Controller] 🚨 NUCLEAR FETCH: Bypassing all cache and ETags');
+      debugPrint(
+          '💳 [KaidhaSubscription_Controller] 🚨 NUCLEAR FETCH: Bypassing all cache and ETags');
     }
-    
+
     // Clear ETag first
     final cacheService = HiveHomeCacheService();
     await cacheService.clearEtag(AppConstants.get_walletUri);
-    
+
     // Also clear in-memory cache
     walletKaidhaModel = null;
-    
+
     // Set loading state
     isLoading_wallet = true;
     hasWalletError = false;
     hasNoWallet = false;
     walletErrorMessage = null;
     update();
-    
+
     try {
       // Force fresh fetch with cache-busting headers
-      final newWallet = await kaidhaSubServiceInterface.getWalletKaidh(forceRefresh: true);
-      
+      final newWallet =
+          await kaidhaSubServiceInterface.getWalletKaidh(forceRefresh: true);
+
       if (newWallet != null) {
         walletKaidhaModel = newWallet;
         hasWalletError = false;
         hasNoWallet = false;
         if (kDebugMode) {
-          debugPrint('💳 [KaidhaSubscription_Controller] ✅ Nuclear fetch successful');
+          debugPrint(
+              '💳 [KaidhaSubscription_Controller] ✅ Nuclear fetch successful');
           debugPrint('   💰 Status: ${walletKaidhaModel!.wallet?.status}');
-          debugPrint('   💵 usedBalance: ${walletKaidhaModel!.wallet?.usedBalance}');
+          debugPrint(
+              '   💵 usedBalance: ${walletKaidhaModel!.wallet?.usedBalance}');
         }
       } else {
         walletKaidhaModel = null;
         hasWalletError = false;
         hasNoWallet = true;
         if (kDebugMode) {
-          debugPrint('💳 [KaidhaSubscription_Controller] ⚠️ Nuclear fetch returned null - user has no wallet');
+          debugPrint(
+              '💳 [KaidhaSubscription_Controller] ⚠️ Nuclear fetch returned null - user has no wallet');
         }
       }
     } catch (e) {
@@ -1154,7 +1208,8 @@ class KaidhaSubscription_Controller extends GetxController
       hasNoWallet = false;
       walletErrorMessage = e.toString();
       if (kDebugMode) {
-        debugPrint('💳 [KaidhaSubscription_Controller] ❌ Nuclear fetch failed: $e');
+        debugPrint(
+            '💳 [KaidhaSubscription_Controller] ❌ Nuclear fetch failed: $e');
       }
     } finally {
       isLoading_wallet = false;
@@ -1304,7 +1359,8 @@ class KaidhaSubscription_Controller extends GetxController
   // Load Qidha Payment Methods =================================================
 
   String _getUserPhone() {
-    final profilePhone = Get.find<ProfileController>().userInfoModel?.phone?.toString().trim();
+    final profilePhone =
+        Get.find<ProfileController>().userInfoModel?.phone?.toString().trim();
     if (profilePhone != null && profilePhone.isNotEmpty) {
       return profilePhone;
     }
@@ -1359,7 +1415,8 @@ class KaidhaSubscription_Controller extends GetxController
   Future<void> loadQidhaPaymentMethods(double amount) async {
     if (amount <= 0) {
       debugPrint('❌ Cannot load payment methods with amount: $amount');
-      debugPrint('   ⚠️ Amount must be > 0 (should be maximum due amount from wallet.usedBalance)');
+      debugPrint(
+          '   ⚠️ Amount must be > 0 (should be maximum due amount from wallet.usedBalance)');
       return;
     }
 
@@ -1367,8 +1424,10 @@ class KaidhaSubscription_Controller extends GetxController
     update();
 
     try {
-      debugPrint('🔄 Loading payment methods from backend for Qidha - MAXIMUM Amount: $amount SAR');
-      debugPrint('   ⚡ This is the maximum due amount - payment methods will support up to this amount');
+      debugPrint(
+          '🔄 Loading payment methods from backend for Qidha - MAXIMUM Amount: $amount SAR');
+      debugPrint(
+          '   ⚡ This is the maximum due amount - payment methods will support up to this amount');
 
       // Create service instance
       final apiClient = Get.find<ApiClient>();
@@ -1387,13 +1446,16 @@ class KaidhaSubscription_Controller extends GetxController
 
       // Check response
       if (response.statusCode == 200) {
-        final Map<String, dynamic> responseData = response.body as Map<String, dynamic>;
-        
+        final Map<String, dynamic> responseData =
+            response.body as Map<String, dynamic>;
+
         if (responseData['success'] == true && responseData['data'] != null) {
           // Map backend response to MFPaymentMethod objects
-          final List<dynamic> backendMethods = responseData['data'] as List<dynamic>;
-          final List<MFPaymentMethod> allMethods = 
-              MyFatoorahMapper.mapBackendResponseToPaymentMethods(backendMethods);
+          final List<dynamic> backendMethods =
+              responseData['data'] as List<dynamic>;
+          final List<MFPaymentMethod> allMethods =
+              MyFatoorahMapper.mapBackendResponseToPaymentMethods(
+                  backendMethods);
 
           final int inspectCount = allMethods.length < backendMethods.length
               ? allMethods.length
@@ -1401,7 +1463,8 @@ class KaidhaSubscription_Controller extends GetxController
           for (int i = 0; i < inspectCount; i++) {
             final dynamic raw = backendMethods[i];
             final MFPaymentMethod mapped = allMethods[i];
-            if ((mapped.imageUrl ?? '').trim().isEmpty && raw is Map<String, dynamic>) {
+            if ((mapped.imageUrl ?? '').trim().isEmpty &&
+                raw is Map<String, dynamic>) {
               debugPrint(
                   '[QidhaPay][MethodMap] Missing logo for methodId=${mapped.paymentMethodId} keys=${raw.keys.toList()}');
             }
@@ -1419,21 +1482,27 @@ class KaidhaSubscription_Controller extends GetxController
                 '   - ${method.paymentMethodAr} (ID: ${method.paymentMethodId})');
           }
         } else {
-          debugPrint("❌ Backend response indicates failure: ${responseData['message']}");
+          debugPrint(
+              "❌ Backend response indicates failure: ${responseData['message']}");
           qidhaPaymentMethods = [];
           qidhaPaymentMethodsSelected = [];
-          showCustomSnackBar((responseData['message'] as String?) ?? 'خطأ في تحميل طرق الدفع');
+          showCustomSnackBar(
+              (responseData['message'] as String?) ?? 'خطأ في تحميل طرق الدفع');
         }
       } else {
         // Only treat 4xx and 5xx as errors (304 is already handled above)
-        debugPrint('❌ Backend request failed with status: ${response.statusCode}');
+        debugPrint(
+            '❌ Backend request failed with status: ${response.statusCode}');
         qidhaPaymentMethods = [];
         qidhaPaymentMethodsSelected = [];
-        
+
         // Handle validation errors
         if (response.statusCode == 422) {
-          final Map<String, dynamic>? errorData = response.body is Map ? response.body as Map<String, dynamic> : null;
-          final String errorMessage = (errorData?['message'] as String?) ?? 'خطأ في البيانات المرسلة';
+          final Map<String, dynamic>? errorData = response.body is Map
+              ? response.body as Map<String, dynamic>
+              : null;
+          final String errorMessage =
+              (errorData?['message'] as String?) ?? 'خطأ في البيانات المرسلة';
           showCustomSnackBar(errorMessage);
         } else {
           showCustomSnackBar('خطأ في تحميل طرق الدفع');
@@ -1449,6 +1518,7 @@ class KaidhaSubscription_Controller extends GetxController
       update();
     }
   }
+
   /// Filter payment methods based on platform.
   /// Apple Pay remains enabled.
   /// iOS: hide Google Pay methods.
@@ -1479,6 +1549,7 @@ class KaidhaSubscription_Controller extends GetxController
       return true;
     }).toList();
   }
+
   /// Select a payment method for Qidha wallet payment
   /// @param index - The index of the selected payment method
   void selectQidhaPaymentMethod(int index) {
@@ -1509,15 +1580,15 @@ class KaidhaSubscription_Controller extends GetxController
       final service = MyFatoorahService(repository: repository);
       final profileController = Get.find<ProfileController>();
 
-      final String customerName =
-          profileController.userInfoModel?.fName?.trim().isNotEmpty == true
-              ? '${profileController.userInfoModel?.fName ?? ''} ${profileController.userInfoModel?.lName ?? ''}'
-                  .trim()
-              : ((profileController.userInfoModel?.lName ?? '')
-                      .trim()
-                      .isNotEmpty
-                  ? (profileController.userInfoModel?.lName ?? '').trim()
-                  : 'Customer');
+      final String customerName = profileController.userInfoModel?.fName
+                  ?.trim()
+                  .isNotEmpty ==
+              true
+          ? '${profileController.userInfoModel?.fName ?? ''} ${profileController.userInfoModel?.lName ?? ''}'
+              .trim()
+          : ((profileController.userInfoModel?.lName ?? '').trim().isNotEmpty
+              ? (profileController.userInfoModel?.lName ?? '').trim()
+              : 'Customer');
       final String customerPhone = _getUserPhoneForForm().trim();
       final String customerEmail =
           profileController.userInfoModel?.email?.trim().isNotEmpty == true
@@ -1552,7 +1623,8 @@ class KaidhaSubscription_Controller extends GetxController
         customerName: customerName,
         customerPhone: customerPhone,
         customerEmail: customerEmail,
-        callbackUrl: '${AppConstants.baseUrl}/api/v1/payment/myfatoorah/success',
+        callbackUrl:
+            '${AppConstants.baseUrl}/api/v1/payment/myfatoorah/success',
         errorUrl: '${AppConstants.baseUrl}/api/v1/payment/myfatoorah/error',
       );
 
@@ -1571,14 +1643,12 @@ class KaidhaSubscription_Controller extends GetxController
         return 'error';
       }
 
-      final Map<String, dynamic> body =
-          response.body is Map<String, dynamic>
-              ? response.body as Map<String, dynamic>
-              : <String, dynamic>{};
+      final Map<String, dynamic> body = response.body is Map<String, dynamic>
+          ? response.body as Map<String, dynamic>
+          : <String, dynamic>{};
       final dynamic data = body['data'];
-      final String? paymentUrl = data is Map<String, dynamic>
-          ? data['payment_url']?.toString()
-          : null;
+      final String? paymentUrl =
+          data is Map<String, dynamic> ? data['payment_url']?.toString() : null;
 
       if (paymentUrl == null || paymentUrl.isEmpty) {
         showCustomSnackBar('فشل بدء الدفع - لم يتم استلام رابط الدفع');
@@ -1706,7 +1776,7 @@ class KaidhaSubscription_Controller extends GetxController
       if (isPaymentCancelled) {
         showCustomSnackBar('تم إلغاء عملية الدفع', isError: false);
       } else {
-      showCustomSnackBar('فشلت عملية الشحن قم بالمحاولة ثانيا ');
+        showCustomSnackBar('فشلت عملية الشحن قم بالمحاولة ثانيا ');
       }
       _isLoading = false;
       update();
@@ -1895,14 +1965,12 @@ class KaidhaSubscription_Controller extends GetxController
     debugPrint("   - monthly_amount: '${monthlyIncome.text}'");
     debugPrint("   - salary_day: '${salary_day.text}'");
     debugPrint('📋 Data Mapping (What will be sent to backend):');
-    debugPrint(
-        "   - national_id: '${identity_card_number.text}'");
+    debugPrint("   - national_id: '${identity_card_number.text}'");
     debugPrint(
         "   - city: '${city.isNotEmpty ? city : 'الرياض'}' (user selection or الرياض default)");
     debugPrint(
         "   - house_type: '${house_type.isNotEmpty ? house_type : 'apartment'}' (user selection or apartment default)");
-    debugPrint(
-        "   - neighborhood: '${neighborhood.text}'");
+    debugPrint("   - neighborhood: '${neighborhood.text}'");
     debugPrint('🔍 ===== END STEP 1 DATA DEBUG =====');
 
     nextStage(context);
@@ -2022,14 +2090,12 @@ class KaidhaSubscription_Controller extends GetxController
       debugPrint("   - File ${i + 1}: '${file.name}' (${file.file.name})");
     }
     debugPrint('📋 Data Mapping (What will be sent to backend):');
-    debugPrint(
-        "   - national_id: '${identity_card_number.text}'");
+    debugPrint("   - national_id: '${identity_card_number.text}'");
     debugPrint(
         "   - city: '${city.isNotEmpty ? city : 'الرياض'}' (user selection or الرياض default)");
     debugPrint(
         "   - house_type: '${house_type.isNotEmpty ? house_type : 'apartment'}' (user selection or apartment default)");
-    debugPrint(
-        "   - neighborhood: '${neighborhood.text}'");
+    debugPrint("   - neighborhood: '${neighborhood.text}'");
     debugPrint('🔍 ===== END STEP 2 DATA DEBUG =====');
 
     // Save state
@@ -2131,8 +2197,7 @@ class KaidhaSubscription_Controller extends GetxController
           break;
       }
     } catch (e) {
-      debugPrint(
-          '? Error checking Nafath status: $e');
+      debugPrint('? Error checking Nafath status: $e');
     }
 
     // Navigate to Step 3 for all non-approved states.
@@ -2183,7 +2248,7 @@ class KaidhaSubscription_Controller extends GetxController
         number_of_family_members: _getFamilyMembersCount(),
         identity_card_number: identity_card_number.text,
         end_date: end_date,
-      mobile: _getUserPhoneForForm(),
+        mobile: _getUserPhoneForForm(),
         house_type: house_type.isNotEmpty ? house_type : 'apartment',
         city: city.isNotEmpty ? city : 'الرياض',
         neighborhood: neighborhood.text,
@@ -2480,8 +2545,10 @@ class KaidhaSubscription_Controller extends GetxController
       final cachedData = _prefs!.getString(_nafathCacheKey);
 
       if (cachedData != null) {
-        final Map<String, dynamic> data = jsonDecode(cachedData) as Map<String, dynamic>;
-        final cachedAt = DateTime.fromMillisecondsSinceEpoch(data['cached_at'] as int);
+        final Map<String, dynamic> data =
+            jsonDecode(cachedData) as Map<String, dynamic>;
+        final cachedAt =
+            DateTime.fromMillisecondsSinceEpoch(data['cached_at'] as int);
         final now = DateTime.now();
 
         // Check if cache is not older than 1 hour
@@ -2592,11 +2659,13 @@ class KaidhaSubscription_Controller extends GetxController
     if (_nafathRequestCreatedAt == null) return Duration.zero;
     return DateTime.now().difference(_nafathRequestCreatedAt!);
   }
+
   bool get canManagePendingRequest => nafathPendingElapsed.inSeconds >= 120;
   String? get nafathFailReason => _nafathFailReason;
   bool get nafathCanInitiate => true;
 
-  Future<bool> Nafath_send_retry(BuildContext context, String nationalId) async {
+  Future<bool> Nafath_send_retry(
+      BuildContext context, String nationalId) async {
     _isLoading_OTP = true;
     update();
     try {
@@ -2787,8 +2856,7 @@ class KaidhaSubscription_Controller extends GetxController
           status == 'expired' ||
           status == 'cancelled' ||
           status == 'no_request') {
-        debugPrint(
-            'Skipping registration-activity: status=$status');
+        debugPrint('Skipping registration-activity: status=$status');
         return;
       }
       await SendState_kaidha('in_progress');

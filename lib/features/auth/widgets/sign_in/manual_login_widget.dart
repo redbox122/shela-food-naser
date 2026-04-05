@@ -46,7 +46,7 @@ class ManualLoginWidget extends StatelessWidget {
 
       return Column(mainAxisSize: MainAxisSize.min, children: [
         Align(
-          alignment: Alignment.topLeft,
+          alignment: AlignmentDirectional.topStart,
           child: Text('login'.tr, style: robotoBold.copyWith(fontSize: Dimensions.fontSizeExtraLarge)),
         ),
         const SizedBox(height: Dimensions.paddingSizeDefault),
@@ -102,6 +102,14 @@ class ManualLoginWidget extends StatelessWidget {
         ),
         SizedBox(height: ResponsiveHelper.isDesktop(context) ? Dimensions.paddingSizeDefault : Dimensions.paddingSizeExtraSmall),
         Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+          TextButton(
+            style: TextButton.styleFrom(padding: EdgeInsets.zero),
+            onPressed: () {
+              // 🔧 FIX: Use void generic type to prevent type mismatch with GetX routes
+              Get.toNamed<void>(RouteHelper.getForgotPassRoute());
+            },
+            child: Text('${'forgot_password'.tr}?', style: robotoRegular.copyWith(color: Theme.of(context).primaryColor)),
+          ),
           InkWell(
             onTap: () => authController.toggleRememberMe(),
             child: Row(
@@ -122,14 +130,6 @@ class ManualLoginWidget extends StatelessWidget {
                 Text('remember_me'.tr, style: robotoRegular),
               ],
             ),
-          ),
-          TextButton(
-            style: TextButton.styleFrom(padding: EdgeInsets.zero),
-            onPressed: () {
-              // 🔧 FIX: Use void generic type to prevent type mismatch with GetX routes
-              Get.toNamed<void>(RouteHelper.getForgotPassRoute());
-            },
-            child: Text('${'forgot_password'.tr}?', style: robotoRegular.copyWith(color: Theme.of(context).primaryColor)),
           ),
         ]),
         const SizedBox(height: Dimensions.paddingSizeLarge),
@@ -196,7 +196,7 @@ class ManualLoginWidget extends StatelessWidget {
           flex: 6,
           child: Column(children: [
             Align(
-              alignment: Alignment.topLeft,
+              alignment: AlignmentDirectional.topStart,
               child: Text('login'.tr, style: robotoBold.copyWith(fontSize: Dimensions.fontSizeExtraLarge)),
             ),
             const SizedBox(height: Dimensions.paddingSizeDefault),
@@ -256,6 +256,20 @@ class ManualLoginWidget extends StatelessWidget {
             ),
             SizedBox(height: ResponsiveHelper.isDesktop(context) ? Dimensions.paddingSizeDefault : Dimensions.paddingSizeExtraSmall),
             Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+              TextButton(
+                style: TextButton.styleFrom(padding: EdgeInsets.zero),
+                onPressed: () {
+                  if (isDesktop) {
+                    Get.back<void>();
+                    Get.dialog<void>(const Center(child: ForgetPassScreen(fromDialog: true)));
+                  } else {
+                    // 🔧 FIX: Use void generic type to prevent type mismatch with GetX routes
+              Get.toNamed<void>(RouteHelper.getForgotPassRoute());
+                  }
+                },
+                child: Text('${'forgot_password'.tr}?',
+                    style: robotoRegular.copyWith(fontSize: Dimensions.fontSizeSmall, color: Theme.of(context).primaryColor)),
+              ),
               InkWell(
                 onTap: () => authController.toggleRememberMe(),
                 child: Row(
@@ -276,20 +290,6 @@ class ManualLoginWidget extends StatelessWidget {
                     Text('remember_me'.tr, style: robotoRegular.copyWith(fontSize: Dimensions.fontSizeSmall)),
                   ],
                 ),
-              ),
-              TextButton(
-                style: TextButton.styleFrom(padding: EdgeInsets.zero),
-                onPressed: () {
-                  if (isDesktop) {
-                    Get.back<void>();
-                    Get.dialog<void>(const Center(child: ForgetPassScreen(fromDialog: true)));
-                  } else {
-                    // 🔧 FIX: Use void generic type to prevent type mismatch with GetX routes
-              Get.toNamed<void>(RouteHelper.getForgotPassRoute());
-                  }
-                },
-                child: Text('${'forgot_password'.tr}?',
-                    style: robotoRegular.copyWith(fontSize: Dimensions.fontSizeSmall, color: Theme.of(context).primaryColor)),
               ),
             ]),
             const SizedBox(height: Dimensions.paddingSizeLarge),

@@ -20,6 +20,19 @@ const double _kOfferCardVerticalMargin = 4.0;
 const double _kOfferListHeight =
     _kOfferImageExtent + _kOfferCardVerticalMargin * 2;
 
+/// Hidden on home offers strip; same entry remains under Menu → More.
+bool _isInvestInQidhaOfferCard(Datum offer) {
+  final String name = (offer.name ?? '').trim();
+  if (name.isEmpty) {
+    return false;
+  }
+  final String localized = 'invest_her_bond'.tr.trim();
+  if (name == localized) {
+    return true;
+  }
+  return name.contains('أستثمر') && name.contains('قيدها');
+}
+
 class OffersView extends StatelessWidget {
   const OffersView({super.key});
 
@@ -27,9 +40,12 @@ class OffersView extends StatelessWidget {
   Widget build(BuildContext context) {
     return GetBuilder<Offers_Controller>(
       builder: (Offers_Controller controller) {
-        final List<Datum> offers = controller.offersMode?.data ?? <Datum>[];
+        final List<Datum> rawOffers = controller.offersMode?.data ?? <Datum>[];
+        final List<Datum> offers = rawOffers
+            .where((Datum o) => !_isInvestInQidhaOfferCard(o))
+            .toList();
 
-        if (controller.isLoading == true && offers.isEmpty) {
+        if (controller.isLoading == true && rawOffers.isEmpty) {
           return const _OffersLoadingSkeleton();
         }
 

@@ -439,4 +439,3 @@ class OffersRepository implements OffersRepositoryInterface {
   }
 //
 }
-

@@ -192,7 +192,7 @@ class PlaceOrderBodyModel {
     _address = json.parseString('address');
     final receiverDetailsData = json['receiver_details'];
     if (receiverDetailsData != null) {
-      final receiverMap = receiverDetailsData is String 
+      final receiverMap = receiverDetailsData is String
           ? jsonDecode(receiverDetailsData) as Map<String, dynamic>
           : receiverDetailsData as Map<String, dynamic>;
       _receiverDetails = AddressModel.fromJson(receiverMap);
@@ -217,9 +217,10 @@ class PlaceOrderBodyModel {
     _isBuyNow = json.parseInt('is_buy_now') ?? 0;
     _guestEmail = json.parseString('contact_person_email');
     final extraPackagingValue = json['extra_packaging_amount'];
-    _extraPackagingAmount = extraPackagingValue != null && extraPackagingValue != 'null'
-        ? json.parseDouble('extra_packaging_amount')
-        : null;
+    _extraPackagingAmount =
+        extraPackagingValue != null && extraPackagingValue != 'null'
+            ? json.parseDouble('extra_packaging_amount')
+            : null;
     _createNewUser = json.parseInt('create_new_user');
     _password = json.parseString('password');
     // Removed paymentConfirmation and walletQidhaStatus assignments
@@ -376,8 +377,8 @@ class PlaceOrderBodyModel {
     data['is_buy_now'] = _isBuyNow;
     // Remove contact_person_email field as it's not required and causes issues
     // The working PHP test doesn't send this field at all
-    // data['contact_person_email'] = _guestEmail?.isNotEmpty == true 
-    //     ? _guestEmail! 
+    // data['contact_person_email'] = _guestEmail?.isNotEmpty == true
+    //     ? _guestEmail!
     //     : 'user@dev.shelafood.com';
     data['extra_packaging_amount'] = _extraPackagingAmount;
     data['create_new_user'] = _createNewUser;
@@ -411,9 +412,21 @@ class OnlineCart {
   String? _itemType;
   int? _storeId;
 
-  OnlineCart(int? cartId, int? itemId, int? itemCampaignId, String price, String variant, List<Variation>? variation,
-      List<OrderVariation>? variations, int? quantity, List<int?> addOnIds, List<AddOns>? addOns, List<int?> addOnQtys, String model,
-      {String? itemType, int? storeId}) {
+  OnlineCart(
+      int? cartId,
+      int? itemId,
+      int? itemCampaignId,
+      String price,
+      String variant,
+      List<Variation>? variation,
+      List<OrderVariation>? variations,
+      int? quantity,
+      List<int?> addOnIds,
+      List<AddOns>? addOns,
+      List<int?> addOnQtys,
+      String model,
+      {String? itemType,
+      int? storeId}) {
     _cartId = cartId;
     _itemId = itemId;
     _itemCampaignId = itemCampaignId;
@@ -451,17 +464,23 @@ class OnlineCart {
     _price = json.parseString('price');
     _variant = json.parseString('variant');
     final variationList = json['variation'];
-    if (variationList != null && variationList is List && variationList.isNotEmpty) {
+    if (variationList != null &&
+        variationList is List &&
+        variationList.isNotEmpty) {
       final firstVariation = variationList[0];
       if (firstVariation is Map && firstVariation['price'] != null) {
-        _variation = json.parseList<Variation>('variation', (v) => Variation.fromJson(v as Map<String, dynamic>));
+        _variation = json.parseList<Variation>(
+            'variation', (v) => Variation.fromJson(v as Map<String, dynamic>));
       } else {
-        _variations = json.parseList<OrderVariation>('variation', (v) => OrderVariation.fromJson(v as Map<String, dynamic>));
+        _variations = json.parseList<OrderVariation>('variation',
+            (v) => OrderVariation.fromJson(v as Map<String, dynamic>));
       }
     }
     _quantity = json.parseInt('quantity');
-    _addOnIds = json.parseList<int>('add_on_ids', (v) => JsonParser.parseInt(v) ?? 0);
-    _addOns = json.parseList<AddOns>('add_ons', (v) => AddOns.fromJson(v as Map<String, dynamic>));
+    _addOnIds =
+        json.parseList<int>('add_on_ids', (v) => JsonParser.parseInt(v) ?? 0);
+    _addOns = json.parseList<AddOns>(
+        'add_ons', (v) => AddOns.fromJson(v as Map<String, dynamic>));
     _addOnQtys = (json['add_on_qtys'] as List?)?.cast<int?>();
     _model = json['model']?.toString();
     final itemTypeValue = json['item_type'];
@@ -482,11 +501,12 @@ class OnlineCart {
     final String rawModel = (_model ?? 'Item').trim();
     // Backend cart endpoints validate against short model names (e.g. "Item"),
     // not fully-qualified class names.
-    data['model'] = rawModel.contains('\\') ? rawModel.split('\\').last : rawModel;
+    data['model'] =
+        rawModel.contains('\\') ? rawModel.split('\\').last : rawModel;
     data['price'] = _price;
     // Add variant field as string "none" to prevent backend error - backend expects this field
     data['variant'] = 'none';
-    
+
     // #region agent log - toJson variations
     if (logEnabled) {
       debugPrint('🔍 [OnlineCart.toJson] Variation check:');
@@ -496,26 +516,67 @@ class OnlineCart {
       debugPrint('   - _variation length: ${_variation?.length ?? 0}');
     }
     // #endregion
-    
+
     // #region agent log - H_D
     if (logEnabled) {
-      try { File('c:\\Users\\pc\\Desktop\\clone\\app-test\\.cursor\\debug.log').writeAsStringSync('${jsonEncode({'location':'place_order_body_model.dart:463','message':'Before variation serialization','data':{'variationsIsNull':_variations == null,'variationsLength':_variations?.length ?? 0,'variationIsNull':_variation == null,'variationLength':_variation?.length ?? 0},'timestamp':DateTime.now().millisecondsSinceEpoch,'sessionId':'debug-session','hypothesisId':'D'})}\n', mode: FileMode.append); } catch (_) {}
+      try {
+        File('c:\\Users\\pc\\Desktop\\clone\\app-test\\.cursor\\debug.log')
+            .writeAsStringSync(
+                '${jsonEncode({
+                      'location': 'place_order_body_model.dart:463',
+                      'message': 'Before variation serialization',
+                      'data': {
+                        'variationsIsNull': _variations == null,
+                        'variationsLength': _variations?.length ?? 0,
+                        'variationIsNull': _variation == null,
+                        'variationLength': _variation?.length ?? 0
+                      },
+                      'timestamp': DateTime.now().millisecondsSinceEpoch,
+                      'sessionId': 'debug-session',
+                      'hypothesisId': 'D'
+                    })}\n',
+                mode: FileMode.append);
+      } catch (_) {}
     }
     // #endregion
-    
+
     // ✅ FIX: Properly serialize variations based on type (NOT always empty!)
     if (_variations != null && _variations!.isNotEmpty) {
       // Food variations (new format) - has name and values with label
       data['variation'] = _variations!.map((v) => v.toJson()).toList();
       // #region agent log - H_D
       if (logEnabled) {
-        try { File('c:\\Users\\pc\\Desktop\\clone\\app-test\\.cursor\\debug.log').writeAsStringSync('${jsonEncode({'location':'place_order_body_model.dart:466','message':'Serializing food variations','data':{'count':_variations!.length,'firstVariation':_variations!.isNotEmpty ? {'name': _variations!.first.name, 'optionsCount': _variations!.first.values?.options?.length ?? 0} : null},'timestamp':DateTime.now().millisecondsSinceEpoch,'sessionId':'debug-session','hypothesisId':'D'})}\n', mode: FileMode.append); } catch (_) {}
+        try {
+          File('c:\\Users\\pc\\Desktop\\clone\\app-test\\.cursor\\debug.log')
+              .writeAsStringSync(
+                  '${jsonEncode({
+                        'location': 'place_order_body_model.dart:466',
+                        'message': 'Serializing food variations',
+                        'data': {
+                          'count': _variations!.length,
+                          'firstVariation': _variations!.isNotEmpty
+                              ? {
+                                  'name': _variations!.first.name,
+                                  'optionsCount': _variations!
+                                          .first.values?.options?.length ??
+                                      0
+                                }
+                              : null
+                        },
+                        'timestamp': DateTime.now().millisecondsSinceEpoch,
+                        'sessionId': 'debug-session',
+                        'hypothesisId': 'D'
+                      })}\n',
+                  mode: FileMode.append);
+        } catch (_) {}
       }
       // #endregion
       if (logEnabled) {
-        debugPrint('🔍 [OnlineCart.toJson] Sending ${_variations!.length} food variations to cart API');
+        debugPrint(
+            '🔍 [OnlineCart.toJson] Sending ${_variations!.length} food variations to cart API');
         for (final v in _variations!) {
-          debugPrint('   - ${v.name}: ${v.values?.options?.length ?? 0} selected options');
+          debugPrint(
+              '   - ${v.name}: ${v.values?.options?.length ?? 0} selected options');
         }
       }
     } else if (_variation != null && _variation!.isNotEmpty) {
@@ -523,25 +584,51 @@ class OnlineCart {
       data['variation'] = _variation!.map((v) => v.toJson()).toList();
       // #region agent log - H_D
       if (logEnabled) {
-        try { File('c:\\Users\\pc\\Desktop\\clone\\app-test\\.cursor\\debug.log').writeAsStringSync('${jsonEncode({'location':'place_order_body_model.dart:473','message':'Serializing product variations','data':{'count':_variation!.length},'timestamp':DateTime.now().millisecondsSinceEpoch,'sessionId':'debug-session','hypothesisId':'D'})}\n', mode: FileMode.append); } catch (_) {}
+        try {
+          File('c:\\Users\\pc\\Desktop\\clone\\app-test\\.cursor\\debug.log')
+              .writeAsStringSync(
+                  '${jsonEncode({
+                        'location': 'place_order_body_model.dart:473',
+                        'message': 'Serializing product variations',
+                        'data': {'count': _variation!.length},
+                        'timestamp': DateTime.now().millisecondsSinceEpoch,
+                        'sessionId': 'debug-session',
+                        'hypothesisId': 'D'
+                      })}\n',
+                  mode: FileMode.append);
+        } catch (_) {}
       }
       // #endregion
       if (logEnabled) {
-        debugPrint('🔍 [OnlineCart.toJson] Sending ${_variation!.length} product variations to cart API');
+        debugPrint(
+            '🔍 [OnlineCart.toJson] Sending ${_variation!.length} product variations to cart API');
       }
     } else {
       // No variations selected
       data['variation'] = [];
       // #region agent log - H_D
       if (logEnabled) {
-        try { File('c:\\Users\\pc\\Desktop\\clone\\app-test\\.cursor\\debug.log').writeAsStringSync('${jsonEncode({'location':'place_order_body_model.dart:477','message':'No variations - sending empty array','data':{},'timestamp':DateTime.now().millisecondsSinceEpoch,'sessionId':'debug-session','hypothesisId':'D'})}\n', mode: FileMode.append); } catch (_) {}
+        try {
+          File('c:\\Users\\pc\\Desktop\\clone\\app-test\\.cursor\\debug.log')
+              .writeAsStringSync(
+                  '${jsonEncode({
+                        'location': 'place_order_body_model.dart:477',
+                        'message': 'No variations - sending empty array',
+                        'data': {},
+                        'timestamp': DateTime.now().millisecondsSinceEpoch,
+                        'sessionId': 'debug-session',
+                        'hypothesisId': 'D'
+                      })}\n',
+                  mode: FileMode.append);
+        } catch (_) {}
       }
       // #endregion
       if (logEnabled) {
-        debugPrint('🔍 [OnlineCart.toJson] No variations selected - sending empty array');
+        debugPrint(
+            '🔍 [OnlineCart.toJson] No variations selected - sending empty array');
       }
     }
-    
+
     data['quantity'] = _quantity;
     data['add_on_ids'] = _addOnIds ?? [];
     data['add_ons'] = [];
@@ -562,7 +649,9 @@ class OrderVariation {
 
   OrderVariation.fromJson(Map<String, dynamic> json) {
     name = json['name']?.toString();
-    values = json['values'] != null ? OrderVariationValue.fromJson(json['values']) : null;
+    values = json['values'] != null
+        ? OrderVariationValue.fromJson(json['values'])
+        : null;
   }
 
   Map<String, dynamic> toJson() {
@@ -584,11 +673,15 @@ class OrderVariationValue {
   OrderVariationValue.fromJson(dynamic json) {
     if (json is List) {
       // New format: array of {label, optionPrice} objects
-      options = (json).map((e) => VariationOption.fromJson(e as Map<String, dynamic>)).toList();
+      options = (json)
+          .map((e) => VariationOption.fromJson(e as Map<String, dynamic>))
+          .toList();
     } else if (json is Map && json['label'] != null) {
       // Old format: {label: ["option1", "option2"]}
       final List<String> labels = (json['label'] as List).cast<String>();
-      options = labels.map((label) => VariationOption(label: label, optionPrice: 0.0)).toList();
+      options = labels
+          .map((label) => VariationOption(label: label, optionPrice: 0.0))
+          .toList();
     }
   }
 

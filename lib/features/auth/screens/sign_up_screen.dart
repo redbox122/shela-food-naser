@@ -56,13 +56,13 @@ class SignUpScreenState extends State<SignUpScreen> {
                           ),
                         )
                       : const SizedBox(),
-                  Image.asset(Images.logo, width: 125),
-                  const SizedBox(height: Dimensions.paddingSizeExtraLarge),
                   Align(
-                    alignment: AlignmentDirectional.topEnd,
+                    alignment: AlignmentDirectional.topStart,
                     child: Text('sign_up'.tr, style: robotoBold.copyWith(fontSize: Dimensions.fontSizeExtraLarge)),
                   ),
                   const SizedBox(height: Dimensions.paddingSizeDefault),
+                  Image.asset(Images.logo, width: 150),
+                  const SizedBox(height: Dimensions.paddingSizeExtraLarge),
                   const SignUpWidget(),
                 ],
               ),

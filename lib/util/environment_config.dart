@@ -14,7 +14,6 @@ library;
 import 'package:flutter/foundation.dart';
 import 'package:sixam_mart/common/utils/app_logger.dart';
 
-
 enum Environment { development, staging, production }
 
 class EnvironmentConfig {
