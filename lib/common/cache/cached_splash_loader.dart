@@ -1,6 +1,7 @@
 // ignore_for_file: avoid_print
 
 import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -9,6 +10,31 @@ import 'package:sixam_mart/common/cache/splash_cache_manager.dart';
 import 'package:sixam_mart/common/cache/loading_state_manager.dart';
 import 'package:sixam_mart/features/splash/controllers/splash_controller.dart';
 import 'package:sixam_mart/features/notification/domain/models/notification_body_model.dart';
+
+/// ⚡ PERF: Top-level function for compute() isolate.
+/// Decodes all splash cache JSON strings in a single isolate call,
+/// avoiding ~170 frame skips from main thread JSON parsing.
+Map<String, dynamic> _decodeSplashCacheInIsolate(
+    Map<String, String?> rawStrings) {
+  final result = <String, dynamic>{};
+
+  final configStr = rawStrings['config'];
+  if (configStr != null && configStr.isNotEmpty) {
+    result['configData'] = jsonDecode(configStr) as Map<String, dynamic>;
+  }
+
+  final moduleStr = rawStrings['module'];
+  if (moduleStr != null && moduleStr.isNotEmpty) {
+    result['moduleData'] = jsonDecode(moduleStr) as Map<String, dynamic>;
+  }
+
+  final moduleListStr = rawStrings['moduleList'];
+  if (moduleListStr != null && moduleListStr.isNotEmpty) {
+    result['moduleListData'] = jsonDecode(moduleListStr) as List<dynamic>;
+  }
+
+  return result;
+}
 
 /// Cached Splash Data Loader
 /// Provides instant app startup with smart caching
@@ -89,40 +115,64 @@ class CachedSplashLoader {
   }
 
   /// Load data from cache
+  /// ⚡ PERF: Reads raw strings from SharedPreferences, then decodes ALL JSON
+  /// in a single compute() isolate to prevent main thread blocking (~170 frames).
   static Future<void> _loadFromCache(
     BuildContext context,
     bool loadModuleData,
     bool loadLandingData,
   ) async {
+    final splashController = Get.find<SplashController>();
     try {
-      final splashController = Get.find<SplashController>();
-      final configData = await SplashCacheManager.loadConfigData();
+      // Step 1: Read raw strings (fast - SharedPreferences is already cached in memory)
+      final configStr = await SplashCacheManager.loadConfigDataRaw();
 
-      if (configData == null || configData.isEmpty) {
+      if (configStr == null || configStr.isEmpty) {
         print(
-            'CachedSplashLoader: No cached config data available, skipping restore');
-        return;
+            'CachedSplashLoader: No cached config data available, falling back to API');
+        throw Exception('Cache config data is null or empty');
       }
 
-      Map<String, dynamic>? moduleData;
-      List<dynamic>? moduleListData;
+      String? moduleStr;
+      String? moduleListStr;
 
       if (loadModuleData) {
-        moduleData = await SplashCacheManager.loadModuleData();
-        moduleListData = await SplashCacheManager.loadModuleListData();
+        moduleStr = await SplashCacheManager.loadModuleDataRaw();
+        moduleListStr = await SplashCacheManager.loadModuleListDataRaw();
       }
 
+      // Step 2: Decode ALL JSON in a single isolate (heavy CPU work off main thread)
+      final parsed = await compute(_decodeSplashCacheInIsolate, {
+        'config': configStr,
+        'module': moduleStr,
+        'moduleList': moduleListStr,
+      });
+
+      final configData = parsed['configData'] as Map<String, dynamic>?;
+      if (configData == null || configData.isEmpty) {
+        throw Exception('Config data decoded to null/empty');
+      }
+
+      // Step 3: Restore to controller (model parsing + state assignment)
       await splashController.restoreFromCache(
-        configData: Map<String, dynamic>.from(configData),
-        moduleData:
-            moduleData != null ? Map<String, dynamic>.from(moduleData) : null,
-        moduleListData: moduleListData,
+        configData: configData,
+        moduleData: parsed['moduleData'] as Map<String, dynamic>?,
+        moduleListData: parsed['moduleListData'] as List<dynamic>?,
       );
+
+      // 🔧 FIX: Verify data was actually populated after restore
+      if (splashController.configModel == null) {
+        print(
+            'CachedSplashLoader: configModel is null after cache restore - falling back to API');
+        throw Exception('configModel null after cache restore');
+      }
 
       print(
           'CachedSplashLoader: Splash data restored from cache - instant startup ready');
     } catch (e) {
       print('CachedSplashLoader: Error loading from cache - $e');
+      // 🔧 FIX: Rethrow so the caller triggers API fallback
+      rethrow;
     }
   }
 

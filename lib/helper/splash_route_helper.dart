@@ -62,24 +62,27 @@ void _navigateToMultiModuleHomeScreen() {
   // 🚫 FIX: Prevent double navigation - only route once
   if (_hasRoutedFromSplash) {
     if (kDebugMode) {
-      debugPrint('🏗️ [Module-First] Route Guard: Already routed, skipping duplicate navigation');
+      debugPrint(
+          '🏗️ [Module-First] Route Guard: Already routed, skipping duplicate navigation');
     }
     return; // Don't navigate again
   }
   _hasRoutedFromSplash = true;
-  
+
   // 🏗️ MODULE-FIRST: Always show MultiModuleHomeScreen after splash
   // User must select a module before proceeding to Dashboard
   if (kDebugMode) {
-    debugPrint('🏗️ [Module-First] Route Guard: Routing to MultiModuleHomeScreen after splash');
+    debugPrint(
+        '🏗️ [Module-First] Route Guard: Routing to MultiModuleHomeScreen after splash');
   }
-  
+
   // 🚫 FIX: Use Get.offAll() directly with widget to prevent navigation loops
   // This clears the entire navigation stack and navigates directly to MultiModuleHomeScreen
   // ⚠️ CRITICAL: Don't use Get.offAllNamed() with route name because route '/' opens DashboardScreen
   // We must use Get.offAll() with widget directly to bypass route system
   if (kDebugMode) {
-    debugPrint('🟥 SPLASH ROUTE EXECUTED at ${DateTime.now()} - Navigating to MultiModuleHomeScreen');
+    debugPrint(
+        '🟥 SPLASH ROUTE EXECUTED at ${DateTime.now()} - Navigating to MultiModuleHomeScreen');
   }
   Get.offAll<dynamic>(
     () => const MultiModuleHomeScreen(),
@@ -88,15 +91,27 @@ void _navigateToMultiModuleHomeScreen() {
   );
 }
 
-void route(BuildContext context, {NotificationBodyModel? body, bool forceDashboard = false}) {
+void route(BuildContext context,
+    {NotificationBodyModel? body, bool forceDashboard = false}) {
   // Check if configModel is loaded first
   final splashController = Get.find<SplashController>();
   if (Get.isRegistered<HomeUnifiedController>()) {
     Get.find<HomeUnifiedController>().forceResetLoadingState();
   }
   if (splashController.configModel == null) {
-    appLogger.warning('ConfigModel not loaded yet, skipping route');
-    return;
+    appLogger.warning(
+        'ConfigModel not loaded yet - applying fallback config to prevent stuck splash');
+    // 🔧 FIX: Apply fallback config instead of silently returning
+    // This prevents the splash screen from getting stuck forever
+    splashController.applyFallbackConfig(
+        reason: 'route() called with null configModel');
+    if (splashController.configModel == null) {
+      // If fallback also failed (shouldn't happen), navigate to onboarding as last resort
+      appLogger.warning(
+          'Fallback config also failed - navigating to language selection');
+      Get.offNamed<void>(RouteHelper.getLanguageRoute('splash'));
+      return;
+    }
   }
 
   final double? minimumVersion = _getMinimumVersion();
@@ -137,13 +152,13 @@ void _forNotificationRouteProcess(NotificationBodyModel? notificationBody) {
   final notificationType = notificationBody?.notificationType;
 
   final Map<NotificationType, VoidCallback> notificationActions = {
-    NotificationType.order: () => Get.toNamed<void>(RouteHelper.getOrderDetailsRoute(
-        notificationBody!.orderId,
-        fromNotification: true)),
-    NotificationType.block: () =>
-        Get.offNamed<void>(RouteHelper.getSignInRoute(RouteHelper.notification)),
-    NotificationType.unblock: () =>
-        Get.offNamed<void>(RouteHelper.getSignInRoute(RouteHelper.notification)),
+    NotificationType.order: () => Get.toNamed<void>(
+        RouteHelper.getOrderDetailsRoute(notificationBody!.orderId,
+            fromNotification: true)),
+    NotificationType.block: () => Get.offNamed<void>(
+        RouteHelper.getSignInRoute(RouteHelper.notification)),
+    NotificationType.unblock: () => Get.offNamed<void>(
+        RouteHelper.getSignInRoute(RouteHelper.notification)),
     NotificationType.message: () => Get.toNamed<void>(RouteHelper.getChatRoute(
         notificationBody: notificationBody,
         conversationID: notificationBody!.conversationId,
@@ -157,8 +172,8 @@ void _forNotificationRouteProcess(NotificationBodyModel? notificationBody) {
         Get.toNamed<void>(RouteHelper.getWalletRoute(fromNotification: true)),
     NotificationType.loyalty_point: () =>
         Get.toNamed<void>(RouteHelper.getLoyaltyRoute(fromNotification: true)),
-    NotificationType.general: () =>
-        Get.toNamed<void>(RouteHelper.getNotificationRoute(fromNotification: true)),
+    NotificationType.general: () => Get.toNamed<void>(
+        RouteHelper.getNotificationRoute(fromNotification: true)),
   };
 
   notificationActions[notificationType]?.call();
@@ -169,24 +184,25 @@ Future<void> _forLoggedInUserRouteProcess(
   required bool forceDashboard,
 }) async {
   Get.find<AuthController>().updateToken();
-  
+
   // ⚡ OPTIMIZATION: Allow home screen to render from cache even without GPS fix
   // Check if we have valid cache - if so, render home screen and update location in background
   final hasAddress = AddressHelper.getUserAddressFromSharedPref() != null;
   final hasValidCache = await ComprehensiveHomeCacheManager.isCacheValid();
-  
+
   if (hasAddress || hasValidCache) {
     // Go directly to home screen - data is already loaded in splash or available in cache
-    appLogger.info('Routing logged in user to home screen (hasAddress: $hasAddress, hasValidCache: $hasValidCache)');
-    
+    appLogger.info(
+        'Routing logged in user to home screen (hasAddress: $hasAddress, hasValidCache: $hasValidCache)');
+
     // 🏗️ MODULE-FIRST ARCHITECTURE: Resolve module before routing
     final splashController = Get.find<SplashController>();
     final moduleList = splashController.moduleList;
-    
+
     // 🔒 BOOTSTRAP PROTECTION: Check for cached module ID FIRST (before resolveInitialModule)
     // If cached module exists, use it and go directly to Home WITHOUT MultiModuleHomeScreen
     final cachedModuleId = await HiveHomeCacheService.getLastSelectedModuleId();
-    
+
     // 🎯 CRITICAL FIX: If cached module exists, set it immediately and go to Dashboard
     // This prevents the unnecessary detour to MultiModuleHomeScreen
     if (cachedModuleId != null && moduleList != null && moduleList.isNotEmpty) {
@@ -198,48 +214,52 @@ Future<void> _forLoggedInUserRouteProcess(
           break;
         }
       }
-      
+
       if (cachedModule != null) {
         // Set module immediately from cache using setModule (which updates both selectedModule and _module)
         await splashController.setModule(
           cachedModule,
           notify: forceDashboard,
         );
-        
+
         if (kDebugMode) {
-          debugPrint('🚀 [Module-First] Route Guard: Cached module found (id=$cachedModuleId) - routing directly to Dashboard');
+          debugPrint(
+              '🚀 [Module-First] Route Guard: Cached module found (id=$cachedModuleId) - routing directly to Dashboard');
         }
         // Go directly to Dashboard - skip MultiModuleHomeScreen entirely
         await _routeToDashboardOnce(force: forceDashboard);
         return; // Exit early - no need to check anything else
       }
     }
-    
+
     // Only resolve initial module if no cached module was found
     if (moduleList != null && moduleList.isNotEmpty) {
       await splashController.resolveInitialModule(moduleList);
     }
-    
+
     // 🏗️ MODULE-FIRST: Route Guard - only navigate to MultiModuleHomeScreen if no module selected
     // This handles cases where resolveInitialModule selected a module (single module scenario)
     final finalSelectedModule = splashController.selectedModule.value;
     if (finalSelectedModule != null) {
       // Module resolved (single module or auto-selected) - navigate directly to Dashboard
       if (kDebugMode) {
-        debugPrint('🏗️ [Module-First] Route Guard: Module resolved (id=${finalSelectedModule.id}) - routing to Dashboard');
+        debugPrint(
+            '🏗️ [Module-First] Route Guard: Module resolved (id=${finalSelectedModule.id}) - routing to Dashboard');
       }
       await _routeToDashboardOnce(force: forceDashboard);
     } else {
       // No module selected - show MultiModuleHomeScreen for selection
       if (kDebugMode) {
-        debugPrint('🏗️ [Module-First] Route Guard: No module selected - routing to MultiModuleHomeScreen');
+        debugPrint(
+            '🏗️ [Module-First] Route Guard: No module selected - routing to MultiModuleHomeScreen');
       }
       _navigateToMultiModuleHomeScreen();
     }
-    
+
     // ⚡ OPTIMIZATION: Update location in background if no address but cache exists
     if (!hasAddress && hasValidCache) {
-      appLogger.info('Updating location in background for logged-in user (cache available, GPS can fix later)');
+      appLogger.info(
+          'Updating location in background for logged-in user (cache available, GPS can fix later)');
       // Location will be updated in background when GPS is fixed
       // Home screen can render from cache immediately
     }
@@ -254,10 +274,12 @@ Future<void> _forLoggedInUserRouteProcess(
 }
 
 void _newlyRegisteredRouteProcess() {
-  appLogger.info('Newly registered route process - Available languages: ${AppConstants.languages.length}');
+  appLogger.info(
+      'Newly registered route process - Available languages: ${AppConstants.languages.length}');
 
   if (AppConstants.languages.length > 1) {
-    appLogger.info('Multiple languages available, routing to language selection');
+    appLogger
+        .info('Multiple languages available, routing to language selection');
     Get.offNamed<void>(RouteHelper.getLanguageRoute('splash'));
   } else {
     appLogger.info('Single language, routing to onboarding');
@@ -273,19 +295,20 @@ Future<void> _forGuestUserRouteProcess(
   // Check if we have valid cache - if so, render home screen and update location in background
   final hasAddress = AddressHelper.getUserAddressFromSharedPref() != null;
   final hasValidCache = await ComprehensiveHomeCacheManager.isCacheValid();
-  
+
   if (hasAddress || hasValidCache) {
     // Go directly to home screen - data is already loaded in splash or available in cache
-    appLogger.info('Routing guest user to home screen (hasAddress: $hasAddress, hasValidCache: $hasValidCache)');
-    
+    appLogger.info(
+        'Routing guest user to home screen (hasAddress: $hasAddress, hasValidCache: $hasValidCache)');
+
     // 🏗️ MODULE-FIRST ARCHITECTURE: Resolve module before routing
     final splashController = Get.find<SplashController>();
     final moduleList = splashController.moduleList;
-    
+
     // 🔒 BOOTSTRAP PROTECTION: Check for cached module ID FIRST (before resolveInitialModule)
     // If cached module exists, use it and go directly to Home WITHOUT MultiModuleHomeScreen
     final cachedModuleId = await HiveHomeCacheService.getLastSelectedModuleId();
-    
+
     // 🎯 CRITICAL FIX: If cached module exists, set it immediately and go to Dashboard
     // This prevents the unnecessary detour to MultiModuleHomeScreen
     if (cachedModuleId != null && moduleList != null && moduleList.isNotEmpty) {
@@ -297,48 +320,52 @@ Future<void> _forGuestUserRouteProcess(
           break;
         }
       }
-      
+
       if (cachedModule != null) {
         // Set module immediately from cache using setModule (which updates both selectedModule and _module)
         await splashController.setModule(
           cachedModule,
           notify: forceDashboard,
         );
-        
+
         if (kDebugMode) {
-          debugPrint('🚀 [Module-First] Route Guard: Cached module found (id=$cachedModuleId) - routing directly to Dashboard');
+          debugPrint(
+              '🚀 [Module-First] Route Guard: Cached module found (id=$cachedModuleId) - routing directly to Dashboard');
         }
         // Go directly to Dashboard - skip MultiModuleHomeScreen entirely
         await _routeToDashboardOnce(force: forceDashboard);
         return; // Exit early - no need to check anything else
       }
     }
-    
+
     // Only resolve initial module if no cached module was found
     if (moduleList != null && moduleList.isNotEmpty) {
       await splashController.resolveInitialModule(moduleList);
     }
-    
+
     // 🏗️ MODULE-FIRST: Route Guard - only navigate to MultiModuleHomeScreen if no module selected
     // This handles cases where resolveInitialModule selected a module (single module scenario)
     final finalSelectedModule = splashController.selectedModule.value;
     if (finalSelectedModule != null) {
       // Module resolved (single module or auto-selected) - navigate directly to Dashboard
       if (kDebugMode) {
-        debugPrint('🏗️ [Module-First] Route Guard: Module resolved (id=${finalSelectedModule.id}) - routing to Dashboard');
+        debugPrint(
+            '🏗️ [Module-First] Route Guard: Module resolved (id=${finalSelectedModule.id}) - routing to Dashboard');
       }
       await _routeToDashboardOnce(force: forceDashboard);
     } else {
       // No module selected - show MultiModuleHomeScreen for selection
       if (kDebugMode) {
-        debugPrint('🏗️ [Module-First] Route Guard: No module selected - routing to MultiModuleHomeScreen');
+        debugPrint(
+            '🏗️ [Module-First] Route Guard: No module selected - routing to MultiModuleHomeScreen');
       }
       _navigateToMultiModuleHomeScreen();
     }
-    
+
     // ⚡ OPTIMIZATION: Update location in background if no address but cache exists
     if (!hasAddress && hasValidCache) {
-      appLogger.info('Updating location in background for guest user (cache available, GPS can fix later)');
+      appLogger.info(
+          'Updating location in background for guest user (cache available, GPS can fix later)');
       // Location will be updated in background when GPS is fixed
       // Home screen can render from cache immediately
     }
@@ -360,12 +387,15 @@ Future<void> _handleUserRouting(
   final showIntro = splashController.showIntro();
   final authController = Get.find<AuthController>();
 
-  appLogger.info('User routing - isLoggedIn: ${AuthHelper.isLoggedIn()}, showIntro: $showIntro, isGuestLoggedIn: ${AuthHelper.isGuestLoggedIn()}');
+  appLogger.info(
+      'User routing - isLoggedIn: ${AuthHelper.isLoggedIn()}, showIntro: $showIntro, isGuestLoggedIn: ${AuthHelper.isGuestLoggedIn()}');
 
   // 🔧 FIX: Check GuestID/Token BEFORE checking showIntro
   // If GuestID or Token exists, never route to onboarding, even if address is missing
-  final hasToken = AuthHelper.isLoggedIn() && authController.getUserToken().isNotEmpty;
-  final hasGuestId = AuthHelper.isGuestLoggedIn() && authController.getGuestId().isNotEmpty;
+  final hasToken =
+      AuthHelper.isLoggedIn() && authController.getUserToken().isNotEmpty;
+  final hasGuestId =
+      AuthHelper.isGuestLoggedIn() && authController.getGuestId().isNotEmpty;
 
   if (hasToken) {
     appLogger.info('Routing to logged in user flow (token exists)');
@@ -375,7 +405,8 @@ Future<void> _handleUserRouting(
     await _forGuestUserRouteProcess(context, forceDashboard: forceDashboard);
   } else if (showIntro == true) {
     // Only route to onboarding if no token and no guest ID
-    appLogger.info('Routing to onboarding flow (language/onboarding) - no token/guest ID');
+    appLogger.info(
+        'Routing to onboarding flow (language/onboarding) - no token/guest ID');
     _newlyRegisteredRouteProcess();
   } else {
     appLogger.info('No user state, performing guest login');

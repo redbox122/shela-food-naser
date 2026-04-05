@@ -54,6 +54,33 @@ import 'package:sixam_mart/features/location/controllers/location_controller.dar
 import 'package:sixam_mart/common/utils/app_logger.dart';
 import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 
+/// ⚡ PERF: Top-level function for compute() isolate.
+/// Parses ConfigModel, ModuleModel, and module list off the main thread
+/// to prevent frame drops during splash GIF animation.
+Map<String, dynamic> _parseModelsInIsolate(Map<String, dynamic> input) {
+  final configData = input['configData'] as Map<String, dynamic>?;
+  final moduleData = input['moduleData'] as Map<String, dynamic>?;
+  final moduleListData = input['moduleListData'] as List<dynamic>?;
+
+  final result = <String, dynamic>{};
+
+  if (configData != null) {
+    result['configModel'] = ConfigModel.fromJson(configData);
+  }
+
+  if (moduleData != null) {
+    result['module'] = ModuleModel.fromJson(moduleData);
+  }
+
+  if (moduleListData != null) {
+    result['moduleList'] = moduleListData
+        .map((data) => ModuleModel.fromJson(data as Map<String, dynamic>))
+        .toList();
+  }
+
+  return result;
+}
+
 class SplashController extends GetxController implements GetxService {
   final SplashServiceInterface splashServiceInterface;
   SplashController({required this.splashServiceInterface});
@@ -410,6 +437,11 @@ class SplashController extends GetxController implements GetxService {
       additionalChargeStatus: false,
       additionCharge: 0.0,
     );
+  }
+
+  /// Apply fallback config to prevent stuck splash when API/cache both fail
+  void applyFallbackConfig({String? reason}) {
+    _applyFallbackConfig(reason: reason);
   }
 
   void _applyFallbackConfig({String? reason}) {
@@ -946,6 +978,8 @@ class SplashController extends GetxController implements GetxService {
                 '⚡ SplashController._loadWithAppInit: Cache valid and data exists (configModel + moduleList) - skipping app-init API call');
             debugPrint('   - App-init will refresh in background if needed');
           }
+          // 🔧 FIX: Reset _isLoadingConfig before early return to prevent isReady from staying false
+          _isLoadingConfig = false;
           // Background refresh will happen via CachedSplashLoader._refreshInBackground
           return;
         } else if (kDebugMode && cacheValid && _configModel != null) {
@@ -2688,46 +2722,46 @@ class SplashController extends GetxController implements GetxService {
     List<dynamic>? moduleListData,
   }) async {
     try {
-      // Restore config data
-      _data = configData;
-      _configModel = ConfigModel.fromJson(configData);
+      // ⚡ PERF FIX: Parse ALL models in a single isolate to avoid blocking
+      // main thread during splash GIF animation (~170 frame skips → 0)
+      final parsed = await compute(_parseModelsInIsolate, {
+        'configData': configData,
+        'moduleData': moduleData,
+        'moduleListData': moduleListData,
+      });
 
-      // Restore module data if available
-      if (moduleData != null) {
-        _module = ModuleModel.fromJson(moduleData);
-        if (_configModel != null && _data != null && _module != null) {
-          // 🔧 FIX: Handle null module_config gracefully (prevent cast error)
-          final moduleConfig = _data!['module_config'];
-          if (moduleConfig != null && moduleConfig is Map) {
-            final moduleTypeConfig = moduleConfig[_module!.moduleType];
-            if (moduleTypeConfig != null &&
-                moduleTypeConfig is Map<String, dynamic>) {
-              _configModel!.moduleConfig!.module =
-                  Module.fromJson(moduleTypeConfig);
-            } else {
-              if (kDebugMode) {
-                debugPrint(
-                    '⚠️ SplashController: module_config[${_module!.moduleType}] is null or not a Map');
-              }
-              _configModel!.moduleConfig!.module =
-                  _buildDefaultModuleConfig(_module!.moduleType);
-            }
+      // Assign parsed results to controller state (fast, just references)
+      _data = configData;
+      _configModel = parsed['configModel'] as ConfigModel?;
+      _module = parsed['module'] as ModuleModel?;
+      _moduleList = parsed['moduleList'] as List<ModuleModel>?;
+
+      // Apply module config (needs access to _data, _configModel, _module)
+      if (_module != null && _configModel != null && _data != null) {
+        // 🔧 FIX: Handle null module_config gracefully (prevent cast error)
+        final moduleConfig = _data!['module_config'];
+        if (moduleConfig != null && moduleConfig is Map) {
+          final moduleTypeConfig = moduleConfig[_module!.moduleType];
+          if (moduleTypeConfig != null &&
+              moduleTypeConfig is Map<String, dynamic>) {
+            _configModel!.moduleConfig!.module =
+                Module.fromJson(moduleTypeConfig);
           } else {
             if (kDebugMode) {
               debugPrint(
-                  '⚠️ SplashController: module_config is null or not a Map');
+                  '⚠️ SplashController: module_config[${_module!.moduleType}] is null or not a Map');
             }
             _configModel!.moduleConfig!.module =
                 _buildDefaultModuleConfig(_module!.moduleType);
           }
+        } else {
+          if (kDebugMode) {
+            debugPrint(
+                '⚠️ SplashController: module_config is null or not a Map');
+          }
+          _configModel!.moduleConfig!.module =
+              _buildDefaultModuleConfig(_module!.moduleType);
         }
-      }
-
-      // Restore module list data if available
-      if (moduleListData != null) {
-        _moduleList = moduleListData
-            .map((data) => ModuleModel.fromJson(data as Map<String, dynamic>))
-            .toList();
       }
       // Promotional content preloading is intentionally deferred out of splash.
       // Keep cache restore focused on config/module readiness only.

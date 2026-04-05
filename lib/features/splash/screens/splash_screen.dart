@@ -34,10 +34,27 @@ class SplashScreenState extends State<SplashScreen> {
   final GlobalKey<ScaffoldState> _globalKey = GlobalKey();
   StreamSubscription<List<ConnectivityResult>>? _onConnectivityChanged;
   bool _hasInitiatedRouting = false;
+  bool _hasNavigatedAway = false;
+  Timer? _safetyNetTimer;
 
   @override
   void initState() {
     super.initState();
+
+    // 🔧 SAFETY NET: Force navigation after 8 seconds maximum
+    // This prevents the splash screen from getting stuck forever
+    _safetyNetTimer = Timer(const Duration(seconds: 8), () {
+      if (!_hasNavigatedAway && mounted) {
+        debugPrint(
+            '🚨 SplashScreen SAFETY NET: Splash stuck for 8s - forcing navigation');
+        _hasNavigatedAway = true;
+        final splashController = Get.find<SplashController>();
+        splashController.markSplashFlowStopped();
+        splashController.applyFallbackConfig(reason: 'safety-net timer (8s)');
+        route(context, body: widget.body);
+      }
+    });
+
     // Don't start stopwatch here - wait for logo to actually render
     // This ensures we count from when the GIF animation actually starts
 
@@ -127,6 +144,9 @@ class SplashScreenState extends State<SplashScreen> {
         return;
       }
 
+      // ⚡ PERF FIX: Yield to let GIF animation frames render after heavy cache loading
+      await Future<void>.delayed(Duration.zero);
+
       // 🏗️ MODULE-FIRST ARCHITECTURE: Resolve initial module selection
       // This determines which module should be selected based on cache, single module, or user choice
       final splashController = Get.find<SplashController>();
@@ -148,6 +168,9 @@ class SplashScreenState extends State<SplashScreen> {
           }
         }
       }
+
+      // ⚡ PERF FIX: Yield to let GIF animation frames render after module resolution
+      await Future<void>.delayed(Duration.zero);
 
       // Core module preloading is allowed only when a startup module is already resolved.
       // For multi-module/no-selection flow we intentionally skip all module prefetch.
@@ -221,6 +244,8 @@ class SplashScreenState extends State<SplashScreen> {
 
         // Route directly to multi-module screen - it's the main entry point
         splashController.markSplashFlowStopped();
+        _hasNavigatedAway = true;
+        _safetyNetTimer?.cancel();
         // ignore: use_build_context_synchronously
         route(context, body: widget.body);
 
@@ -315,6 +340,8 @@ class SplashScreenState extends State<SplashScreen> {
       // Now perform the routing
       debugPrint('🚀 SplashScreen: Routing to home screen...');
       splashController.markSplashFlowStopped();
+      _hasNavigatedAway = true;
+      _safetyNetTimer?.cancel();
       // ignore: use_build_context_synchronously
       route(context, body: widget.body);
 
@@ -640,12 +667,12 @@ class SplashScreenState extends State<SplashScreen> {
 
   @override
   void dispose() {
+    _safetyNetTimer?.cancel();
     if (Get.isRegistered<SplashController>()) {
       Get.find<SplashController>().markSplashFlowStopped();
     }
-    super.dispose();
-
     _onConnectivityChanged?.cancel();
+    super.dispose();
   }
 
   @override

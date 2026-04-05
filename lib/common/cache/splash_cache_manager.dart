@@ -3,6 +3,7 @@
 import 'dart:convert';
 import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:sixam_mart/core/isolate/json_isolate_helper.dart';
 import 'package:sixam_mart/features/splash/controllers/splash_controller.dart';
 
 /// Splash Cache Manager for Instant App Startup
@@ -17,6 +18,41 @@ class SplashCacheManager {
 
   static const Duration _configCacheExpiry = Duration(hours: 6);
   static const Duration _moduleCacheExpiry = Duration(hours: 12);
+
+  /// ⚡ PERF: Read raw cache strings without JSON decoding (for isolate batching)
+  static Future<String?> loadConfigDataRaw() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      return prefs.getString(_configCacheKey);
+    } catch (e) {
+      print('❌ Splash Cache: Error loading raw config data - $e');
+      return null;
+    }
+  }
+
+  /// ⚡ PERF: Read raw module string without JSON decoding
+  static Future<String?> loadModuleDataRaw() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      if (!prefs.containsKey(_moduleCacheKey)) return null;
+      return prefs.getString(_moduleCacheKey);
+    } catch (e) {
+      print('❌ Module Cache: Error loading raw data - $e');
+      return null;
+    }
+  }
+
+  /// ⚡ PERF: Read raw module list string without JSON decoding
+  static Future<String?> loadModuleListDataRaw() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      if (!prefs.containsKey(_moduleListCacheKey)) return null;
+      return prefs.getString(_moduleListCacheKey);
+    } catch (e) {
+      print('❌ Module List Cache: Error loading raw data - $e');
+      return null;
+    }
+  }
 
   /// Check if splash cache is valid
   static Future<bool> isSplashCacheValid() async {
@@ -145,7 +181,8 @@ class SplashCacheManager {
       final cacheData = prefs.getString(_configCacheKey);
       if (cacheData == null) return null;
 
-      final data = jsonDecode(cacheData) as Map<String, dynamic>;
+      // ⚡ PERF FIX: Use isolate for JSON decoding to avoid blocking main thread
+      final data = await JsonIsolateHelper.decodeJson(cacheData);
       print('📦 Splash Cache: Config data loaded successfully');
       return data;
     } catch (e) {
@@ -166,7 +203,8 @@ class SplashCacheManager {
       final cacheData = prefs.getString(_moduleCacheKey);
       if (cacheData == null) return null;
 
-      final data = jsonDecode(cacheData) as Map<String, dynamic>;
+      // ⚡ PERF FIX: Use isolate for JSON decoding to avoid blocking main thread
+      final data = await JsonIsolateHelper.decodeJson(cacheData);
       print('📦 Module Cache: Data loaded successfully');
       return data;
     } catch (e) {
@@ -187,7 +225,8 @@ class SplashCacheManager {
       final cacheData = prefs.getString(_moduleListCacheKey);
       if (cacheData == null) return null;
 
-      final data = jsonDecode(cacheData) as List<dynamic>;
+      // ⚡ PERF FIX: Use isolate for JSON decoding to avoid blocking main thread
+      final data = await JsonIsolateHelper.decodeJsonList(cacheData);
       print('📦 Module List Cache: Data loaded successfully');
       return data;
     } catch (e) {
