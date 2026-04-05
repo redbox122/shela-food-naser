@@ -266,48 +266,7 @@ class CustomTextFieldState extends State<CustomTextField> {
                                 color: theme.colorScheme.error)),
                     ]))
                   : null,
-              prefixIcon: (widget.isPhone || widget.countryDialCode != null)
-                  ? SizedBox(
-                      width: 95,
-                      child: Row(children: [
-                        Container(
-                          width: 85,
-                          height: 40,
-                          decoration: const BoxDecoration(
-                            borderRadius: BorderRadius.only(
-                              topLeft: Radius.circular(Dimensions.radiusSmall),
-                              bottomLeft:
-                                  Radius.circular(Dimensions.radiusSmall),
-                            ),
-                          ),
-                          margin: const EdgeInsets.only(),
-                          padding: const EdgeInsets.only(left: 5),
-                          child: Center(
-                            child: CodePickerWidget(
-                              flagWidth: 25,
-                              padding: EdgeInsets.zero,
-                              onChanged: widget.onCountryChanged,
-                              initialSelection: widget.countryDialCode,
-                              favorite: [widget.countryDialCode ?? ''],
-                              enabled: Get.find<SplashController>()
-                                  .configModel
-                                  ?.countryPickerStatus,
-                              dialogBackgroundColor: theme.cardColor,
-                              textStyle: robotoRegular.copyWith(
-                                fontSize: Dimensions.fontSizeDefault,
-                                color: theme.textTheme.bodyMedium!.color,
-                              ),
-                            ),
-                          ),
-                        ),
-                        Container(
-                          height: 20,
-                          width: 2,
-                          color: theme.disabledColor,
-                        )
-                      ]),
-                    )
-                  : widget.prefixImage != null && widget.prefixIcon == null
+              prefixIcon: widget.prefixImage != null && widget.prefixIcon == null
                       ? Padding(
                           padding: EdgeInsets.all(
                               ResponsiveHelper.isDesktop(context)
@@ -327,7 +286,51 @@ class CustomTextFieldState extends State<CustomTextField> {
                                   ? theme.primaryColor
                                   : theme.hintColor.withValues(alpha: 0.7))
                           : null,
-              suffixIcon: widget.isPassword
+              suffixIcon: (widget.isPhone || widget.countryDialCode != null)
+                  ? SizedBox(
+                      width: 95,
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                        Container(
+                          height: 20,
+                          width: 2,
+                          color: theme.disabledColor,
+                        ),
+                        Container(
+                          width: 85,
+                          height: 40,
+                          decoration: const BoxDecoration(
+                            borderRadius: BorderRadius.only(
+                              topRight: Radius.circular(Dimensions.radiusSmall),
+                              bottomRight:
+                                  Radius.circular(Dimensions.radiusSmall),
+                            ),
+                          ),
+                          margin: const EdgeInsets.only(),
+                          padding: const EdgeInsets.only(right: 5),
+                          child: Center(
+                            child: CodePickerWidget(
+                              flagWidth: 25,
+                              padding: EdgeInsets.zero,
+                              onChanged: widget.onCountryChanged,
+                              initialSelection: widget.countryDialCode,
+                              favorite: [widget.countryDialCode ?? ''],
+                              enabled: Get.find<SplashController>()
+                                  .configModel
+                                  ?.countryPickerStatus,
+                              dialogBackgroundColor: theme.cardColor,
+                              textStyle: robotoRegular.copyWith(
+                                fontSize: Dimensions.fontSizeDefault,
+                                color: theme.textTheme.bodyMedium!.color,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ]),
+                    )
+                  : widget.isPassword
                   ? IconButton(
                       icon: Icon(
                           _obscureText
