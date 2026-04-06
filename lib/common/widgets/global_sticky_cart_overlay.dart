@@ -379,54 +379,97 @@ String _resolveRouteForOverlay(BuildContext context) {
 }
 
 /// Full-width cart strip above bottom safe area, or above dashboard bottom nav.
-class GlobalStickyCartOverlay extends StatelessWidget {
+///
+/// Directly subscribes to [stickyCartRouteTick], [CartController],
+/// [OrderController], and [SplashController] via [addListener] so that **all**
+/// signals (route changes, cart mutations, order updates, config refreshes)
+/// trigger a rebuild without [GetBuilder] barriers blocking propagation.
+class GlobalStickyCartOverlay extends StatefulWidget {
   const GlobalStickyCartOverlay({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    return ValueListenableBuilder<int>(
-      valueListenable: stickyCartRouteTick,
-      builder: (BuildContext context, int _, Widget? __) {
-        // No id: SplashController never calls update(['app_config']); without a
-        // matching id this overlay would not rebuild on module/config changes.
-        return GetBuilder<SplashController>(
-          builder: (SplashController _) {
-            return const _GlobalStickyCartOverlayBody();
-          },
-        );
-      },
-    );
-  }
+  State<GlobalStickyCartOverlay> createState() =>
+      _GlobalStickyCartOverlayState();
 }
 
-class _GlobalStickyCartOverlayBody extends StatelessWidget {
-  const _GlobalStickyCartOverlayBody();
+class _GlobalStickyCartOverlayState extends State<GlobalStickyCartOverlay> {
+  final Set<Type> _subscribed = <Type>{};
+  final List<VoidCallback> _controllerDisposers = <VoidCallback>[];
+
+  // ------------------------------------------------------------------
+  // Lifecycle
+  // ------------------------------------------------------------------
+
+  @override
+  void initState() {
+    super.initState();
+    stickyCartRouteTick.addListener(_scheduleRebuild);
+    _bindControllers();
+  }
+
+  @override
+  void dispose() {
+    stickyCartRouteTick.removeListener(_scheduleRebuild);
+    for (final VoidCallback d in _controllerDisposers) {
+      d();
+    }
+    _controllerDisposers.clear();
+    _subscribed.clear();
+    super.dispose();
+  }
+
+  // ------------------------------------------------------------------
+  // Controller subscriptions
+  // ------------------------------------------------------------------
+
+  void _scheduleRebuild() {
+    if (mounted) setState(() {});
+  }
+
+  void _bindControllers() {
+    _bind<CartController>();
+    _bind<OrderController>();
+    _bind<SplashController>();
+  }
+
+  void _bind<T extends GetxController>() {
+    if (_subscribed.contains(T) || !Get.isRegistered<T>()) {
+      return;
+    }
+    try {
+      final T c = Get.find<T>();
+      c.addListener(_scheduleRebuild);
+      _subscribed.add(T);
+      _controllerDisposers.add(() {
+        try {
+          c.removeListener(_scheduleRebuild);
+        } catch (_) {}
+      });
+    } catch (_) {}
+  }
+
+  // ------------------------------------------------------------------
+  // Build
+  // ------------------------------------------------------------------
 
   @override
   Widget build(BuildContext context) {
-    if (Get.isRegistered<OrderController>()) {
-      return GetBuilder<OrderController>(
-        builder: (OrderController orderController) {
-          return GetBuilder<CartController>(
-            builder: (CartController cartController) {
-              return _globalStickyCartLayer(
-                context: context,
-                cartController: cartController,
-                orderController: orderController,
-              );
-            },
-          );
-        },
-      );
+    // Retry for controllers registered after initState (lazy init).
+    _bindControllers();
+
+    if (!Get.isRegistered<CartController>()) {
+      return const SizedBox.shrink();
     }
-    return GetBuilder<CartController>(
-      builder: (CartController cartController) {
-        return _globalStickyCartLayer(
-          context: context,
-          cartController: cartController,
-          orderController: null,
-        );
-      },
+
+    final CartController cartController = Get.find<CartController>();
+    final OrderController? orderController = Get.isRegistered<OrderController>()
+        ? Get.find<OrderController>()
+        : null;
+
+    return _globalStickyCartLayer(
+      context: context,
+      cartController: cartController,
+      orderController: orderController,
     );
   }
 }

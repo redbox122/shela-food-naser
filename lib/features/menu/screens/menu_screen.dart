@@ -83,8 +83,7 @@ class _MenuScreenState extends State<MenuScreen> {
     if (AuthHelper.isLoggedIn() && profileController.userInfoModel != null) {
       // Data already exists - show UI instantly, refresh balance in background
       if (kDebugMode) {
-        debugPrint(
-            '⚡ MenuScreen: userInfoModel exists - showing UI instantly');
+        debugPrint('⚡ MenuScreen: userInfoModel exists - showing UI instantly');
         debugPrint(
             '   - Name: ${profileController.userInfoModel?.fName} ${profileController.userInfoModel?.lName}');
       }
@@ -224,8 +223,7 @@ class _MenuScreenState extends State<MenuScreen> {
         }
       } else {
         if (kDebugMode) {
-          debugPrint(
-              'ℹ️ MenuScreen: User not logged in - skipping data load');
+          debugPrint('ℹ️ MenuScreen: User not logged in - skipping data load');
         }
       }
 
@@ -254,436 +252,503 @@ class _MenuScreenState extends State<MenuScreen> {
         right: false,
         minimum: EdgeInsets.zero,
         child: GetBuilder<ProfileController>(builder: (profileController) {
-        final bool isLoggedIn = AuthHelper.isLoggedIn();
+          final bool isLoggedIn = AuthHelper.isLoggedIn();
 
-        if (isLoggedIn && profileController.userInfoModel == null) {
-          if (profileController.hasProfileError) {
-            return ErrorStateView(
-              onRetry: () {
-                profileController.getUserInfo();
-                loadData(context);
-              },
-            );
+          if (isLoggedIn && profileController.userInfoModel == null) {
+            if (profileController.hasProfileError) {
+              return ErrorStateView(
+                onRetry: () {
+                  profileController.getUserInfo();
+                  loadData(context);
+                },
+              );
+            }
+            return const Center(child: CircularProgressIndicator());
           }
-          return const Center(child: CircularProgressIndicator());
-        }
 
-        final splashController = Get.find<SplashController>();
-        final config = splashController.configModel;
-        final loyaltyPointStatus = config?.loyaltyPointStatus ?? 0;
-        final customerWalletStatus = config?.customerWalletStatus ?? 0;
-        final refEarningStatus = config?.refEarningStatus ?? 0;
-        final refundPolicyStatus = config?.refundPolicyStatus ?? 0;
-        final cancellationPolicyStatus = config?.cancellationPolicyStatus ?? 0;
-        final shippingPolicyStatus = config?.shippingPolicyStatus ?? 0;
-        final toggleDmRegistration = config?.toggleDmRegistration ?? false;
-        final toggleStoreRegistration =
-            config?.toggleStoreRegistration ?? false;
+          final splashController = Get.find<SplashController>();
+          final config = splashController.configModel;
+          final loyaltyPointStatus = config?.loyaltyPointStatus ?? 0;
+          final customerWalletStatus = config?.customerWalletStatus ?? 0;
+          final refEarningStatus = config?.refEarningStatus ?? 0;
+          final refundPolicyStatus = config?.refundPolicyStatus ?? 0;
+          final cancellationPolicyStatus =
+              config?.cancellationPolicyStatus ?? 0;
+          final shippingPolicyStatus = config?.shippingPolicyStatus ?? 0;
+          final toggleDmRegistration = config?.toggleDmRegistration ?? false;
+          final toggleStoreRegistration =
+              config?.toggleStoreRegistration ?? false;
 
-        return GetBuilder<KaidhaSubscription_Controller>(
-            builder: (KaidhaSubController) {
-          // Log menu screen render state
+          return GetBuilder<KaidhaSubscription_Controller>(
+              builder: (KaidhaSubController) {
+            // Log menu screen render state
 
-          return ListView(
-            padding: EdgeInsets.only(
-              bottom: MediaQuery.of(context).padding.bottom +
-                  Dimensions.paddingSizeLarge,
-            ),
-            children: [
-              Container(
-                constraints: const BoxConstraints(minHeight: 130),
-                decoration:
-                    BoxDecoration(color: Theme.of(context).primaryColor),
-                child: Padding(
-                  padding: const EdgeInsets.only(
-                    left: Dimensions.paddingSizeExtremeLarge,
-                    right: Dimensions.paddingSizeExtremeLarge,
-                    top: 50,
-                    bottom: Dimensions.paddingSizeDefault,
-                  ),
-                  child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: [
-                        Container(
-                          decoration: BoxDecoration(
-                            color: Theme.of(context).primaryColor,
-                            shape: BoxShape.circle,
-                          ),
-                          padding: const EdgeInsets.all(1),
-                          child: ClipOval(child: Builder(
-                            builder: (context) {
-                              final String? imageUrl =
-                                  (profileController.userInfoModel != null &&
-                                          isLoggedIn &&
-                                          profileController.userInfoModel!
-                                                  .imageFullUrl !=
-                                              null &&
-                                          profileController.userInfoModel!
-                                              .imageFullUrl!.isNotEmpty)
-                                      ? profileController
-                                          .userInfoModel!.imageFullUrl!
-                                      : null;
+            return ListView(
+              padding: EdgeInsets.only(
+                bottom: MediaQuery.of(context).padding.bottom +
+                    Dimensions.paddingSizeLarge,
+              ),
+              children: [
+                Container(
+                  constraints: const BoxConstraints(minHeight: 130),
+                  decoration:
+                      BoxDecoration(color: Theme.of(context).primaryColor),
+                  child: Padding(
+                    padding: const EdgeInsets.only(
+                      left: Dimensions.paddingSizeExtremeLarge,
+                      right: Dimensions.paddingSizeExtremeLarge,
+                      top: 50,
+                      bottom: Dimensions.paddingSizeDefault,
+                    ),
+                    child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          Container(
+                            decoration: BoxDecoration(
+                              color: Theme.of(context).primaryColor,
+                              shape: BoxShape.circle,
+                            ),
+                            padding: const EdgeInsets.all(1),
+                            child: ClipOval(child: Builder(
+                              builder: (context) {
+                                final String? imageUrl =
+                                    (profileController.userInfoModel != null &&
+                                            isLoggedIn &&
+                                            profileController.userInfoModel!
+                                                    .imageFullUrl !=
+                                                null &&
+                                            profileController.userInfoModel!
+                                                .imageFullUrl!.isNotEmpty)
+                                        ? profileController
+                                            .userInfoModel!.imageFullUrl!
+                                        : null;
 
-                              if (imageUrl == null || imageUrl.isEmpty) {
-                                return Container(
+                                if (imageUrl == null || imageUrl.isEmpty) {
+                                  return Container(
+                                    height: 60,
+                                    width: 60,
+                                    decoration: BoxDecoration(
+                                      color: Theme.of(context)
+                                          .cardColor
+                                          .withValues(alpha: 0.2),
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: Icon(
+                                      Icons.person,
+                                      color: Theme.of(context).cardColor,
+                                      size: 34,
+                                    ),
+                                  );
+                                }
+
+                                return CustomImage(
+                                  placeholder: Images.guestIconLight,
+                                  image: imageUrl,
                                   height: 60,
                                   width: 60,
-                                  decoration: BoxDecoration(
-                                    color: Theme.of(context)
-                                        .cardColor
-                                        .withValues(alpha: 0.2),
-                                    shape: BoxShape.circle,
-                                  ),
-                                  child: Icon(
-                                    Icons.person,
-                                    color: Theme.of(context).cardColor,
-                                    size: 34,
-                                  ),
                                 );
-                              }
-
-                              return CustomImage(
-                                placeholder: Images.guestIconLight,
-                                image: imageUrl,
-                                height: 60,
-                                width: 60,
-                              );
-                            },
-                          )),
-                        ),
-                        const SizedBox(width: Dimensions.paddingSizeDefault),
-                        Expanded(
-                          child: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                isLoggedIn &&
-                                        profileController.userInfoModel == null
-                                    ? Shimmer(
-                                        child: Container(
-                                          height: 15,
-                                          width: 150,
-                                          decoration: BoxDecoration(
-                                            color: Theme.of(context).cardColor,
-                                            borderRadius:
-                                                BorderRadius.circular(5),
-                                          ),
-                                        ),
-                                      )
-                                    : Text(
-                                        isLoggedIn
-                                            ? '${profileController.userInfoModel?.fName ?? ''} ${profileController.userInfoModel?.lName ?? ''}'
-                                            : 'guest_user'.tr,
-                                        style: robotoBold.copyWith(
-                                            fontSize:
-                                                Dimensions.fontSizeOverLarge,
-                                            color: Colors.white),
-                                      ),
-                                SizedBox(
-                                    height: isLoggedIn &&
-                                            profileController.userInfoModel ==
-                                                null
-                                        ? Dimensions.paddingSizeSmall
-                                        : Dimensions.paddingSizeExtraSmall),
-                                isLoggedIn &&
-                                        profileController.userInfoModel == null
-                                    ? Shimmer(
-                                        child: Container(
-                                          height: 15,
-                                          width: 100,
-                                          decoration: BoxDecoration(
-                                            color: Theme.of(context).cardColor,
-                                            borderRadius:
-                                                BorderRadius.circular(5),
-                                          ),
-                                        ),
-                                      )
-                                    : isLoggedIn
-                                        ?
-
-                                        // داخل الـ Widget:
-                                        Text(
-                                            DateConverter.formatDate(
-                                                DateTime.now()),
-                                            style: robotoMedium.copyWith(
-                                              fontSize:
-                                                  Dimensions.fontSizeSmall,
+                              },
+                            )),
+                          ),
+                          const SizedBox(width: Dimensions.paddingSizeDefault),
+                          Expanded(
+                            child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  isLoggedIn &&
+                                          profileController.userInfoModel ==
+                                              null
+                                      ? Shimmer(
+                                          child: Container(
+                                            height: 15,
+                                            width: 150,
+                                            decoration: BoxDecoration(
                                               color:
                                                   Theme.of(context).cardColor,
-                                            ),
-                                          )
-                                        : InkWell(
-                                            onTap: () async {
-                                              if (!ResponsiveHelper.isDesktop(
-                                                  context)) {
-                                                await Get.toNamed(
-                                                    RouteHelper.getSignInRoute(
-                                                        Get.currentRoute));
-                                                if (AuthHelper.isLoggedIn()) {
-                                                  profileController
-                                                      .getUserInfo();
-                                                }
-                                              } else {
-                                                Get.dialog(const Center(
-                                                    child: AuthDialogWidget(
-                                                        exitFromApp: true,
-                                                        backFromThis: true)));
-                                              }
-                                            },
-                                            child: Text(
-                                              'login_to_view_all_feature'.tr,
-                                              style: robotoMedium.copyWith(
-                                                  fontSize:
-                                                      Dimensions.fontSizeSmall,
-                                                  color: Theme.of(context)
-                                                      .cardColor),
+                                              borderRadius:
+                                                  BorderRadius.circular(5),
                                             ),
                                           ),
-                              ]),
-                        ),
+                                        )
+                                      : Text(
+                                          isLoggedIn
+                                              ? '${profileController.userInfoModel?.fName ?? ''} ${profileController.userInfoModel?.lName ?? ''}'
+                                              : 'guest_user'.tr,
+                                          style: robotoBold.copyWith(
+                                              fontSize:
+                                                  Dimensions.fontSizeOverLarge,
+                                              color: Colors.white),
+                                        ),
+                                  SizedBox(
+                                      height: isLoggedIn &&
+                                              profileController.userInfoModel ==
+                                                  null
+                                          ? Dimensions.paddingSizeSmall
+                                          : Dimensions.paddingSizeExtraSmall),
+                                  isLoggedIn &&
+                                          profileController.userInfoModel ==
+                                              null
+                                      ? Shimmer(
+                                          child: Container(
+                                            height: 15,
+                                            width: 100,
+                                            decoration: BoxDecoration(
+                                              color:
+                                                  Theme.of(context).cardColor,
+                                              borderRadius:
+                                                  BorderRadius.circular(5),
+                                            ),
+                                          ),
+                                        )
+                                      : isLoggedIn
+                                          ?
 
-                        // qr  =========================
-                        (() {
-                          final walletModel =
-                              KaidhaSubController.walletKaidhaModel;
-                          final wallet = walletModel?.wallet;
-                          if (walletModel == null) return const SizedBox();
-                          if (wallet != null) return const SizedBox();
-                          return InkWell(
-                            child: Container(
-                              decoration: BoxDecoration(
-                                  color: Theme.of(context).primaryColor,
-                                  shape: BoxShape.circle),
-                              padding: const EdgeInsets.all(1),
-                              child: Image.asset(Images.qr,
-                                  height: 50, width: 100),
-                            ),
-                            onTap: () {
-                              Get.toNamed(RouteHelper.getQr_screen());
-                            },
-                          );
-                        })(),
-                      ]),
-                ),
-              ),
-              GetBuilder<KaidhaSubscription_Controller>(
-                  builder: (KaidhaSubController) {
-                return GetBuilder<Delegate_Controller>(
-                    builder: (delegate_Controller) {
-                  return GetBuilder<DeliverymanRegistrationController>(
-                      builder: (DeliverymanReg_Controller) {
-                    return Ink(
-                      color:
-                          Theme.of(context).primaryColor.withValues(alpha: 0.1),
-                      padding: const EdgeInsets.only(
-                          top: Dimensions.paddingSizeLarge),
-                      child: Column(children: [
-                        Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Padding(
-                                padding: const EdgeInsets.only(
-                                    left: Dimensions.paddingSizeDefault,
-                                    right: Dimensions.paddingSizeDefault),
-                                child: Text(
-                                  'general'.tr,
-                                  style: robotoMedium.copyWith(
-                                      fontSize: Dimensions.fontSizeDefault,
-                                      color: Theme.of(context)
-                                          .primaryColor
-                                          .withValues(alpha: 0.5)),
-                                ),
-                              ),
-                              Container(
-                                decoration: BoxDecoration(
-                                  color: Theme.of(context).cardColor,
-                                  borderRadius: BorderRadius.circular(
-                                      Dimensions.radiusDefault),
-                                  boxShadow: const [
-                                    BoxShadow(
-                                        color: Colors.black12,
-                                        blurRadius: 5,
-                                        spreadRadius: 1)
-                                  ],
-                                ),
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: Dimensions.paddingSizeLarge,
-                                    vertical: Dimensions.paddingSizeDefault),
-                                margin: const EdgeInsets.all(
-                                    Dimensions.paddingSizeDefault),
-                                child: Column(children: [
-                                  PortionWidget(
-                                      icon: Images.profileIcon,
-                                      title: 'profile'.tr,
-                                      route: RouteHelper.getProfileRoute()),
-                                  PortionWidget(
-                                      icon: Images.addressIcon,
-                                      title: 'my_address'.tr,
-                                      route: RouteHelper.getAddressRoute()),
-                                  PortionWidget(
-                                      icon: Images.languageIcon,
-                                      title: 'language'.tr,
-                                      hideDivider: true,
-                                      onTap: () =>
-                                          _manageLanguageFunctionality(),
-                                      route: ''),
+                                          // داخل الـ Widget:
+                                          Text(
+                                              DateConverter.formatDate(
+                                                  DateTime.now()),
+                                              style: robotoMedium.copyWith(
+                                                fontSize:
+                                                    Dimensions.fontSizeSmall,
+                                                color:
+                                                    Theme.of(context).cardColor,
+                                              ),
+                                            )
+                                          : InkWell(
+                                              onTap: () async {
+                                                if (!ResponsiveHelper.isDesktop(
+                                                    context)) {
+                                                  await Get.toNamed(RouteHelper
+                                                      .getSignInRoute(
+                                                          Get.currentRoute));
+                                                  if (AuthHelper.isLoggedIn()) {
+                                                    profileController
+                                                        .getUserInfo();
+                                                  }
+                                                } else {
+                                                  Get.dialog(const Center(
+                                                      child: AuthDialogWidget(
+                                                          exitFromApp: true,
+                                                          backFromThis: true)));
+                                                }
+                                              },
+                                              child: Text(
+                                                'login_to_view_all_feature'.tr,
+                                                style: robotoMedium.copyWith(
+                                                    fontSize: Dimensions
+                                                        .fontSizeSmall,
+                                                    color: Theme.of(context)
+                                                        .cardColor),
+                                              ),
+                                            ),
                                 ]),
-                              )
-                            ]),
-                        Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              //
+                          ),
 
-                              Padding(
-                                padding: const EdgeInsets.only(
-                                    left: Dimensions.paddingSizeDefault,
-                                    right: Dimensions.paddingSizeDefault),
-                                child: Text(
-                                  'promotional_activity'.tr,
-                                  style: robotoMedium.copyWith(
-                                      fontSize: Dimensions.fontSizeDefault,
-                                      color: Theme.of(context)
-                                          .primaryColor
-                                          .withValues(alpha: 0.5)),
-                                ),
-                              ),
-                              Container(
+                          // qr  =========================
+                          (() {
+                            final walletModel =
+                                KaidhaSubController.walletKaidhaModel;
+                            final wallet = walletModel?.wallet;
+                            if (walletModel == null) return const SizedBox();
+                            if (wallet != null) return const SizedBox();
+                            return InkWell(
+                              child: Container(
                                 decoration: BoxDecoration(
-                                  color: Theme.of(context).cardColor,
-                                  borderRadius: BorderRadius.circular(
-                                      Dimensions.radiusDefault),
-                                  boxShadow: const [
-                                    BoxShadow(
-                                        color: Colors.black12,
-                                        blurRadius: 5,
-                                        spreadRadius: 1)
-                                  ],
+                                    color: Theme.of(context).primaryColor,
+                                    shape: BoxShape.circle),
+                                padding: const EdgeInsets.all(1),
+                                child: Image.asset(Images.qr,
+                                    height: 50, width: 100),
+                              ),
+                              onTap: () {
+                                Get.toNamed(RouteHelper.getQr_screen());
+                              },
+                            );
+                          })(),
+                        ]),
+                  ),
+                ),
+                GetBuilder<KaidhaSubscription_Controller>(
+                    builder: (KaidhaSubController) {
+                  return GetBuilder<Delegate_Controller>(
+                      builder: (delegate_Controller) {
+                    return GetBuilder<DeliverymanRegistrationController>(
+                        builder: (DeliverymanReg_Controller) {
+                      return Ink(
+                        color: Theme.of(context)
+                            .primaryColor
+                            .withValues(alpha: 0.1),
+                        padding: const EdgeInsets.only(
+                            top: Dimensions.paddingSizeLarge),
+                        child: Column(children: [
+                          Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Padding(
+                                  padding: const EdgeInsets.only(
+                                      left: Dimensions.paddingSizeDefault,
+                                      right: Dimensions.paddingSizeDefault),
+                                  child: Text(
+                                    'general'.tr,
+                                    style: robotoMedium.copyWith(
+                                        fontSize: Dimensions.fontSizeDefault,
+                                        color: Theme.of(context)
+                                            .primaryColor
+                                            .withValues(alpha: 0.5)),
+                                  ),
                                 ),
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: Dimensions.paddingSizeLarge,
-                                    vertical: Dimensions.paddingSizeDefault),
-                                margin: const EdgeInsets.all(
-                                    Dimensions.paddingSizeDefault),
-                                child: Column(children: [
-                                  //
-
-                                  // coupon  --------------------------------------------------------------------------------
-
-                                  PortionWidget(
-                                    icon: Images.couponIcon,
-                                    title: 'coupon'.tr,
-                                    route: RouteHelper.getCouponRoute(),
-                                    onTap: () => _runWithLoginRequired(() {
-                                      Get.toNamed(RouteHelper.getCouponRoute());
-                                    }),
-                                    hideDivider: loyaltyPointStatus == 1 ||
-                                            customerWalletStatus == 1
-                                        ? false
-                                        : true,
+                                Container(
+                                  decoration: BoxDecoration(
+                                    color: Theme.of(context).cardColor,
+                                    borderRadius: BorderRadius.circular(
+                                        Dimensions.radiusDefault),
+                                    boxShadow: const [
+                                      BoxShadow(
+                                          color: Colors.black12,
+                                          blurRadius: 5,
+                                          spreadRadius: 1)
+                                    ],
                                   ),
-                                  // (Get.find<SplashController>().configModel!.refEarningStatus == 1)
-                                  (1 == 1)
-                                      ? PortionWidget(
-                                          icon: Images.statistics,
-                                          title: 'statistics'.tr,
-                                          route: RouteHelper.getStatistics(),
-                                          onTap: () =>
-                                              _runWithLoginRequired(() {
-                                            Get.toNamed(
-                                                RouteHelper.getStatistics());
-                                          }),
-                                          hideDivider: (toggleDmRegistration &&
-                                                      !ResponsiveHelper
-                                                          .isDesktop(
-                                                              context)) ||
-                                                  (toggleStoreRegistration &&
-                                                      !ResponsiveHelper
-                                                          .isDesktop(context))
-                                              ? false
-                                              : true,
-                                        )
-                                      : const SizedBox(),
-                                  // (Get.find<SplashController>().configModel!.refEarningStatus == 1)
-                                  (1 == 1)
-                                      ? PortionWidget(
-                                          icon: Images.discount,
-                                          title: 'discount'.tr,
-                                          route: RouteHelper.getDiscount(),
-                                          onTap: () =>
-                                              _runWithLoginRequired(() {
-                                            Get.toNamed(
-                                                RouteHelper.getDiscount());
-                                          }),
-                                          hideDivider: (toggleDmRegistration &&
-                                                      !ResponsiveHelper
-                                                          .isDesktop(
-                                                              context)) ||
-                                                  (toggleStoreRegistration &&
-                                                      !ResponsiveHelper
-                                                          .isDesktop(context))
-                                              ? false
-                                              : true,
-                                        )
-                                      : const SizedBox(),
-
-                                  PortionWidget(
-                                    icon: Images.walletCreditIcon,
-                                    title: 'invest_her_bond'.tr,
-                                    route: '',
-                                    onTap: () => _runWithLoginRequired(() {
-                                      _launchURL();
-                                    }),
-                                    hideDivider: (toggleDmRegistration &&
-                                                !ResponsiveHelper.isDesktop(
-                                                    context)) ||
-                                            (toggleStoreRegistration &&
-                                                !ResponsiveHelper.isDesktop(
-                                                    context))
-                                        ? false
-                                        : true,
-                                  ),
-                                  if (!isLoggedIn)
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: Dimensions.paddingSizeLarge,
+                                      vertical: Dimensions.paddingSizeDefault),
+                                  margin: const EdgeInsets.all(
+                                      Dimensions.paddingSizeDefault),
+                                  child: Column(children: [
                                     PortionWidget(
-                                      icon: Images.walletCreditIcon,
-                                      title: 'KiadaWallet_Subscription'.tr,
-                                      route: '',
+                                        icon: Images.profileIcon,
+                                        title: 'profile'.tr,
+                                        route: RouteHelper.getProfileRoute()),
+                                    PortionWidget(
+                                        icon: Images.addressIcon,
+                                        title: 'my_address'.tr,
+                                        route: RouteHelper.getAddressRoute()),
+                                    PortionWidget(
+                                        icon: Images.languageIcon,
+                                        title: 'language'.tr,
+                                        hideDivider: true,
+                                        onTap: () =>
+                                            _manageLanguageFunctionality(),
+                                        route: ''),
+                                  ]),
+                                )
+                              ]),
+                          Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                //
+
+                                Padding(
+                                  padding: const EdgeInsets.only(
+                                      left: Dimensions.paddingSizeDefault,
+                                      right: Dimensions.paddingSizeDefault),
+                                  child: Text(
+                                    'promotional_activity'.tr,
+                                    style: robotoMedium.copyWith(
+                                        fontSize: Dimensions.fontSizeDefault,
+                                        color: Theme.of(context)
+                                            .primaryColor
+                                            .withValues(alpha: 0.5)),
+                                  ),
+                                ),
+                                Container(
+                                  decoration: BoxDecoration(
+                                    color: Theme.of(context).cardColor,
+                                    borderRadius: BorderRadius.circular(
+                                        Dimensions.radiusDefault),
+                                    boxShadow: const [
+                                      BoxShadow(
+                                          color: Colors.black12,
+                                          blurRadius: 5,
+                                          spreadRadius: 1)
+                                    ],
+                                  ),
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: Dimensions.paddingSizeLarge,
+                                      vertical: Dimensions.paddingSizeDefault),
+                                  margin: const EdgeInsets.all(
+                                      Dimensions.paddingSizeDefault),
+                                  child: Column(children: [
+                                    //
+
+                                    // coupon  --------------------------------------------------------------------------------
+
+                                    PortionWidget(
+                                      icon: Images.couponIcon,
+                                      title: 'coupon'.tr,
+                                      route: RouteHelper.getCouponRoute(),
                                       onTap: () => _runWithLoginRequired(() {
-                                        _launchExternalUrl(
-                                            AppConstants.qaydhaWebsiteUrl);
+                                        Get.toNamed(
+                                            RouteHelper.getCouponRoute());
                                       }),
-                                      hideDivider: (toggleDmRegistration &&
-                                                  !ResponsiveHelper.isDesktop(
-                                                      context)) ||
-                                              (toggleStoreRegistration &&
-                                                  !ResponsiveHelper.isDesktop(
-                                                      context))
+                                      hideDivider: loyaltyPointStatus == 1 ||
+                                              customerWalletStatus == 1
                                           ? false
                                           : true,
                                     ),
+                                    // (Get.find<SplashController>().configModel!.refEarningStatus == 1)
+                                    (1 == 1)
+                                        ? PortionWidget(
+                                            icon: Images.statistics,
+                                            title: 'statistics'.tr,
+                                            route: RouteHelper.getStatistics(),
+                                            onTap: () =>
+                                                _runWithLoginRequired(() {
+                                              Get.toNamed(
+                                                  RouteHelper.getStatistics());
+                                            }),
+                                            hideDivider: (toggleDmRegistration &&
+                                                        !ResponsiveHelper
+                                                            .isDesktop(
+                                                                context)) ||
+                                                    (toggleStoreRegistration &&
+                                                        !ResponsiveHelper
+                                                            .isDesktop(context))
+                                                ? false
+                                                : true,
+                                          )
+                                        : const SizedBox(),
+                                    // (Get.find<SplashController>().configModel!.refEarningStatus == 1)
+                                    (1 == 1)
+                                        ? PortionWidget(
+                                            icon: Images.discount,
+                                            title: 'discount'.tr,
+                                            route: RouteHelper.getDiscount(),
+                                            onTap: () =>
+                                                _runWithLoginRequired(() {
+                                              Get.toNamed(
+                                                  RouteHelper.getDiscount());
+                                            }),
+                                            hideDivider: (toggleDmRegistration &&
+                                                        !ResponsiveHelper
+                                                            .isDesktop(
+                                                                context)) ||
+                                                    (toggleStoreRegistration &&
+                                                        !ResponsiveHelper
+                                                            .isDesktop(context))
+                                                ? false
+                                                : true,
+                                          )
+                                        : const SizedBox(),
 
-                                  // (Get.find<SplashController>().configModel!.refEarningStatus == 1)
-                                  // Debug: Print wallet status for troubleshooting
-                                  Builder(
-                                    builder: (context) {
-                                      try {
-                                        // Show KiadaWallet_Subscription if no wallet exists, or wallet exists but not signed/active
-                                        // ⚡ FIX: Check signatureStatus as int (1) or bool (true) for compatibility
-                                        final walletModel = KaidhaSubController
-                                            .walletKaidhaModel;
-                                        final wallet = walletModel?.wallet;
-                                        final signatureStatus =
-                                            wallet?.signatureStatus;
-                                        final isSigned = signatureStatus == 1 ||
-                                            signatureStatus == true;
-                                        final walletStatus = wallet?.status
-                                            ?.toString()
-                                            .toLowerCase();
-                                        if (!AuthHelper.isGuestLoggedIn() &&
-                                            (walletModel == null ||
-                                                wallet == null ||
-                                                !isSigned ||
-                                                walletStatus != 'active')) {
+                                    if (!isLoggedIn)
+                                      PortionWidget(
+                                        icon: Images.walletCreditIcon,
+                                        title: 'KiadaWallet_Subscription'.tr,
+                                        route: '',
+                                        onTap: () => _runWithLoginRequired(() {
+                                          _launchExternalUrl(
+                                              AppConstants.qaydhaWebsiteUrl);
+                                        }),
+                                        hideDivider: (toggleDmRegistration &&
+                                                    !ResponsiveHelper.isDesktop(
+                                                        context)) ||
+                                                (toggleStoreRegistration &&
+                                                    !ResponsiveHelper.isDesktop(
+                                                        context))
+                                            ? false
+                                            : true,
+                                      ),
+
+                                    // (Get.find<SplashController>().configModel!.refEarningStatus == 1)
+                                    // Debug: Print wallet status for troubleshooting
+                                    Builder(
+                                      builder: (context) {
+                                        try {
+                                          // Show KiadaWallet_Subscription if no wallet exists, or wallet exists but not signed/active
+                                          // ⚡ FIX: Check signatureStatus as int (1) or bool (true) for compatibility
+                                          final walletModel =
+                                              KaidhaSubController
+                                                  .walletKaidhaModel;
+                                          final wallet = walletModel?.wallet;
+                                          final signatureStatus =
+                                              wallet?.signatureStatus;
+                                          final isSigned =
+                                              signatureStatus == 1 ||
+                                                  signatureStatus == true;
+                                          final walletStatus = wallet?.status
+                                              ?.toString()
+                                              .toLowerCase();
+                                          if (!AuthHelper.isGuestLoggedIn() &&
+                                              (walletModel == null ||
+                                                  wallet == null ||
+                                                  !isSigned ||
+                                                  walletStatus != 'active')) {
+                                            return PortionWidget(
+                                              icon: Images
+                                                  .KiadaWalletSubscription,
+                                              title:
+                                                  'KiadaWallet_Subscription'.tr,
+                                              route: RouteHelper
+                                                  .getKiadaWalletSubscription(),
+                                              hideDivider: (toggleDmRegistration &&
+                                                          !ResponsiveHelper
+                                                              .isDesktop(
+                                                                  context)) ||
+                                                      (toggleStoreRegistration &&
+                                                          !ResponsiveHelper
+                                                              .isDesktop(
+                                                                  context))
+                                                  ? false
+                                                  : true,
+                                            );
+                                          }
+
+                                          // Show Qidha Wallet only if wallet exists, is signed (signature_status = 1 or true) and active
+                                          // ⚡ FIX: Check signatureStatus as int (1) or bool (true) for compatibility
+                                          final walletSignatureStatus =
+                                              wallet?.signatureStatus;
+                                          final walletIsSigned =
+                                              walletSignatureStatus == 1 ||
+                                                  walletSignatureStatus == true;
+                                          if (isLoggedIn &&
+                                              !AuthHelper.isGuestLoggedIn() &&
+                                              wallet != null &&
+                                              walletIsSigned &&
+                                              walletStatus == 'active') {
+                                            return PortionWidget(
+                                              icon: Images.walletIcon,
+                                              title: 'kiadha_wallet'.tr,
+                                              route:
+                                                  RouteHelper.getKaidhaWallet(),
+                                              hideDivider: (toggleDmRegistration &&
+                                                          !ResponsiveHelper
+                                                              .isDesktop(
+                                                                  context)) ||
+                                                      (toggleStoreRegistration &&
+                                                          !ResponsiveHelper
+                                                              .isDesktop(
+                                                                  context))
+                                                  ? false
+                                                  : true,
+                                              suffix:
+                                                  PriceConverter.convertPrice(
+                                                () {
+                                                  final balance =
+                                                      wallet.availableBalance;
+                                                  if (balance == null)
+                                                    return 0.0;
+                                                  if (balance is double) {
+                                                    return balance;
+                                                  }
+                                                  if (balance is int) {
+                                                    return balance.toDouble();
+                                                  }
+                                                  if (balance is String) {
+                                                    return double.tryParse(
+                                                            balance) ??
+                                                        0.0;
+                                                  }
+                                                  return 0.0;
+                                                }(),
+                                              ),
+                                            );
+                                          }
+
+                                          return const SizedBox();
+                                        } catch (e) {
+                                          // Fallback: show subscription option if there's an error
                                           return PortionWidget(
                                             icon:
                                                 Images.KiadaWalletSubscription,
@@ -702,24 +767,115 @@ class _MenuScreenState extends State<MenuScreen> {
                                                 : true,
                                           );
                                         }
+                                      },
+                                    ),
 
-                                        // Show Qidha Wallet only if wallet exists, is signed (signature_status = 1 or true) and active
-                                        // ⚡ FIX: Check signatureStatus as int (1) or bool (true) for compatibility
-                                        final walletSignatureStatus =
-                                            wallet?.signatureStatus;
-                                        final walletIsSigned =
-                                            walletSignatureStatus == 1 ||
-                                                walletSignatureStatus == true;
-                                        if (isLoggedIn &&
-                                            !AuthHelper.isGuestLoggedIn() &&
-                                            wallet != null &&
-                                            walletIsSigned &&
-                                            walletStatus == 'active') {
-                                          return PortionWidget(
-                                            icon: Images.walletIcon,
-                                            title: 'kiadha_wallet'.tr,
+                                    (loyaltyPointStatus == 1)
+                                        ? PortionWidget(
+                                            icon: Images.pointIcon,
+                                            title: 'loyalty_points'.tr,
                                             route:
-                                                RouteHelper.getKaidhaWallet(),
+                                                RouteHelper.getLoyaltyRoute(),
+                                            hideDivider:
+                                                customerWalletStatus == 1
+                                                    ? false
+                                                    : true,
+                                            suffix: !isLoggedIn
+                                                ? null
+                                                : '${profileController.userInfoModel?.loyaltyPoint != null ? profileController.userInfoModel!.loyaltyPoint.toString() : '0'} ${'points'.tr}',
+                                          )
+                                        : const SizedBox(),
+
+                                    (customerWalletStatus == 1 &&
+                                            !AuthHelper.isGuestLoggedIn())
+                                        ? PortionWidget(
+                                            icon: Images.walletIcon,
+                                            title: 'my_wallet'.tr,
+                                            route: RouteHelper.getold_wallet(),
+                                            suffix: !isLoggedIn
+                                                ? null
+                                                : PriceConverter.convertPrice(
+                                                    profileController
+                                                                .userInfoModel !=
+                                                            null
+                                                        ? profileController
+                                                            .userInfoModel!
+                                                            .walletBalance
+                                                        : 0),
+                                          )
+                                        : const SizedBox(),
+
+                                    // Send Funds button - only for logged in users
+                                    (isLoggedIn &&
+                                            !AuthHelper.isGuestLoggedIn())
+                                        ? PortionWidget(
+                                            icon: Images.sendMoneyIcon,
+                                            title: 'send_funds'.tr,
+                                            hideDivider: true,
+                                            route:
+                                                RouteHelper.getSendFundsRoute(),
+                                          )
+                                        : const SizedBox(),
+                                  ]),
+                                )
+                              ]),
+                          (refEarningStatus == 1) ||
+                                  (toggleDmRegistration &&
+                                      !ResponsiveHelper.isDesktop(context)) ||
+                                  (toggleStoreRegistration &&
+                                      !ResponsiveHelper.isDesktop(context))
+                              ? Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                      Padding(
+                                        padding: const EdgeInsets.only(
+                                            left: Dimensions.paddingSizeDefault,
+                                            right:
+                                                Dimensions.paddingSizeDefault),
+                                        child: Text(
+                                          'earnings'.tr,
+                                          style: robotoMedium.copyWith(
+                                              fontSize:
+                                                  Dimensions.fontSizeDefault,
+                                              color: Theme.of(context)
+                                                  .primaryColor
+                                                  .withValues(alpha: 0.5)),
+                                        ),
+                                      ),
+                                      Container(
+                                        decoration: BoxDecoration(
+                                          color: Theme.of(context).cardColor,
+                                          borderRadius: BorderRadius.circular(
+                                              Dimensions.radiusDefault),
+                                          boxShadow: const [
+                                            BoxShadow(
+                                                color: Colors.black12,
+                                                blurRadius: 5,
+                                                spreadRadius: 1)
+                                          ],
+                                        ),
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal:
+                                                Dimensions.paddingSizeLarge,
+                                            vertical:
+                                                Dimensions.paddingSizeDefault),
+                                        margin: const EdgeInsets.all(
+                                            Dimensions.paddingSizeDefault),
+                                        child: Column(children: [
+                                          // مشاركه الاصدقاء
+
+                                          // (Get.find<SplashController>().configModel!.refEarningStatus == 1)
+                                          //     ?
+                                          PortionWidget(
+                                            icon: Images.referIcon,
+                                            title: 'refer_and_earn'.tr,
+                                            route: RouteHelper
+                                                .getReferAndEarnRoute(),
+                                            onTap: () =>
+                                                _runWithLoginRequired(() {
+                                              Get.toNamed(RouteHelper
+                                                  .getReferAndEarnRoute());
+                                            }),
                                             hideDivider: (toggleDmRegistration &&
                                                         !ResponsiveHelper
                                                             .isDesktop(
@@ -729,438 +885,290 @@ class _MenuScreenState extends State<MenuScreen> {
                                                             .isDesktop(context))
                                                 ? false
                                                 : true,
-                                            suffix: PriceConverter.convertPrice(
-                                              () {
-                                                final balance =
-                                                    wallet.availableBalance;
-                                                if (balance == null) return 0.0;
-                                                if (balance is double) {
-                                                  return balance;
-                                                }
-                                                if (balance is int) {
-                                                  return balance.toDouble();
-                                                }
-                                                if (balance is String) {
-                                                  return double.tryParse(
-                                                          balance) ??
-                                                      0.0;
-                                                }
-                                                return 0.0;
-                                              }(),
-                                            ),
-                                          );
-                                        }
+                                          ),
+                                          // : const SizedBox(),
 
-                                        return const SizedBox();
-                                      } catch (e) {
-                                        // Fallback: show subscription option if there's an error
-                                        return PortionWidget(
-                                          icon: Images.KiadaWalletSubscription,
-                                          title: 'KiadaWallet_Subscription'.tr,
-                                          route: RouteHelper
-                                              .getKiadaWalletSubscription(),
-                                          hideDivider: (toggleDmRegistration &&
-                                                      !ResponsiveHelper
-                                                          .isDesktop(
-                                                              context)) ||
-                                                  (toggleStoreRegistration &&
-                                                      !ResponsiveHelper
-                                                          .isDesktop(context))
-                                              ? false
-                                              : true,
-                                        );
-                                      }
-                                    },
-                                  ),
+                                          // رجل توصيل
 
-                                  (loyaltyPointStatus == 1)
-                                      ? PortionWidget(
-                                          icon: Images.pointIcon,
-                                          title: 'loyalty_points'.tr,
-                                          route: RouteHelper.getLoyaltyRoute(),
-                                          hideDivider: customerWalletStatus == 1
-                                              ? false
-                                              : true,
-                                          suffix: !isLoggedIn
-                                              ? null
-                                              : '${profileController.userInfoModel?.loyaltyPoint != null ? profileController.userInfoModel!.loyaltyPoint.toString() : '0'} ${'points'.tr}',
-                                        )
-                                      : const SizedBox(),
-
-                                  (customerWalletStatus == 1 &&
-                                          !AuthHelper.isGuestLoggedIn())
-                                      ? PortionWidget(
-                                          icon: Images.walletIcon,
-                                          title: 'my_wallet'.tr,
-                                          route: RouteHelper.getold_wallet(),
-                                          suffix: !isLoggedIn
-                                              ? null
-                                              : PriceConverter.convertPrice(
-                                                  profileController
-                                                              .userInfoModel !=
-                                                          null
-                                                      ? profileController
-                                                          .userInfoModel!
-                                                          .walletBalance
-                                                      : 0),
-                                        )
-                                      : const SizedBox(),
-
-                                  // Send Funds button - only for logged in users
-                                  (isLoggedIn && !AuthHelper.isGuestLoggedIn())
-                                      ? PortionWidget(
-                                          icon: Images.sendMoneyIcon,
-                                          title: 'send_funds'.tr,
-                                          hideDivider: true,
-                                          route:
-                                              RouteHelper.getSendFundsRoute(),
-                                        )
-                                      : const SizedBox(),
-                                ]),
-                              )
-                            ]),
-                        (refEarningStatus == 1) ||
-                                (toggleDmRegistration &&
-                                    !ResponsiveHelper.isDesktop(context)) ||
-                                (toggleStoreRegistration &&
-                                    !ResponsiveHelper.isDesktop(context))
-                            ? Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                    Padding(
-                                      padding: const EdgeInsets.only(
-                                          left: Dimensions.paddingSizeDefault,
-                                          right: Dimensions.paddingSizeDefault),
-                                      child: Text(
-                                        'earnings'.tr,
-                                        style: robotoMedium.copyWith(
-                                            fontSize:
-                                                Dimensions.fontSizeDefault,
-                                            color: Theme.of(context)
-                                                .primaryColor
-                                                .withValues(alpha: 0.5)),
-                                      ),
-                                    ),
-                                    Container(
-                                      decoration: BoxDecoration(
-                                        color: Theme.of(context).cardColor,
-                                        borderRadius: BorderRadius.circular(
-                                            Dimensions.radiusDefault),
-                                        boxShadow: const [
-                                          BoxShadow(
-                                              color: Colors.black12,
-                                              blurRadius: 5,
-                                              spreadRadius: 1)
-                                        ],
-                                      ),
-                                      padding: const EdgeInsets.symmetric(
-                                          horizontal:
-                                              Dimensions.paddingSizeLarge,
-                                          vertical:
-                                              Dimensions.paddingSizeDefault),
-                                      margin: const EdgeInsets.all(
-                                          Dimensions.paddingSizeDefault),
-                                      child: Column(children: [
-                                        // مشاركه الاصدقاء
-
-                                        // (Get.find<SplashController>().configModel!.refEarningStatus == 1)
-                                        //     ?
-                                        PortionWidget(
-                                          icon: Images.referIcon,
-                                          title: 'refer_and_earn'.tr,
-                                          route: RouteHelper
-                                              .getReferAndEarnRoute(),
-                                          onTap: () =>
-                                              _runWithLoginRequired(() {
-                                            Get.toNamed(RouteHelper
-                                                .getReferAndEarnRoute());
-                                          }),
-                                          hideDivider: (toggleDmRegistration &&
-                                                      !ResponsiveHelper
-                                                          .isDesktop(
-                                                              context)) ||
-                                                  (toggleStoreRegistration &&
-                                                      !ResponsiveHelper
-                                                          .isDesktop(context))
-                                              ? false
-                                              : true,
-                                        ),
-                                        // : const SizedBox(),
-
-                                        // رجل توصيل
-
-                                        PortionWidget(
-                                          icon: Images.dmIcon,
-                                          title: 'join_as_a_delivery_man'.tr,
-                                          route: getStatusRoute(
-                                              isLoggedIn,
-                                              DeliverymanReg_Controller
-                                                  .status_model),
-                                          onTap: () =>
-                                              _runWithLoginRequired(() {
-                                            final route = getStatusRoute(
-                                                true,
+                                          PortionWidget(
+                                            icon: Images.dmIcon,
+                                            title: 'join_as_a_delivery_man'.tr,
+                                            route: getStatusRoute(
+                                                isLoggedIn,
                                                 DeliverymanReg_Controller
-                                                    .status_model);
-                                            if (route.isNotEmpty) {
-                                              Get.toNamed(route);
-                                            }
-                                          }),
-                                          suffix: getStatusSuffix(
-                                              isLoggedIn,
-                                              DeliverymanReg_Controller
-                                                  .status_model),
-                                        ),
+                                                    .status_model),
+                                            onTap: () =>
+                                                _runWithLoginRequired(() {
+                                              final route = getStatusRoute(
+                                                  true,
+                                                  DeliverymanReg_Controller
+                                                      .status_model);
+                                              if (route.isNotEmpty) {
+                                                Get.toNamed(route);
+                                              }
+                                            }),
+                                            suffix: getStatusSuffix(
+                                                isLoggedIn,
+                                                DeliverymanReg_Controller
+                                                    .status_model),
+                                          ),
 
-                                        // مندوب  delegate -----------------------------------------------------------------------
+                                          // مندوب  delegate -----------------------------------------------------------------------
 
-                                        PortionWidget(
-                                          icon: Images.dmIcon,
-                                          title: 'delegate'.tr,
-                                          route: _getDelegateRoute(
-                                              isLoggedIn, delegate_Controller),
-                                          onTap: () =>
-                                              _runWithLoginRequired(() {
-                                            final route = _getDelegateRoute(
-                                                true, delegate_Controller);
-                                            if (route.isNotEmpty) {
-                                              Get.toNamed(route);
-                                            }
-                                          }),
-                                          suffix: _getDelegateSuffix(
-                                              isLoggedIn, delegate_Controller),
-                                        ),
+                                          PortionWidget(
+                                            icon: Images.dmIcon,
+                                            title: 'delegate'.tr,
+                                            route: _getDelegateRoute(isLoggedIn,
+                                                delegate_Controller),
+                                            onTap: () =>
+                                                _runWithLoginRequired(() {
+                                              final route = _getDelegateRoute(
+                                                  true, delegate_Controller);
+                                              if (route.isNotEmpty) {
+                                                Get.toNamed(route);
+                                              }
+                                            }),
+                                            suffix: _getDelegateSuffix(
+                                                isLoggedIn,
+                                                delegate_Controller),
+                                          ),
 
-                                        // ================================
-                                        //
+                                          // ================================
+                                          //
 
-                                        // PortionWidget(
-                                        //   icon: Images.shippingPolicy,
-                                        //   title: 'QQQQQ QQQQ',
-                                        //   route: "",
-                                        //   hideDivider: true,
-                                        //   onTap: () {
-                                        //     //
-                                        //   },
-                                        // ),
+                                          // PortionWidget(
+                                          //   icon: Images.shippingPolicy,
+                                          //   title: 'QQQQQ QQQQ',
+                                          //   route: "",
+                                          //   hideDivider: true,
+                                          //   onTap: () {
+                                          //     //
+                                          //   },
+                                          // ),
 
-                                        //
+                                          //
 
-                                        (toggleStoreRegistration &&
-                                                !ResponsiveHelper.isDesktop(
-                                                    context))
-                                            ? PortionWidget(
-                                                icon: Images.storeIcon,
-                                                title: 'open_vendor'.tr,
-                                                hideDivider: true,
-                                                route: RouteHelper
-                                                    .getRestaurantRegistrationRoute(),
-                                                onTap: () =>
-                                                    _runWithLoginRequired(() {
-                                                  Get.toNamed(RouteHelper
-                                                      .getRestaurantRegistrationRoute());
-                                                }),
-                                              )
-                                            : const SizedBox(),
-                                      ]),
-                                    )
-                                  ])
-                            : const SizedBox(),
-                        Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Padding(
-                                padding: const EdgeInsets.only(
-                                    left: Dimensions.paddingSizeDefault,
-                                    right: Dimensions.paddingSizeDefault),
-                                child: Text(
-                                  'help_and_support'.tr,
-                                  style: robotoMedium.copyWith(
-                                      fontSize: Dimensions.fontSizeDefault,
-                                      color: Theme.of(context)
-                                          .primaryColor
-                                          .withValues(alpha: 0.5)),
-                                ),
-                              ),
-                              Container(
-                                decoration: BoxDecoration(
-                                  color: Theme.of(context).cardColor,
-                                  borderRadius: BorderRadius.circular(
-                                      Dimensions.radiusDefault),
-                                  boxShadow: const [
-                                    BoxShadow(
-                                        color: Colors.black12,
-                                        blurRadius: 5,
-                                        spreadRadius: 1)
-                                  ],
-                                ),
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: Dimensions.paddingSizeLarge,
-                                    vertical: Dimensions.paddingSizeDefault),
-                                margin: const EdgeInsets.all(
-                                    Dimensions.paddingSizeDefault),
-                                child: Column(children: [
-                                  PortionWidget(
-                                      icon: Images.chatIcon,
-                                      title: 'live_chat'.tr,
-                                      route: RouteHelper.getConversationRoute(),
-                                      onTap: () => _runWithLoginRequired(() {
-                                            Get.toNamed(
-                                                RouteHelper.getConversationRoute());
-                                          })),
-                                  PortionWidget(
-                                      icon: Images.helpIcon,
-                                      title: 'help_and_support'.tr,
-                                      route: RouteHelper.getSupportRoute(),
-                                      onTap: () => Get.toNamed(
-                                          RouteHelper.getSupportRoute())),
-                                  PortionWidget(
-                                      icon: Images.helpIcon,
-                                      title: 'check_for_updates'.tr,
-                                      onTap: () => Get.find<UpdateController>()
-                                          .manualCheckForUpdates(),
-                                      route: ''),
-                                  PortionWidget(
-                                      icon: Images.aboutIcon,
-                                      title: 'about_us'.tr,
-                                      route:
-                                          RouteHelper.getHtmlRoute('about-us')),
-                                  PortionWidget(
-                                      icon: Images.termsIcon,
-                                      title: 'terms_conditions'.tr,
-                                      route: RouteHelper.getHtmlRoute(
-                                          'terms-and-condition')),
-                                  PortionWidget(
-                                      icon: Images.privacyIcon,
-                                      title: 'privacy_policy'.tr,
-                                      route: RouteHelper.getHtmlRoute(
-                                          'privacy-policy')),
-                                  (refundPolicyStatus == 1)
-                                      ? PortionWidget(
-                                          icon: Images.refundIcon,
-                                          title: 'refund_policy'.tr,
-                                          route: RouteHelper.getHtmlRoute(
-                                              'refund-policy'),
-                                        )
-                                      : const SizedBox(),
-
-                                  (cancellationPolicyStatus == 1)
-                                      ? PortionWidget(
-                                          icon: Images.cancelationIcon,
-                                          title: 'cancellation_policy'.tr,
-                                          route: RouteHelper.getHtmlRoute(
-                                              'cancellation-policy'),
-                                          hideDivider:
-                                              (shippingPolicyStatus == 1)
-                                                  ? false
-                                                  : true,
-                                        )
-                                      : const SizedBox(),
-
-                                  (shippingPolicyStatus == 1)
-                                      ? PortionWidget(
-                                          icon: Images.shippingIcon,
-                                          title: 'shipping_policy'.tr,
-                                          route: RouteHelper.getHtmlRoute(
-                                              'shipping-policy'),
-                                        )
-                                      : const SizedBox(),
-
-                                  //
-                                ]),
-                              )
-                            ]),
-                        InkWell(
-                          onTap: () async {
-                            if (AuthHelper.isLoggedIn()) {
-                              Get.dialog(
-                                  ConfirmationDialog(
-                                      icon: Images.support,
-                                      description: 'are_you_sure_to_logout'.tr,
-                                      isLogOut: true,
-                                      onYesPressed: () async {
-                                        // E-commerce data is completely independent of user authentication
-                                        // No need to invalidate anything - cache persists across login/logout
-
-                                        Get.find<ProfileController>()
-                                            .clearUserInfo();
-
-                                        await Get.find<AuthController>()
-                                            .socialLogout();
-
-                                        await Get.find<CartController>()
-                                            .clearCartList(
-                                                canRemoveOnline: false);
-
-                                        Get.find<FavouriteController>()
-                                            .removeFavourite();
-
-                                        await Get.find<AuthController>()
-                                            .clearSharedData();
-
-                                        Get.find<HomeController>()
-                                            .forcefullyNullCashBackOffers();
-
-                                        await Get.find<TaxiCartController>()
-                                            .getCarCartList();
-
-                                        // E-commerce cache remains valid after logout
-                                        // Ensure data is loaded before navigation
-                                        await _ensureDataLoadedBeforeNavigation();
-
-                                        await Get.offAllNamed(
-                                            RouteHelper.getInitialRoute());
-                                      }),
-                                  useSafeArea: false);
-                            } else {
-                              Get.find<FavouriteController>().removeFavourite();
-
-                              await Get.toNamed(
-                                  RouteHelper.getSignInRoute(Get.currentRoute));
-
-                              if (AuthHelper.isLoggedIn()) {
-                                await Get.find<FavouriteController>()
-                                    .getFavouriteList();
-                                profileController.getUserInfo();
-                              }
-                            }
-                          },
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(
-                                vertical: Dimensions.paddingSizeSmall),
-                            child: Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Container(
-                                    padding: const EdgeInsets.all(2),
-                                    decoration: const BoxDecoration(
-                                        shape: BoxShape.circle,
-                                        color: Colors.red),
-                                    child: Icon(Icons.power_settings_new_sharp,
-                                        size: 18,
-                                        color: Theme.of(context).cardColor),
+                                          (toggleStoreRegistration &&
+                                                  !ResponsiveHelper.isDesktop(
+                                                      context))
+                                              ? PortionWidget(
+                                                  icon: Images.storeIcon,
+                                                  title: 'open_vendor'.tr,
+                                                  hideDivider: true,
+                                                  route: RouteHelper
+                                                      .getRestaurantRegistrationRoute(),
+                                                  onTap: () =>
+                                                      _runWithLoginRequired(() {
+                                                    Get.toNamed(RouteHelper
+                                                        .getRestaurantRegistrationRoute());
+                                                  }),
+                                                )
+                                              : const SizedBox(),
+                                        ]),
+                                      )
+                                    ])
+                              : const SizedBox(),
+                          Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Padding(
+                                  padding: const EdgeInsets.only(
+                                      left: Dimensions.paddingSizeDefault,
+                                      right: Dimensions.paddingSizeDefault),
+                                  child: Text(
+                                    'help_and_support'.tr,
+                                    style: robotoMedium.copyWith(
+                                        fontSize: Dimensions.fontSizeDefault,
+                                        color: Theme.of(context)
+                                            .primaryColor
+                                            .withValues(alpha: 0.5)),
                                   ),
-                                  const SizedBox(
-                                      width: Dimensions.paddingSizeExtraSmall),
-                                  Text(
-                                      AuthHelper.isLoggedIn()
-                                          ? 'logout'.tr
-                                          : 'sign_in'.tr,
-                                      style: robotoMedium.copyWith(
-                                          fontSize: Dimensions.fontSizeLarge))
-                                ]),
+                                ),
+                                Container(
+                                  decoration: BoxDecoration(
+                                    color: Theme.of(context).cardColor,
+                                    borderRadius: BorderRadius.circular(
+                                        Dimensions.radiusDefault),
+                                    boxShadow: const [
+                                      BoxShadow(
+                                          color: Colors.black12,
+                                          blurRadius: 5,
+                                          spreadRadius: 1)
+                                    ],
+                                  ),
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: Dimensions.paddingSizeLarge,
+                                      vertical: Dimensions.paddingSizeDefault),
+                                  margin: const EdgeInsets.all(
+                                      Dimensions.paddingSizeDefault),
+                                  child: Column(children: [
+                                    PortionWidget(
+                                        icon: Images.chatIcon,
+                                        title: 'live_chat'.tr,
+                                        route:
+                                            RouteHelper.getConversationRoute(),
+                                        onTap: () => _runWithLoginRequired(() {
+                                              Get.toNamed(RouteHelper
+                                                  .getConversationRoute());
+                                            })),
+                                    PortionWidget(
+                                        icon: Images.helpIcon,
+                                        title: 'help_and_support'.tr,
+                                        route: RouteHelper.getSupportRoute(),
+                                        onTap: () => Get.toNamed(
+                                            RouteHelper.getSupportRoute())),
+                                    PortionWidget(
+                                        icon: Images.helpIcon,
+                                        title: 'check_for_updates'.tr,
+                                        onTap: () =>
+                                            Get.find<UpdateController>()
+                                                .manualCheckForUpdates(),
+                                        route: ''),
+                                    PortionWidget(
+                                        icon: Images.aboutIcon,
+                                        title: 'about_us'.tr,
+                                        route: RouteHelper.getHtmlRoute(
+                                            'about-us')),
+                                    PortionWidget(
+                                        icon: Images.termsIcon,
+                                        title: 'terms_conditions'.tr,
+                                        route: RouteHelper.getHtmlRoute(
+                                            'terms-and-condition')),
+                                    PortionWidget(
+                                        icon: Images.privacyIcon,
+                                        title: 'privacy_policy'.tr,
+                                        route: RouteHelper.getHtmlRoute(
+                                            'privacy-policy')),
+                                    (refundPolicyStatus == 1)
+                                        ? PortionWidget(
+                                            icon: Images.refundIcon,
+                                            title: 'refund_policy'.tr,
+                                            route: RouteHelper.getHtmlRoute(
+                                                'refund-policy'),
+                                          )
+                                        : const SizedBox(),
+
+                                    (cancellationPolicyStatus == 1)
+                                        ? PortionWidget(
+                                            icon: Images.cancelationIcon,
+                                            title: 'cancellation_policy'.tr,
+                                            route: RouteHelper.getHtmlRoute(
+                                                'cancellation-policy'),
+                                            hideDivider:
+                                                (shippingPolicyStatus == 1)
+                                                    ? false
+                                                    : true,
+                                          )
+                                        : const SizedBox(),
+
+                                    (shippingPolicyStatus == 1)
+                                        ? PortionWidget(
+                                            icon: Images.shippingIcon,
+                                            title: 'shipping_policy'.tr,
+                                            route: RouteHelper.getHtmlRoute(
+                                                'shipping-policy'),
+                                          )
+                                        : const SizedBox(),
+
+                                    //
+                                  ]),
+                                )
+                              ]),
+                          InkWell(
+                            onTap: () async {
+                              if (AuthHelper.isLoggedIn()) {
+                                Get.dialog(
+                                    ConfirmationDialog(
+                                        icon: Images.support,
+                                        description:
+                                            'are_you_sure_to_logout'.tr,
+                                        isLogOut: true,
+                                        onYesPressed: () async {
+                                          // E-commerce data is completely independent of user authentication
+                                          // No need to invalidate anything - cache persists across login/logout
+
+                                          Get.find<ProfileController>()
+                                              .clearUserInfo();
+
+                                          await Get.find<AuthController>()
+                                              .socialLogout();
+
+                                          await Get.find<CartController>()
+                                              .clearCartList(
+                                                  canRemoveOnline: false);
+
+                                          Get.find<FavouriteController>()
+                                              .removeFavourite();
+
+                                          await Get.find<AuthController>()
+                                              .clearSharedData();
+
+                                          Get.find<HomeController>()
+                                              .forcefullyNullCashBackOffers();
+
+                                          await Get.find<TaxiCartController>()
+                                              .getCarCartList();
+
+                                          // E-commerce cache remains valid after logout
+                                          // Ensure data is loaded before navigation
+                                          await _ensureDataLoadedBeforeNavigation();
+
+                                          await Get.offAllNamed(
+                                              RouteHelper.getInitialRoute());
+                                        }),
+                                    useSafeArea: false);
+                              } else {
+                                Get.find<FavouriteController>()
+                                    .removeFavourite();
+
+                                await Get.toNamed(RouteHelper.getSignInRoute(
+                                    Get.currentRoute));
+
+                                if (AuthHelper.isLoggedIn()) {
+                                  await Get.find<FavouriteController>()
+                                      .getFavouriteList();
+                                  profileController.getUserInfo();
+                                }
+                              }
+                            },
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(
+                                  vertical: Dimensions.paddingSizeSmall),
+                              child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.all(2),
+                                      decoration: const BoxDecoration(
+                                          shape: BoxShape.circle,
+                                          color: Colors.red),
+                                      child: Icon(
+                                          Icons.power_settings_new_sharp,
+                                          size: 18,
+                                          color: Theme.of(context).cardColor),
+                                    ),
+                                    const SizedBox(
+                                        width:
+                                            Dimensions.paddingSizeExtraSmall),
+                                    Text(
+                                        AuthHelper.isLoggedIn()
+                                            ? 'logout'.tr
+                                            : 'sign_in'.tr,
+                                        style: robotoMedium.copyWith(
+                                            fontSize: Dimensions.fontSizeLarge))
+                                  ]),
+                            ),
                           ),
-                        ),
-                        const SizedBox(height: Dimensions.paddingSizeLarge),
-                      ]),
-                    );
+                          const SizedBox(height: Dimensions.paddingSizeLarge),
+                        ]),
+                      );
+                    });
                   });
-                });
-              }),
-            ],
-          );
-        });
-      }),
+                }),
+              ],
+            );
+          });
+        }),
       ),
     );
   }
@@ -1286,8 +1294,7 @@ class _MenuScreenState extends State<MenuScreen> {
   /// Ensure data is loaded before navigation after logout
   Future<void> _ensureDataLoadedBeforeNavigation() async {
     try {
-      debugPrint(
-          '🔄 MenuScreen: Ensuring data is loaded before navigation...');
+      debugPrint('🔄 MenuScreen: Ensuring data is loaded before navigation...');
 
       // Check if cache is valid and restore data
       if (await ComprehensiveHomeCacheManager.isCacheValid()) {
