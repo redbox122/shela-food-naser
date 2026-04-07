@@ -1,4 +1,4 @@
-﻿// ignore_for_file: camel_case_types, file_names, non_constant_identifier_names, avoid_print, override_on_non_overriding_member, prefer_final_fields, unnecessary_null_comparison
+﻿// ignore_for_file: camel_case_types, file_names, non_constant_identifier_names, override_on_non_overriding_member, prefer_final_fields, unnecessary_null_comparison
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
@@ -89,7 +89,7 @@ class Delegate_Controller extends GetxController implements GetxService {
 
       await get_Delegate();
     } catch (e) {
-      print('خطأ أثناء إرسال المندوب: $e');
+      debugPrint('خطأ أثناء إرسال المندوب: $e');
     }
 
     _isLoading = false;
@@ -103,7 +103,7 @@ class Delegate_Controller extends GetxController implements GetxService {
     try {
       delegate_model = await delegateServiceInterface.getDelegate();
     } catch (e) {
-      print('خطأ أثناء جلب المندوب: $e');
+      debugPrint('خطأ أثناء جلب المندوب: $e');
     } finally {
       _isLoading = false;
       update();

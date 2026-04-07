@@ -1,4 +1,3 @@
-// ignore_for_file: avoid_print
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -117,27 +116,27 @@ class _LeakTrackingWrapperState extends State<LeakTrackingWrapper> {
     });
     
     if (leakedControllers.isNotEmpty && AppConstants.enableVerboseLogs) {
-      print('\n${'=' * 80}');
-      print('🔴 MEMORY LEAK DETECTED - Controllers may not be disposed!');
-      print('=' * 80);
-      print('Previous Route: $_previousRoute');
-      print('Current Route: $_currentRoute');
-      print('\n⚠️  SUSPECTED LEAKED CONTROLLERS:');
+      debugPrint('\n${'=' * 80}');
+      debugPrint('🔴 MEMORY LEAK DETECTED - Controllers may not be disposed!');
+      debugPrint('=' * 80);
+      debugPrint('Previous Route: $_previousRoute');
+      debugPrint('Current Route: $_currentRoute');
+      debugPrint('\n⚠️  SUSPECTED LEAKED CONTROLLERS:');
       for (final key in leakedControllers) {
         if (_trackedControllers.containsKey(key)) {
           final info = _trackedControllers[key]!;
           final age = now.difference(info.registeredAt);
-          print('  • $key');
-          print('    Registered: ${info.registeredAt}');
-          print('    Age: ${age.inSeconds}s');
-          print('    Route: ${info.route}');
-          print('');
+          debugPrint('  • $key');
+          debugPrint('    Registered: ${info.registeredAt}');
+          debugPrint('    Age: ${age.inSeconds}s');
+          debugPrint('    Route: ${info.route}');
+          debugPrint('');
         }
       }
-      print('💡 TIP: Ensure controllers are disposed in onClose() method');
-      print('💡 TIP: Use Get.delete() for temporary controllers');
-      print('💡 TIP: Check bindings to ensure proper cleanup');
-      print('=' * 80 + '\n');
+      debugPrint('💡 TIP: Ensure controllers are disposed in onClose() method');
+      debugPrint('💡 TIP: Use Get.delete() for temporary controllers');
+      debugPrint('💡 TIP: Check bindings to ensure proper cleanup');
+      debugPrint('=' * 80 + '\n');
     }
   }
 
@@ -180,7 +179,7 @@ class _LeakTrackingWrapperState extends State<LeakTrackingWrapper> {
     _leakCheckTimer?.cancel();
     
     if (kDebugMode && AppConstants.enableVerboseLogs && _trackedControllers.isNotEmpty) {
-      print('\n⚠️  LeakTrackingWrapper disposed with ${_trackedControllers.length} tracked controllers');
+      debugPrint('\n⚠️  LeakTrackingWrapper disposed with ${_trackedControllers.length} tracked controllers');
     }
     super.dispose();
   }

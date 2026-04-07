@@ -140,7 +140,7 @@ class _OffersItemScreen extends State<OffersItemScreen> {
 
         if (Get.find<Offers_Controller>().offset < totalPages) {
           if (kDebugMode) {
-            print(
+            debugPrint(
                 'end of the page - loading page ${Get.find<Offers_Controller>().offset + 1} of $totalPages');
           }
 
@@ -174,7 +174,7 @@ class _OffersItemScreen extends State<OffersItemScreen> {
           }
         } else {
           if (kDebugMode) {
-            print('No more pages to load - reached page $totalPages');
+            debugPrint('No more pages to load - reached page $totalPages');
           }
         }
       }

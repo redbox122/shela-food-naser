@@ -26,7 +26,7 @@ class DbHelper {
         completer.complete();
       } catch (e) {
         if (kDebugMode) {
-          print('⚠️ DbHelper: Database operation failed: $e');
+          debugPrint('⚠️ DbHelper: Database operation failed: $e');
         }
         completer.completeError(e);
       }
@@ -50,7 +50,7 @@ class DbHelper {
           await operation();
         } catch (e) {
           if (kDebugMode) {
-            print('⚠️ DbHelper: Queue operation failed: $e');
+            debugPrint('⚠️ DbHelper: Queue operation failed: $e');
           }
         }
         // Small delay to prevent overwhelming the database
@@ -73,13 +73,13 @@ class DbHelper {
     try {
       final count = await database.deleteCacheByPrefix(prefix);
       if (kDebugMode) {
-        print(
+        debugPrint(
             '🗑️ DbHelper: Cleared $count cache entries with prefix: $prefix');
       }
       return count;
     } catch (e) {
       if (kDebugMode) {
-        print('⚠️ DbHelper: Failed to clear cache by prefix: $e');
+        debugPrint('⚠️ DbHelper: Failed to clear cache by prefix: $e');
       }
       return 0;
     }

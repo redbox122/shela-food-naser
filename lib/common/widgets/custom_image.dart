@@ -271,7 +271,7 @@ class _CustomImageState extends State<CustomImage> {
     } catch (e) {
       // If BlurHash decoding fails, return null to show gradient placeholder
       if (kDebugMode) {
-        print('âš ï¸ BlurHash decode failed: $e');
+        debugPrint('âš ï¸ BlurHash decode failed: $e');
       }
       return null;
     }

@@ -18,7 +18,7 @@ class JsonIsolateHelper {
       return ItemModel.fromJson(parsedJson);
     } catch (e) {
       if (kDebugMode) {
-        print('❌ JsonIsolateHelper: Error parsing ItemModel: $e');
+        debugPrint('❌ JsonIsolateHelper: Error parsing ItemModel: $e');
       }
       return null;
     }
@@ -43,7 +43,7 @@ class JsonIsolateHelper {
       return items;
     } catch (e) {
       if (kDebugMode) {
-        print('❌ JsonIsolateHelper: Error parsing item list: $e');
+        debugPrint('❌ JsonIsolateHelper: Error parsing item list: $e');
       }
       return null;
     }
@@ -121,7 +121,7 @@ class JsonIsolateHelper {
       );
     } catch (e) {
       if (kDebugMode) {
-        print('❌ JsonIsolateHelper: Error parsing slim offers ItemModel: $e');
+        debugPrint('❌ JsonIsolateHelper: Error parsing slim offers ItemModel: $e');
       }
       return null;
     }
@@ -133,7 +133,7 @@ class JsonIsolateHelper {
       return jsonDecode(jsonString) as Map<String, dynamic>?;
     } catch (e) {
       if (kDebugMode) {
-        print('❌ JsonIsolateHelper._parseJsonString: Error: $e');
+        debugPrint('❌ JsonIsolateHelper._parseJsonString: Error: $e');
       }
       return null;
     }
@@ -151,7 +151,7 @@ class JsonIsolateHelper {
               return null;
             } catch (e) {
               if (kDebugMode) {
-                print('⚠️ JsonIsolateHelper: Error parsing single item: $e');
+                debugPrint('⚠️ JsonIsolateHelper: Error parsing single item: $e');
               }
               return null;
             }
@@ -160,7 +160,7 @@ class JsonIsolateHelper {
           .toList();
     } catch (e) {
       if (kDebugMode) {
-        print('❌ JsonIsolateHelper._parseItemsList: Error: $e');
+        debugPrint('❌ JsonIsolateHelper._parseItemsList: Error: $e');
       }
       return [];
     }
@@ -248,7 +248,7 @@ class JsonIsolateHelper {
               return null;
             } catch (e) {
               if (kDebugMode) {
-                print('⚠️ JsonIsolateHelper: Error parsing slim item: $e');
+                debugPrint('⚠️ JsonIsolateHelper: Error parsing slim item: $e');
               }
               return null;
             }
@@ -257,7 +257,7 @@ class JsonIsolateHelper {
           .toList();
     } catch (e) {
       if (kDebugMode) {
-        print('❌ JsonIsolateHelper._parseSlimItemsList: Error: $e');
+        debugPrint('❌ JsonIsolateHelper._parseSlimItemsList: Error: $e');
       }
       return [];
     }

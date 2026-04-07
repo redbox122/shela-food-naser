@@ -189,7 +189,7 @@ class ChatController extends GetxController implements GetxService {
       // int index0 = chatServiceInterface.setIndex(_searchConversationModel!.conversations);
       // bool sender = chatServiceInterface.checkSender(_searchConversationModel!.conversations);
       //
-      // print('searchConversationModel: ${index0}');
+      // debugPrint('searchConversationModel: ${index0}');
       //
       // if(index0 != -1) {
       //   if(sender) {

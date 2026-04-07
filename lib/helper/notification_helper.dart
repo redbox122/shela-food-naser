@@ -95,13 +95,13 @@ class NotificationHelper {
 
           notificationActions[payload.notificationType]?.call();
         }
-      } catch (_) {}
+      } catch (e) { if (kDebugMode) debugPrint('$e'); }
       return;
     });
 
     FirebaseMessaging.onMessage.listen((RemoteMessage message) async {
       if (kDebugMode) {
-        print("onMessage: ${message.data['type']}/${message.data}");
+        debugPrint("onMessage: ${message.data['type']}/${message.data}");
       }
       if (message.data['type'] == 'demo_reset') {
         Get.dialog(const DemoResetDialogWidget(), barrierDismissible: false);
@@ -222,7 +222,7 @@ class NotificationHelper {
 
     FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
       if (kDebugMode) {
-        print('onOpenApp: ${message.data}');
+        debugPrint('onOpenApp: ${message.data}');
       }
       try {
         if (message.data.isNotEmpty) {
@@ -260,7 +260,7 @@ class NotificationHelper {
 
           notificationActions[notificationBody.notificationType]?.call();
         }
-      } catch (_) {}
+      } catch (e) { if (kDebugMode) debugPrint('$e'); }
     });
   }
 
@@ -494,10 +494,10 @@ if (image != null && image.isNotEmpty) {
 @pragma('vm:entry-point')
 Future<dynamic> myBackgroundMessageHandler(RemoteMessage message) async {
   if (kDebugMode) {
-    print('📱 Background notification received!');
-    print(
+    debugPrint('📱 Background notification received!');
+    debugPrint(
         "📱 Notification title: ${message.notification?.title ?? message.data['title']}");
-    print(
+    debugPrint(
         "📱 Notification body: ${message.notification?.body ?? message.data['body']}");
   }
 
@@ -547,8 +547,8 @@ Future<dynamic> myBackgroundMessageHandler(RemoteMessage message) async {
     );
 
     if (kDebugMode) {
-      print('📱 Translated title: $title');
-      print('📱 Translated body: $body');
+      debugPrint('📱 Translated title: $title');
+      debugPrint('📱 Translated body: $body');
     }
 
     // Enhanced notification with rich styling
@@ -588,7 +588,7 @@ Future<dynamic> myBackgroundMessageHandler(RemoteMessage message) async {
     );
 
     if (kDebugMode) {
-      print('✅ Background notification displayed with enhanced design');
+      debugPrint('✅ Background notification displayed with enhanced design');
     }
   }
 }

@@ -1,4 +1,3 @@
-// ignore_for_file: file_names, non_constant_identifier_names, avoid_print, use_build_context_synchronously, depend_on_referenced_packages, annotate_overrides, unused_local_variable, empty_catches, override_on_non_overriding_member
 
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
@@ -52,7 +51,7 @@ class KaidhaSubRepository implements KaidhaSubRepositoryInterface {
         try {
           await profileController.getUserInfo();
           userId = profileController.userInfoModel?.id;
-        } catch (_) {}
+        } catch (e) { if (kDebugMode) debugPrint('$e'); }
       }
     }
 
@@ -76,7 +75,7 @@ class KaidhaSubRepository implements KaidhaSubRepositoryInterface {
       context, KaidhaSubModel kaidhaSub, List<NamedFile> list_img,
       {bool isUpdate = false, String? walletId}) async {
     if (apiClient.token == null || apiClient.token!.isEmpty) {
-      print('⚠️ لا يوجد توكن.  ');
+      debugPrint('⚠️ لا يوجد توكن.  ');
       return false;
     }
 
@@ -127,7 +126,7 @@ class KaidhaSubRepository implements KaidhaSubRepositoryInterface {
       final ResponseApiIncomeSourceModel model =
           ResponseApiIncomeSourceModel.fromJson(decodedJson);
 
-      print('✅ تم الإرسال بنجاح: ${model.message}');
+      debugPrint('✅ تم الإرسال بنجاح: ${model.message}');
       // Suppress modal dialog to avoid interrupting flow; navigation handled in controller
 
       return true;
@@ -239,7 +238,7 @@ class KaidhaSubRepository implements KaidhaSubRepositoryInterface {
   @override
   Future<WalletKaidhaModel?> getWalletKaidh({bool forceRefresh = false}) async {
     if (apiClient.token == null || apiClient.token!.isEmpty) {
-      print('⚠️ لا يوجد توكن. لن يتم تنفيذ طلب المحفظة.');
+      debugPrint('⚠️ لا يوجد توكن. لن يتم تنفيذ طلب المحفظة.');
       return null;
     }
 
@@ -285,7 +284,7 @@ class KaidhaSubRepository implements KaidhaSubRepositoryInterface {
       Response<dynamic>? responseToProcess = response;
       if (response.statusCode == 304) {
         if (kDebugMode) {
-          print(
+          debugPrint(
               '✅ Wallet Repository: 304 Not Modified - checking cache integrity');
         }
 
@@ -343,7 +342,7 @@ class KaidhaSubRepository implements KaidhaSubRepositoryInterface {
 
             // Force a 200 OK retry with cache-busting headers
             if (kDebugMode) {
-              print(
+              debugPrint(
                   '🔄 Wallet Repository: Retrying with force refresh after cache purge');
             }
             responseToProcess = await apiClient.getData(
@@ -359,7 +358,7 @@ class KaidhaSubRepository implements KaidhaSubRepositoryInterface {
             if (responseToProcess.statusCode != 200 &&
                 responseToProcess.statusCode != 201) {
               if (kDebugMode) {
-                print(
+                debugPrint(
                     '⚠️ Wallet Repository: Retry after cache purge failed - returning null');
               }
               return null;
@@ -403,7 +402,7 @@ class KaidhaSubRepository implements KaidhaSubRepositoryInterface {
         final dynamic hasWalletValue = walletData['has_wallet'];
         if (hasWalletValue == false) {
           if (kDebugMode) {
-            print(
+            debugPrint(
                 'ℹ️ Wallet Repository: has_wallet=false - user has no wallet');
           }
           return null;
@@ -444,27 +443,27 @@ class KaidhaSubRepository implements KaidhaSubRepositoryInterface {
         };
 
         _walletKaidhaCache = WalletKaidhaModel.fromJson(modelJson);
-        print('✅ محفظه قيدها: ${_walletKaidhaCache!.wallet?.status}');
+        debugPrint('✅ محفظه قيدها: ${_walletKaidhaCache!.wallet?.status}');
         return _walletKaidhaCache;
       } else {
         // 🔧 FIX: Throw exception for 401/500 errors so controller can handle them
         if (response.statusCode == 401 || response.statusCode == 500) {
-          print('❌ فشل استرجاع المحفظة: كود ${response.statusCode}');
+          debugPrint('❌ فشل استرجاع المحفظة: كود ${response.statusCode}');
           throw Exception('Wallet API error: ${response.statusCode}');
         }
         // 404 means user has no wallet (valid case - not an error)
         if (response.statusCode == 404) {
           if (kDebugMode) {
-            print('ℹ️ Wallet Repository: 404 - user has no wallet');
+            debugPrint('ℹ️ Wallet Repository: 404 - user has no wallet');
           }
           return null;
         }
         if (kDebugMode) {
-          print('❌ فشل استرجاع المحفظة: كود ${response.statusCode}');
+          debugPrint('❌ فشل استرجاع المحفظة: كود ${response.statusCode}');
         }
       }
     } catch (e) {
-      print('❌ استثناء أثناء استرجاع المحفظة: $e');
+      debugPrint('❌ استثناء أثناء استرجاع المحفظة: $e');
       // Re-throw if it's a 401/500 error, otherwise return null
       if (e.toString().contains('401') || e.toString().contains('500')) {
         rethrow;
@@ -495,12 +494,12 @@ class KaidhaSubRepository implements KaidhaSubRepositoryInterface {
 
       if (walletData?.wallet != null) {
         // Debug: Print wallet signature details
-        print('🔍 Wallet Debug Info:');
-        print('   - signatureStatus: ${walletData!.wallet!.signatureStatus}');
-        print('   - signaturePath: ${walletData.wallet!.signaturePath}');
-        print(
+        debugPrint('🔍 Wallet Debug Info:');
+        debugPrint('   - signatureStatus: ${walletData!.wallet!.signatureStatus}');
+        debugPrint('   - signaturePath: ${walletData.wallet!.signaturePath}');
+        debugPrint(
             '   - signaturePath type: ${walletData.wallet!.signaturePath.runtimeType}');
-        print(
+        debugPrint(
             '   - signaturePath isEmpty: ${walletData.wallet!.signaturePath.toString().isEmpty}');
 
         // Check if contract is signed
@@ -509,14 +508,14 @@ class KaidhaSubRepository implements KaidhaSubRepositoryInterface {
             walletData.wallet!.signaturePath.toString().isNotEmpty) {
           pdfEndpoint =
               '/api/qidha-wallet/signed-pdf'; // Use signed contract endpoint
-          print('📄 العقد موثق - سيتم جلب العقد الموقع (6 صفحات)');
+          debugPrint('📄 العقد موثق - سيتم جلب العقد الموقع (6 صفحات)');
         } else {
-          print('📄 العقد غير موثق - سيتم جلب العقد العادي (5 صفحات)');
-          print(
+          debugPrint('📄 العقد غير موثق - سيتم جلب العقد العادي (5 صفحات)');
+          debugPrint(
               '   - Reason: signatureStatus=${walletData.wallet!.signatureStatus}, signaturePath=${walletData.wallet!.signaturePath}');
         }
       } else {
-        print('⚠️ لم يتم العثور على بيانات المحفظة - سيتم جلب العقد العادي');
+        debugPrint('⚠️ لم يتم العثور على بيانات المحفظة - سيتم جلب العقد العادي');
       }
 
       final request =
@@ -524,7 +523,7 @@ class KaidhaSubRepository implements KaidhaSubRepositoryInterface {
 
       request.headers.addAll(headers);
 
-      print('📤 جاري جلب عقد PDF من الخادم... ($pdfEndpoint)');
+      debugPrint('📤 جاري جلب عقد PDF من الخادم... ($pdfEndpoint)');
 
       final streamedResponse = await request.send();
 
@@ -533,7 +532,7 @@ class KaidhaSubRepository implements KaidhaSubRepositoryInterface {
         final bytes = await streamedResponse.stream.toBytes();
 
         if (bytes.isEmpty) {
-          print('⚠️ تم استلام ملف فارغ');
+          debugPrint('⚠️ تم استلام ملف فارغ');
           throw Exception('Empty PDF response body');
         }
 
@@ -543,23 +542,23 @@ class KaidhaSubRepository implements KaidhaSubRepositoryInterface {
 
         await File(filePath).writeAsBytes(bytes);
 
-        print('✅ تم تنزيل العقد (${bytes.length} بايت)');
-        print('📁 المسار: $filePath');
-        print('🔗 النقطة المستخدمة: $pdfEndpoint');
+        debugPrint('✅ تم تنزيل العقد (${bytes.length} بايت)');
+        debugPrint('📁 المسار: $filePath');
+        debugPrint('🔗 النقطة المستخدمة: $pdfEndpoint');
         Pdf_Model =
             ContractPdfModel(filePath: filePath, fileSize: bytes.length);
 
         return Pdf_Model;
       } else {
-        print('❌ فشل التنزيل - الرمز: ${streamedResponse.statusCode}');
-        print('📄 السبب: ${streamedResponse.reasonPhrase}');
-        print('🔗 النقطة المستخدمة: $pdfEndpoint');
+        debugPrint('❌ فشل التنزيل - الرمز: ${streamedResponse.statusCode}');
+        debugPrint('📄 السبب: ${streamedResponse.reasonPhrase}');
+        debugPrint('🔗 النقطة المستخدمة: $pdfEndpoint');
         throw Exception(
             'Failed to download PDF. Status: ${streamedResponse.statusCode}');
       }
     } catch (e) {
-      print('❌ حدث خطأ غير متوقع أثناء تحميل PDF');
-      print('🔍 التفاصيل: $e');
+      debugPrint('❌ حدث خطأ غير متوقع أثناء تحميل PDF');
+      debugPrint('🔍 التفاصيل: $e');
       rethrow;
     }
   }
@@ -657,7 +656,7 @@ class KaidhaSubRepository implements KaidhaSubRepositoryInterface {
       );
       return null;
     } catch (e) {
-      print('? Nafath checkStatus failed: $e');
+      debugPrint('? Nafath checkStatus failed: $e');
       return null;
     }
   }
@@ -693,8 +692,8 @@ class KaidhaSubRepository implements KaidhaSubRepositoryInterface {
         debugPrint(
             '📡 Nafath initiate POST -> ${apiClient.appBaseUrl}${AppConstants.nafath_initiateUri}');
       }
-      print('${response.body}');
-      print('${response.request?.url}');
+      debugPrint('${response.body}');
+      debugPrint('${response.request?.url}');
       final dynamic body = response.body;
       final bool isSuccess =
           body is Map<String, dynamic> && body['success'] == true;
@@ -709,11 +708,11 @@ class KaidhaSubRepository implements KaidhaSubRepositoryInterface {
             ? (body['message']?.toString() ?? 'فشل إرسال رقم الهوية')
             : 'فشل إرسال رقم الهوية';
         showCustomSnackBar(message);
-        print('❌ فشل إرسال رقم الهوية: ${response.statusCode}');
+        debugPrint('❌ فشل إرسال رقم الهوية: ${response.statusCode}');
         return null;
       }
     } catch (e) {
-      print('❌ خطأ في إرسال رقم الهوية: $e');
+      debugPrint('❌ خطأ في إرسال رقم الهوية: $e');
       return null;
     }
   }
@@ -752,7 +751,7 @@ class KaidhaSubRepository implements KaidhaSubRepositoryInterface {
       }
       return response;
     } catch (e) {
-      print('❌ Nafath cancel failed: $e');
+      debugPrint('❌ Nafath cancel failed: $e');
       return Response(statusCode: 500, statusText: 'Cancel failed');
     }
   }
@@ -802,7 +801,7 @@ class KaidhaSubRepository implements KaidhaSubRepositoryInterface {
       showCustomSnackBar(message);
       return null;
     } catch (e) {
-      print('❌ Nafath retry failed: $e');
+      debugPrint('❌ Nafath retry failed: $e');
       return null;
     }
   }

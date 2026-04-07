@@ -74,7 +74,7 @@ class SecureHttpClient {
     _addSecurityInterceptors();
 
     if (kDebugMode) {
-      print('🔒 Secure HTTP Client initialized for $_baseUrl');
+      debugPrint('🔒 Secure HTTP Client initialized for $_baseUrl');
     }
   }
 
@@ -173,10 +173,10 @@ class SecureHttpClient {
             // We must use local Hive cache immediately for zero-lag transition
             if (response.statusCode == 304) {
               if (kDebugMode) {
-                print(
+                debugPrint(
                     '⚡ SecureHttpClient: 304 Not Modified received - Cloudflare served in <20ms');
-                print('   - Path: ${response.requestOptions.path}');
-                print(
+                debugPrint('   - Path: ${response.requestOptions.path}');
+                debugPrint(
                     '   - Using local Hive cache immediately for zero-lag transition');
               }
 
@@ -232,9 +232,9 @@ class SecureHttpClient {
 
             // Log security-related errors
             if (kDebugMode) {
-              print('❌ HTTP Error: ${error.message}');
-              print('❌ Error Type: ${error.type}');
-              print('❌ Status Code: ${error.response?.statusCode}');
+              debugPrint('❌ HTTP Error: ${error.message}');
+              debugPrint('❌ Error Type: ${error.type}');
+              debugPrint('❌ Status Code: ${error.response?.statusCode}');
             }
 
             handler.next(error);
@@ -264,7 +264,7 @@ class SecureHttpClient {
     // Check if limit exceeded
     if (_requestTimestamps[path]!.length >= _maxRequestsPerWindow) {
       if (kDebugMode) {
-        print('⚠️ Rate limit exceeded for $path');
+        debugPrint('⚠️ Rate limit exceeded for $path');
       }
       return false;
     }
@@ -312,7 +312,7 @@ class SecureHttpClient {
       for (final entry in options.headers.entries) {
         if (_containsMaliciousContent(entry.value.toString())) {
           if (kDebugMode) {
-            print('❌ Malicious content detected in header: ${entry.key}');
+            debugPrint('❌ Malicious content detected in header: ${entry.key}');
           }
           return false;
         }
@@ -322,7 +322,7 @@ class SecureHttpClient {
       if (options.data != null) {
         if (_containsMaliciousContent(options.data.toString())) {
           if (kDebugMode) {
-            print('❌ Malicious content detected in request data');
+            debugPrint('❌ Malicious content detected in request data');
           }
           return false;
         }
@@ -331,7 +331,7 @@ class SecureHttpClient {
       return true;
     } catch (e) {
       if (kDebugMode) {
-        print('❌ Request data validation failed: $e');
+        debugPrint('❌ Request data validation failed: $e');
       }
       return false;
     }
@@ -352,7 +352,7 @@ class SecureHttpClient {
       options.headers['X-Request-Integrity'] = integrity;
     } catch (e) {
       if (kDebugMode) {
-        print('❌ Failed to add request integrity: $e');
+        debugPrint('❌ Failed to add request integrity: $e');
       }
     }
   }
@@ -377,7 +377,7 @@ class SecureHttpClient {
       return integrity == expectedIntegrity;
     } catch (e) {
       if (kDebugMode) {
-        print('❌ Response integrity validation failed: $e');
+        debugPrint('❌ Response integrity validation failed: $e');
       }
       return false;
     }
@@ -392,7 +392,7 @@ class SecureHttpClient {
       if (response.data != null) {
         if (_containsMaliciousContent(response.data.toString())) {
           if (kDebugMode) {
-            print('❌ Malicious content detected in response data');
+            debugPrint('❌ Malicious content detected in response data');
           }
           return false;
         }
@@ -401,7 +401,7 @@ class SecureHttpClient {
       return true;
     } catch (e) {
       if (kDebugMode) {
-        print('❌ Response data validation failed: $e');
+        debugPrint('❌ Response data validation failed: $e');
       }
       return false;
     }
@@ -479,7 +479,7 @@ class SecureHttpClient {
     options.extra['retryCount'] = retryCount;
 
     if (kDebugMode) {
-      print('?? Retrying request (attempt $retryCount): ${options.path}');
+      debugPrint('?? Retrying request (attempt $retryCount): ${options.path}');
       debugPrint('   ? Error type: ${e.type}');
       debugPrint(
           '   ?? Timeout after: ${e.requestOptions.connectTimeout?.inMilliseconds}ms');
@@ -518,14 +518,14 @@ class SecureHttpClient {
   Future<bool> testSecurityFeatures() async {
     try {
       if (kDebugMode) {
-        print('🧪 Testing Security Features...');
+        debugPrint('🧪 Testing Security Features...');
       }
 
       // Test rate limiting
       final rateLimitTest = _testRateLimiting();
       if (!rateLimitTest) {
         if (kDebugMode) {
-          print('❌ Rate limiting test failed');
+          debugPrint('❌ Rate limiting test failed');
         }
         return false;
       }
@@ -534,19 +534,19 @@ class SecureHttpClient {
       final certTest = await _testCertificateValidation();
       if (!certTest) {
         if (kDebugMode) {
-          print('❌ Certificate validation test failed');
+          debugPrint('❌ Certificate validation test failed');
         }
         return false;
       }
 
       if (kDebugMode) {
-        print('✅ All security tests passed');
+        debugPrint('✅ All security tests passed');
       }
 
       return true;
     } catch (e) {
       if (kDebugMode) {
-        print('❌ Security test failed: $e');
+        debugPrint('❌ Security test failed: $e');
       }
       return false;
     }
@@ -623,14 +623,14 @@ class SecureHttpClient {
       if (storedEtag != null) {
         options.headers['If-None-Match'] = storedEtag;
         if (kDebugMode) {
-          print(
+          debugPrint(
               '📤 SecureHttpClient: Added If-None-Match header: ${storedEtag.safeSubstring(20)}');
         }
       }
     } catch (e) {
       // Silently fail - ETag is optional
       if (kDebugMode) {
-        print('⚠️ SecureHttpClient: Error adding ETag header: $e');
+        debugPrint('⚠️ SecureHttpClient: Error adding ETag header: $e');
       }
     }
   }
@@ -670,14 +670,14 @@ class SecureHttpClient {
         await cacheService.saveEtag(scopedUri, etag);
 
         if (kDebugMode) {
-          print(
+          debugPrint(
               '💾 SecureHttpClient: Stored ETag for $scopedUri: ${etag.safeSubstring(20)}');
         }
       }
     } catch (e) {
       // Silently fail - ETag storage is optional
       if (kDebugMode) {
-        print('⚠️ SecureHttpClient: Error handling ETag response: $e');
+        debugPrint('⚠️ SecureHttpClient: Error handling ETag response: $e');
       }
     }
   }

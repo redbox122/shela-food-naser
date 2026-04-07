@@ -1,5 +1,4 @@
-// ignore_for_file: avoid_print
-
+import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
 import 'package:sixam_mart/common/widgets/custom_snackbar.dart';
 import 'package:sixam_mart/features/profile/controllers/profile_controller.dart';
@@ -46,11 +45,14 @@ class WalletTransferController extends GetxController implements GetxService {
     try {
       // Normalize phone number - ensure it starts with +966
       final String normalizedPhone = _normalizePhoneNumber(phone);
-      
-      final ValidateRecipientResponseModel? response =
-          await walletTransferServiceInterface.validateRecipient(normalizedPhone);
 
-      if (response != null && response.success == true && response.user != null) {
+      final ValidateRecipientResponseModel? response =
+          await walletTransferServiceInterface
+              .validateRecipient(normalizedPhone);
+
+      if (response != null &&
+          response.success == true &&
+          response.user != null) {
         _validatedRecipient = response.user;
         _isValidating = false;
         update();
@@ -63,7 +65,7 @@ class WalletTransferController extends GetxController implements GetxService {
         return false;
       }
     } catch (e) {
-      print('❌ Error validating recipient: $e');
+      debugPrint('❌ Error validating recipient: $e');
       _lastError = 'VALIDATION_FAILED';
       showCustomSnackBar(getErrorMessage(_lastError!));
       _isValidating = false;
@@ -71,44 +73,45 @@ class WalletTransferController extends GetxController implements GetxService {
       return false;
     }
   }
-  
+
   /// Normalizes phone number to ensure it starts with +966
   String _normalizePhoneNumber(String phone) {
     // Remove all spaces and special characters except +
     // ignore: deprecated_member_use
     final String cleanPhone = phone.replaceAll(RegExp(r'[\s\-\(\)]'), '');
-    
+
     // If already starts with +966, return as is
     if (cleanPhone.startsWith('+966')) {
       return cleanPhone;
     }
-    
+
     // If starts with 966 (without +), add +
     if (cleanPhone.startsWith('966')) {
       return '+$cleanPhone';
     }
-    
+
     // If starts with 05, remove the 0 and add +966
     if (cleanPhone.startsWith('05')) {
       return '+966${cleanPhone.substring(1)}';
     }
-    
+
     // If starts with 5 (local format), add +966
     if (cleanPhone.startsWith('5')) {
       return '+966$cleanPhone';
     }
-    
+
     // If starts with 0, remove 0 and add +966
     if (cleanPhone.startsWith('0')) {
       return '+966${cleanPhone.substring(1)}';
     }
-    
+
     // Otherwise, assume it's a local number and add +966
     return '+966$cleanPhone';
   }
 
   /// Executes money transfer
-  Future<TransferResponseModel?> executeTransfer(TransferRequestModel request) async {
+  Future<TransferResponseModel?> executeTransfer(
+      TransferRequestModel request) async {
     _isTransferring = true;
     _lastError = null;
     update();
@@ -123,22 +126,24 @@ class WalletTransferController extends GetxController implements GetxService {
         recipientNickname: request.recipientNickname,
         message: request.message,
       );
-      
+
       final TransferResponseModel? response =
-          await walletTransferServiceInterface.executeTransfer(normalizedRequest);
+          await walletTransferServiceInterface
+              .executeTransfer(normalizedRequest);
 
       _isTransferring = false;
       update();
 
       if (response != null && response.success == true) {
         // Update user's wallet balance
-        await _updateWalletBalance(request.paymentSource, response.data?.senderNewBalance);
-        
+        await _updateWalletBalance(
+            request.paymentSource, response.data?.senderNewBalance);
+
         // Refresh saved recipients if user chose to save
         if (request.saveRecipient) {
           await getSavedRecipients();
         }
-        
+
         return response;
       } else {
         _lastError = response?.errorCode ?? 'TRANSFER_FAILED';
@@ -146,7 +151,7 @@ class WalletTransferController extends GetxController implements GetxService {
         return null;
       }
     } catch (e) {
-      print('❌ Error executing transfer: $e');
+      debugPrint('❌ Error executing transfer: $e');
       _lastError = 'TRANSFER_FAILED';
       showCustomSnackBar(getErrorMessage(_lastError!));
       _isTransferring = false;
@@ -156,7 +161,8 @@ class WalletTransferController extends GetxController implements GetxService {
   }
 
   /// Updates wallet balance after successful transfer
-  Future<void> _updateWalletBalance(String paymentSource, double? newBalance) async {
+  Future<void> _updateWalletBalance(
+      String paymentSource, double? newBalance) async {
     if (newBalance == null) return;
 
     if (paymentSource == 'wallet') {
@@ -175,17 +181,23 @@ class WalletTransferController extends GetxController implements GetxService {
       return;
     }
 
-    String errorMessage = response.message ?? getErrorMessage(response.errorCode ?? 'TRANSFER_FAILED');
+    String errorMessage = response.message ??
+        getErrorMessage(response.errorCode ?? 'TRANSFER_FAILED');
 
     // Add additional details for specific errors
-    if (response.errorCode == 'INSUFFICIENT_BALANCE' || 
+    if (response.errorCode == 'INSUFFICIENT_BALANCE' ||
         response.errorCode == 'INSUFFICIENT_QIDHA_BALANCE') {
-      errorMessage += '\n${'available_balance'.tr}: ${response.availableBalance?.toStringAsFixed(2)} ${'currency_symbol'.tr}';
-      errorMessage += '\n${'required_amount'.tr}: ${response.requiredAmount?.toStringAsFixed(2)} ${'currency_symbol'.tr}';
+      errorMessage +=
+          '\n${'available_balance'.tr}: ${response.availableBalance?.toStringAsFixed(2)} ${'currency_symbol'.tr}';
+      errorMessage +=
+          '\n${'required_amount'.tr}: ${response.requiredAmount?.toStringAsFixed(2)} ${'currency_symbol'.tr}';
     } else if (response.errorCode == 'DAILY_LIMIT_EXCEEDED') {
-      errorMessage += '\n${'daily_limit'.tr}: ${response.dailyLimit?.toStringAsFixed(2)} ${'currency_symbol'.tr}';
-      errorMessage += '\n${'already_spent'.tr}: ${response.alreadySpent?.toStringAsFixed(2)} ${'currency_symbol'.tr}';
-      errorMessage += '\n${'remaining'.tr}: ${response.remaining?.toStringAsFixed(2)} ${'currency_symbol'.tr}';
+      errorMessage +=
+          '\n${'daily_limit'.tr}: ${response.dailyLimit?.toStringAsFixed(2)} ${'currency_symbol'.tr}';
+      errorMessage +=
+          '\n${'already_spent'.tr}: ${response.alreadySpent?.toStringAsFixed(2)} ${'currency_symbol'.tr}';
+      errorMessage +=
+          '\n${'remaining'.tr}: ${response.remaining?.toStringAsFixed(2)} ${'currency_symbol'.tr}';
     }
 
     showCustomSnackBar(errorMessage);
@@ -204,7 +216,7 @@ class WalletTransferController extends GetxController implements GetxService {
       _isLoading = false;
       update();
     } catch (e) {
-      print('❌ Error getting saved recipients: $e');
+      debugPrint('❌ Error getting saved recipients: $e');
       _savedRecipients = [];
       _isLoading = false;
       update();
@@ -216,9 +228,10 @@ class WalletTransferController extends GetxController implements GetxService {
     try {
       // Normalize phone number before saving
       final String normalizedPhone = _normalizePhoneNumber(phone);
-      
+
       final SavedRecipientModel? recipient =
-          await walletTransferServiceInterface.addSavedRecipient(normalizedPhone, nickname);
+          await walletTransferServiceInterface.addSavedRecipient(
+              normalizedPhone, nickname);
 
       if (recipient != null) {
         await getSavedRecipients();
@@ -229,7 +242,7 @@ class WalletTransferController extends GetxController implements GetxService {
         return false;
       }
     } catch (e) {
-      print('❌ Error adding saved recipient: $e');
+      debugPrint('❌ Error adding saved recipient: $e');
       showCustomSnackBar('failed_to_save_recipient'.tr);
       return false;
     }
@@ -243,38 +256,36 @@ class WalletTransferController extends GetxController implements GetxService {
       showCustomSnackBar('recipient_deleted_successfully'.tr, isError: false);
       return true;
     } catch (e) {
-      print('❌ Error deleting saved recipient: $e');
+      debugPrint('❌ Error deleting saved recipient: $e');
       showCustomSnackBar('failed_to_delete_recipient'.tr);
       return false;
     }
   }
 
   /// Checks if user can transfer the specified amount
-bool canTransfer(double amount, String paymentSource) {
-  if (amount <= 0) return false;
+  bool canTransfer(double amount, String paymentSource) {
+    if (amount <= 0) return false;
 
-  if (paymentSource == 'wallet') {
-    final double balance =
-        Get.find<ProfileController>().userInfoModel?.walletBalance ?? 0;
-    return amount <= balance;
+    if (paymentSource == 'wallet') {
+      final double balance =
+          Get.find<ProfileController>().userInfoModel?.walletBalance ?? 0;
+      return amount <= balance;
+    }
+
+    if (paymentSource == 'wallet_qidha') {
+      final wallet =
+          Get.find<KaidhaSubscription_Controller>().walletKaidhaModel?.wallet;
+
+      final double availableBalance = wallet?.availableBalance is num
+          ? (wallet!.availableBalance as num).toDouble()
+          : double.tryParse(wallet?.availableBalance?.toString() ?? '0') ?? 0;
+
+      return amount <= availableBalance;
+    }
+
+    // ✅ fallback mandatory
+    return false;
   }
-
-  if (paymentSource == 'wallet_qidha') {
-    final wallet = Get.find<KaidhaSubscription_Controller>()
-        .walletKaidhaModel
-        ?.wallet;
-
-    final double availableBalance = wallet?.availableBalance is num
-        ? (wallet!.availableBalance as num).toDouble()
-        : double.tryParse(wallet?.availableBalance?.toString() ?? '0') ?? 0;
-
-    return amount <= availableBalance;
-  }
-
-  // ✅ fallback mandatory
-  return false;
-}
-
 
   /// Gets available balance for the specified payment source
   double getAvailableBalance(String paymentSource) {
@@ -286,7 +297,9 @@ bool canTransfer(double amount, String paymentSource) {
           ?.wallet
           ?.availableBalance;
       if (balanceValue != null) {
-        return balanceValue is double ? balanceValue : (double.tryParse(balanceValue.toString()) ?? 0);
+        return balanceValue is double
+            ? balanceValue
+            : (double.tryParse(balanceValue.toString()) ?? 0);
       }
       return 0;
     }
@@ -344,4 +357,3 @@ bool canTransfer(double amount, String paymentSource) {
     update();
   }
 }
-

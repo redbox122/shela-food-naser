@@ -419,8 +419,7 @@ class ParcelController extends GetxController implements GetxService {
     if (response.statusCode == 200) {
       final String? message =
           (response.body as Map<String, dynamic>)['message'] as String?;
-      orderID = ((response.body as Map<String, dynamic>)['order_id'] as dynamic)
-          .toString();
+      orderID = (response.body as Map<String, dynamic>)['order_id']?.toString() ?? '';
       final int createUserId =
           (response.body as Map<String, dynamic>)['user_id'] as int;
 
@@ -437,7 +436,7 @@ class ParcelController extends GetxController implements GetxService {
             createUserId: createUserId);
       }
       if (kDebugMode) {
-        print('-------- Order placed successfully $orderID ----------');
+        debugPrint('-------- Order placed successfully $orderID ----------');
       }
     } else {
       _hasOrderError = true;

@@ -1,4 +1,3 @@
-// ignore_for_file: avoid_print
 
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -20,7 +19,7 @@ class InstantLoadingManager {
 
       // Check if data loaded flag exists
       if (!prefs.containsKey(_dataLoadedKey)) {
-        print('🔄 InstantLoadingManager: Data not marked as loaded');
+        debugPrint('🔄 InstantLoadingManager: Data not marked as loaded');
         return false;
       }
 
@@ -30,7 +29,7 @@ class InstantLoadingManager {
       final age = Duration(milliseconds: now - lastLoadTime);
 
       if (age > _cacheExpiry) {
-        print('🔄 InstantLoadingManager: Data expired (${age.inHours}h old)');
+        debugPrint('🔄 InstantLoadingManager: Data expired (${age.inHours}h old)');
         await forceRefresh();
         return false;
       }
@@ -39,16 +38,16 @@ class InstantLoadingManager {
       final comprehensiveCacheValid =
           await ComprehensiveHomeCacheManager.isCacheValid();
       if (!comprehensiveCacheValid) {
-        print('🔄 InstantLoadingManager: Comprehensive cache invalid');
+        debugPrint('🔄 InstantLoadingManager: Comprehensive cache invalid');
         await forceRefresh();
         return false;
       }
 
-      print(
+      debugPrint(
           '✅ InstantLoadingManager: Data is loaded and valid - INSTANT LOADING!');
       return true;
     } catch (e) {
-      print('❌ InstantLoadingManager: Error checking data - $e');
+      debugPrint('❌ InstantLoadingManager: Error checking data - $e');
       return false;
     }
   }
@@ -60,9 +59,9 @@ class InstantLoadingManager {
       await prefs.setBool(_dataLoadedKey, true);
       await prefs.setInt(
           _lastLoadTimeKey, DateTime.now().millisecondsSinceEpoch);
-      print('✅ InstantLoadingManager: Data marked as loaded');
+      debugPrint('✅ InstantLoadingManager: Data marked as loaded');
     } catch (e) {
-      print('❌ InstantLoadingManager: Error marking data loaded - $e');
+      debugPrint('❌ InstantLoadingManager: Error marking data loaded - $e');
     }
   }
 
@@ -72,22 +71,22 @@ class InstantLoadingManager {
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove(_dataLoadedKey);
       await prefs.remove(_lastLoadTimeKey);
-      print('🗑️ InstantLoadingManager: Data loaded flag cleared');
+      debugPrint('🗑️ InstantLoadingManager: Data loaded flag cleared');
     } catch (e) {
-      print('❌ InstantLoadingManager: Error clearing data flag - $e');
+      debugPrint('❌ InstantLoadingManager: Error clearing data flag - $e');
     }
   }
 
   /// Force refresh (clear flag and reload)
   static Future<void> forceRefresh() async {
     await clearDataLoaded();
-    print('🔄 InstantLoadingManager: Force refresh - will reload all data');
+    debugPrint('🔄 InstantLoadingManager: Force refresh - will reload all data');
   }
 
   /// Load data from cache to controllers
   static Future<void> loadDataFromCache(BuildContext context) async {
     try {
-      print(
+      debugPrint(
           '📦 InstantLoadingManager: Loading data from cache to controllers...');
 
       // Instead of using ComprehensiveHomeLoader (which gets blocked),
@@ -95,9 +94,9 @@ class InstantLoadingManager {
       // since forceRefresh is false
       await HomeScreen.loadData(context, false);
 
-      print('✅ InstantLoadingManager: Data loaded from cache to controllers!');
+      debugPrint('✅ InstantLoadingManager: Data loaded from cache to controllers!');
     } catch (e) {
-      print('❌ InstantLoadingManager: Error loading data from cache - $e');
+      debugPrint('❌ InstantLoadingManager: Error loading data from cache - $e');
     }
   }
 }

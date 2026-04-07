@@ -22,12 +22,12 @@ class GetXHelper {
         return Get.find<T>();
       }
       if (kDebugMode) {
-        print('⚠️ GetXHelper: Controller ${T.toString()} is not registered');
+        debugPrint('⚠️ GetXHelper: Controller ${T.toString()} is not registered');
       }
       return null;
     } catch (e) {
       if (kDebugMode) {
-        print('❌ GetXHelper: Error finding controller ${T.toString()}: $e');
+        debugPrint('❌ GetXHelper: Error finding controller ${T.toString()}: $e');
       }
       return null;
     }

@@ -1,5 +1,3 @@
-// ignore_for_file: camel_case_types, file_names, non_constant_identifier_names, avoid_print, override_on_non_overriding_member, prefer_final_fields, unused_local_variable
-
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
@@ -36,7 +34,7 @@ class Offers_Controller extends GetxController implements GetxService {
     // This prevents two systems from fighting over the same widget
     if (AppConstants.useBffV2Endpoint) {
       if (kDebugMode) {
-        print(
+        debugPrint(
             '✅ Offers_Controller: Skipping onInit fetch (v2 endpoint enabled - HomeUnifiedController handles data)');
       }
       return;
@@ -135,7 +133,7 @@ class Offers_Controller extends GetxController implements GetxService {
   Future<OffersModel?> getOffers({int? specificModuleId}) async {
     // ⚠️ CRITICAL: Prevent duplicate concurrent calls
     if (_isLoading) {
-      print('⚠️ Offers: Already loading, skipping duplicate call');
+      debugPrint('⚠️ Offers: Already loading, skipping duplicate call');
       return offersMode;
     }
 
@@ -154,7 +152,7 @@ class Offers_Controller extends GetxController implements GetxService {
                   .map((json) => Datum.fromJson(json as Map<String, dynamic>))
                   .toList();
               if (cachedOffersList.isNotEmpty) {
-                print(
+                debugPrint(
                     '✅ Offers_Controller: Loading ${cachedOffersList.length} offers from comprehensive cache');
                 offersMode = OffersModel(
                   success: (offersData['success'] as bool?) ?? false,
@@ -168,7 +166,7 @@ class Offers_Controller extends GetxController implements GetxService {
           }
         }
       } catch (e) {
-        print(
+        debugPrint(
             '⚠️ Offers_Controller: Error loading from comprehensive cache: $e');
       }
     }
@@ -185,7 +183,7 @@ class Offers_Controller extends GetxController implements GetxService {
         // Silent refresh - don't show loading state
         _isLoading = false;
         if (kDebugMode) {
-          print(
+          debugPrint(
               '✅ Offers_Controller: Silent refresh - preserving Success state (has existing offers)');
         }
       } else {
@@ -201,14 +199,14 @@ class Offers_Controller extends GetxController implements GetxService {
       // Use specific module ID if provided, otherwise use current selected module
       final moduleIdForOffers = specificModuleId ?? splashController.module?.id;
       if (moduleIdForOffers == null) {
-        print('⚠️ Offers: No module selected, skipping offers load');
+        debugPrint('⚠️ Offers: No module selected, skipping offers load');
         _isLoading = false;
 
         // 🔒 PROTECTION: Don't clear existing offers if no module selected
         // Preserve cache data if it exists
         if (hasExistingOffers) {
           if (kDebugMode) {
-            print(
+            debugPrint(
                 '🔒 Offers_Controller: No module selected, preserving existing offers (${offersMode!.data.length} offers)');
           }
           return offersMode; // Return existing data without modifying state
@@ -237,14 +235,15 @@ class Offers_Controller extends GetxController implements GetxService {
       final moduleName = specificModuleId != null
           ? '(specific module)'
           : "(current module: ${splashController.module?.moduleName ?? 'unknown'})";
-      print('✅ Offers: Set moduleId=$moduleIdForOffers in headers $moduleName');
+      debugPrint(
+          '✅ Offers: Set moduleId=$moduleIdForOffers in headers $moduleName');
 
       // ⚠️ OPTIMIZED: Reduced timeout from 30s to 10s for better UX
       // Most API calls should complete within 3-5 seconds
       final loadedOffers = await offersServiceInterface.getOffers().timeout(
         const Duration(seconds: 10),
         onTimeout: () {
-          print('⏰ Offers loading timed out after 10 seconds');
+          debugPrint('⏰ Offers loading timed out after 10 seconds');
           return OffersModel(
               success: false, data: [], message: 'Request timed out');
         },
@@ -262,7 +261,7 @@ class Offers_Controller extends GetxController implements GetxService {
         _isLoading = false;
         // Keep existing offersMode - don't update or trigger rebuild
         if (kDebugMode) {
-          print(
+          debugPrint(
               '🔒 Offers_Controller: API returned invalid/empty response, preserving existing offers (${oldOffers.data.length} offers)');
         }
         return oldOffers; // Return existing data without modifying state
@@ -270,13 +269,13 @@ class Offers_Controller extends GetxController implements GetxService {
 
       // If API response is valid, proceed with update
       if (hasValidResponse) {
-        print(
+        debugPrint(
             '✅ Offers: Data loaded - success: ${loadedOffers.success}, count: ${loadedOffers.data.length}');
         if (loadedOffers.data.isNotEmpty) {
-          print('📦 Offers: First offer: ${loadedOffers.data[0].name}');
+          debugPrint('📦 Offers: First offer: ${loadedOffers.data[0].name}');
         }
       } else {
-        print('⚠️ Offers: No offers found in response');
+        debugPrint('⚠️ Offers: No offers found in response');
       }
 
       // Only update offersMode and trigger UI update if data actually changed
@@ -285,19 +284,19 @@ class Offers_Controller extends GetxController implements GetxService {
         _isLoading = false;
         update();
         if (kDebugMode) {
-          print('🔄 Offers_Controller: Data changed, UI updated');
+          debugPrint('🔄 Offers_Controller: Data changed, UI updated');
         }
       } else {
         // Data unchanged - keep existing offersMode and don't trigger UI update to prevent flicker
         _isLoading = false;
         // Don't call update() - this prevents unnecessary UI rebuild/flicker
         if (kDebugMode) {
-          print(
+          debugPrint(
               '✅ Offers_Controller: Data unchanged (deep equality check), skipping UI update to prevent flicker');
         }
       }
     } catch (e) {
-      print('❌ Error loading offers: $e');
+      debugPrint('❌ Error loading offers: $e');
       _isLoading = false;
 
       // 🔒 PROTECTION: Don't clear existing offers on error
@@ -307,7 +306,7 @@ class Offers_Controller extends GetxController implements GetxService {
       if (hasExistingOffers) {
         // Keep existing offersMode - don't update or trigger rebuild
         if (kDebugMode) {
-          print(
+          debugPrint(
               '🔒 Offers_Controller: Error occurred, preserving existing offers (${offersMode!.data.length} offers)');
         }
         return offersMode; // Return existing data without modifying state
@@ -338,7 +337,7 @@ class Offers_Controller extends GetxController implements GetxService {
         newOffers = OffersModel.fromJson(data);
         offersMode = newOffers;
       } else {
-        print(
+        debugPrint(
             '⚠️ Offers_Controller: Unexpected data type: ${data.runtimeType}');
         return;
       }
@@ -350,17 +349,17 @@ class Offers_Controller extends GetxController implements GetxService {
       if (!_areOffersEqual(oldOffers, newOffers)) {
         update();
         if (kDebugMode) {
-          print(
+          debugPrint(
               '✅ Offers_Controller: Loaded ${offersMode?.data.length ?? 0} offers from cache - data changed, UI updated');
         }
       } else {
         if (kDebugMode) {
-          print(
+          debugPrint(
               '✅ Offers_Controller: Loaded ${offersMode?.data.length ?? 0} offers from cache - data unchanged (deep equality check), skipping UI update');
         }
       }
     } catch (e) {
-      print('❌ Offers_Controller: Error setting offers from cache: $e');
+      debugPrint('❌ Offers_Controller: Error setting offers from cache: $e');
     }
   }
 
@@ -370,7 +369,7 @@ class Offers_Controller extends GetxController implements GetxService {
     // 🔧 TASK 2: Data Integrity Check - preserve existing data if new offers are empty
     if (offers.isEmpty) {
       if (kDebugMode) {
-        print(
+        debugPrint(
             '⚠️ Offers_Controller.setOffersFromBootstrap: Received empty offers list. Preserving existing data.');
       }
       _isLoading = false;
@@ -380,7 +379,7 @@ class Offers_Controller extends GetxController implements GetxService {
     final newOffers = offers.first;
     if (newOffers.data.isEmpty) {
       if (kDebugMode) {
-        print(
+        debugPrint(
             '⚠️ Offers_Controller.setOffersFromBootstrap: Received empty offers from Bootstrap. Preserving existing data.');
       }
       _isLoading = false;
@@ -397,7 +396,7 @@ class Offers_Controller extends GetxController implements GetxService {
       if (offersMode!.data.length == newOffers.data.length) {
         if (_areOffersEqual(offersMode, newOffers)) {
           if (kDebugMode) {
-            print(
+            debugPrint(
                 '✅ Offers_Controller: setOffersFromBootstrap - Data unchanged (deep equality), skipping parse and update');
           }
           _isLoading = false;
@@ -412,7 +411,7 @@ class Offers_Controller extends GetxController implements GetxService {
         oldOffers != null &&
         oldOffers.data.isNotEmpty) {
       if (kDebugMode) {
-        print(
+        debugPrint(
             '🔒 Offers_Controller: New offers are empty, preserving pre-warmed data (${oldOffers.data.length} offers)');
       }
       _isLoading = false;
@@ -424,7 +423,7 @@ class Offers_Controller extends GetxController implements GetxService {
     final currentOffersList = offersMode?.data ?? [];
     if (newOffers.data.isEmpty && currentOffersList.isNotEmpty) {
       if (kDebugMode) {
-        print(
+        debugPrint(
             '🔒 Offers_Controller: Empty new offers detected, preserving existing offers (${currentOffersList.length} offers)');
       }
       _isLoading = false;
@@ -440,12 +439,12 @@ class Offers_Controller extends GetxController implements GetxService {
     if (!_areOffersEqual(oldOffers, newOffers)) {
       update(['offers']); // 🔧 FIX: Use specific ID for offers widget re-render
       if (kDebugMode) {
-        print(
+        debugPrint(
             '✅ Offers_Controller: Injected ${offersMode?.data.length ?? 0} offers');
       }
     } else {
       if (kDebugMode) {
-        print(
+        debugPrint(
             '✅ Offers_Controller: Offers set from bootstrap (${offersMode?.data.length ?? 0} offers) - data unchanged (deep equality check), skipping UI update');
       }
     }
@@ -476,16 +475,16 @@ class Offers_Controller extends GetxController implements GetxService {
     if (_isItemsLoading) {
       if (_activeItemsRequestKey != requestKey) {
         if (kDebugMode) {
-          print(
+          debugPrint(
               '⚠️ Offers_Controller: replacing in-flight request ($_activeItemsRequestKey) with new request ($requestKey)');
         }
       } else {
         if (forceRefresh && kDebugMode) {
-          print(
+          debugPrint(
               '⚠️ Offers_Controller: duplicate request is forceRefresh=true but still in progress, keeping current in-flight call (id: $id, offset: $offset)');
         }
         if (kDebugMode) {
-          print(
+          debugPrint(
               '⚠️ Offers_Controller: getOffersItemList already in progress, skipping duplicate call (id: $id, offset: $offset)');
         }
         return;
@@ -496,7 +495,7 @@ class Offers_Controller extends GetxController implements GetxService {
     if (offset == 1 && id != null) {
       if (_isCacheValid(id)) {
         if (kDebugMode) {
-          print(
+          debugPrint(
               '✅ Offers_Controller: Serving offer items from memory cache (id: $id, cachedItemsCount: ${_offersItemsCache[id]?.length ?? 0})');
         }
         _offersItemList = List.from(_offersItemsCache[id] ?? []);
@@ -522,7 +521,7 @@ class Offers_Controller extends GetxController implements GetxService {
       final bool shouldForceRefresh =
           forceRefresh || (offset == 1 && id != null && !_isCacheValid(id));
       if (kDebugMode) {
-        print(
+        debugPrint(
             '[OFFERS_CTRL] fetch.enter id=$id offset=$offset forceRefresh=$shouldForceRefresh');
       }
       final ItemModel? brandItemModel =
@@ -549,7 +548,7 @@ class Offers_Controller extends GetxController implements GetxService {
                 List.from(brandItemModel.items ?? const <Item>[]);
             _cacheTimestamps[id] = DateTime.now();
             if (kDebugMode) {
-              print(
+              debugPrint(
                   '[OFFERS_CTRL] cache.update id=$id cachedItemsCount=${_offersItemsCache[id]?.length ?? 0}');
             }
           }
@@ -572,7 +571,7 @@ class Offers_Controller extends GetxController implements GetxService {
 
         _pageSize = brandItemModel.totalSize;
         if (kDebugMode) {
-          print(
+          debugPrint(
               '[OFFERS_CTRL] fetch.done id=$id offset=$offset itemsCount=${brandItemModel.items?.length ?? 0} totalSize=${brandItemModel.totalSize}');
         }
       } else {
@@ -580,15 +579,15 @@ class Offers_Controller extends GetxController implements GetxService {
           _hasItemsError = true;
         }
         if (kDebugMode) {
-          print(
+          debugPrint(
               '[OFFERS_CTRL] fetch.done id=$id offset=$offset itemsCount=0 (null model)');
         }
       }
     } catch (e, st) {
       if (kDebugMode) {
-        print(
+        debugPrint(
             '❌ Offers_Controller.getOffersItemList failed (id: $id, offset: $offset): $e');
-        print(st);
+        debugPrint(st as String?);
       }
       _hasItemsError = true;
     } finally {
@@ -806,7 +805,7 @@ class Offers_Controller extends GetxController implements GetxService {
     _isLiveSearching = false;
     _isSearching = false;
     _searchText = '';
-    print('🔍 Live search cleared');
+    debugPrint('🔍 Live search cleared');
     update();
   }
 
@@ -820,13 +819,14 @@ class Offers_Controller extends GetxController implements GetxService {
     _categoryList = [];
     _categoryList!.add(CategoryModel(id: 0, name: 'all_products'.tr));
 
-    print('🔍 Extracting categories from offers response...');
-    print('📊 Categories in response: ${itemModel?.categories?.length ?? 0}');
-    print('📊 Items in response: ${itemModel?.items?.length ?? 0}');
+    debugPrint('🔍 Extracting categories from offers response...');
+    debugPrint(
+        '📊 Categories in response: ${itemModel?.categories?.length ?? 0}');
+    debugPrint('📊 Items in response: ${itemModel?.items?.length ?? 0}');
 
     if (itemModel?.categories != null && itemModel!.categories!.isNotEmpty) {
       // Add categories from the API response if available
-      print('✅ Using categories from API response');
+      debugPrint('✅ Using categories from API response');
       for (final category in itemModel.categories!) {
         _categoryList!.add(CategoryModel(
           id: category.id,
@@ -840,7 +840,7 @@ class Offers_Controller extends GetxController implements GetxService {
       }
     } else if (itemModel?.items != null && itemModel!.items!.isNotEmpty) {
       // Extract categories from products if no categories array in response
-      print('✅ Extracting categories from products');
+      debugPrint('✅ Extracting categories from products');
       final Map<int, String> uniqueCategories = {};
 
       for (final item in itemModel.items!) {
@@ -860,7 +860,7 @@ class Offers_Controller extends GetxController implements GetxService {
         }
       }
 
-      print(
+      debugPrint(
           '📊 Found ${uniqueCategories.length} unique categories from products');
 
       // Add unique categories to the list
@@ -872,7 +872,7 @@ class Offers_Controller extends GetxController implements GetxService {
       });
     } else {
       // Fallback to global categories if no data available
-      print('⚠️ No categories found, using global categories');
+      debugPrint('⚠️ No categories found, using global categories');
       if (Get.find<CategoryController>().categoryList != null) {
         for (final category in Get.find<CategoryController>().categoryList!) {
           _categoryList!.add(category);
@@ -880,15 +880,15 @@ class Offers_Controller extends GetxController implements GetxService {
       }
     }
 
-    print('📊 Total categories available: ${_categoryList!.length}');
+    debugPrint('📊 Total categories available: ${_categoryList!.length}');
     for (final cat in _categoryList!) {
-      print('  - ${cat.id}: ${cat.name}');
+      debugPrint('  - ${cat.id}: ${cat.name}');
     }
   }
 
   void setCategoryIndex(int index, {bool itemSearching = false}) {
     _categoryIndex = index;
-    print(
+    debugPrint(
         '🔍 Category filter selected: index=$index, itemSearching=$itemSearching');
 
     if (itemSearching) {
@@ -902,7 +902,7 @@ class Offers_Controller extends GetxController implements GetxService {
       _offersItemList = null;
       if (_currentOfferId != null) {
         if (index > 0 && _categoryList != null && _categoryList!.isNotEmpty) {
-          print(
+          debugPrint(
               '📡 Making API call for category: ${_categoryList![index].name}');
           getOffersItemListWithFilters(
             id: _currentOfferId,
@@ -911,7 +911,7 @@ class Offers_Controller extends GetxController implements GetxService {
             sortOrder: _isPriceAscending ? 'asc' : 'desc',
           );
         } else {
-          print('📡 Making API call for all products');
+          debugPrint('📡 Making API call for all products');
           getOffersItemList(id: _currentOfferId, offset: 1);
         }
       }
@@ -935,7 +935,7 @@ class Offers_Controller extends GetxController implements GetxService {
     // ❌ REMOVED: Local filtering - reload from API instead
     if (_currentOfferId != null) {
       getOffersItemList(id: _currentOfferId, offset: 1);
-      print('✅ Filters reset - reloading from API');
+      debugPrint('✅ Filters reset - reloading from API');
     } else {
       update();
     }
@@ -975,7 +975,7 @@ class Offers_Controller extends GetxController implements GetxService {
     } else {
       _selectedCategoryIds.add(categoryId);
     }
-    print('📊 Selected categories: $_selectedCategoryIds');
+    debugPrint('📊 Selected categories: $_selectedCategoryIds');
     update();
   }
 
@@ -985,7 +985,7 @@ class Offers_Controller extends GetxController implements GetxService {
       if (_selectedCategoryIds.isEmpty) {
         // Show all items if no categories selected
         getOffersItemList(id: _currentOfferId, offset: 1);
-        print('✅ Showing all items (no categories selected)');
+        debugPrint('✅ Showing all items (no categories selected)');
       } else {
         // Note: Support multiple categories in API call
         // For now, use first selected category
@@ -996,7 +996,7 @@ class Offers_Controller extends GetxController implements GetxService {
           sortBy: 'price',
           sortOrder: _isPriceAscending ? 'asc' : 'desc',
         );
-        print('✅ Filtered by ${_selectedCategoryIds.length} categories');
+        debugPrint('✅ Filtered by ${_selectedCategoryIds.length} categories');
       }
     }
     closeFilterModal();
@@ -1063,11 +1063,11 @@ class Offers_Controller extends GetxController implements GetxService {
             final List<Item> localItems = _buildLocalSearchFallback(searchText);
             _offersSearchItemModel = ItemModel(items: localItems);
             if (kDebugMode) {
-              print(
+              debugPrint(
                   '?? Offers search fallback: API=0, local=${localItems.length}, query="$searchText"');
             }
           } else if (kDebugMode) {
-            print(
+            debugPrint(
                 '? Offers search API results: ${_offersSearchItemModel?.items?.length ?? 0}, query="$searchText"');
           }
         } else {
@@ -1083,14 +1083,13 @@ class Offers_Controller extends GetxController implements GetxService {
         if (offset == 1) {
           _offersSearchItemModel = ItemModel(items: []);
         }
-        print('❌ Failed to load search results - API returned null');
+        debugPrint('❌ Failed to load search results - API returned null');
       }
 
       _isItemsLoading = false;
       update();
     }
   }
-
 
   List<Item> _buildLocalSearchFallback(String query) {
     final List<Item> source = _offersItemList ?? <Item>[];
@@ -1121,6 +1120,7 @@ class Offers_Controller extends GetxController implements GetxService {
         .replaceAll('?', '?')
         .replaceAll(RegExp(r'\s+'), ' ');
   }
+
   Future<void> getOffersItemListWithFilters({
     int offset = 1,
     int limit = 20,
@@ -1169,14 +1169,15 @@ class Offers_Controller extends GetxController implements GetxService {
       // Handle null response (API error) - fallback to regular offers API
       if (offset == 1) {
         _offersItemList = [];
-        print('❌ Filter API failed, falling back to regular offers API');
+        debugPrint('❌ Filter API failed, falling back to regular offers API');
         // Try to load regular offers as fallback
         await getOffersItemList(
             id: id, offset: offset, limit: limit, notify: notify);
         return;
       }
       _isItemsLoading = false;
-      print('❌ Failed to load offers items with filters - API returned null');
+      debugPrint(
+          '❌ Failed to load offers items with filters - API returned null');
     }
     update();
   }
@@ -1190,12 +1191,12 @@ class Offers_Controller extends GetxController implements GetxService {
     if (!_areOffersEqual(oldOffers, offers)) {
       update();
       if (kDebugMode) {
-        print(
+        debugPrint(
             '✅ OffersController: Offer data set from bootstrap (${offers.data.length} offers) - data changed, UI updated');
       }
     } else {
       if (kDebugMode) {
-        print(
+        debugPrint(
             '✅ OffersController: Offer data set from bootstrap (${offers.data.length} offers) - data unchanged (deep equality check), skipping UI update');
       }
     }
@@ -1208,4 +1209,3 @@ class Offers_Controller extends GetxController implements GetxService {
     super.onClose();
   }
 }
-

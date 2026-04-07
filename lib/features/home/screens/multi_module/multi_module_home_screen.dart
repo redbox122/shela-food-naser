@@ -52,7 +52,7 @@ class _MultiModuleHomeScreenState extends State<MultiModuleHomeScreen> {
     super.initState();
     appLogger.logPageEntry('MultiModuleHomeScreen');
     if (kDebugMode) {
-      print(
+      debugPrint(
           '🏗️ [Module-First] MultiModuleHomeScreen: Initialized as dumb screen (UI only)');
     }
     appLogger.info(

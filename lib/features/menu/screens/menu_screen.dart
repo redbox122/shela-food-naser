@@ -1243,15 +1243,6 @@ class _MenuScreenState extends State<MenuScreen> {
         return 'الحالة';
     }
   }
-
-  Future<void> _launchURL() async {
-    final Uri _url = Uri.parse(AppConstants.investorJoinUrl);
-
-    if (!await launchUrl(_url, mode: LaunchMode.externalApplication)) {
-      throw 'Could not launch $_url';
-    }
-  }
-
   Future<void> _launchExternalUrl(String url) async {
     final Uri uri = Uri.parse(url);
     if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {

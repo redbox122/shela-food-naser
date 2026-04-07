@@ -1,4 +1,3 @@
-// ignore_for_file: avoid_print
 
 import 'dart:async';
 
@@ -144,7 +143,7 @@ class OrderController extends GetxController implements GetxService {
 
   Future<void> connect(String userId) async {
     if (userId.isEmpty) {
-      print('❌ userId is empty. Cannot connect to WebSocket.');
+      debugPrint('❌ userId is empty. Cannot connect to WebSocket.');
       isConnected.value = false;
       return;
     }
@@ -156,7 +155,7 @@ class OrderController extends GetxController implements GetxService {
           await orderServiceInterface.connectToOrderWebSocket(userId);
 
       if (stream == null) {
-        print('⚠️ WebSocket stream is null. No connection established.');
+        debugPrint('⚠️ WebSocket stream is null. No connection established.');
         isConnected.value = false;
         return;
       }
@@ -171,25 +170,25 @@ class OrderController extends GetxController implements GetxService {
             orderUpdated.value = false;
           });
 
-          print('📩 WebSocket Data: $data');
+          debugPrint('📩 WebSocket Data: $data');
         },
         onError: (Object error) {
-          print('❌ WebSocket Error: $error');
+          debugPrint('❌ WebSocket Error: $error');
 
           if (error is WebSocketChannelException) {
-            print('📛 Detailed Error: ${error.inner}');
+            debugPrint('📛 Detailed Error: ${error.inner}');
           }
 
           isConnected.value = false;
         },
         onDone: () {
-          print('🔌 WebSocket closed');
+          debugPrint('🔌 WebSocket closed');
           isConnected.value = false;
         },
         cancelOnError: true,
       );
     } catch (e) {
-      print('⚠️ Failed to connect to WebSocket: $e');
+      debugPrint('⚠️ Failed to connect to WebSocket: $e');
       isConnected.value = false;
     }
   }

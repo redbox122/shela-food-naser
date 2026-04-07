@@ -116,12 +116,12 @@ class ProfileImageWidget extends StatelessWidget {
                                : null;
       
       if (kDebugMode) {
-        print('🖼️ ProfileImageWidget: User image check');
-        print('   - userInfoModel: ${profileController.userInfoModel != null ? 'EXISTS' : 'NULL'}');
-        print('   - isLoggedIn: $isLoggedIn');
-        print('   - imageFullUrl: ${profileController.userInfoModel?.imageFullUrl ?? 'NULL'}');
-        print('   - hasImage: ${imageUrl != null}');
-        print('   - imageUrl: ${imageUrl ?? 'N/A (showing guest icon)'}');
+        debugPrint('🖼️ ProfileImageWidget: User image check');
+        debugPrint('   - userInfoModel: ${profileController.userInfoModel != null ? 'EXISTS' : 'NULL'}');
+        debugPrint('   - isLoggedIn: $isLoggedIn');
+        debugPrint('   - imageFullUrl: ${profileController.userInfoModel?.imageFullUrl ?? 'NULL'}');
+        debugPrint('   - hasImage: ${imageUrl != null}');
+        debugPrint('   - imageUrl: ${imageUrl ?? 'N/A (showing guest icon)'}');
       }
       
       return Container(

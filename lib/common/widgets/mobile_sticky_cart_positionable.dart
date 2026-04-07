@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
@@ -68,7 +69,9 @@ class _MobileStickyCartPositionableState
       _nudgeDy = prefs.getDouble(AppConstants.stickyCartBubbleNudgeDy) ?? 0;
       _alignStart =
           prefs.getBool(AppConstants.stickyCartBubbleAlignStart) ?? true;
-    } catch (_) {}
+    } catch (e) {
+      if (kDebugMode) debugPrint('$e');
+    }
   }
 
   Future<void> _savePrefs() async {
@@ -80,7 +83,9 @@ class _MobileStickyCartPositionableState
       await prefs.setDouble(AppConstants.stickyCartBubbleNudgeDx, _nudgeDx);
       await prefs.setDouble(AppConstants.stickyCartBubbleNudgeDy, _nudgeDy);
       await prefs.setBool(AppConstants.stickyCartBubbleAlignStart, _alignStart);
-    } catch (_) {}
+    } catch (e) {
+      if (kDebugMode) debugPrint('$e');
+    }
   }
 
   void _cancelHold() {
@@ -167,8 +172,7 @@ class _MobileStickyCartPositionableState
   void _clampNudge(Size screenSize) {
     final double maxX = screenSize.width * 0.42;
     final double maxYUp = screenSize.height * 0.38;
-    final double maxYDown =
-        screenSize.height * 0.42 - widget.bottomPad - 24;
+    final double maxYDown = screenSize.height * 0.42 - widget.bottomPad - 24;
     _nudgeDx = _nudgeDx.clamp(-maxX, maxX);
     _nudgeDy = _nudgeDy.clamp(-maxYUp, maxYDown);
   }

@@ -27,14 +27,19 @@ class ImageCacheWarmer {
         precacheImage(
           NetworkImage(url),
           context,
-        ).then((_) {
+        )
+            .timeout(
+          const Duration(seconds: 5),
+          onTimeout: () {/* silently skip slow/unavailable images */},
+        )
+            .then((_) {
           warmedCount++;
           if (kDebugMode) {
-            print('✅ ImageCacheWarmer: Warmed image: $url');
+            debugPrint('ImageCacheWarmer: Warmed image: $url');
           }
         }).catchError((Object error) {
           if (kDebugMode) {
-            print('⚠️ ImageCacheWarmer: Failed to warm image $url: $error');
+            debugPrint('ImageCacheWarmer: Failed to warm image $url: $error');
           }
         }),
       );
@@ -44,18 +49,18 @@ class ImageCacheWarmer {
     await Future.wait(warmFutures);
 
     if (kDebugMode) {
-      print('✅ ImageCacheWarmer: Warmed $warmedCount/${imageUrls.length} images');
+      debugPrint('ImageCacheWarmer: Warmed $warmedCount/${imageUrls.length} images');
     }
 
     return warmedCount;
   }
 
   /// Warm images from banner and brand data
-  /// 
+  ///
   /// Extracts image URLs from banner and brand controllers and warms them
   static Future<void> warmBannerAndBrandImages(BuildContext context) async {
     if (kDebugMode) {
-      print('🔥 ImageCacheWarmer: Starting to warm banner and brand images...');
+      debugPrint('ImageCacheWarmer: Starting to warm banner and brand images...');
     }
 
     final List<String?> imageUrls = [];
@@ -90,7 +95,7 @@ class ImageCacheWarmer {
 
     if (imageUrls.isEmpty) {
       if (kDebugMode) {
-        print('⚠️ ImageCacheWarmer: No images to warm');
+        debugPrint('ImageCacheWarmer: No images to warm');
       }
       return;
     }

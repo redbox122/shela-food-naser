@@ -58,11 +58,11 @@ class SessionManagementService {
       _startSecurityMonitoring();
       
       if (kDebugMode) {
-        print('🔐 Session Management Service initialized');
+        debugPrint('🔐 Session Management Service initialized');
       }
     } catch (e) {
       if (kDebugMode) {
-        print('❌ Failed to initialize Session Management Service: $e');
+        debugPrint('❌ Failed to initialize Session Management Service: $e');
       }
     }
   }
@@ -115,13 +115,13 @@ class SessionManagementService {
       );
       
       if (kDebugMode) {
-        print('🔐 Session started: $sessionId');
+        debugPrint('🔐 Session started: $sessionId');
       }
       
       return sessionId;
     } catch (e) {
       if (kDebugMode) {
-        print('❌ Failed to start session: $e');
+        debugPrint('❌ Failed to start session: $e');
       }
       return null;
     }
@@ -156,13 +156,13 @@ class SessionManagementService {
       );
       
       if (kDebugMode) {
-        print('🔐 Session ended: $reason');
+        debugPrint('🔐 Session ended: $reason');
       }
       
       return true;
     } catch (e) {
       if (kDebugMode) {
-        print('❌ Failed to end session: $e');
+        debugPrint('❌ Failed to end session: $e');
       }
       return false;
     }
@@ -177,7 +177,7 @@ class SessionManagementService {
     await _saveSessionData();
     
     if (kDebugMode) {
-      print('🔐 Session activity updated');
+      debugPrint('🔐 Session activity updated');
     }
   }
 
@@ -250,7 +250,7 @@ class SessionManagementService {
       );
       
       if (kDebugMode) {
-        print('🔒 Account locked: $userId');
+        debugPrint('🔒 Account locked: $userId');
       }
     } else {
       _logSecurityEvent(
@@ -276,7 +276,7 @@ class SessionManagementService {
     await _saveSessionData();
     
     if (kDebugMode) {
-      print('🔐 Failed login attempts reset');
+      debugPrint('🔐 Failed login attempts reset');
     }
   }
 
@@ -300,7 +300,7 @@ class SessionManagementService {
   /// [reason] - Reason for expiration
   static Future<void> _handleSessionExpiration(String reason) async {
     if (kDebugMode) {
-      print('⏰ Session expired: $reason');
+      debugPrint('⏰ Session expired: $reason');
     }
     
     // Log security event
@@ -383,7 +383,7 @@ class SessionManagementService {
       
     } catch (e) {
       if (kDebugMode) {
-        print('❌ Security check failed: $e');
+        debugPrint('❌ Security check failed: $e');
       }
     }
   }
@@ -441,7 +441,7 @@ class SessionManagementService {
     }
     
     if (kDebugMode) {
-      print('🔐 Security Event [${severity.name.toUpperCase()}]: $message');
+      debugPrint('🔐 Security Event [${severity.name.toUpperCase()}]: $message');
     }
   }
 
@@ -464,7 +464,7 @@ class SessionManagementService {
     _alertController.add(alert);
     
     if (kDebugMode) {
-      print('🚨 Security Alert [${severity.name.toUpperCase()}]: $message');
+      debugPrint('🚨 Security Alert [${severity.name.toUpperCase()}]: $message');
     }
   }
 
@@ -528,7 +528,7 @@ class SessionManagementService {
       await prefs.setString('session_data', jsonEncode(sessionData));
     } catch (e) {
       if (kDebugMode) {
-        print('❌ Failed to save session data: $e');
+        debugPrint('❌ Failed to save session data: $e');
       }
     }
   }
@@ -575,7 +575,7 @@ static Future<void> _loadSessionData() async {
     _isSessionActive = asBool(data['isSessionActive']);
   } catch (e) {
     if (kDebugMode) {
-      print('❌ Failed to load session data: $e');
+      debugPrint('❌ Failed to load session data: $e');
     }
   }
 }

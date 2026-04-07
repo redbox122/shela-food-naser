@@ -294,7 +294,7 @@ class _AllRestaurantsViewState extends State<AllRestaurantsView> {
           // WidgetsBinding.instance.addPostFrameCallback((_) {
           //   Future.delayed(const Duration(milliseconds: 100), () {
           //     if (kDebugMode) {
-          //       print('📡 AllRestaurantsView: Loading stores for "newly_joined" filter (post-frame)');
+          //       debugPrint('📡 AllRestaurantsView: Loading stores for "newly_joined" filter (post-frame)');
           //     }
           //     storeController.getLatestStoreList(false, 'all', false);
           //   });

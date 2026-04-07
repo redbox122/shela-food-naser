@@ -2231,9 +2231,9 @@ class CheckoutScreenState extends State<CheckoutScreen> {
                 debugPrint(
                     '      - perKmShippingCharge: ${moduleData.perKmShippingCharge}');
                 debugPrint(
-                    '      - firstKmFee: ${(moduleData as dynamic).firstKmFee}');
+                    '      - firstKmFee: ${moduleData.firstKmFee}');
                 debugPrint(
-                    '      - firstKmDistance: ${(moduleData as dynamic).firstKmDistance}');
+                    '      - firstKmDistance: ${moduleData.firstKmDistance}');
                 debugPrint(
                     '      - minimumShippingCharge: ${moduleData.minimumShippingCharge}');
                 debugPrint(
@@ -2281,9 +2281,8 @@ class CheckoutScreenState extends State<CheckoutScreen> {
       perKmCharge = pivot.perKmShippingCharge ?? 0.0;
       minimumCharge = pivot.minimumShippingCharge ?? 0.0;
       maximumCharge = pivot.maximumShippingCharge;
-      // Using dynamic cast temporarily until analyzer picks up the new fields
-      firstKmFee = (pivot as dynamic).firstKmFee as double?;
-      firstKmDistance = (pivot as dynamic).firstKmDistance as double?;
+      firstKmFee = pivot.firstKmFee;
+      firstKmDistance = pivot.firstKmDistance;
       chargeSource = 'moduleData (pivot)';
     }
 

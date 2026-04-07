@@ -27,7 +27,7 @@ class BootstrapDataLoader {
   }) async {
     try {
       if (kDebugMode) {
-        print('🚀 BootstrapDataLoader: Starting bootstrap data load');
+        debugPrint('🚀 BootstrapDataLoader: Starting bootstrap data load');
       }
 
       final apiClient = Get.find<ApiClient>();
@@ -41,7 +41,7 @@ class BootstrapDataLoader {
       // Handle bootstrap failure (404, 500, etc.) - null indicates error
       if (bootstrapModel == null) {
         if (kDebugMode) {
-          print(
+          debugPrint(
               '❌ BootstrapDataLoader: Bootstrap endpoint failed (404/500/etc.) - falling back to individual calls');
         }
         return false; // Signal failure - should fallback to individual calls
@@ -56,39 +56,39 @@ class BootstrapDataLoader {
           bootstrapModel.storesPopular == null &&
           !forceRefresh) {
         if (kDebugMode) {
-          print(
+          debugPrint(
               '✅ BootstrapDataLoader: 304 Not Modified - data unchanged, using cached data');
         }
         return true; // Signal success - cached data should be used
       }
 
       if (kDebugMode) {
-        print('✅ BootstrapDataLoader: Bootstrap data received successfully');
-        print(
+        debugPrint('✅ BootstrapDataLoader: Bootstrap data received successfully');
+        debugPrint(
             '   - Business Settings: ${bootstrapModel.businessSettings != null ? "✓" : "✗"}');
-        print('   - Banners: ${bootstrapModel.banners != null ? "✓" : "✗"}');
-        print('   - Categories: ${bootstrapModel.categories?.length ?? 0}');
-        print(
+        debugPrint('   - Banners: ${bootstrapModel.banners != null ? "✓" : "✗"}');
+        debugPrint('   - Categories: ${bootstrapModel.categories?.length ?? 0}');
+        debugPrint(
             '   - Stores Popular: ${bootstrapModel.storesPopular?.stores?.length ?? 0}');
-        print('   - Stores: ${bootstrapModel.stores?.stores?.length ?? 0}');
-        print('   - Brands: ${bootstrapModel.brands?.length ?? 0}');
-        print('   - Offers: ${bootstrapModel.offers?.data.length ?? 0}');
+        debugPrint('   - Stores: ${bootstrapModel.stores?.stores?.length ?? 0}');
+        debugPrint('   - Brands: ${bootstrapModel.brands?.length ?? 0}');
+        debugPrint('   - Offers: ${bootstrapModel.offers?.data.length ?? 0}');
       }
 
       // Distribute data to controllers
       await _distributeDataToControllers(bootstrapModel);
 
       if (kDebugMode) {
-        print(
+        debugPrint(
             '✅ BootstrapDataLoader: Data distributed to controllers successfully');
       }
 
       return true;
     } catch (e, stackTrace) {
       if (kDebugMode) {
-        print('❌ BootstrapDataLoader: Error loading bootstrap data');
-        print('   - Error: $e');
-        print('   - Stack trace: $stackTrace');
+        debugPrint('❌ BootstrapDataLoader: Error loading bootstrap data');
+        debugPrint('   - Error: $e');
+        debugPrint('   - Stack trace: $stackTrace');
       }
       return false;
     }
@@ -105,7 +105,7 @@ class BootstrapDataLoader {
       await _loadSecondarySections(bootstrapModel);
     } catch (e) {
       if (kDebugMode) {
-        print(
+        debugPrint(
             '❌ BootstrapDataLoader: Error distributing data to controllers: $e');
       }
     }
@@ -127,7 +127,7 @@ class BootstrapDataLoader {
       //   homeController
       //       .setBusinessSettingsFromBootstrap(bootstrapModel.businessSettings!);
       //   if (kDebugMode) {
-      //     print('✅ BootstrapDataLoader: Business settings loaded');
+      //     debugPrint('✅ BootstrapDataLoader: Business settings loaded');
       //   }
       // }
 
@@ -137,7 +137,7 @@ class BootstrapDataLoader {
         final bannerController = Get.find<BannerController>();
         bannerController.setBannerDataFromBootstrap(bootstrapModel.banners!);
         if (kDebugMode) {
-          print('✅ BootstrapDataLoader: Banners loaded');
+          debugPrint('✅ BootstrapDataLoader: Banners loaded');
         }
       }
 
@@ -151,12 +151,12 @@ class BootstrapDataLoader {
           categoryController
               .setCategoryDataFromBootstrap(bootstrapModel.categories!);
           if (kDebugMode) {
-            print(
+            debugPrint(
                 '✅ BootstrapDataLoader: Categories loaded (${bootstrapModel.categories!.length})');
           }
         } catch (e) {
           if (kDebugMode) {
-            print('⚠️ BootstrapDataLoader: CategoryController not available: $e');
+            debugPrint('⚠️ BootstrapDataLoader: CategoryController not available: $e');
           }
         }
       }
@@ -170,13 +170,13 @@ class BootstrapDataLoader {
         storeController
             .setPopularStoresFromBootstrap(bootstrapModel.storesPopular!);
         if (kDebugMode) {
-          print(
+          debugPrint(
               '✅ BootstrapDataLoader: Popular stores loaded (${bootstrapModel.storesPopular!.stores!.length})');
         }
       }
     } catch (e) {
       if (kDebugMode) {
-        print('❌ BootstrapDataLoader: Error loading critical sections: $e');
+        debugPrint('❌ BootstrapDataLoader: Error loading critical sections: $e');
       }
     }
   }
@@ -193,7 +193,7 @@ class BootstrapDataLoader {
         final storeController = Get.find<StoreController>();
         storeController.setStoreDataFromBootstrap(bootstrapModel.stores!);
         if (kDebugMode) {
-          print(
+          debugPrint(
               '✅ BootstrapDataLoader: All stores loaded (${bootstrapModel.stores!.stores!.length})');
         }
       }
@@ -206,7 +206,7 @@ class BootstrapDataLoader {
         storeController
             .setLatestStoresFromBootstrap(bootstrapModel.storesLatest!);
         if (kDebugMode) {
-          print(
+          debugPrint(
               '✅ BootstrapDataLoader: Latest stores loaded (${bootstrapModel.storesLatest!.stores!.length})');
         }
       }
@@ -218,7 +218,7 @@ class BootstrapDataLoader {
         final brandsController = Get.find<BrandsController>();
         brandsController.setBrandDataFromBootstrap(bootstrapModel.brands!);
         if (kDebugMode) {
-          print(
+          debugPrint(
               '✅ BootstrapDataLoader: Brands loaded (${bootstrapModel.brands!.length})');
         }
       }
@@ -230,13 +230,13 @@ class BootstrapDataLoader {
         final offersController = Get.find<Offers_Controller>();
         offersController.setOfferDataFromBootstrap(bootstrapModel.offers!);
         if (kDebugMode) {
-          print(
+          debugPrint(
               '✅ BootstrapDataLoader: Offers loaded (${bootstrapModel.offers!.data.length})');
         }
       }
     } catch (e) {
       if (kDebugMode) {
-        print('❌ BootstrapDataLoader: Error loading secondary sections: $e');
+        debugPrint('❌ BootstrapDataLoader: Error loading secondary sections: $e');
       }
     }
   }

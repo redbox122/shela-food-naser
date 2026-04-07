@@ -61,7 +61,7 @@ class CertificatePinningService {
       }
 
       if (kDebugMode) {
-        print(
+        debugPrint(
             '🔒 Certificate Pinning Service initialized for $_currentEnvironment environment');
       }
 
@@ -71,7 +71,7 @@ class CertificatePinningService {
       _lastValidationError = e.toString();
 
       if (kDebugMode) {
-        print('❌ Certificate Pinning Service initialization failed: $e');
+        debugPrint('❌ Certificate Pinning Service initialization failed: $e');
       }
     }
   }
@@ -96,9 +96,9 @@ class CertificatePinningService {
 
       if (allowedFingerprints.isEmpty) {
         if (kDebugMode) {
-          print(
+          debugPrint(
               '⚠️ No certificate fingerprints configured for $_currentEnvironment environment');
-          print(
+          debugPrint(
               '⚠️ Certificate pinning is effectively DISABLED - add fingerprints before production release');
         }
         // Note: Set _certificateFingerprints for production before release.
@@ -109,15 +109,15 @@ class CertificatePinningService {
       final isValid = allowedFingerprints.contains(fingerprint);
 
       if (kDebugMode) {
-        print('🔒 Certificate validation: ${isValid ? 'VALID' : 'INVALID'}');
-        print('🔒 Expected fingerprints: $allowedFingerprints');
-        print('🔒 Actual fingerprint: $fingerprint');
+        debugPrint('🔒 Certificate validation: ${isValid ? 'VALID' : 'INVALID'}');
+        debugPrint('🔒 Expected fingerprints: $allowedFingerprints');
+        debugPrint('🔒 Actual fingerprint: $fingerprint');
       }
 
       return isValid;
     } catch (e) {
       if (kDebugMode) {
-        print('❌ Certificate validation error: $e');
+        debugPrint('❌ Certificate validation error: $e');
       }
       return false;
     }
@@ -160,11 +160,11 @@ class CertificatePinningService {
       dio.options.sendTimeout = const Duration(seconds: 30);
 
       if (kDebugMode) {
-        print('🔒 Dio configured with security headers for $baseUrl');
+        debugPrint('🔒 Dio configured with security headers for $baseUrl');
       }
     } catch (e) {
       if (kDebugMode) {
-        print('❌ Failed to configure Dio with security: $e');
+        debugPrint('❌ Failed to configure Dio with security: $e');
       }
     }
   }
@@ -180,7 +180,7 @@ class CertificatePinningService {
 
       if (certificate == null) {
         if (kDebugMode) {
-          print('❌ No certificate received from $host:$port');
+          debugPrint('❌ No certificate received from $host:$port');
         }
         return false;
       }
@@ -191,7 +191,7 @@ class CertificatePinningService {
       return isValid;
     } catch (e) {
       if (kDebugMode) {
-        print('❌ Failed to validate server certificate for $host:$port: $e');
+        debugPrint('❌ Failed to validate server certificate for $host:$port: $e');
       }
       return false;
     }
@@ -224,7 +224,7 @@ class CertificatePinningService {
       return info;
     } catch (e) {
       if (kDebugMode) {
-        print('❌ Failed to get certificate info for $host:$port: $e');
+        debugPrint('❌ Failed to get certificate info for $host:$port: $e');
       }
       return null;
     }
@@ -240,16 +240,16 @@ class CertificatePinningService {
         _certificateFingerprints[environment] = fingerprints;
 
         if (kDebugMode) {
-          print(
+          debugPrint(
               '🔒 Updated certificate fingerprints for $environment environment');
-          print('🔒 New fingerprints: $fingerprints');
+          debugPrint('🔒 New fingerprints: $fingerprints');
         }
       } else {
         throw Exception('Invalid environment: $environment');
       }
     } catch (e) {
       if (kDebugMode) {
-        print('❌ Failed to update certificate fingerprints: $e');
+        debugPrint('❌ Failed to update certificate fingerprints: $e');
       }
     }
   }
@@ -277,14 +277,14 @@ class CertificatePinningService {
       final isValid = await validateServerCertificate(uri.host, uri.port);
 
       if (kDebugMode) {
-        print(
+        debugPrint(
             '🧪 Certificate pinning test for $testUrl: ${isValid ? 'PASSED' : 'FAILED'}');
       }
 
       return isValid;
     } catch (e) {
       if (kDebugMode) {
-        print('❌ Certificate pinning test failed: $e');
+        debugPrint('❌ Certificate pinning test failed: $e');
       }
       return false;
     }

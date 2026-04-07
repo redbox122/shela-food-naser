@@ -38,12 +38,12 @@ class AppIntegrityChecker {
       _isInitialized = true;
       
       if (kDebugMode) {
-        print('🔐 App Integrity Checker initialized');
-        print('🔐 Integrity status: $_integrityChecks');
+        debugPrint('🔐 App Integrity Checker initialized');
+        debugPrint('🔐 Integrity status: $_integrityChecks');
       }
     } catch (e) {
       if (kDebugMode) {
-        print('❌ Error initializing integrity checker: $e');
+        debugPrint('❌ Error initializing integrity checker: $e');
       }
     }
   }
@@ -59,7 +59,7 @@ class AppIntegrityChecker {
       return Map.from(_integrityChecks);
     } catch (e) {
       if (kDebugMode) {
-        print('❌ Error performing integrity checks: $e');
+        debugPrint('❌ Error performing integrity checks: $e');
       }
       return {};
     }
@@ -76,7 +76,7 @@ class AppIntegrityChecker {
       return false;
     } catch (e) {
       if (kDebugMode) {
-        print('❌ Error checking root status: $e');
+        debugPrint('❌ Error checking root status: $e');
       }
       return true; // Assume rooted if check fails
     }
@@ -93,7 +93,7 @@ class AppIntegrityChecker {
       return false;
     } catch (e) {
       if (kDebugMode) {
-        print('❌ Error checking emulator status: $e');
+        debugPrint('❌ Error checking emulator status: $e');
       }
       return true; // Assume emulator if check fails
     }
@@ -267,7 +267,7 @@ class AppIntegrityChecker {
       );
     } catch (e) {
       if (kDebugMode) {
-        print('❌ Error saving integrity status: $e');
+        debugPrint('❌ Error saving integrity status: $e');
       }
     }
   }
@@ -289,14 +289,14 @@ class AppIntegrityChecker {
       final status = await getIntegrityStatus();
       
       if (kDebugMode) {
-        print('🔐 Integrity checker test completed');
-        print('🔐 Status: $status');
+        debugPrint('🔐 Integrity checker test completed');
+        debugPrint('🔐 Status: $status');
       }
       
       return status;
     } catch (e) {
       if (kDebugMode) {
-        print('❌ Integrity checker test failed: $e');
+        debugPrint('❌ Integrity checker test failed: $e');
       }
       return {'error': e.toString()};
     }

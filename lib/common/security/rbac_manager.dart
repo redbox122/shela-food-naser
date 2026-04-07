@@ -193,13 +193,13 @@ class RBACManager {
       await _loadUserPermissions();
 
       if (kDebugMode) {
-        print('🔐 RBAC Manager initialized');
-        print('🔐 Current role: $_currentUserRole');
-        print('🔐 Permissions loaded: ${_userPermissions.length}');
+        debugPrint('🔐 RBAC Manager initialized');
+        debugPrint('🔐 Current role: $_currentUserRole');
+        debugPrint('🔐 Permissions loaded: ${_userPermissions.length}');
       }
     } catch (e) {
       if (kDebugMode) {
-        print('❌ Error initializing RBAC: $e');
+        debugPrint('❌ Error initializing RBAC: $e');
       }
       // Set default guest role
       _currentUserRole = UserRole.guest;
@@ -231,14 +231,14 @@ class RBACManager {
       );
 
       if (kDebugMode) {
-        print('🔐 User role set to: $role');
-        print('🔐 Permissions updated: ${_userPermissions.length}');
+        debugPrint('🔐 User role set to: $role');
+        debugPrint('🔐 Permissions updated: ${_userPermissions.length}');
       }
 
       return true;
     } catch (e) {
       if (kDebugMode) {
-        print('❌ Error setting user role: $e');
+        debugPrint('❌ Error setting user role: $e');
       }
       return false;
     }
@@ -259,7 +259,7 @@ class RBACManager {
       return _comparePermissionLevels(userLevel, requiredLevel) >= 0;
     } catch (e) {
       if (kDebugMode) {
-        print('❌ Error checking permission: $e');
+        debugPrint('❌ Error checking permission: $e');
       }
       return false;
     }
@@ -316,7 +316,7 @@ class RBACManager {
       // Check if current role allows granting permissions
       if (!isAdmin()) {
         if (kDebugMode) {
-          print('❌ Insufficient permissions to grant access');
+          debugPrint('❌ Insufficient permissions to grant access');
         }
         return false;
       }
@@ -337,13 +337,13 @@ class RBACManager {
       );
 
       if (kDebugMode) {
-        print('🔐 Permission granted: $feature -> $level');
+        debugPrint('🔐 Permission granted: $feature -> $level');
       }
 
       return true;
     } catch (e) {
       if (kDebugMode) {
-        print('❌ Error granting permission: $e');
+        debugPrint('❌ Error granting permission: $e');
       }
       return false;
     }
@@ -355,7 +355,7 @@ class RBACManager {
       // Check if current role allows revoking permissions
       if (!isAdmin()) {
         if (kDebugMode) {
-          print('❌ Insufficient permissions to revoke access');
+          debugPrint('❌ Insufficient permissions to revoke access');
         }
         return false;
       }
@@ -376,13 +376,13 @@ class RBACManager {
       );
 
       if (kDebugMode) {
-        print('🔐 Permission revoked: $feature');
+        debugPrint('🔐 Permission revoked: $feature');
       }
 
       return true;
     } catch (e) {
       if (kDebugMode) {
-        print('❌ Error revoking permission: $e');
+        debugPrint('❌ Error revoking permission: $e');
       }
       return false;
     }
@@ -420,7 +420,7 @@ class RBACManager {
           .toList();
     } catch (e) {
       if (kDebugMode) {
-        print('❌ Error getting audit log: $e');
+        debugPrint('❌ Error getting audit log: $e');
       }
       return [];
     }
@@ -434,13 +434,13 @@ class RBACManager {
       await _secureStorage.delete(key: _auditLogKey);
 
       if (kDebugMode) {
-        print('🔐 Audit log cleared');
+        debugPrint('🔐 Audit log cleared');
       }
 
       return true;
     } catch (e) {
       if (kDebugMode) {
-        print('❌ Error clearing audit log: $e');
+        debugPrint('❌ Error clearing audit log: $e');
       }
       return false;
     }
@@ -582,7 +582,7 @@ class RBACManager {
       );
     } catch (e) {
       if (kDebugMode) {
-        print('❌ Error logging audit event: $e');
+        debugPrint('❌ Error logging audit event: $e');
       }
     }
   }

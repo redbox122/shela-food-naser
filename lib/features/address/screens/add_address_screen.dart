@@ -1481,7 +1481,7 @@ class _AddAddressScreenState extends State<AddAddressScreen> {
         AddressModel? addressModel;
         try {
           addressModel = Get.find<AddressController>().addressList![0];
-        } catch (_) {}
+        } catch (e) { if (kDebugMode) debugPrint('$e'); }
         Get.back(result: addressModel);
         showCustomSnackBar(response.message, isError: false);
       } else if (widget.fromRide) {

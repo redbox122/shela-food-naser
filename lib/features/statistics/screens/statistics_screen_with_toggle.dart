@@ -1,4 +1,3 @@
-// ignore_for_file: avoid_print, avoid_dynamic_calls, avoid_unnecessary_containers
 
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -1987,11 +1986,11 @@ class StatisticsScreenWithToggleState extends State<StatisticsScreenWithToggle>
 
   // Qidha Wallet Salary Day & Due Payments Overview
   Widget _buildQidhaSalaryDayOverview(QidhaWalletController controller) {
-    print(
+    debugPrint(
         '🔍 Salary Day Widget - isLoadingAnalytics: ${controller.isLoadingAnalytics}');
-    print(
+    debugPrint(
         '🔍 Salary Day Widget - analyticsSummary: ${controller.analyticsSummary != null}');
-    print(
+    debugPrint(
         '🔍 Salary Day Widget - salaryDayInfo: ${controller.analyticsSummary?.salaryDayInfo != null}');
 
     if (controller.isLoadingAnalytics) {
@@ -2002,7 +2001,7 @@ class StatisticsScreenWithToggleState extends State<StatisticsScreenWithToggle>
     }
 
     if (controller.analyticsSummary?.salaryDayInfo == null) {
-      print(
+      debugPrint(
           '🔍 Salary Day Widget - Hiding widget because salaryDayInfo is null');
       return const SizedBox.shrink();
     }

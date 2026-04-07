@@ -43,7 +43,7 @@ class HomeController extends GetxController implements GetxService {
     super.onInit();
 
     if (kDebugMode) {
-      print('🏠 HomeController.onInit() - Setting up reactive workers');
+      debugPrint('🏠 HomeController.onInit() - Setting up reactive workers');
     }
 
     // 🔧 FIX 2: Worker 1 - إعادة التحميل فور تغير الموديول (مطاعم، متاجر، إلخ)
@@ -55,7 +55,7 @@ class HomeController extends GetxController implements GetxService {
         // 🛡️ Guard 1: Skip if module is null
         if (module == null) {
           if (kDebugMode) {
-            print('⏭️ HomeController: Module is null - skipping reload');
+            debugPrint('⏭️ HomeController: Module is null - skipping reload');
           }
           return;
         }
@@ -64,7 +64,7 @@ class HomeController extends GetxController implements GetxService {
         // This is the KEY fix for Cold Start Loop
         if (_lastLoadedModuleId != null && _lastLoadedModuleId == module.id) {
           if (kDebugMode) {
-            print(
+            debugPrint(
                 '⏭️ HomeController: Same module (${module.id}) - skipping reload (Loop Prevention)');
           }
           return;
@@ -73,7 +73,7 @@ class HomeController extends GetxController implements GetxService {
         // 🛡️ Guard 3: For first load, only proceed if module has valid ID
         if (!_hasInitialLoadCompleted && module.id == null) {
           if (kDebugMode) {
-            print(
+            debugPrint(
                 '⏭️ HomeController: First load but module.id is null - skipping');
           }
           return;
@@ -85,7 +85,7 @@ class HomeController extends GetxController implements GetxService {
         _hasInitialLoadCompleted = true;
 
         if (kDebugMode) {
-          print(
+          debugPrint(
               '🔄 HomeController: Module changed from $previousModuleId to ${module.id} (${module.moduleName}) - reloading home data');
         }
 
@@ -101,7 +101,7 @@ class HomeController extends GetxController implements GetxService {
     // LocationController will call this method when zone changes
 
     if (kDebugMode) {
-      print('✅ HomeController.onInit() completed - Workers registered');
+      debugPrint('✅ HomeController.onInit() completed - Workers registered');
     }
 
     // Fallback: use cached business settings from SplashController if available
@@ -111,7 +111,7 @@ class HomeController extends GetxController implements GetxService {
         setBusinessSettingsFromAppInit(
             splashController.cachedBusinessSettings!);
         if (kDebugMode) {
-          print(
+          debugPrint(
               '✅ HomeController: Business settings restored from SplashController cache');
         }
       }
@@ -123,7 +123,7 @@ class HomeController extends GetxController implements GetxService {
   void reloadOnZoneChange(int newZoneId) {
     if (newZoneId == 0) {
       if (kDebugMode) {
-        print('⏭️ HomeController: ZoneID is 0 - skipping reload');
+        debugPrint('⏭️ HomeController: ZoneID is 0 - skipping reload');
       }
       return;
     }
@@ -131,7 +131,7 @@ class HomeController extends GetxController implements GetxService {
     // Prevent duplicate loads for the same zone
     if (_lastLoadedZoneId == newZoneId) {
       if (kDebugMode) {
-        print('⏭️ HomeController: Same zone ($newZoneId) - skipping reload');
+        debugPrint('⏭️ HomeController: Same zone ($newZoneId) - skipping reload');
       }
       return;
     }
@@ -139,7 +139,7 @@ class HomeController extends GetxController implements GetxService {
     _lastLoadedZoneId = newZoneId;
 
     if (kDebugMode) {
-      print(
+      debugPrint(
           '🔄 HomeController: Zone changed to $newZoneId - reloading home data');
     }
 
@@ -176,12 +176,12 @@ class HomeController extends GetxController implements GetxService {
       );
 
       if (kDebugMode) {
-        print(
+        debugPrint(
             '✅ HomeController: ApiClient headers updated (moduleId: $moduleId, zoneIds: ${address?.zoneIds})');
       }
     } catch (e) {
       if (kDebugMode) {
-        print('⚠️ HomeController: Error updating ApiClient headers - $e');
+        debugPrint('⚠️ HomeController: Error updating ApiClient headers - $e');
       }
     }
   }
@@ -195,7 +195,7 @@ class HomeController extends GetxController implements GetxService {
     if (_dataSource != source) {
       _dataSource = source;
       if (kDebugMode) {
-        print('🔄 HomeController: Data source changed to ${source.name}');
+        debugPrint('🔄 HomeController: Data source changed to ${source.name}');
       }
     }
   }
@@ -229,7 +229,7 @@ class HomeController extends GetxController implements GetxService {
   void setBusinessSettingsFromBootstrap(BusinessSettingsModel settings) {
     if (_business_Settings != null) {
       if (kDebugMode) {
-        print(
+        debugPrint(
             '⚠️ HomeController: Ignoring bootstrap settings - existing settings preserved');
       }
       return;
@@ -237,7 +237,7 @@ class HomeController extends GetxController implements GetxService {
     _business_Settings = settings;
     update();
     if (kDebugMode) {
-      print('✅ HomeController: Business settings set from bootstrap');
+      debugPrint('✅ HomeController: Business settings set from bootstrap');
     }
   }
 
@@ -247,7 +247,7 @@ class HomeController extends GetxController implements GetxService {
     _business_Settings = _convertAppInitBusinessSettings(appInitSettings);
     update();
     if (kDebugMode) {
-      print('✅ HomeController: Business settings set from app-init');
+      debugPrint('✅ HomeController: Business settings set from app-init');
     }
   }
 
@@ -334,7 +334,7 @@ class HomeController extends GetxController implements GetxService {
   }) async {
     if (_isHomeDataLoading) {
       if (kDebugMode) {
-        print(
+        debugPrint(
             '⏭️ HomeController: loadHomeData skipped - request already in progress');
       }
       return;
@@ -345,7 +345,7 @@ class HomeController extends GetxController implements GetxService {
         _lastHomeDataLoadAt != null &&
         now.difference(_lastHomeDataLoadAt!) < _homeDataLoadThrottle) {
       if (kDebugMode) {
-        print(
+        debugPrint(
             '⏭️ HomeController: loadHomeData throttled (${now.difference(_lastHomeDataLoadAt!).inMilliseconds}ms since last call)');
       }
       return;
@@ -354,7 +354,7 @@ class HomeController extends GetxController implements GetxService {
     _isHomeDataLoading = true;
     _lastHomeDataLoadAt = now;
     if (kDebugMode) {
-      print(
+      debugPrint(
           '🏠 HomeController: loadHomeData called (forcePartial: $forcePartial, forceRefresh: $forceRefresh)');
     }
 
@@ -401,12 +401,12 @@ class HomeController extends GetxController implements GetxService {
 
       if (shouldUsePartial) {
         if (kDebugMode) {
-          print('📡 HomeController: Using partial endpoints (fallback mode)');
+          debugPrint('📡 HomeController: Using partial endpoints (fallback mode)');
         }
         await _loadPartialHome(forceRefresh);
       } else {
         if (kDebugMode) {
-          print('⚡ HomeController: Attempting unified endpoint first');
+          debugPrint('⚡ HomeController: Attempting unified endpoint first');
         }
         final success = await _loadUnifiedHome(forceRefresh);
         if (!success) {
@@ -428,14 +428,14 @@ class HomeController extends GetxController implements GetxService {
               headerBlocked ||
               (_isUnifiedModeEnabled && !recoverableFailure)) {
             if (kDebugMode) {
-              print(
+              debugPrint(
                   '🛡️ HomeController: Unified failure - partial fallback blocked');
-              print(
+              debugPrint(
                   '   → isFood=$isFoodModule, headerBlocked=$headerBlocked, status=$statusCode, error=$errorCode');
             }
           } else {
             if (kDebugMode) {
-              print(
+              debugPrint(
                   '⚠️ HomeController: Unified endpoint failed (status=$statusCode), partial fallback allowed once');
             }
             await _loadPartialHome(forceRefresh);
@@ -475,7 +475,7 @@ class HomeController extends GetxController implements GetxService {
         final splashController = Get.find<SplashController>();
         if (!splashController.hasConnection) {
           if (kDebugMode) {
-            print(
+            debugPrint(
                 '⚠️ HomeController: Unified fetch skipped - device appears offline');
           }
           return false;
@@ -497,7 +497,7 @@ class HomeController extends GetxController implements GetxService {
       // Check if HomeUnifiedController is registered
       if (!Get.isRegistered<HomeUnifiedController>()) {
         if (kDebugMode) {
-          print(
+          debugPrint(
               '⚠️ HomeController: HomeUnifiedController not registered, cannot use unified endpoint');
         }
         return false;
@@ -523,7 +523,7 @@ class HomeController extends GetxController implements GetxService {
 
       if (isUnifiedSuccess) {
         if (kDebugMode) {
-          print('✅ HomeController: Unified considered successful '
+          debugPrint('✅ HomeController: Unified considered successful '
               '(success=$effectiveSuccess, rawSuccess=$success, status=$statusCode, hasData=$hasUsableUnifiedData)');
         }
         _dataSource = HomeDataSource.unified;
@@ -531,14 +531,14 @@ class HomeController extends GetxController implements GetxService {
       }
 
       if (kDebugMode) {
-        print('⚠️ HomeController: Unified considered failed '
+        debugPrint('⚠️ HomeController: Unified considered failed '
             '(success=$success, status=$statusCode, error=$errorCode, hasData=$hasUsableUnifiedData, connectivityFailure=$isConnectivityFailure)');
       }
 
       return false;
     } catch (e) {
       if (kDebugMode) {
-        print('❌ HomeController: Error loading from unified endpoint - $e');
+        debugPrint('❌ HomeController: Error loading from unified endpoint - $e');
       }
       return false;
     }
@@ -552,7 +552,7 @@ class HomeController extends GetxController implements GetxService {
     try {
       if (_isUnifiedModeEnabled) {
         if (kDebugMode) {
-          print(
+          debugPrint(
               '🛡️ HomeController: Unified-only mode enabled - skipping partial endpoints');
         }
         return;
@@ -572,7 +572,7 @@ class HomeController extends GetxController implements GetxService {
       );
 
       if (kDebugMode) {
-        print('📡 HomeController: Loading from partial endpoints');
+        debugPrint('📡 HomeController: Loading from partial endpoints');
       }
 
       _dataSource = HomeDataSource.partial;
@@ -587,7 +587,7 @@ class HomeController extends GetxController implements GetxService {
               .getCategoryList(forceRefresh, expectedModuleId: moduleId)
               .catchError((dynamic e) {
             if (kDebugMode) {
-              print('⚠️ HomeController: Error loading categories - $e');
+              debugPrint('⚠️ HomeController: Error loading categories - $e');
             }
             return <CategoryModel>[];
           }),
@@ -601,7 +601,7 @@ class HomeController extends GetxController implements GetxService {
               .getStoreList(1, forceRefresh)
               .catchError((dynamic e) {
             if (kDebugMode) {
-              print('⚠️ HomeController: Error loading stores - $e');
+              debugPrint('⚠️ HomeController: Error loading stores - $e');
             }
             return StoreModel(stores: [], totalSize: 0, offset: 1, limit: '12');
           }),
@@ -615,7 +615,7 @@ class HomeController extends GetxController implements GetxService {
               .getBannerList(forceRefresh)
               .catchError((dynamic e) {
             if (kDebugMode) {
-              print('⚠️ HomeController: Error loading banners - $e');
+              debugPrint('⚠️ HomeController: Error loading banners - $e');
             }
             return BannerModel(banners: [], campaigns: []);
           }),
@@ -626,11 +626,11 @@ class HomeController extends GetxController implements GetxService {
       await Future.wait(futures);
 
       if (kDebugMode) {
-        print('✅ HomeController: Partial endpoints loaded successfully');
+        debugPrint('✅ HomeController: Partial endpoints loaded successfully');
       }
     } catch (e) {
       if (kDebugMode) {
-        print('❌ HomeController: Error loading from partial endpoints - $e');
+        debugPrint('❌ HomeController: Error loading from partial endpoints - $e');
       }
       rethrow;
     }

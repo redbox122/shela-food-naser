@@ -43,7 +43,7 @@ class SilentSyncService {
     });
     
     if (kDebugMode) {
-      print('🔄 SilentSyncService: Started periodic sync (every ${_syncInterval.inMinutes} minutes)');
+      debugPrint('🔄 SilentSyncService: Started periodic sync (every ${_syncInterval.inMinutes} minutes)');
     }
   }
 
@@ -53,7 +53,7 @@ class SilentSyncService {
     _syncTimer = null;
     
     if (kDebugMode) {
-      print('🛑 SilentSyncService: Stopped periodic sync');
+      debugPrint('🛑 SilentSyncService: Stopped periodic sync');
     }
   }
 
@@ -67,11 +67,11 @@ class SilentSyncService {
       _cachedStoreIds.add(storeId);
       
       if (kDebugMode) {
-        print('💾 SilentSyncService: Saved hash for store $storeId: ${versionHash.safeSubstring(10)}');
+        debugPrint('💾 SilentSyncService: Saved hash for store $storeId: ${versionHash.safeSubstring(10)}');
       }
     } catch (e) {
       if (kDebugMode) {
-        print('❌ SilentSyncService: Error saving hash: $e');
+        debugPrint('❌ SilentSyncService: Error saving hash: $e');
       }
     }
   }
@@ -83,7 +83,7 @@ class SilentSyncService {
       return prefs.getString('$_hashPrefix$storeId');
     } catch (e) {
       if (kDebugMode) {
-        print('❌ SilentSyncService: Error getting stored hash: $e');
+        debugPrint('❌ SilentSyncService: Error getting stored hash: $e');
       }
       return null;
     }
@@ -97,11 +97,11 @@ class SilentSyncService {
       _cachedStoreIds.remove(storeId);
       
       if (kDebugMode) {
-        print('🗑️ SilentSyncService: Deleted hash for store $storeId');
+        debugPrint('🗑️ SilentSyncService: Deleted hash for store $storeId');
       }
     } catch (e) {
       if (kDebugMode) {
-        print('❌ SilentSyncService: Error deleting hash: $e');
+        debugPrint('❌ SilentSyncService: Error deleting hash: $e');
       }
     }
   }
@@ -137,13 +137,13 @@ class SilentSyncService {
   static Future<void> syncAllStoreHashes() async {
     if (_cachedStoreIds.isEmpty) {
       if (kDebugMode) {
-        print('🔄 SilentSyncService: No cached stores to sync');
+        debugPrint('🔄 SilentSyncService: No cached stores to sync');
       }
       return;
     }
     
     if (kDebugMode) {
-      print('🔄 SilentSyncService: Syncing ${_cachedStoreIds.length} store hashes...');
+      debugPrint('🔄 SilentSyncService: Syncing ${_cachedStoreIds.length} store hashes...');
     }
     
     final changedStoreIds = <int>[];
@@ -161,20 +161,20 @@ class SilentSyncService {
         }
       } catch (e) {
         if (kDebugMode) {
-          print('⚠️ SilentSyncService: Error syncing store $storeId: $e');
+          debugPrint('⚠️ SilentSyncService: Error syncing store $storeId: $e');
         }
       }
     }
     
     if (changedStoreIds.isNotEmpty) {
       if (kDebugMode) {
-        print('⚠️ SilentSyncService: ${changedStoreIds.length} stores have pricing changes');
+        debugPrint('⚠️ SilentSyncService: ${changedStoreIds.length} stores have pricing changes');
       }
       // Notify listeners about pricing changes
       _notifyPricingChanges(changedStoreIds);
     } else {
       if (kDebugMode) {
-        print('✅ SilentSyncService: All store prices are up to date');
+        debugPrint('✅ SilentSyncService: All store prices are up to date');
       }
     }
   }
@@ -208,7 +208,7 @@ class SilentSyncService {
       return null;
     } catch (e) {
       if (kDebugMode) {
-        print('❌ SilentSyncService: Error fetching hash for store $storeId: $e');
+        debugPrint('❌ SilentSyncService: Error fetching hash for store $storeId: $e');
       }
       return null;
     }
@@ -218,7 +218,7 @@ class SilentSyncService {
   static void _notifyPricingChanges(List<int> storeIds) {
     // This can be expanded to show inline banner, update UI, etc.
     if (kDebugMode) {
-      print('📢 SilentSyncService: Pricing changed for stores: $storeIds');
+      debugPrint('📢 SilentSyncService: Pricing changed for stores: $storeIds');
     }
     
     // Note: Implement notification mechanism
@@ -241,7 +241,7 @@ class SilentSyncService {
       
       if (hasChanged) {
         if (kDebugMode) {
-          print('⚠️ SilentSyncService: Store ${store.id} pricing changed before checkout!');
+          debugPrint('⚠️ SilentSyncService: Store ${store.id} pricing changed before checkout!');
         }
         // Update stored hash
         await saveStoreHash(store.id!, currentHash);
@@ -251,7 +251,7 @@ class SilentSyncService {
       return true; // Pricing is current
     } catch (e) {
       if (kDebugMode) {
-        print('⚠️ SilentSyncService: Error validating store for checkout: $e');
+        debugPrint('⚠️ SilentSyncService: Error validating store for checkout: $e');
       }
       return true; // Error - proceed anyway
     }
@@ -272,11 +272,11 @@ class SilentSyncService {
       _cachedStoreIds.clear();
       
       if (kDebugMode) {
-        print('🗑️ SilentSyncService: Cleared all stored hashes');
+        debugPrint('🗑️ SilentSyncService: Cleared all stored hashes');
       }
     } catch (e) {
       if (kDebugMode) {
-        print('❌ SilentSyncService: Error clearing hashes: $e');
+        debugPrint('❌ SilentSyncService: Error clearing hashes: $e');
       }
     }
   }

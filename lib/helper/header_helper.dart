@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sixam_mart/features/address/domain/models/address_model.dart';
@@ -15,7 +16,9 @@ class HeaderHelper {
         addressModel = AddressModel.fromJson(
             jsonDecode(rawAddress) as Map<String, dynamic>);
       }
-    } catch (_) {}
+    } catch (e) {
+      if (kDebugMode) debugPrint('$e');
+    }
 
     // ❌ IMPORTANT: Do NOT include moduleId for featured content
     // Featured banners/items are cross-module and should not be filtered by module

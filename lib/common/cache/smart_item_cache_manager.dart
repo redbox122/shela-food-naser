@@ -1,6 +1,5 @@
-// ignore_for_file: avoid_print
-
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
 import 'package:sixam_mart/api/local_client.dart';
 import 'package:sixam_mart/common/enums/data_source_enum.dart';
@@ -12,7 +11,6 @@ import 'package:sixam_mart/features/splash/controllers/splash_controller.dart';
 /// Provides unified caching for all item lists with intelligent preloading
 /// and cache management strategies.
 class SmartItemCacheManager {
-
   /// Cache key patterns for different item types
   static const Map<String, String> _cacheKeyPatterns = {
     'brand_items': 'brand_items_{brandId}_{offset}_{moduleId}',
@@ -43,16 +41,16 @@ class SmartItemCacheManager {
       try {
         final itemModel = ItemModel.fromJson(
             jsonDecode(cacheResponseData) as Map<String, dynamic>);
-        print('🎯 $itemType Cache HIT: ${_formatParameters(parameters)}');
+        debugPrint('🎯 $itemType Cache HIT: ${_formatParameters(parameters)}');
         return itemModel;
       } catch (e) {
-        print('❌ $itemType Cache corrupted, fetching from API: $e');
+        debugPrint('❌ $itemType Cache corrupted, fetching from API: $e');
         // If cache is corrupted, continue to API call
       }
     }
 
     // If not cached or corrupted, fetch from API
-    print(
+    debugPrint(
         '🌐 $itemType Cache MISS, calling API: ${_formatParameters(parameters)}');
     final itemModel = await apiCall();
 
@@ -60,7 +58,7 @@ class SmartItemCacheManager {
       // Cache the response
       await LocalClient.organize(DataSourceEnum.client, cacheKey,
           jsonEncode(itemModel.toJson()), null);
-      print(
+      debugPrint(
           '💾 $itemType cached: ${_formatParameters(parameters)}, items=${itemModel.items?.length ?? 0}');
     }
 
@@ -71,7 +69,7 @@ class SmartItemCacheManager {
   static Future<void> preloadPopularSections() async {
     final moduleId = Get.find<SplashController>().module?.id ?? 0;
 
-    print('🚀 Starting preload of popular sections...');
+    debugPrint('🚀 Starting preload of popular sections...');
 
     // Preload popular items for different types
     final preloadTasks = <Future<void>>[];
@@ -89,14 +87,14 @@ class SmartItemCacheManager {
         'discounted_items', {'type': 'all', 'moduleId': moduleId}));
 
     await Future.wait(preloadTasks);
-    print('✅ Popular sections preloaded successfully');
+    debugPrint('✅ Popular sections preloaded successfully');
   }
 
   /// Preload first 6 items for specific brand
   static Future<void> preloadBrandItems(int brandId) async {
     final moduleId = Get.find<SplashController>().module?.id ?? 0;
 
-    print('🚀 Preloading brand items for brandId: $brandId');
+    debugPrint('🚀 Preloading brand items for brandId: $brandId');
 
     // Preload first page (6 items)
     await _preloadItemType('brand_items', {
@@ -105,14 +103,14 @@ class SmartItemCacheManager {
       'moduleId': moduleId,
     });
 
-    print('✅ Brand items preloaded for brandId: $brandId');
+    debugPrint('✅ Brand items preloaded for brandId: $brandId');
   }
 
   /// Preload first 6 items for specific category
   static Future<void> preloadCategoryItems(int categoryId, String type) async {
     final moduleId = Get.find<SplashController>().module?.id ?? 0;
 
-    print(
+    debugPrint(
         '🚀 Preloading category items for categoryId: $categoryId, type: $type');
 
     // Preload first page (6 items)
@@ -123,7 +121,7 @@ class SmartItemCacheManager {
       'moduleId': moduleId,
     });
 
-    print('✅ Category items preloaded for categoryId: $categoryId');
+    debugPrint('✅ Category items preloaded for categoryId: $categoryId');
   }
 
   /// Preload first 6 items for specific store
@@ -131,7 +129,7 @@ class SmartItemCacheManager {
       {int? categoryId, String type = 'all'}) async {
     final moduleId = Get.find<SplashController>().module?.id ?? 0;
 
-    print(
+    debugPrint(
         '🚀 Preloading store items for storeId: $storeId, categoryId: $categoryId, type: $type');
 
     // Preload first page (6 items)
@@ -143,7 +141,7 @@ class SmartItemCacheManager {
       'moduleId': moduleId,
     });
 
-    print('✅ Store items preloaded for storeId: $storeId');
+    debugPrint('✅ Store items preloaded for storeId: $storeId');
   }
 
   /// Clear cache for specific item type
@@ -151,15 +149,16 @@ class SmartItemCacheManager {
       String itemType, Map<String, dynamic> parameters) async {
     final cacheKey = _buildCacheKey(itemType, parameters);
     await LocalClient.organize(DataSourceEnum.local, cacheKey, null, null);
-    print('🗑️ Cache cleared for $itemType: ${_formatParameters(parameters)}');
+    debugPrint(
+        '🗑️ Cache cleared for $itemType: ${_formatParameters(parameters)}');
   }
 
   /// Clear all item caches
   static Future<void> clearAllItemCaches() async {
-    print('🗑️ Clearing all item caches...');
+    debugPrint('🗑️ Clearing all item caches...');
     // This would need to be implemented based on your LocalClient implementation
     // For now, we'll just log it
-    print('✅ All item caches cleared');
+    debugPrint('✅ All item caches cleared');
   }
 
   /// Build cache key from pattern and parameters
@@ -185,17 +184,18 @@ class SmartItemCacheManager {
     try {
       // This is a placeholder - in real implementation, you'd call the actual API
       // For now, we'll just simulate the preload
-      print('🔄 Preloading $itemType: ${_formatParameters(parameters)}');
+      debugPrint('🔄 Preloading $itemType: ${_formatParameters(parameters)}');
 
       // In real implementation, you would:
       // 1. Call the appropriate API method
       // 2. Cache the result with longer duration
       // 3. Handle errors gracefully
 
-      await Future<void>.delayed(const Duration(milliseconds: 100)); // Simulate API call
-      print('✅ Preloaded $itemType: ${_formatParameters(parameters)}');
+      await Future<void>.delayed(
+          const Duration(milliseconds: 100)); // Simulate API call
+      debugPrint('✅ Preloaded $itemType: ${_formatParameters(parameters)}');
     } catch (e) {
-      print('❌ Failed to preload $itemType: $e');
+      debugPrint('❌ Failed to preload $itemType: $e');
     }
   }
 }

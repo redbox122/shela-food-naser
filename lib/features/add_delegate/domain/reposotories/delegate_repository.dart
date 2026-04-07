@@ -1,4 +1,4 @@
-﻿// ignore_for_file: file_names, non_constant_identifier_names, avoid_print, use_build_context_synchronously, depend_on_referenced_packages, annotate_overrides, unused_local_variable, empty_catches
+﻿// ignore_for_file: file_names, non_constant_identifier_names, use_build_context_synchronously, depend_on_referenced_packages, annotate_overrides, unused_local_variable, empty_catches
 
 import 'dart:convert';
 import 'package:flutter/material.dart';
@@ -19,7 +19,7 @@ class DelegateRepository implements DelegateRepositoryInterface {
   @override
   Future<DelegateModel?> getDelegate() async {
     if (apiClient.token == null || apiClient.token!.isEmpty) {
-      print('⚠️ لا يوجد توكن. لن يتم تنفيذ طلب المندوب.');
+      debugPrint('⚠️ لا يوجد توكن. لن يتم تنفيذ طلب المندوب.');
       return null;
     }
 
@@ -42,16 +42,16 @@ class DelegateRepository implements DelegateRepositoryInterface {
         final Map<String, dynamic> decoded = json.decode(responseBody) as Map<String, dynamic>;
 
         delegateModel = DelegateModel.fromJson(decoded);
-        print('✅ مندوب: $responseBody');
+        debugPrint('✅ مندوب: $responseBody');
 
         return delegateModel;
       } else if (response.statusCode == 404) {
         return null;
       } else {
-        print('❌ فشل في استرجاع بيانات المندوب. كود: ${response.statusCode}');
+        debugPrint('❌ فشل في استرجاع بيانات المندوب. كود: ${response.statusCode}');
       }
     } catch (e) {
-      print('❌ خطأ أثناء استرجاع بيانات المندوب: $e');
+      debugPrint('❌ خطأ أثناء استرجاع بيانات المندوب: $e');
     }
 
     return delegateModel;
@@ -67,7 +67,7 @@ class DelegateRepository implements DelegateRepositoryInterface {
     List<NamedFile> list_img,
   ) async {
     if (apiClient.token == null || apiClient.token!.isEmpty) {
-      print('⚠️ لا يوجد توكن.');
+      debugPrint('⚠️ لا يوجد توكن.');
       return false;
     }
 
@@ -118,13 +118,13 @@ class DelegateRepository implements DelegateRepositoryInterface {
     final String responseBody = await response.stream.bytesToString();
 
     if (response.statusCode == 200 || response.statusCode == 201) {
-      print('✅ تم الإرسال بنجاح');
+      debugPrint('✅ تم الإرسال بنجاح');
       showCustomSnackBar('تم الإرسال بنجاح', isError: false);
       return true;
     }
 
-    print('❌ فشل في الإرسال: ${response.statusCode}');
-    print(responseBody);
+    debugPrint('❌ فشل في الإرسال: ${response.statusCode}');
+    debugPrint(responseBody);
 
     if (response.statusCode == 404) {
       showCustomSnackBar('الخدمة غير متاحة حالياً: مسار إرسال المندوب غير موجود على الخادم (404).');
@@ -141,7 +141,7 @@ class DelegateRepository implements DelegateRepositoryInterface {
         showCustomSnackBar('فشل في الإرسال، حاول مرة أخرى في وقت لاحق');
       }
     } catch (e) {
-      print('❌ خطأ في فك الرد: $e');
+      debugPrint('❌ خطأ في فك الرد: $e');
       showCustomSnackBar('فشل في الإرسال، حاول مرة أخرى في وقت لاحق');
     }
 

@@ -1,4 +1,3 @@
-// ignore_for_file: avoid_print
 
 import 'dart:async';
 import 'dart:io';
@@ -683,7 +682,7 @@ class StoreController extends GetxController implements GetxService {
         _lastStoreListRequestAt != null &&
         now.difference(_lastStoreListRequestAt!) < _storeListDebounce) {
       if (kDebugMode) {
-        print('🚫 StoreController.getStoreList: Debounced duplicate request '
+        debugPrint('🚫 StoreController.getStoreList: Debounced duplicate request '
             '(within ${_storeListDebounce.inMilliseconds}ms)');
       }
       return _allStoreModel;
@@ -692,7 +691,7 @@ class StoreController extends GetxController implements GetxService {
     // 🔒 REQUEST LOCKING: Prevent overlapping calls while one is already in-flight.
     if (_isFetchingStores) {
       if (kDebugMode) {
-        print('[API] stores already loading → skip duplicate');
+        debugPrint('[API] stores already loading → skip duplicate');
       }
       return _allStoreModel;
     }
@@ -713,7 +712,7 @@ class StoreController extends GetxController implements GetxService {
         source == DataSourceEnum.local &&
         hasExistingData) {
       if (kDebugMode) {
-        print(
+        debugPrint(
             '[Cache] HIT: stores_page1 (${_allStoreModel!.stores!.length} stores)');
       }
       // Return cached data immediately
@@ -740,17 +739,17 @@ class StoreController extends GetxController implements GetxService {
         _sortBy = null;
 
         if (kDebugMode) {
-          print(
+          debugPrint(
               '🔄 StoreController: Clearing all module state (reload=true, no existing data)');
-          print(
+          debugPrint(
               '   - This ensures clean state and correct totalSize (300+) from API');
         }
       } else {
         // ⚡ SILENT_FETCH: Data exists - preserve it during background refresh
         if (kDebugMode) {
-          print(
+          debugPrint(
               '🔇 StoreController: SILENT_FETCH mode - preserving ${_allStoreModel!.stores!.length} cached stores during background refresh');
-          print('   - Old stores will remain visible until new data arrives');
+          debugPrint('   - Old stores will remain visible until new data arrives');
         }
       }
       _isLoading = true;
@@ -765,11 +764,11 @@ class StoreController extends GetxController implements GetxService {
       // CRITICAL: When filters change, we must bypass cache completely to get correct results
       if (reload) {
         // 🔍 SECTION 3 API DEBUG: All Restaurants
-        print('🔍 SECTION 3 API - getStoreList called (reload=true):');
-        print(
+        debugPrint('🔍 SECTION 3 API - getStoreList called (reload=true):');
+        debugPrint(
             '   - offset: $offset, filterType: $_filterType, storeType: $_storeType');
         if (kDebugMode) {
-          print(
+          debugPrint(
               '🔄 Filter/Location changed - forcing fresh API call with filterType: $_filterType, storeType: $_storeType');
         }
         // Always use client source (API) when reload=true to bypass cache
@@ -777,7 +776,7 @@ class StoreController extends GetxController implements GetxService {
         // Small limit (7) ensures first frame loads quickly
         final effectiveLimit = limit ?? 7;
         if (kDebugMode) {
-          print(
+          debugPrint(
               '[API] background refresh started (offset=$offset, limit=$effectiveLimit)');
         }
         storeModel = await storeServiceInterface.getStoreList(
@@ -790,33 +789,33 @@ class StoreController extends GetxController implements GetxService {
             maxPrice: _maxPrice,
             sortBy: _sortBy,
             limit: effectiveLimit);
-        print('   📡 SECTION 3 API - API response received:');
-        print('   - storeModel is null: ${storeModel == null}');
+        debugPrint('   📡 SECTION 3 API - API response received:');
+        debugPrint('   - storeModel is null: ${storeModel == null}');
         if (storeModel != null) {
-          print('   - totalSize: ${storeModel.totalSize}');
-          print('   - stores count: ${storeModel.stores?.length ?? 0}');
+          debugPrint('   - totalSize: ${storeModel.totalSize}');
+          debugPrint('   - stores count: ${storeModel.stores?.length ?? 0}');
           if (storeModel.stores != null && storeModel.stores!.isNotEmpty) {
-            print(
+            debugPrint(
                 '   ✅ SECTION 3 API - Successfully loaded ${storeModel.stores!.length} restaurants');
-            print(
+            debugPrint(
                 '   📋 SECTION 3 API - First restaurant: id=${storeModel.stores![0].id}, name=${storeModel.stores![0].name}');
           } else {
-            print('   ⚠️ SECTION 3 API - API returned EMPTY stores list');
+            debugPrint('   ⚠️ SECTION 3 API - API returned EMPTY stores list');
           }
         } else {
-          print('   ❌ SECTION 3 API - API returned NULL');
+          debugPrint('   ❌ SECTION 3 API - API returned NULL');
         }
         _prepareStoreModel(storeModel, offset);
       } else if (source == DataSourceEnum.client) {
         // 🔍 SECTION 3 API DEBUG: All Restaurants
-        print('🔍 SECTION 3 API - getStoreList called (source=client):');
-        print(
+        debugPrint('🔍 SECTION 3 API - getStoreList called (source=client):');
+        debugPrint(
             '   - offset: $offset, filterType: $_filterType, storeType: $_storeType');
         // Explicit client source request - fetch from API
         // ⚡ PERFORMANCE: Calculate effective limit (7 per page)
         // Small limit (7) ensures first frame loads quickly
         final effectiveLimit = limit ?? 7;
-        print(
+        debugPrint(
             '   🌐 SECTION 3 API - Calling API endpoint: /api/v1/stores/get-stores/$_filterType?store_type=$_storeType&offset=$offset&limit=$effectiveLimit');
         storeModel = await storeServiceInterface.getStoreList(
             offset, _filterType, _storeType,
@@ -828,21 +827,21 @@ class StoreController extends GetxController implements GetxService {
             maxPrice: _maxPrice,
             sortBy: _sortBy,
             limit: effectiveLimit);
-        print('   📡 SECTION 3 API - API response received:');
-        print('   - storeModel is null: ${storeModel == null}');
+        debugPrint('   📡 SECTION 3 API - API response received:');
+        debugPrint('   - storeModel is null: ${storeModel == null}');
         if (storeModel != null) {
-          print('   - totalSize: ${storeModel.totalSize}');
-          print('   - stores count: ${storeModel.stores?.length ?? 0}');
+          debugPrint('   - totalSize: ${storeModel.totalSize}');
+          debugPrint('   - stores count: ${storeModel.stores?.length ?? 0}');
           if (storeModel.stores != null && storeModel.stores!.isNotEmpty) {
-            print(
+            debugPrint(
                 '   ✅ SECTION 3 API - Successfully loaded ${storeModel.stores!.length} restaurants');
-            print(
+            debugPrint(
                 '   📋 SECTION 3 API - First restaurant: id=${storeModel.stores![0].id}, name=${storeModel.stores![0].name}');
           } else {
-            print('   ⚠️ SECTION 3 API - API returned EMPTY stores list');
+            debugPrint('   ⚠️ SECTION 3 API - API returned EMPTY stores list');
           }
         } else {
-          print('   ❌ SECTION 3 API - API returned NULL');
+          debugPrint('   ❌ SECTION 3 API - API returned NULL');
         }
         _prepareStoreModel(storeModel, offset);
       } else {
@@ -855,9 +854,9 @@ class StoreController extends GetxController implements GetxService {
             offset == 1 &&
             _filterType == 'all' &&
             _storeType == 'all') {
-          print(
+          debugPrint(
               '⚠️ StoreController: Skipping comprehensive cache for allStoreModel (stores popular stores, not all stores)');
-          print(
+          debugPrint(
               '   - Will fetch from API to get correct totalSize (300+) for pagination');
         }
 
@@ -881,7 +880,7 @@ class StoreController extends GetxController implements GetxService {
             storeModel.stores == null ||
             storeModel.stores!.isEmpty) {
           if (kDebugMode) {
-            print('🏪 Cache empty, falling back to API call for stores');
+            debugPrint('🏪 Cache empty, falling back to API call for stores');
           }
           storeModel = await storeServiceInterface.getStoreList(
               offset, _filterType, _storeType,
@@ -929,13 +928,13 @@ class StoreController extends GetxController implements GetxService {
   }) {
     if (popularStoreList != null) {
       _popularStoreList = popularStoreList;
-      print(
+      debugPrint(
           '✅ StoreController: Loaded ${_popularStoreList!.length} popular stores from cache');
     }
 
     if (storeModel != null) {
       _storeModel = storeModel;
-      print(
+      debugPrint(
           '✅ StoreController: Loaded store model with ${storeModel.stores?.length ?? 0} stores from cache');
     }
 
@@ -957,7 +956,7 @@ class StoreController extends GetxController implements GetxService {
   void setFromUnified(List<Store>? stores) {
     if (stores == null || stores.isEmpty) {
       if (kDebugMode) {
-        print(
+        debugPrint(
             '⚠️ StoreController: setFromUnified called with null or empty data');
       }
       return;
@@ -967,7 +966,7 @@ class StoreController extends GetxController implements GetxService {
     _popularStoreList = stores;
 
     if (kDebugMode) {
-      print(
+      debugPrint(
           '✅ StoreController: Store data set from unified endpoint (${stores.length} stores)');
     }
 
@@ -986,7 +985,7 @@ class StoreController extends GetxController implements GetxService {
   void setPopularStoreDataFromBootstrap(StoreModel storeModel) {
     if (storeModel.stores == null || storeModel.stores!.isEmpty) {
       if (kDebugMode) {
-        print(
+        debugPrint(
             '⚠️ StoreController: Bootstrap has no popular stores, keeping existing data');
       }
       return;
@@ -999,9 +998,9 @@ class StoreController extends GetxController implements GetxService {
     // This is a compile-time guarantee - if you see _storeModel = ... or _allStoreModel = ... here, it's a bug!
 
     if (kDebugMode) {
-      print(
+      debugPrint(
           '✅ StoreController: Popular stores set from bootstrap (${_popularStoreList!.length} stores)');
-      print(
+      debugPrint(
           '   - Only popularStoreList updated, storeModel and allStoreModel untouched (V2 hard-isolation)');
     }
 
@@ -1025,12 +1024,12 @@ class StoreController extends GetxController implements GetxService {
         // ⚡ HARD-ISOLATION: Use _allStoreModel instead of _storeModel
         _allStoreModel = storeModel;
         if (kDebugMode) {
-          print(
+          debugPrint(
               '📊 StoreController: Initial load (allStoreModel) - totalSize: ${storeModel.totalSize}, stores: ${storeModel.stores?.length ?? 0}');
           if (hasCachedData &&
               storeModel.stores != null &&
               storeModel.stores!.isNotEmpty) {
-            print(
+            debugPrint(
                 '   ✅ SWR: Forcing UI update with API data (overwriting cache)');
           }
         }
@@ -1044,7 +1043,7 @@ class StoreController extends GetxController implements GetxService {
           }
           final newCount = _allStoreModel!.stores?.length ?? 0;
           if (kDebugMode) {
-            print(
+            debugPrint(
                 '📊 StoreController: Pagination (allStoreModel) - offset: $offset, totalSize: ${storeModel.totalSize}, loaded: ${storeModel.stores?.length ?? 0}, total loaded: $newCount (was $previousCount)');
           }
         } else {
@@ -1062,7 +1061,7 @@ class StoreController extends GetxController implements GetxService {
     if (_filterType != type) {
       _filterType = type;
       if (kDebugMode) {
-        print('🔍 Filter changed to: $type - using SWR pattern');
+        debugPrint('🔍 Filter changed to: $type - using SWR pattern');
       }
       // ⚡ SWR PATTERN: Check Hive cache first, show immediately, then fetch in background
       _loadFiltersWithSWR();
@@ -1077,7 +1076,7 @@ class StoreController extends GetxController implements GetxService {
     // Reset offset to 1 for fresh pagination
     // Note: offset is managed by _allStoreModel, so setting it to null is sufficient
     if (kDebugMode) {
-      print(
+      debugPrint(
           '🔄 StoreController: Silent store reset - only clearing store list (categories/popular preserved)');
     }
   }
@@ -1086,7 +1085,7 @@ class StoreController extends GetxController implements GetxService {
     if (_storeType != type) {
       _storeType = type;
       if (kDebugMode) {
-        print('🏪 Store type changed to: $type - using SWR pattern');
+        debugPrint('🏪 Store type changed to: $type - using SWR pattern');
       }
 
       // 🔒 HARD RESET: Clear allStoreModel but preserve popularStoreList
@@ -1133,7 +1132,7 @@ class StoreController extends GetxController implements GetxService {
           update();
 
           if (kDebugMode) {
-            print(
+            debugPrint(
                 '⚡ SWR: Loaded ${cachedStoreModel.stores!.length} cached stores for filter "$type" - UI updated instantly');
           }
         }
@@ -1143,7 +1142,7 @@ class StoreController extends GetxController implements GetxService {
         if (_popularStoreList != null && _popularStoreList!.isNotEmpty) {
           // Already in memory - no need to load from Hive
           if (kDebugMode) {
-            print(
+            debugPrint(
                 '⚡ SWR: Using ${_popularStoreList!.length} cached popular stores from memory - UI updated instantly');
           }
           update();
@@ -1153,7 +1152,7 @@ class StoreController extends GetxController implements GetxService {
         if (_latestStoreList != null && _latestStoreList!.isNotEmpty) {
           // Already in memory - no need to load from Hive
           if (kDebugMode) {
-            print(
+            debugPrint(
                 '⚡ SWR: Using ${_latestStoreList!.length} cached latest stores from memory - UI updated instantly');
           }
           update();
@@ -1169,7 +1168,7 @@ class StoreController extends GetxController implements GetxService {
       _loadStoreTypeDirect(type);
     } catch (e) {
       if (kDebugMode) {
-        print(
+        debugPrint(
             '⚠️ StoreController: Error in SWR pattern - $e, falling back to direct load');
       }
       // Fallback to direct loading if SWR fails
@@ -1218,7 +1217,7 @@ class StoreController extends GetxController implements GetxService {
     _sortBy = filters['sortBy'] as String?;
 
     if (kDebugMode) {
-      print(
+      debugPrint(
           '🔍 Filters applied: recentlyAdded=$_recentlyAdded, highestRated=$_highestRated, fastestDelivery=$_fastestDelivery, minPrice=$_minPrice, maxPrice=$_maxPrice, sortBy=$_sortBy');
     }
 
@@ -1257,7 +1256,7 @@ class StoreController extends GetxController implements GetxService {
           update();
 
           if (kDebugMode) {
-            print(
+            debugPrint(
                 '⚡ SWR: Loaded ${cachedStoreModel.stores!.length} cached stores for filters - UI updated instantly');
           }
         }
@@ -1272,7 +1271,7 @@ class StoreController extends GetxController implements GetxService {
       getStoreList(1, true, source: DataSourceEnum.client);
     } catch (e) {
       if (kDebugMode) {
-        print(
+        debugPrint(
             '⚠️ StoreController: Error in SWR pattern for filters - $e, falling back to direct load');
       }
       // Fallback to direct loading if SWR fails
@@ -1291,7 +1290,7 @@ class StoreController extends GetxController implements GetxService {
     _sortBy = null;
 
     if (kDebugMode) {
-      print('🔍 Filters cleared');
+      debugPrint('🔍 Filters cleared');
     }
 
     // Reload stores without filters
@@ -1369,7 +1368,7 @@ class StoreController extends GetxController implements GetxService {
   Future<void> clearStoreData() async {
     // ⚠️ CRITICAL FIX: Cancel any ongoing loading operations
     if (_isLoadingPopularStores && _popularStoresLoadingCompleter != null) {
-      print(
+      debugPrint(
           '🛑 StoreController: Cancelling ongoing popular stores load during module switch');
       if (!_popularStoresLoadingCompleter!.isCompleted) {
         _popularStoresLoadingCompleter!.complete(null);
@@ -1437,7 +1436,7 @@ class StoreController extends GetxController implements GetxService {
     await Future.delayed(const Duration(milliseconds: 100));
 
     if (kDebugMode) {
-      print(
+      debugPrint(
           '✅ StoreController: Cleared ALL store data for module switch (including ghost data)');
     }
   }
@@ -1456,7 +1455,7 @@ class StoreController extends GetxController implements GetxService {
     }
     _hasPopularStoresError = false;
     // 🔍 DEBUG: Entry point verification
-    print(
+    debugPrint(
         '🚀 getPopularStoreList() ENTRY - reload: $reload, type: $type, dataSource: $dataSource');
 
     // 🚫 DEFENSIVE: Verify we never accidentally set storeModel
@@ -1465,7 +1464,7 @@ class StoreController extends GetxController implements GetxService {
     // ⚠️ CRITICAL FIX: Prevent duplicate simultaneous calls when switching modules
     // If already loading, wait for the existing call to complete
     if (_isLoadingPopularStores && _popularStoresLoadingCompleter != null) {
-      print(
+      debugPrint(
           '⏳ getPopularStoreList: Already loading, waiting for existing call...');
       return await _popularStoresLoadingCompleter!.future;
     }
@@ -1477,7 +1476,7 @@ class StoreController extends GetxController implements GetxService {
         homeController = Get.find<HomeController>();
       }
     } catch (e) {
-      print('⚠️ StoreController: HomeController not available: $e');
+      debugPrint('⚠️ StoreController: HomeController not available: $e');
     }
     final businessSettings = homeController?.business_Settings;
 
@@ -1490,12 +1489,12 @@ class StoreController extends GetxController implements GetxService {
         splashController.module?.moduleType.toString() == AppConstants.food;
 
     // 🔍 SECTION 2 API DEBUG: Business Settings Check
-    print('🔍 SECTION 2 API - Business settings check:');
-    print(
+    debugPrint('🔍 SECTION 2 API - Business settings check:');
+    debugPrint(
         '   - popularStoresSection: ${businessSettings?.popularStoresSection}');
-    print('   - isEcommerce: $isEcommerce');
-    print('   - isFood: $isFood');
-    print(
+    debugPrint('   - isEcommerce: $isEcommerce');
+    debugPrint('   - isFood: $isFood');
+    debugPrint(
         '   - Will load: ${businessSettings?.popularStoresSection?.toString() == "1" || isEcommerce || isFood}');
 
     if (businessSettings?.popularStoresSection?.toString() == '1' ||
@@ -1514,15 +1513,15 @@ class StoreController extends GetxController implements GetxService {
         if (!hasExistingPopularData) {
           _popularStoreList = null;
           if (kDebugMode) {
-            print(
+            debugPrint(
                 '🔄 StoreController: Clearing popular stores (reload=true, no existing data)');
           }
         } else {
           // ⚡ SILENT_FETCH: Data exists - preserve it during background refresh
           if (kDebugMode) {
-            print(
+            debugPrint(
                 '🔇 StoreController: SILENT_FETCH mode - preserving ${_popularStoreList!.length} cached popular stores during background refresh');
-            print('   - Old stores will remain visible until new data arrives');
+            debugPrint('   - Old stores will remain visible until new data arrives');
           }
         }
       }
@@ -1539,36 +1538,36 @@ class StoreController extends GetxController implements GetxService {
           List<Store>? popularStoreList;
 
           // 🔍 SECTION 2 API DEBUG: Popular Stores
-          print('🔍 SECTION 2 API - getPopularStoreList called:');
-          print('   - reload: $reload, type: $type, dataSource: $dataSource');
-          print(
+          debugPrint('🔍 SECTION 2 API - getPopularStoreList called:');
+          debugPrint('   - reload: $reload, type: $type, dataSource: $dataSource');
+          debugPrint(
               '   - businessSettings.popularStoresSection: ${businessSettings?.popularStoresSection}');
-          print('   - isEcommerce: $isEcommerce');
+          debugPrint('   - isEcommerce: $isEcommerce');
 
           if (dataSource == DataSourceEnum.local) {
             popularStoreList = await storeServiceInterface
                 .getPopularStoreList(type, source: DataSourceEnum.local);
-            print(
+            debugPrint(
                 '   📦 SECTION 2 API - Cache response: ${popularStoreList?.length ?? 0} restaurants');
             if (popularStoreList != null && popularStoreList.isNotEmpty) {
               _popularStoreList = [];
               _popularStoreList!.addAll(popularStoreList);
-              print(
+              debugPrint(
                   '   ✅ SECTION 2 API - Loaded ${popularStoreList.length} restaurants from cache');
               update();
               _updateHomeRestaurantSections();
             } else {
-              print(
+              debugPrint(
                   '   ⚠️ SECTION 2 API - Cache returned NULL or empty, falling back to API');
               // Fallback to API when cache is empty/null
               popularStoreList = await storeServiceInterface
                   .getPopularStoreList(type, source: DataSourceEnum.client);
-              print(
+              debugPrint(
                   '   📡 SECTION 2 API - API response: ${popularStoreList?.length ?? 0} restaurants');
               if (popularStoreList != null && popularStoreList.isNotEmpty) {
                 _popularStoreList = [];
                 _popularStoreList!.addAll(popularStoreList);
-                print(
+                debugPrint(
                     '   ✅ SECTION 2 API - Loaded ${popularStoreList.length} restaurants from API');
               } else {
                 // ⚡ EMPTY_V2 CONTAMINATION FIX: If API returns empty but we have cached data, keep it
@@ -1577,16 +1576,16 @@ class StoreController extends GetxController implements GetxService {
                     _popularStoreList != null &&
                     _popularStoreList!.isNotEmpty) {
                   if (kDebugMode) {
-                    print(
+                    debugPrint(
                         '⚠️ StoreController: EMPTY_V2 contamination - API returned empty popular stores');
-                    print(
+                    debugPrint(
                         '   - Keeping ${_popularStoreList!.length} cached popular stores visible (better than empty screen)');
                   }
                   // Don't update - keep showing cached stores
                 } else {
                   // ⚡ FIX: Set empty list instead of null to show empty state UI
                   _popularStoreList = [];
-                  print(
+                  debugPrint(
                       '   ⚠️ SECTION 2 API - API returned empty/null, setting empty list for empty state');
                 }
               }
@@ -1594,16 +1593,16 @@ class StoreController extends GetxController implements GetxService {
               _updateHomeRestaurantSections();
             }
           } else {
-            print(
+            debugPrint(
                 '   🌐 SECTION 2 API - Calling API endpoint: /api/v1/stores/popular?type=$type');
             popularStoreList = await storeServiceInterface
                 .getPopularStoreList(type, source: DataSourceEnum.client);
-            print(
+            debugPrint(
                 '   📡 SECTION 2 API - API response: ${popularStoreList?.length ?? 0} restaurants');
             if (popularStoreList != null && popularStoreList.isNotEmpty) {
-              print(
+              debugPrint(
                   '   ✅ SECTION 2 API - Successfully loaded ${popularStoreList.length} restaurants');
-              print(
+              debugPrint(
                   '   📋 SECTION 2 API - First restaurant: id=${popularStoreList[0].id}, name=${popularStoreList[0].name}');
               _popularStoreList = [];
               _popularStoreList!.addAll(popularStoreList);
@@ -1614,16 +1613,16 @@ class StoreController extends GetxController implements GetxService {
                   _popularStoreList != null &&
                   _popularStoreList!.isNotEmpty) {
                 if (kDebugMode) {
-                  print(
+                  debugPrint(
                       '⚠️ StoreController: EMPTY_V2 contamination - API returned empty popular stores');
-                  print(
+                  debugPrint(
                       '   - Keeping ${_popularStoreList!.length} cached popular stores visible (better than empty screen)');
                 }
                 // Don't update - keep showing cached stores
               } else {
                 // ⚡ FIX: Set empty list instead of null to show empty state UI
                 _popularStoreList = [];
-                print(
+                debugPrint(
                     '   ❌ SECTION 2 API - API returned NULL or EMPTY list, setting empty list for empty state');
               }
             }
@@ -1636,7 +1635,7 @@ class StoreController extends GetxController implements GetxService {
             _popularStoresLoadingCompleter!.complete(_popularStoreList);
           }
         } catch (e) {
-          print('❌ getPopularStoreList: Error loading stores - $e');
+          debugPrint('❌ getPopularStoreList: Error loading stores - $e');
           _hasPopularStoresError = true;
           // ⚡ FIX: Set empty list on error to show empty state UI instead of shimmer
           _popularStoreList = [];
@@ -1652,7 +1651,7 @@ class StoreController extends GetxController implements GetxService {
           _popularStoresLoadingCompleter = null;
         }
       } else {
-        print(
+        debugPrint(
             '🔍 SECTION 2 API - Skipping API call (data already loaded, reload=$reload, fromRecall=$fromRecall)');
       }
     }
@@ -1722,7 +1721,7 @@ class StoreController extends GetxController implements GetxService {
         homeController = Get.find<HomeController>();
       }
     } catch (e) {
-      print('⚠️ StoreController: HomeController not available: $e');
+      debugPrint('⚠️ StoreController: HomeController not available: $e');
     }
     final businessSettings = homeController?.business_Settings;
 
@@ -1806,7 +1805,7 @@ class StoreController extends GetxController implements GetxService {
     // ✅ FIXED: Don't call visit-again API for guest users (prevents 500 errors)
     if (!AuthHelper.isLoggedIn() || AuthHelper.isGuestLoggedIn()) {
       if (kDebugMode) {
-        print(
+        debugPrint(
             '🚫 getVisitAgainStoreList: Skipping - user is guest or not logged in');
       }
       return;
@@ -1833,7 +1832,7 @@ class StoreController extends GetxController implements GetxService {
               dataSource: DataSourceEnum.client, fromRecall: true);
         } else {
           if (kDebugMode) {
-            print(
+            debugPrint(
                 '✅ getVisitAgainStoreList: Using cached data, skipping client API call');
           }
         }
@@ -4130,7 +4129,7 @@ class StoreController extends GetxController implements GetxService {
         _liveSearchResults = null;
         _isLiveSearching = false;
         _isSearching = false;
-        print('🔍 Store live search cleared');
+        debugPrint('🔍 Store live search cleared');
       } else {
         // Perform API search instead of local filtering
         _performApiSearch(query);
@@ -4148,12 +4147,12 @@ class StoreController extends GetxController implements GetxService {
       _isSearching = true;
       update();
 
-      print('🔍 Performing API search for: "$query"');
+      debugPrint('🔍 Performing API search for: "$query"');
 
       // Get current store ID
       final String? storeId = _store?.id?.toString();
       if (storeId == null) {
-        print('⚠️ No store ID available for search');
+        debugPrint('⚠️ No store ID available for search');
         _liveSearchResults = [];
         _isLiveSearching = false;
         _isSearching = false;
@@ -4177,14 +4176,14 @@ class StoreController extends GetxController implements GetxService {
 
       if (searchResult != null && searchResult.items != null) {
         _liveSearchResults = searchResult.items!;
-        print(
+        debugPrint(
             '🔍 API search completed: ${_liveSearchResults!.length} results for "$query"');
       } else {
         _liveSearchResults = [];
-        print('🔍 API search returned no results for "$query"');
+        debugPrint('🔍 API search returned no results for "$query"');
       }
     } catch (e) {
-      print('❌ API search failed: $e');
+      debugPrint('❌ API search failed: $e');
       _hasStoreSearchError = true;
       _liveSearchResults = [];
     } finally {
@@ -4201,7 +4200,7 @@ class StoreController extends GetxController implements GetxService {
       // Clear search when hiding field
       clearLiveSearch();
     }
-    print('🔍 Search field visibility: $_isSearchFieldVisible');
+    debugPrint('🔍 Search field visibility: $_isSearchFieldVisible');
     update();
   }
 
@@ -4213,7 +4212,7 @@ class StoreController extends GetxController implements GetxService {
     _isLiveSearching = false;
     _isSearching = false;
     _searchText = '';
-    print('🔍 Store live search cleared');
+    debugPrint('🔍 Store live search cleared');
     update();
   }
 
@@ -4221,7 +4220,7 @@ class StoreController extends GetxController implements GetxService {
   /// This prevents showing data from the previous module
   void clearAllModuleData() {
     if (kDebugMode) {
-      print('🧹 StoreController: Clearing all store lists for module switch');
+      debugPrint('🧹 StoreController: Clearing all store lists for module switch');
     }
     _popularStoreList = null;
     _latestStoreList = null;
@@ -4246,7 +4245,7 @@ class StoreController extends GetxController implements GetxService {
     _storeType = 'all';
     _type = 'all';
     if (kDebugMode) {
-      print('✅ StoreController: All store data cleared');
+      debugPrint('✅ StoreController: All store data cleared');
     }
     update();
   }
@@ -4475,7 +4474,7 @@ class StoreController extends GetxController implements GetxService {
     _popularStoreList = storeModel.stores;
     update();
     if (kDebugMode) {
-      print(
+      debugPrint(
           '✅ StoreController: Popular stores set from bootstrap (${storeModel.stores?.length ?? 0} stores)');
     }
   }
@@ -4485,7 +4484,7 @@ class StoreController extends GetxController implements GetxService {
     _storeModel = storeModel;
     update();
     if (kDebugMode) {
-      print(
+      debugPrint(
           '✅ StoreController: Store data set from bootstrap (${storeModel.stores?.length ?? 0} stores)');
     }
   }
@@ -4495,7 +4494,7 @@ class StoreController extends GetxController implements GetxService {
     _latestStoreList = storeModel.stores;
     update();
     if (kDebugMode) {
-      print(
+      debugPrint(
           '✅ StoreController: Latest stores set from bootstrap (${storeModel.stores?.length ?? 0} stores)');
     }
   }

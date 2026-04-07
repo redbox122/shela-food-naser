@@ -55,7 +55,7 @@ class ApiClient extends GetxService {
         addressModel = AddressModel.fromJson(
             jsonDecode(rawAddress) as Map<String, dynamic>);
       }
-    } catch (_) {}
+    } catch (e) { if (kDebugMode) debugPrint('ApiClient: $e'); }
     // MOBILE-MODULE-ID FIX: Read saved moduleId on ALL platforms (not just web).
     // Without this, every cold start on Android/iOS fires API calls with
     // module-id=null until resolveInitialModule or _ensureApiHeadersUpdated runs.
@@ -66,7 +66,7 @@ class ApiClient extends GetxService {
                 jsonDecode(sharedPreferences.getString(AppConstants.moduleId)!)
                     as Map<String, dynamic>)
             .id;
-      } catch (_) {}
+      } catch (e) { if (kDebugMode) debugPrint('ApiClient: $e'); }
     }
     updateHeader(
         token,
@@ -104,7 +104,7 @@ class ApiClient extends GetxService {
             addressModel = AddressModel.fromJson(
                 jsonDecode(rawAddress) as Map<String, dynamic>);
           }
-        } catch (_) {}
+        } catch (e) { if (kDebugMode) debugPrint('ApiClient: $e'); }
         // MOBILE-MODULE-ID FIX: Read saved moduleId on ALL platforms.
         int? moduleID;
         if (sharedPreferences.containsKey(AppConstants.moduleId)) {
@@ -113,7 +113,7 @@ class ApiClient extends GetxService {
                         sharedPreferences.getString(AppConstants.moduleId)!)
                     as Map<String, dynamic>)
                 .id;
-          } catch (_) {}
+          } catch (e) { if (kDebugMode) debugPrint('ApiClient: $e'); }
         }
         updateHeader(
             token,
@@ -145,7 +145,7 @@ class ApiClient extends GetxService {
             addressModel = AddressModel.fromJson(
                 jsonDecode(rawAddress) as Map<String, dynamic>);
           }
-        } catch (_) {}
+        } catch (e) { if (kDebugMode) debugPrint('ApiClient: $e'); }
         // MOBILE-MODULE-ID FIX: Read saved moduleId on ALL platforms.
         int? moduleID;
         if (sharedPreferences.containsKey(AppConstants.moduleId)) {
@@ -154,7 +154,7 @@ class ApiClient extends GetxService {
                         sharedPreferences.getString(AppConstants.moduleId)!)
                     as Map<String, dynamic>)
                 .id;
-          } catch (_) {}
+          } catch (e) { if (kDebugMode) debugPrint('ApiClient: $e'); }
         }
         updateHeader(
             token,
@@ -424,8 +424,9 @@ class ApiClient extends GetxService {
       if (decoded is List) {
         return decoded.isNotEmpty;
       }
-    } catch (_) {
+    } catch (e) {
       // If backend/client sent non-JSON zone-id, keep old behavior and accept non-empty value.
+      if (kDebugMode) debugPrint('ApiClient: zone-id parse (non-JSON treated as valid): $e');
     }
     return true;
   }
@@ -450,7 +451,7 @@ class ApiClient extends GetxService {
               splashController.module?.id ??
               splashController.getDefaultModuleId();
         }
-      } catch (_) {}
+      } catch (e) { if (kDebugMode) debugPrint('ApiClient: $e'); }
 
       if (moduleId == null) {
         try {
@@ -461,7 +462,7 @@ class ApiClient extends GetxService {
                 jsonDecode(cachedModuleId) as Map<String, dynamic>);
             moduleId = moduleModel.id;
           }
-        } catch (_) {}
+        } catch (e) { if (kDebugMode) debugPrint('ApiClient: $e'); }
       }
 
       if (moduleId != null) {
@@ -476,7 +477,7 @@ class ApiClient extends GetxService {
         if (zoneIds != null && zoneIds.isNotEmpty) {
           headers[AppConstants.zoneId] = jsonEncode(zoneIds);
         }
-      } catch (_) {}
+      } catch (e) { if (kDebugMode) debugPrint('ApiClient: $e'); }
     }
   }
 
@@ -496,7 +497,7 @@ class ApiClient extends GetxService {
           await Get.find<SplashController>()
               .ensureModuleReady()
               .timeout(const Duration(seconds: 2));
-        } catch (_) {}
+        } catch (e) { if (kDebugMode) debugPrint('ApiClient: $e'); }
       }
 
       // Give a small window for address/module writes racing from other controllers.
@@ -1193,18 +1194,17 @@ class ApiClient extends GetxService {
       // Log API call start
       appLogger.logApiCallStart('POST (FormData)', uri, headers: logHeaders);
 
-      // Try to get files count if formData is FormData
+      // Try to get files/fields count for debug logging
       try {
-        // Use runtimeType check instead of 'is' to avoid import conflict
         if (formData.runtimeType.toString().contains('FormData')) {
-          final formDataRef = formData as dynamic;
-          if (formDataRef.files != null) {
+          // formData is already dynamic — access fields directly without redundant cast
+          if (formData.files != null) {
             debugPrint(
-                '\x1B[35m - FormData files count: ${formDataRef.files.length}\x1B[0m');
+                '\x1B[35m - FormData files count: ${formData.files.length}\x1B[0m');
           }
-          if (formDataRef.fields != null) {
+          if (formData.fields != null) {
             debugPrint(
-                '\x1B[35m - FormData fields count: ${formDataRef.fields.length}\x1B[0m');
+                '\x1B[35m - FormData fields count: ${formData.fields.length}\x1B[0m');
           }
         }
       } catch (e) {
@@ -1673,10 +1673,13 @@ class ApiClient extends GetxService {
     try {
       serverTimeUtc = DateFormat("EEE, dd MMM yyyy HH:mm:ss 'GMT'", 'en_US')
           .parseUtc(dateHeader!);
-    } catch (_) {
+    } catch (e) {
+      if (kDebugMode) debugPrint('ApiClient: RFC date parse failed, trying ISO: $e');
       try {
         serverTimeUtc = DateTime.parse(dateHeader!).toUtc();
-      } catch (_) {}
+      } catch (e2) {
+        if (kDebugMode) debugPrint('ApiClient: ISO date parse also failed: $e2');
+      }
     }
 
     if (serverTimeUtc == null) return;

@@ -33,7 +33,7 @@ class BootstrapService {
   }) async {
     try {
       if (kDebugMode) {
-        print('🚀 BootstrapService: Calling /api/v1/bootstrap endpoint');
+        debugPrint('🚀 BootstrapService: Calling /api/v1/bootstrap endpoint');
       }
 
       // Get current module and zone for ETag key
@@ -54,7 +54,7 @@ class BootstrapService {
         final prefs = await SharedPreferences.getInstance();
         storedEtag = prefs.getString(etagKey);
         if (kDebugMode) {
-          print(
+          debugPrint(
               '📦 BootstrapService: Found stored ETag: ${storedEtag?.safeSubstring(20)}');
         }
       }
@@ -69,7 +69,7 @@ class BootstrapService {
       if (storedEtag != null && !forceRefresh) {
         headers['If-None-Match'] = storedEtag;
         if (kDebugMode) {
-          print(
+          debugPrint(
               '📤 BootstrapService: Sending If-None-Match header for conditional request');
         }
       }
@@ -81,13 +81,13 @@ class BootstrapService {
       );
 
       if (kDebugMode) {
-        print('📊 BootstrapService: Response status: ${response.statusCode}');
+        debugPrint('📊 BootstrapService: Response status: ${response.statusCode}');
       }
 
       // Handle 304 Not Modified
       if (response.statusCode == 304) {
         if (kDebugMode) {
-          print(
+          debugPrint(
               '✅ BootstrapService: 304 Not Modified - data unchanged, use cached data');
         }
         // Return a special marker to indicate 304 (not an error)
@@ -98,7 +98,7 @@ class BootstrapService {
       // Handle errors (404, 500, etc.)
       if (response.statusCode != 200) {
         if (kDebugMode) {
-          print(
+          debugPrint(
               '❌ BootstrapService: Error response - status ${response.statusCode}');
         }
         return null; // Signal error - should fallback
@@ -109,30 +109,30 @@ class BootstrapService {
         try {
           // Debug: Log response structure
           if (kDebugMode) {
-            print(
+            debugPrint(
                 '🔍 BootstrapService: Response body type: ${response.body.runtimeType}');
             final body = response.body;
 
             if (body is Map) {
               final bodyMap = Map<String, dynamic>.from(body);
 
-              print(
+              debugPrint(
                   '🔍 BootstrapService: Response keys: ${bodyMap.keys.toList()}');
               if (bodyMap.containsKey('data')) {
                 final data = bodyMap['data'];
-                print('🔍 BootstrapService: Data type: ${data.runtimeType}');
+                debugPrint('🔍 BootstrapService: Data type: ${data.runtimeType}');
                 if (data is Map) {
                   final dataMap = Map<String, dynamic>.from(data);
 
-                  print(
+                  debugPrint(
                       '🔍 BootstrapService: Data keys: ${dataMap.keys.toList()}');
                   // Check problematic fields
                   if (dataMap.containsKey('promotional_banners')) {
-                    print(
+                    debugPrint(
                         '🔍 BootstrapService: promotional_banners type: ${dataMap['promotional_banners'].runtimeType}');
                   }
                   if (dataMap.containsKey('banners')) {
-                    print(
+                    debugPrint(
                         '🔍 BootstrapService: banners type: ${dataMap['banners'].runtimeType}');
                   }
                 }
@@ -154,22 +154,22 @@ class BootstrapService {
           // This will be handled by ApiClient ETag support
 
           if (kDebugMode) {
-            print('✅ BootstrapService: Successfully parsed bootstrap data');
-            print(
+            debugPrint('✅ BootstrapService: Successfully parsed bootstrap data');
+            debugPrint(
                 '   - Business Settings: ${bootstrapModel.businessSettings != null ? "✓" : "✗"}');
-            print(
+            debugPrint(
                 '   - Banners: ${bootstrapModel.banners != null ? "✓" : "✗"}');
-            print(
+            debugPrint(
                 '   - Promotional Banners: ${bootstrapModel.promotionalBanners != null ? "✓" : "✗"}');
-            print('   - Categories: ${bootstrapModel.categories?.length ?? 0}');
-            print(
+            debugPrint('   - Categories: ${bootstrapModel.categories?.length ?? 0}');
+            debugPrint(
                 '   - Stores Popular: ${bootstrapModel.storesPopular?.stores?.length ?? 0}');
-            print('   - Stores: ${bootstrapModel.stores?.stores?.length ?? 0}');
-            print('   - Brands: ${bootstrapModel.brands?.length ?? 0}');
-            print('   - Offers: ${bootstrapModel.offers?.data.length ?? 0}');
+            debugPrint('   - Stores: ${bootstrapModel.stores?.stores?.length ?? 0}');
+            debugPrint('   - Brands: ${bootstrapModel.brands?.length ?? 0}');
+            debugPrint('   - Offers: ${bootstrapModel.offers?.data.length ?? 0}');
             if (bootstrapModel.meta != null) {
-              print('   - Cache Hit: ${bootstrapModel.meta!.cacheHit}');
-              print(
+              debugPrint('   - Cache Hit: ${bootstrapModel.meta!.cacheHit}');
+              debugPrint(
                   '   - Response Time: ${bootstrapModel.meta!.responseTimeMs}ms');
             }
           }
@@ -177,24 +177,24 @@ class BootstrapService {
           return bootstrapModel;
         } catch (e, stackTrace) {
           if (kDebugMode) {
-            print('❌ BootstrapService: Error parsing bootstrap response');
-            print('   - Error: $e');
-            print('   - Error Type: ${e.runtimeType}');
-            print('   - Stack trace: $stackTrace');
+            debugPrint('❌ BootstrapService: Error parsing bootstrap response');
+            debugPrint('   - Error: $e');
+            debugPrint('   - Error Type: ${e.runtimeType}');
+            debugPrint('   - Stack trace: $stackTrace');
             // Log response structure for debugging
             final body = response.body;
 
             if (body is Map) {
               final bodyMap = Map<String, dynamic>.from(body);
-              print('   - Response structure: ${bodyMap.keys.toList()}');
+              debugPrint('   - Response structure: ${bodyMap.keys.toList()}');
               if (bodyMap.containsKey('data')) {
                 final data = bodyMap['data'];
-                print('   - Data type: ${data.runtimeType}');
+                debugPrint('   - Data type: ${data.runtimeType}');
                 if (data is Map) {
                   final dataMap = Map<String, dynamic>.from(data);
-                  print('   - Data keys: ${dataMap.keys.toList()}');
+                  debugPrint('   - Data keys: ${dataMap.keys.toList()}');
                 } else if (data is List) {
-                  print('   - Data is a List with ${(data).length} items');
+                  debugPrint('   - Data is a List with ${(data).length} items');
                 }
               }
             }
@@ -204,16 +204,16 @@ class BootstrapService {
       }
 
       if (kDebugMode) {
-        print(
+        debugPrint(
             '⚠️ BootstrapService: Non-200 status code: ${response.statusCode}');
       }
 
       return null;
     } catch (e, stackTrace) {
       if (kDebugMode) {
-        print('❌ BootstrapService: Error calling bootstrap endpoint');
-        print('   - Error: $e');
-        print('   - Stack trace: $stackTrace');
+        debugPrint('❌ BootstrapService: Error calling bootstrap endpoint');
+        debugPrint('   - Error: $e');
+        debugPrint('   - Stack trace: $stackTrace');
       }
       return null;
     }
@@ -226,12 +226,12 @@ class BootstrapService {
       final etagKey = _getEtagKey(moduleId, zoneIds);
       await prefs.setString(etagKey, etag);
       if (kDebugMode) {
-        print(
+        debugPrint(
             '💾 BootstrapService: Stored ETag for module $moduleId, zones $zoneIds');
       }
     } catch (e) {
       if (kDebugMode) {
-        print('❌ BootstrapService: Error storing ETag: $e');
+        debugPrint('❌ BootstrapService: Error storing ETag: $e');
       }
     }
   }
@@ -243,12 +243,12 @@ class BootstrapService {
       final etagKey = _getEtagKey(moduleId, zoneIds);
       await prefs.remove(etagKey);
       if (kDebugMode) {
-        print(
+        debugPrint(
             '🗑️ BootstrapService: Cleared ETag for module $moduleId, zones $zoneIds');
       }
     } catch (e) {
       if (kDebugMode) {
-        print('❌ BootstrapService: Error clearing ETag: $e');
+        debugPrint('❌ BootstrapService: Error clearing ETag: $e');
       }
     }
   }
@@ -264,11 +264,11 @@ class BootstrapService {
         }
       }
       if (kDebugMode) {
-        print('🗑️ BootstrapService: Cleared all stored ETags');
+        debugPrint('🗑️ BootstrapService: Cleared all stored ETags');
       }
     } catch (e) {
       if (kDebugMode) {
-        print('❌ BootstrapService: Error clearing all ETags: $e');
+        debugPrint('❌ BootstrapService: Error clearing all ETags: $e');
       }
     }
   }
@@ -289,7 +289,7 @@ class BootstrapService {
       return response.statusCode == 200 || response.statusCode == 304;
     } catch (e) {
       if (kDebugMode) {
-        print('⚠️ BootstrapService: Bootstrap endpoint not available: $e');
+        debugPrint('⚠️ BootstrapService: Bootstrap endpoint not available: $e');
       }
       return false;
     }

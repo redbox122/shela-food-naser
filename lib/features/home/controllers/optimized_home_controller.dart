@@ -1,4 +1,3 @@
-// ignore_for_file: avoid_print
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -59,7 +58,7 @@ class OptimizedHomeDataLoader {
     // Prevent rapid successive calls
     if (instance._isLoading) {
       if (kDebugMode) {
-        print('🚫 Home data loading already in progress, skipping');
+        debugPrint('🚫 Home data loading already in progress, skipping');
       }
       return;
     }
@@ -69,7 +68,7 @@ class OptimizedHomeDataLoader {
     if (!allowDuringComprehensiveLoading) {
       if (loadingManager.isAnyLoading) {
         if (kDebugMode) {
-          print(
+          debugPrint(
               '🚫 Cannot start home data loading - another operation in progress');
         }
         return;
@@ -78,7 +77,7 @@ class OptimizedHomeDataLoader {
       // When called from ComprehensiveHomeLoader, only block if other operations (not comprehensive) are in progress
       if (loadingManager.isSplashLoading || loadingManager.isHomeLoading || loadingManager.isBackgroundRefreshing) {
         if (kDebugMode) {
-          print(
+          debugPrint(
               '🚫 Cannot start home data loading - another operation in progress (splash/home/background)');
         }
         return;
@@ -91,7 +90,7 @@ class OptimizedHomeDataLoader {
         DateTime.now().difference(instance._lastLoadTime!) <
             OptimizedHomeDataLoader._minLoadInterval) {
       if (kDebugMode) {
-        print('🚫 Too soon since last load, skipping');
+        debugPrint('🚫 Too soon since last load, skipping');
       }
       return;
     }
@@ -172,7 +171,7 @@ class OptimizedHomeDataLoader {
       }
 
       if (kDebugMode) {
-        print('✅ Home data loading completed successfully');
+        debugPrint('✅ Home data loading completed successfully');
         _printPerformanceStats();
       }
 
@@ -187,7 +186,7 @@ class OptimizedHomeDataLoader {
       }
     } catch (e) {
       if (kDebugMode) {
-        print('❌ Error loading home data: $e');
+        debugPrint('❌ Error loading home data: $e');
       }
     } finally {
       instance._isLoading = false;
@@ -203,7 +202,7 @@ class OptimizedHomeDataLoader {
     // Business settings are set in HomeController during splash screen app-init
     if (homeController.business_Settings != null) {
       if (kDebugMode) {
-        print('✅ OptimizedHomeController: Business settings already loaded (from app-init), skipping API call');
+        debugPrint('✅ OptimizedHomeController: Business settings already loaded (from app-init), skipping API call');
       }
       return;
     }
@@ -214,7 +213,7 @@ class OptimizedHomeDataLoader {
     // 1. AppInitService during splash (from /api/v1/app-init)
     // 2. HomeUnifiedController for home screen (from /api/v2/home-unified)
     if (kDebugMode) {
-      print('⚡ OptimizedHomeController: Business settings come from app-init and home-unified endpoints (deprecated endpoint removed)');
+      debugPrint('⚡ OptimizedHomeController: Business settings come from app-init and home-unified endpoints (deprecated endpoint removed)');
     }
     // No action needed - business settings are loaded via modern endpoints
   }
@@ -241,7 +240,7 @@ class OptimizedHomeDataLoader {
       filteredSections = _filterEnabledSections(filteredSections);
       if (filteredSections.isEmpty) {
         if (kDebugMode) {
-          print('🚫 OptimizedHomeController: All requested sections are disabled, skipping load');
+          debugPrint('🚫 OptimizedHomeController: All requested sections are disabled, skipping load');
         }
         return;
       }
@@ -253,21 +252,21 @@ class OptimizedHomeDataLoader {
       final success = await _tryLoadFromHomeUnified(reload);
       if (success) {
         if (kDebugMode) {
-          print('✅ OptimizedHomeController: Loaded from unified endpoint (17 calls → 1 call)');
+          debugPrint('✅ OptimizedHomeController: Loaded from unified endpoint (17 calls → 1 call)');
         }
         return; // ✅ Success - exit early
       }
       
       // Only fallback if unified endpoint completely fails
       if (kDebugMode) {
-        print('⚠️ OptimizedHomeController: Unified endpoint failed, falling back to individual calls');
+        debugPrint('⚠️ OptimizedHomeController: Unified endpoint failed, falling back to individual calls');
       }
     }
 
     // ⚠️ FALLBACK ONLY: Use individual API calls ONLY if unified endpoint is disabled or fails
     // This should rarely happen in production once unified endpoint is stable
     if (kDebugMode) {
-      print('🌐 OptimizedHomeController: Loading from individual API calls (fallback mode)');
+      debugPrint('🌐 OptimizedHomeController: Loading from individual API calls (fallback mode)');
     }
 
     // Load sections individually (use filtered sections)
@@ -280,7 +279,7 @@ class OptimizedHomeDataLoader {
       // Check if HomeUnifiedController is registered
       if (!Get.isRegistered<HomeUnifiedController>()) {
         if (kDebugMode) {
-          print('⚠️ OptimizedHomeController: HomeUnifiedController not registered');
+          debugPrint('⚠️ OptimizedHomeController: HomeUnifiedController not registered');
         }
         return false;
       }
@@ -294,7 +293,7 @@ class OptimizedHomeDataLoader {
       return success;
     } catch (e) {
       if (kDebugMode) {
-        print('❌ OptimizedHomeController: Error loading from home-unified: $e');
+        debugPrint('❌ OptimizedHomeController: Error loading from home-unified: $e');
       }
       return false;
     }
@@ -310,7 +309,7 @@ class OptimizedHomeDataLoader {
       
       if (businessSettings == null) {
         if (kDebugMode) {
-          print('⚠️ OptimizedHomeController: Business settings not loaded yet, loading all sections');
+          debugPrint('⚠️ OptimizedHomeController: Business settings not loaded yet, loading all sections');
         }
         return sections; // Load all if settings not available yet
       }
@@ -324,27 +323,27 @@ class OptimizedHomeDataLoader {
           case 'categories':
             isEnabled = businessSettings.categoriesSection?.toString() == '1';
             if (!isEnabled && kDebugMode) {
-              print('🚫 OptimizedHomeController: Skipping categories (disabled in business settings)');
+              debugPrint('🚫 OptimizedHomeController: Skipping categories (disabled in business settings)');
             }
             break;
           case 'brands':
             isEnabled = businessSettings.brandSection?.toString() == '1';
             if (!isEnabled && kDebugMode) {
-              print('🚫 OptimizedHomeController: Skipping brands (disabled in business settings)');
+              debugPrint('🚫 OptimizedHomeController: Skipping brands (disabled in business settings)');
             }
             break;
           case 'stores':
             // Only load stores if popularStoresSection is enabled
             isEnabled = businessSettings.popularStoresSection?.toString() == '1';
             if (!isEnabled && kDebugMode) {
-              print('🚫 OptimizedHomeController: Skipping stores (popularStoresSection disabled in business settings)');
+              debugPrint('🚫 OptimizedHomeController: Skipping stores (popularStoresSection disabled in business settings)');
             }
             break;
           case 'banners':
             // Only load banners if bannersSection is enabled
             isEnabled = businessSettings.bannersSection?.toString() == '1';
             if (!isEnabled && kDebugMode) {
-              print('🚫 OptimizedHomeController: Skipping banners (disabled in business settings)');
+              debugPrint('🚫 OptimizedHomeController: Skipping banners (disabled in business settings)');
             }
             break;
           case 'offers':
@@ -371,13 +370,13 @@ class OptimizedHomeDataLoader {
       }
       
       if (kDebugMode && enabledSections.length != sections.length) {
-        print('✅ OptimizedHomeController: Filtered sections - ${sections.length} → ${enabledSections.length} (removed ${sections.length - enabledSections.length} disabled sections)');
+        debugPrint('✅ OptimizedHomeController: Filtered sections - ${sections.length} → ${enabledSections.length} (removed ${sections.length - enabledSections.length} disabled sections)');
       }
       
       return enabledSections;
     } catch (e) {
       if (kDebugMode) {
-        print('⚠️ OptimizedHomeController: Error filtering sections: $e - loading all sections');
+        debugPrint('⚠️ OptimizedHomeController: Error filtering sections: $e - loading all sections');
       }
       return sections; // Fallback to all sections on error
     }
@@ -439,7 +438,7 @@ class OptimizedHomeDataLoader {
           }
           
           if (kDebugMode) {
-            print('✅ OptimizedHomeController: Ecommerce module 3 - Loading sections: ${sectionsToLoad.join(", ")}');
+            debugPrint('✅ OptimizedHomeController: Ecommerce module 3 - Loading sections: ${sectionsToLoad.join(", ")}');
           }
         } else {
           // Other modules: strict business settings check
@@ -457,12 +456,12 @@ class OptimizedHomeDataLoader {
           }
           
           if (kDebugMode) {
-            print('✅ OptimizedHomeController: Default sections to load (strict business settings): ${sectionsToLoad.join(", ")}');
+            debugPrint('✅ OptimizedHomeController: Default sections to load (strict business settings): ${sectionsToLoad.join(", ")}');
           }
         }
       } catch (e) {
         if (kDebugMode) {
-          print('⚠️ OptimizedHomeController: Error getting business settings: $e');
+          debugPrint('⚠️ OptimizedHomeController: Error getting business settings: $e');
         }
         sectionsToLoad = <String>[]; // Don't load anything if settings unavailable
       }
@@ -484,7 +483,7 @@ class OptimizedHomeDataLoader {
       if (futures.isNotEmpty) {
         await Future.wait(futures);
         if (kDebugMode) {
-          print('✅ OptimizedHomeController: Categories and stores loaded in parallel (FAST!)');
+          debugPrint('✅ OptimizedHomeController: Categories and stores loaded in parallel (FAST!)');
         }
       }
     } else {
@@ -511,7 +510,7 @@ class OptimizedHomeDataLoader {
       if (criticalFutures.isNotEmpty) {
         await Future.wait(criticalFutures);
         if (kDebugMode) {
-          print('✅ OptimizedHomeController: Critical sections loaded');
+          debugPrint('✅ OptimizedHomeController: Critical sections loaded');
         }
       }
 
@@ -526,7 +525,7 @@ class OptimizedHomeDataLoader {
           }
           await Future.wait(nonCriticalFutures);
           if (kDebugMode) {
-            print('✅ OptimizedHomeController: Non-critical sections loaded');
+            debugPrint('✅ OptimizedHomeController: Non-critical sections loaded');
           }
         });
       }
@@ -539,7 +538,7 @@ class OptimizedHomeDataLoader {
     // Banners must be populated ONLY via HomeUnifiedController
     if (AppConstants.useBffV2Endpoint) {
       if (kDebugMode) {
-        print('🚫 OptimizedHomeController: Skipping loadBanners - V2 endpoint enabled (HomeUnifiedController handles banners)');
+        debugPrint('🚫 OptimizedHomeController: Skipping loadBanners - V2 endpoint enabled (HomeUnifiedController handles banners)');
       }
       return;
     }
@@ -580,7 +579,7 @@ class OptimizedHomeDataLoader {
         moduleType != AppConstants.pharmacy &&
         moduleType != AppConstants.ecommerce) {
       if (kDebugMode) {
-        print('🚫 Skipping store loading for module type: $moduleType');
+        debugPrint('🚫 Skipping store loading for module type: $moduleType');
       }
       return;
     }
@@ -591,7 +590,7 @@ class OptimizedHomeDataLoader {
     // Popular stores must be populated ONLY via HomeUnifiedController
     if (AppConstants.useBffV2Endpoint) {
       if (kDebugMode) {
-        print('🚫 OptimizedHomeController: Skipping getPopularStoreList - V2 endpoint enabled (HomeUnifiedController handles popular stores)');
+        debugPrint('🚫 OptimizedHomeController: Skipping getPopularStoreList - V2 endpoint enabled (HomeUnifiedController handles popular stores)');
       }
       // Still load all stores (storeModel) for pagination - this is NOT popular stores
       // This is the legacy pagination engine that handles the "All Restaurants" section
@@ -607,11 +606,11 @@ class OptimizedHomeDataLoader {
           dataSource: reload ? DataSourceEnum.client : DataSourceEnum.local,
         );
         if (kDebugMode) {
-          print('✅ OptimizedHomeController: Popular stores loaded (critical section)');
+          debugPrint('✅ OptimizedHomeController: Popular stores loaded (critical section)');
         }
       } catch (e) {
         if (kDebugMode) {
-          print('⚠️ OptimizedHomeController: Popular stores load failed: $e');
+          debugPrint('⚠️ OptimizedHomeController: Popular stores load failed: $e');
         }
       }
     }
@@ -635,7 +634,7 @@ class OptimizedHomeDataLoader {
         if (reload) {
           // Force fresh API call without cache wrapper
           if (kDebugMode) {
-            print('🔄 OptimizedHomeController: reload=true - bypassing cache, calling API directly');
+            debugPrint('🔄 OptimizedHomeController: reload=true - bypassing cache, calling API directly');
           }
           await storeController.getStoreList(1, reload);
         } else {
@@ -655,7 +654,7 @@ class OptimizedHomeDataLoader {
               } else if (data is Map<String, dynamic>) {
                 // Cached data is JSON Map - convert to StoreModel
                 if (kDebugMode) {
-                  print('🔄 OptimizedHomeController: Converting cached Map to StoreModel');
+                  debugPrint('🔄 OptimizedHomeController: Converting cached Map to StoreModel');
                 }
                 storeModel = StoreModel.fromJson(data);
                 
@@ -665,18 +664,18 @@ class OptimizedHomeDataLoader {
                 if (storeModel.totalSize != null && storeModel.totalSize! < 50) {
                   // Suspiciously low store count - likely stale/corrupted cache
                   if (kDebugMode) {
-                    print('⚠️ OptimizedHomeController: Cache has suspiciously low store count (${storeModel.totalSize} stores). Expected 300+. This is likely stale cache from before backend fix. Clearing cache and fetching fresh data...');
+                    debugPrint('⚠️ OptimizedHomeController: Cache has suspiciously low store count (${storeModel.totalSize} stores). Expected 300+. This is likely stale cache from before backend fix. Clearing cache and fetching fresh data...');
                   }
                   // Clear the invalid cache
                   final cacheKey = 'stores_all_module_${splashController.module?.id ?? 0}';
                   await ApiCallManager.instance.clearCache(cacheKey);
                   // Fetch fresh data immediately
                   if (kDebugMode) {
-                    print('🔄 OptimizedHomeController: Fetching fresh store data from API after cache validation failure...');
+                    debugPrint('🔄 OptimizedHomeController: Fetching fresh store data from API after cache validation failure...');
                   }
                   storeController.getStoreList(1, true).catchError((Object error) {
                     if (kDebugMode) {
-                      print('❌ OptimizedHomeController: Failed to fetch fresh store data: $error');
+                      debugPrint('❌ OptimizedHomeController: Failed to fetch fresh store data: $error');
                     }
                     return null; // Return null for catchError
                   });
@@ -689,15 +688,15 @@ class OptimizedHomeDataLoader {
               
               storeController.setStoreDataFromCache(storeModel: storeModel);
               if (kDebugMode) {
-                print('✅ OptimizedHomeController: Store data loaded from cache - totalSize: ${storeModel.totalSize}, stores: ${storeModel.stores?.length ?? 0}');
+                debugPrint('✅ OptimizedHomeController: Store data loaded from cache - totalSize: ${storeModel.totalSize}, stores: ${storeModel.stores?.length ?? 0}');
               }
             } catch (e, stackTrace) {
               // 🧹 CACHE ERROR HANDLING: Clear corrupted cache and fetch fresh
               if (kDebugMode) {
-                print('❌ OptimizedHomeController: Cache parsing failed: $e');
-                print('   Stack trace: $stackTrace');
-                print('   Data type: ${data.runtimeType}');
-                print('🧹 Clearing invalid cache and fetching fresh data...');
+                debugPrint('❌ OptimizedHomeController: Cache parsing failed: $e');
+                debugPrint('   Stack trace: $stackTrace');
+                debugPrint('   Data type: ${data.runtimeType}');
+                debugPrint('🧹 Clearing invalid cache and fetching fresh data...');
               }
               
               // Clear the corrupted cache entry
@@ -706,11 +705,11 @@ class OptimizedHomeDataLoader {
               
               // Fetch fresh data from API (force refresh)
               if (kDebugMode) {
-                print('🔄 OptimizedHomeController: Fetching fresh store data from API...');
+                debugPrint('🔄 OptimizedHomeController: Fetching fresh store data from API...');
               }
               storeController.getStoreList(1, true).catchError((error) {
                 if (kDebugMode) {
-                  print('❌ OptimizedHomeController: Failed to fetch fresh store data: $error');
+                  debugPrint('❌ OptimizedHomeController: Failed to fetch fresh store data: $error');
                 }
                 return null; // Return null for catchError
               });
@@ -720,12 +719,12 @@ class OptimizedHomeDataLoader {
         }
 
         if (kDebugMode) {
-          print('✅ OptimizedHomeController: All stores loaded (background)');
+          debugPrint('✅ OptimizedHomeController: All stores loaded (background)');
         }
       } catch (e, stackTrace) {
         if (kDebugMode) {
-          print('⚠️ OptimizedHomeController: Background store loading failed: $e');
-          print('   Stack trace: $stackTrace');
+          debugPrint('⚠️ OptimizedHomeController: Background store loading failed: $e');
+          debugPrint('   Stack trace: $stackTrace');
         }
       }
     });
@@ -739,7 +738,7 @@ class OptimizedHomeDataLoader {
     // Categories must be populated ONLY via HomeUnifiedController
     if (AppConstants.useBffV2Endpoint) {
       if (kDebugMode) {
-        print('🚫 OptimizedHomeController: Skipping loadCategories - V2 endpoint enabled (HomeUnifiedController handles categories)');
+        debugPrint('🚫 OptimizedHomeController: Skipping loadCategories - V2 endpoint enabled (HomeUnifiedController handles categories)');
       }
       return;
     }
@@ -766,12 +765,12 @@ class OptimizedHomeDataLoader {
       });
       
       if (kDebugMode) {
-        print('✅ OptimizedHomeController: Categories loaded (first section - critical)');
+        debugPrint('✅ OptimizedHomeController: Categories loaded (first section - critical)');
       }
     } catch (e) {
       // Categories is critical, but don't fail entire home load
       if (kDebugMode) {
-        print('⚠️ OptimizedHomeController: Categories load failed: $e');
+        debugPrint('⚠️ OptimizedHomeController: Categories load failed: $e');
       }
     }
   }
@@ -846,7 +845,7 @@ class OptimizedHomeDataLoader {
         moduleType != AppConstants.grocery &&
         moduleType != AppConstants.pharmacy) {
       if (kDebugMode) {
-        print('🚫 Skipping campaign loading for module type: $moduleType');
+        debugPrint('🚫 Skipping campaign loading for module type: $moduleType');
       }
       return;
     }
@@ -879,7 +878,7 @@ class OptimizedHomeDataLoader {
     final splashController = Get.find<SplashController>();
     final moduleId = splashController.module?.id ?? 0;
     
-    print('🏷️ Loading brands for module $moduleId...');
+    debugPrint('🏷️ Loading brands for module $moduleId...');
     // ⚠️ CRITICAL FIX: Call controller method directly instead of wrapping with ApiCallManager
     // ApiCallManager disk cache was bypassing the controller method and returning raw JSON
     // The controller already has its own cache logic via DataSourceEnum
@@ -1134,13 +1133,13 @@ class OptimizedHomeDataLoader {
   static void _printPerformanceStats() {
     final stats = Get.find<OptimizedApiClient>().getPerformanceStats();
     if (kDebugMode) {
-      print('📊 API Performance Stats:');
-      print('   Total Calls: ${stats['totalCalls']}');
-      print('   Duplicates Prevented: ${stats['duplicateCallsPrevented']}');
-      print('   Cache Hits: ${stats['cacheHits']}');
-      print('   Cache Hit Rate: ${stats['cacheHitRate']}%');
-      print('   Ongoing Calls: ${stats['ongoingCalls']}');
-      print('   Cached Responses: ${stats['cachedResponses']}');
+      debugPrint('📊 API Performance Stats:');
+      debugPrint('   Total Calls: ${stats['totalCalls']}');
+      debugPrint('   Duplicates Prevented: ${stats['duplicateCallsPrevented']}');
+      debugPrint('   Cache Hits: ${stats['cacheHits']}');
+      debugPrint('   Cache Hit Rate: ${stats['cacheHitRate']}%');
+      debugPrint('   Ongoing Calls: ${stats['ongoingCalls']}');
+      debugPrint('   Cached Responses: ${stats['cachedResponses']}');
     }
   }
 
@@ -1148,7 +1147,7 @@ class OptimizedHomeDataLoader {
   static void clearAllCaches() {
     ApiCallManager.instance.clearCache();
     if (kDebugMode) {
-      print('🗑️ All caches cleared');
+      debugPrint('🗑️ All caches cleared');
     }
   }
 
@@ -1157,11 +1156,11 @@ class OptimizedHomeDataLoader {
     try {
       await Get.find<OptimizedApiClient>().preloadCriticalData();
       if (kDebugMode) {
-        print('⚡ Critical data preloaded');
+        debugPrint('⚡ Critical data preloaded');
       }
     } catch (e) {
       if (kDebugMode) {
-        print('❌ Error preloading critical data: $e');
+        debugPrint('❌ Error preloading critical data: $e');
       }
     }
   }
@@ -1173,11 +1172,11 @@ class OptimizedHomeDataLoader {
       try {
         await SmartPreloader.preloadPopularSections();
         if (kDebugMode) {
-          print('🚀 Smart preloading completed in background');
+          debugPrint('🚀 Smart preloading completed in background');
         }
       } catch (e) {
         if (kDebugMode) {
-          print('❌ Error in smart preloading: $e');
+          debugPrint('❌ Error in smart preloading: $e');
         }
       }
     });

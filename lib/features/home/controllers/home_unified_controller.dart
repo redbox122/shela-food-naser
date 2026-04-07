@@ -48,6 +48,9 @@ class HomeUnifiedController extends GetxController implements GetxService {
 
   HomeUnifiedController({required this.homeUnifiedService});
 
+  // Disposal guard: prevents timer callbacks from executing after onClose()
+  bool _disposed = false;
+
   int? get lastRequestStatusCode => homeUnifiedService.lastRequestStatusCode;
   String? get lastRequestErrorCode => homeUnifiedService.lastRequestErrorCode;
   bool get wasLastFailureHeaderBlocked =>
@@ -2119,17 +2122,17 @@ class HomeUnifiedController extends GetxController implements GetxService {
     if (Get.isRegistered<BannerController>()) {
       try {
         Get.find<BannerController>().clearBanner();
-      } catch (_) {}
+      } catch (e) { if (kDebugMode) debugPrint('$e'); }
     }
     if (Get.isRegistered<CategoryController>()) {
       try {
         Get.find<CategoryController>().clearCategoryList(skipUpdate: true);
-      } catch (_) {}
+      } catch (e) { if (kDebugMode) debugPrint('$e'); }
     }
     if (Get.isRegistered<BrandsController>()) {
       try {
         Get.find<BrandsController>().clearBrandList();
-      } catch (_) {}
+      } catch (e) { if (kDebugMode) debugPrint('$e'); }
     }
     // StoreController is already cleared by clearStoreData() in selectModule().
   }
@@ -2252,6 +2255,7 @@ class HomeUnifiedController extends GetxController implements GetxService {
   }
 
   void _runSmartFoodPollingTick(int moduleId) {
+    if (_disposed) return;
     if (!_isFoodModuleForSmartPolling(moduleId) || ModuleHelper.getModule()?.id != moduleId) {
       _stopSmartFoodPolling();
       return;
@@ -2345,6 +2349,7 @@ class HomeUnifiedController extends GetxController implements GetxService {
 
   @override
   void onClose() {
+    _disposed = true;
     _stopSmartFoodPolling();
     super.onClose();
   }

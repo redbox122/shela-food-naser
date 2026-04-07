@@ -46,318 +46,335 @@ class _PaymentSectionState extends State<PaymentSection> {
   @override
   Widget build(BuildContext context) {
     return GetBuilder<CheckoutController>(
-      id: 'payment', // ✅ استخدام ID لتحديث جزئي
-      builder: (checkoutController) {
-      return Column(
-        children: [
-          //
+        id: 'payment', // ✅ استخدام ID لتحديث جزئي
+        builder: (checkoutController) {
+          return Column(
+            children: [
+              //
 
-          Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-            Text(
-                widget.storeId != null
-                    ? 'payment_method'.tr
-                    : 'choose_payment_method'.tr,
-                style: robotoMedium),
-            // widget.storeId == null && !ResponsiveHelper.isDesktop(context)
-            //     ? InkWell(
-            //         onTap: () {
-            //            Get.bottomSheet(
-            //            const PaymentMethodBottomSheet(),
-            //            backgroundColor: Colors.transparent,
-            //               isScrollControlled: true,
-            //          );
-            //         },
-            //         child: Image.asset(Images.paymentSelect, height: 26, width: 26),
-            //       )
-            //     : const SizedBox(),
-          ]),
-          !ResponsiveHelper.isDesktop(context)
-              ? const Divider()
-              : const SizedBox(height: Dimensions.paddingSizeSmall),
+              Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+                Text(
+                    widget.storeId != null
+                        ? 'payment_method'.tr
+                        : 'choose_payment_method'.tr,
+                    style: robotoMedium),
+                // widget.storeId == null && !ResponsiveHelper.isDesktop(context)
+                //     ? InkWell(
+                //         onTap: () {
+                //            Get.bottomSheet(
+                //            const PaymentMethodBottomSheet(),
+                //            backgroundColor: Colors.transparent,
+                //               isScrollControlled: true,
+                //          );
+                //         },
+                //         child: Image.asset(Images.paymentSelect, height: 26, width: 26),
+                //       )
+                //     : const SizedBox(),
+              ]),
+              !ResponsiveHelper.isDesktop(context)
+                  ? const Divider()
+                  : const SizedBox(height: Dimensions.paddingSizeSmall),
 
-          //
+              //
 
-          SizedBox(height: Dimensions.fontSizeSmall),
+              SizedBox(height: Dimensions.fontSizeSmall),
 
-          // PaymentButtons(
-          //   checkoutController: checkoutController,
-          //   partialPayView: widget.partialPayView,
-          // ),
+              // PaymentButtons(
+              //   checkoutController: checkoutController,
+              //   partialPayView: widget.partialPayView,
+              // ),
 
-          GetBuilder<KaidhaSubscription_Controller>(
-              builder: (KaidhaSub_Controller) {
-            return GetBuilder<ProfileController>(builder: (profileController) {
-              return Center(
-                child: SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                    children: [
-                      _buildPaymentOption(
-                        context: context,
-                        label: 'my_wallet'.tr,
-                        icon: Icons.account_balance_wallet_outlined,
-                        index: 2,
-                        onTap: () {
-                          if (profileController.userInfoModel!.walletBalance ==
-                                  0.0 ||
-                              profileController.userInfoModel == null ||
-                              profileController.userInfoModel!.walletBalance ==
-                                  null) {
-                            showCustomSnackBar('المحفظه فارغة من الرصيد');
-                            return;
-                          }
+              GetBuilder<KaidhaSubscription_Controller>(
+                  builder: (KaidhaSub_Controller) {
+                return GetBuilder<ProfileController>(
+                    builder: (profileController) {
+                  return Center(
+                    child: SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                        children: [
+                          _buildPaymentOption(
+                            context: context,
+                            label: 'my_wallet'.tr,
+                            icon: Icons.account_balance_wallet_outlined,
+                            index: 2,
+                            onTap: () {
+                              if (profileController
+                                          .userInfoModel!.walletBalance ==
+                                      0.0 ||
+                                  profileController.userInfoModel == null ||
+                                  profileController
+                                          .userInfoModel!.walletBalance ==
+                                      null) {
+                                showCustomSnackBar('المحفظه فارغة من الرصيد');
+                                return;
+                              }
 
-                          setState(() {
-                            checkoutController.selectedButton = 2;
-                            checkoutController.select_payment_Methods = null;
-                          });
+                              setState(() {
+                                checkoutController.selectedButton = 2;
+                                checkoutController.select_payment_Methods =
+                                    null;
+                              });
 
-                          if (checkoutController.isKaidhaPay == true) {
-                            //"قيدها"
-                            checkoutController.change_Kaidha_Pay();
-                          }
+                              if (checkoutController.isKaidhaPay == true) {
+                                //"قيدها"
+                                checkoutController.change_Kaidha_Pay();
+                              }
 
-                          if (widget.partialPayView != null) {
-                            Get.bottomSheet(
-                              backgroundColor: Colors.transparent,
-                              isScrollControlled: true,
-                              Container(
-                                decoration: BoxDecoration(
-                                  color: Theme.of(context).cardColor,
-                                  borderRadius: BorderRadius.vertical(
-                                    top: const Radius.circular(
-                                        Dimensions.radiusLarge),
-                                    bottom: Radius.circular(
-                                        ResponsiveHelper.isDesktop(context)
-                                            ? Dimensions.radiusLarge
-                                            : 0),
+                              if (widget.partialPayView != null) {
+                                Get.bottomSheet(
+                                  backgroundColor: Colors.transparent,
+                                  isScrollControlled: true,
+                                  Container(
+                                    decoration: BoxDecoration(
+                                      color: Theme.of(context).cardColor,
+                                      borderRadius: BorderRadius.vertical(
+                                        top: const Radius.circular(
+                                            Dimensions.radiusLarge),
+                                        bottom: Radius.circular(
+                                            ResponsiveHelper.isDesktop(context)
+                                                ? Dimensions.radiusLarge
+                                                : 0),
+                                      ),
+                                    ),
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: Dimensions.paddingSizeLarge,
+                                      vertical: Dimensions.paddingSizeLarge,
+                                    ),
+                                    child: widget.partialPayView,
                                   ),
-                                ),
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: Dimensions.paddingSizeLarge,
-                                  vertical: Dimensions.paddingSizeLarge,
-                                ),
-                                child: widget.partialPayView,
-                              ),
-                            );
-                          }
-                        },
-                      ),
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 10),
-                        child: _buildPaymentOption(
-                          context: context,
-                          label: 'kiadha_wallet'.tr,
-                          icon: Icons.credit_card_outlined,
-                          index: 0,
-                          onTap: () {
-                            // Check if wallet data is loaded
-                            if (KaidhaSub_Controller.walletKaidhaModel ==
-                                    null ||
-                                KaidhaSub_Controller
-                                        .walletKaidhaModel!.wallet ==
-                                    null) {
-                              showCustomSnackBar(
-                                  'محفظة قيدها غير متاحة - يرجى المحاولة لاحقاً');
-                              return;
-                            }
+                                );
+                              }
+                            },
+                          ),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 10),
+                            child: _buildPaymentOption(
+                              context: context,
+                              label: 'kiadha_wallet'.tr,
+                              icon: Icons.credit_card_outlined,
+                              index: 0,
+                              onTap: () {
+                                // Check if wallet data is loaded
+                                if (KaidhaSub_Controller.walletKaidhaModel ==
+                                        null ||
+                                    KaidhaSub_Controller
+                                            .walletKaidhaModel!.wallet ==
+                                        null) {
+                                  showCustomSnackBar(
+                                      'محفظة قيدها غير متاحة - يرجى المحاولة لاحقاً');
+                                  return;
+                                }
 
-                            // Check if wallet has sufficient balance
-                            final availableBalance = KaidhaSub_Controller
-                                .walletKaidhaModel!.wallet!.availableBalance;
-                            if (availableBalance == null ||
-                                availableBalance.toString() == '0.00' ||
-                                double.tryParse(availableBalance.toString()) ==
-                                    0.0) {
-                              showCustomSnackBar('المحفظه فارغة من الرصيد');
-                              return;
-                            }
+                                // Check if wallet has sufficient balance
+                                final availableBalance = KaidhaSub_Controller
+                                    .walletKaidhaModel!
+                                    .wallet!
+                                    .availableBalance;
+                                if (availableBalance == null ||
+                                    availableBalance.toString() == '0.00' ||
+                                    double.tryParse(
+                                            availableBalance.toString()) ==
+                                        0.0) {
+                                  showCustomSnackBar('المحفظه فارغة من الرصيد');
+                                  return;
+                                }
 
-                            setState(() {
-                              checkoutController.selectedButton = 0;
-                              checkoutController.select_payment_Methods = null;
-                            });
+                                setState(() {
+                                  checkoutController.selectedButton = 0;
+                                  checkoutController.select_payment_Methods =
+                                      null;
+                                });
 
-                            checkoutController.setPaymentMethod(0);
+                                checkoutController.setPaymentMethod(0);
 
-                            // Ensure Qidha wallet is enabled
-                            if (checkoutController.isKaidhaPay == false) {
-                              checkoutController.change_Kaidha_Pay();
-                            }
+                                // Ensure Qidha wallet is enabled
+                                if (checkoutController.isKaidhaPay == false) {
+                                  checkoutController.change_Kaidha_Pay();
+                                }
 
-                            if (checkoutController.isPartialPay == true) {
-                              //"محفظتي"
-                              checkoutController.changePartialPayment();
-                            }
-                            if (checkoutController.isMy_Pay == true) {
-                              //عادي
-                              checkoutController.change_My_Pay();
-                            }
+                                if (checkoutController.isPartialPay == true) {
+                                  //"محفظتي"
+                                  checkoutController.changePartialPayment();
+                                }
+                                if (checkoutController.isMy_Pay == true) {
+                                  //عادي
+                                  checkoutController.change_My_Pay();
+                                }
 
-                            if (widget.Kaidha_Wallat_PayView != null) {
+                                if (widget.Kaidha_Wallat_PayView != null) {
+                                  Get.bottomSheet(
+                                    backgroundColor: Colors.transparent,
+                                    isScrollControlled: true,
+                                    Container(
+                                      decoration: BoxDecoration(
+                                        color: Theme.of(context).cardColor,
+                                        borderRadius: BorderRadius.vertical(
+                                          top: const Radius.circular(
+                                              Dimensions.radiusLarge),
+                                          bottom: Radius.circular(
+                                              ResponsiveHelper.isDesktop(
+                                                      context)
+                                                  ? Dimensions.radiusLarge
+                                                  : 0),
+                                        ),
+                                      ),
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: Dimensions.paddingSizeLarge,
+                                        vertical: Dimensions.paddingSizeLarge,
+                                      ),
+                                      child: widget.Kaidha_Wallat_PayView,
+                                    ),
+                                  );
+                                }
+                              },
+                            ),
+                          ),
+                          _buildPaymentOption(
+                            context: context,
+                            label: 'my_bill_wallet'.tr,
+                            icon: Icons.receipt_long_outlined,
+                            index: 1,
+                            onTap: () {
+                              setState(() {
+                                checkoutController.selectedButton = 1;
+                              });
+
+                              checkoutController.setPaymentMethod(2);
+
+                              if (checkoutController.isKaidhaPay == true) {
+                                //"قيدها"
+                                checkoutController.change_Kaidha_Pay();
+                              }
+
+                              if (checkoutController.isMy_Pay == true) {
+                                //عادي
+                                checkoutController.change_My_Pay();
+                              }
+
                               Get.bottomSheet(
+                                const PaymentMethodBottomSheet(),
                                 backgroundColor: Colors.transparent,
                                 isScrollControlled: true,
-                                Container(
-                                  decoration: BoxDecoration(
-                                    color: Theme.of(context).cardColor,
-                                    borderRadius: BorderRadius.vertical(
-                                      top: const Radius.circular(
-                                          Dimensions.radiusLarge),
-                                      bottom: Radius.circular(
-                                          ResponsiveHelper.isDesktop(context)
-                                              ? Dimensions.radiusLarge
-                                              : 0),
-                                    ),
-                                  ),
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: Dimensions.paddingSizeLarge,
-                                    vertical: Dimensions.paddingSizeLarge,
-                                  ),
-                                  child: widget.Kaidha_Wallat_PayView,
-                                ),
-                              );
-                            }
-                          },
-                        ),
+                              ).then((_) {
+                                setState(() {});
+                              });
+                            },
+                          ),
+
+                          //
+                        ],
                       ),
-                      _buildPaymentOption(
-                        context: context,
-                        label: 'my_bill_wallet'.tr,
-                        icon: Icons.receipt_long_outlined,
-                        index: 1,
-                        onTap: () {
-                          setState(() {
-                            checkoutController.selectedButton = 1;
-                          });
+                    ),
+                  );
+                });
+              }),
 
-                          checkoutController.setPaymentMethod(2);
+              const SizedBox(height: Dimensions.paddingSizeExtraLarge),
 
-                          if (checkoutController.isKaidhaPay == true) {
-                            //"قيدها"
-                            checkoutController.change_Kaidha_Pay();
-                          }
+              // =======================================
 
-                          if (checkoutController.isMy_Pay == true) {
-                            //عادي
-                            checkoutController.change_My_Pay();
-                          }
-
-                          Get.bottomSheet(
-                            const PaymentMethodBottomSheet(),
-                            backgroundColor: Colors.transparent,
-                            isScrollControlled: true,
-                          );
-                        },
-                      ),
-
-                      //
-                    ],
-                  ),
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).primaryColor.withValues(alpha: 0.2),
+                  borderRadius: BorderRadius.circular(12),
                 ),
-              );
-            });
-          }),
+                child:
 
-          const SizedBox(height: Dimensions.paddingSizeExtraLarge),
+                    //
 
-          // =======================================
-
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-            decoration: BoxDecoration(
-              color: Theme.of(context).primaryColor.withValues(alpha: 0.2),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child:
-
-                //
-
-                checkoutController.select_payment_Methods != null &&
-                        checkoutController.selectedButton == 1
-                    ? ListTile(
-                        leading: SmartImage(
-                          url: checkoutController.select_payment_Methods!.imageUrl ?? '',
-                          height: 50,
-                          width: 50,
-                          cacheWidth: 300,
-                          cacheHeight: 300,
-                          errorWidget: const Icon(Icons.image_not_supported),
-                        ),
-                        title: Text(checkoutController
-                                .select_payment_Methods!.paymentMethodEn ??
-                            ''),
-                      )
-                    : checkoutController.selectedButton == 2
+                    checkoutController.select_payment_Methods != null &&
+                            checkoutController.selectedButton == 1
                         ? ListTile(
-                            leading: Image.asset(Images.partialWallet,
-                                height: 35, width: 35),
-                            title: Text('wallet'.tr),
+                            leading: SmartImage(
+                              url: checkoutController
+                                      .select_payment_Methods!.imageUrl ??
+                                  '',
+                              height: 50,
+                              width: 50,
+                              cacheWidth: 300,
+                              cacheHeight: 300,
+                              errorWidget:
+                                  const Icon(Icons.image_not_supported),
+                            ),
+                            title: Text(checkoutController
+                                    .select_payment_Methods!.paymentMethodEn ??
+                                ''),
                           )
-                        : checkoutController.selectedButton == 0
+                        : checkoutController.selectedButton == 2
                             ? ListTile(
-                                leading: Image.asset(Images.walletIcon,
-                                    height: 30, width: 30),
-                                title: Text('kiadha_wallet'.tr),
+                                leading: Image.asset(Images.partialWallet,
+                                    height: 35, width: 35),
+                                title: Text('wallet'.tr),
                               )
+                            : checkoutController.selectedButton == 0
+                                ? ListTile(
+                                    leading: Image.asset(Images.walletIcon,
+                                        height: 30, width: 30),
+                                    title: Text('kiadha_wallet'.tr),
+                                  )
 
-                            // -----------------
+                                // -----------------
 
-                            : Row(
-                                children: [
-                                  Icon(
-                                    Icons.wallet_outlined,
-                                    size: 18,
-                                    color: !ResponsiveHelper.isDesktop(context)
-                                        ? Theme.of(context).disabledColor
-                                        : Theme.of(context).primaryColor,
-                                  ),
-                                  const SizedBox(
-                                      width: Dimensions.paddingSizeSmall),
-                                  //
+                                : Row(
+                                    children: [
+                                      Icon(
+                                        Icons.wallet_outlined,
+                                        size: 18,
+                                        color: !ResponsiveHelper.isDesktop(
+                                                context)
+                                            ? Theme.of(context).disabledColor
+                                            : Theme.of(context).primaryColor,
+                                      ),
+                                      const SizedBox(
+                                          width: Dimensions.paddingSizeSmall),
+                                      //
 
-                                  Expanded(
-                                    child: Row(
-                                      children: [
-                                        Text(
-                                          'select_payment_method'.tr,
-                                          style: robotoMedium.copyWith(
-                                            fontSize: Dimensions.fontSizeSmall,
-                                            color: !ResponsiveHelper.isDesktop(
-                                                    context)
-                                                ? Theme.of(context)
-                                                    .disabledColor
-                                                : checkoutController
-                                                            .paymentMethodIndex ==
-                                                        -1
+                                      Expanded(
+                                        child: Row(
+                                          children: [
+                                            Text(
+                                              'select_payment_method'.tr,
+                                              style: robotoMedium.copyWith(
+                                                fontSize:
+                                                    Dimensions.fontSizeSmall,
+                                                color: !ResponsiveHelper
+                                                        .isDesktop(context)
                                                     ? Theme.of(context)
-                                                        .primaryColor
-                                                    : Theme.of(context)
-                                                        .disabledColor,
-                                          ),
+                                                        .disabledColor
+                                                    : checkoutController
+                                                                .paymentMethodIndex ==
+                                                            -1
+                                                        ? Theme.of(context)
+                                                            .primaryColor
+                                                        : Theme.of(context)
+                                                            .disabledColor,
+                                              ),
+                                            ),
+                                            Padding(
+                                              padding: const EdgeInsets.only(
+                                                  left: Dimensions
+                                                      .paddingSizeExtraSmall,
+                                                  right: Dimensions
+                                                      .paddingSizeExtraSmall),
+                                              child: Icon(Icons.error,
+                                                  size: 16,
+                                                  color: Theme.of(context)
+                                                      .colorScheme
+                                                      .error),
+                                            )
+                                          ],
                                         ),
-                                        Padding(
-                                          padding: const EdgeInsets.only(
-                                              left: Dimensions
-                                                  .paddingSizeExtraSmall,
-                                              right: Dimensions
-                                                  .paddingSizeExtraSmall),
-                                          child: Icon(Icons.error,
-                                              size: 16,
-                                              color: Theme.of(context)
-                                                  .colorScheme
-                                                  .error),
-                                        )
-                                      ],
-                                    ),
+                                      ),
+                                    ],
                                   ),
-                                ],
-                              ),
-          ),
-        ],
-      );
-    });
+              ),
+            ],
+          );
+        });
   }
 
   //
@@ -457,7 +474,8 @@ class _PaymentSectionState extends State<PaymentSection> {
       case 2: // Regular Wallet
         final profileController = Get.find<ProfileController>();
         if (profileController.userInfoModel?.walletBalance != null) {
-          final double balance = profileController.userInfoModel!.walletBalance!;
+          final double balance =
+              profileController.userInfoModel!.walletBalance!;
           return 'رصيد: ${balance.toStringAsFixed(2)} ريال';
         }
         return 'رصيد: 0.00 ريال';

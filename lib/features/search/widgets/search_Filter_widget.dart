@@ -1,4 +1,3 @@
-// ignore_for_file: file_names, avoid_print, camel_case_types
 
 // ❌ DEPRECATED: هذا الملف لم يعد مستخدماً
 // تم نقل جميع الفلاتر إلى SearchFilterBar في صفحة نتائج البحث

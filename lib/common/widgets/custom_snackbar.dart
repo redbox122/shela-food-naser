@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:sixam_mart/util/backend_message_translator.dart';
@@ -93,8 +94,9 @@ String _normalizePotentialMojibake(String input) {
       }
       candidate = decoded;
     }
-  } catch (_) {}
+  } catch (e) {
+    if (kDebugMode) debugPrint('$e');
+  }
 
   return input;
 }
-

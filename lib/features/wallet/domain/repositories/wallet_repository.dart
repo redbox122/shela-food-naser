@@ -76,7 +76,7 @@ class WalletRepository implements WalletRepositoryInterface {
     // ⚡ 304 HANDLING: If 304 received, load cached data
     if (response.statusCode == 304) {
       if (kDebugMode) {
-        print('🔄 [WalletRepository] Received 304 for transactions - loading cache');
+        debugPrint('🔄 [WalletRepository] Received 304 for transactions - loading cache');
       }
       final String? cachedData = await LocalClient.organize(DataSourceEnum.local, cacheKey, null, null);
       if (cachedData != null && cachedData.isNotEmpty) {
@@ -86,19 +86,19 @@ class WalletRepository implements WalletRepositoryInterface {
               ? decoded 
               : (decoded as Map).cast<String, dynamic>();
           if (kDebugMode) {
-            print('✅ [WalletRepository] Loaded cached transactions');
+            debugPrint('✅ [WalletRepository] Loaded cached transactions');
           }
           return TransactionModel.fromJson(cachedBody);
         } catch (e) {
           if (kDebugMode) {
-            print('⚠️ [WalletRepository] Failed to parse cached transactions: $e');
+            debugPrint('⚠️ [WalletRepository] Failed to parse cached transactions: $e');
           }
           // Cache parsing failed - return null to trigger retry
           return null;
         }
       } else {
         if (kDebugMode) {
-          print('❌ [WalletRepository] 304 received but no cache - making fresh request');
+          debugPrint('❌ [WalletRepository] 304 received but no cache - making fresh request');
         }
         // Cache missing - make fresh request (retry without ETag)
         final freshResponse = await apiClient.getData(uri);
@@ -113,7 +113,7 @@ class WalletRepository implements WalletRepositoryInterface {
             );
           } catch (e) {
             if (kDebugMode) {
-              print('⚠️ Failed to cache transactions: $e');
+              debugPrint('⚠️ Failed to cache transactions: $e');
             }
           }
           final dynamic body = freshResponse.body;
@@ -135,7 +135,7 @@ class WalletRepository implements WalletRepositoryInterface {
         );
       } catch (e) {
         if (kDebugMode) {
-          print('⚠️ Failed to cache transactions: $e');
+          debugPrint('⚠️ Failed to cache transactions: $e');
         }
       }
       final dynamic body = response.body;
@@ -155,14 +155,14 @@ class WalletRepository implements WalletRepositoryInterface {
     // ⚡ 304 HANDLING: If 304 received, load cached data
     if (response.statusCode == 304) {
       if (kDebugMode) {
-        print('🔄 [WalletRepository] Received 304 for bonuses - loading cache');
+        debugPrint('🔄 [WalletRepository] Received 304 for bonuses - loading cache');
       }
       final String? cachedData = await LocalClient.organize(DataSourceEnum.local, cacheKey, null, null);
       if (cachedData != null && cachedData.isNotEmpty) {
         try {
           final List<dynamic> cachedList = jsonDecode(cachedData) as List<dynamic>;
           if (kDebugMode) {
-            print('✅ [WalletRepository] Loaded cached bonuses: ${cachedList.length}');
+            debugPrint('✅ [WalletRepository] Loaded cached bonuses: ${cachedList.length}');
           }
           final List<FundBonusModel> fundBonusList = [];
           for (final value in cachedList) {
@@ -171,14 +171,14 @@ class WalletRepository implements WalletRepositoryInterface {
           return fundBonusList;
         } catch (e) {
           if (kDebugMode) {
-            print('⚠️ [WalletRepository] Failed to parse cached bonuses: $e');
+            debugPrint('⚠️ [WalletRepository] Failed to parse cached bonuses: $e');
           }
           // Cache parsing failed - return empty list
           return [];
         }
       } else {
         if (kDebugMode) {
-          print('❌ [WalletRepository] 304 received but no cache - making fresh request');
+          debugPrint('❌ [WalletRepository] 304 received but no cache - making fresh request');
         }
         // Cache missing - make fresh request (retry without ETag)
         final freshResponse = await apiClient.getData(uri);
@@ -193,7 +193,7 @@ class WalletRepository implements WalletRepositoryInterface {
             );
           } catch (e) {
             if (kDebugMode) {
-              print('⚠️ Failed to cache bonuses: $e');
+              debugPrint('⚠️ Failed to cache bonuses: $e');
             }
           }
           final List<FundBonusModel> fundBonusList = [];
@@ -218,7 +218,7 @@ class WalletRepository implements WalletRepositoryInterface {
         );
       } catch (e) {
         if (kDebugMode) {
-          print('⚠️ Failed to cache bonuses: $e');
+          debugPrint('⚠️ Failed to cache bonuses: $e');
         }
       }
       

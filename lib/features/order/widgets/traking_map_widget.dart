@@ -212,7 +212,7 @@ class _TrackingMapWidgetState extends State<TrackingMapWidget> {
               icon: deliveryBoyImageData,
             ))
           : const SizedBox();
-    } catch (_) {}
+    } catch (e) { if (kDebugMode) debugPrint('$e'); }
     setState(() {});
   }
 

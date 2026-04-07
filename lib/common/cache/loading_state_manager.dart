@@ -1,4 +1,3 @@
-// ignore_for_file: avoid_print
 
 import 'package:flutter/foundation.dart';
 
@@ -50,7 +49,7 @@ class LoadingStateManager {
   bool startSplashLoading() {
     if (_isSplashLoading) {
       if (kDebugMode) {
-        print('🚫 Splash loading already in progress, skipping');
+        debugPrint('🚫 Splash loading already in progress, skipping');
       }
       return false;
     }
@@ -58,7 +57,7 @@ class LoadingStateManager {
     if (_lastSplashLoad != null &&
         DateTime.now().difference(_lastSplashLoad!) < _minSplashInterval) {
       if (kDebugMode) {
-        print('🚫 Too soon since last splash load, skipping');
+        debugPrint('🚫 Too soon since last splash load, skipping');
       }
       return false;
     }
@@ -67,7 +66,7 @@ class LoadingStateManager {
     _lastSplashLoad = DateTime.now();
 
     if (kDebugMode) {
-      print('🚀 Starting splash loading');
+      debugPrint('🚀 Starting splash loading');
     }
     return true;
   }
@@ -76,7 +75,7 @@ class LoadingStateManager {
   void completeSplashLoading() {
     _isSplashLoading = false;
     if (kDebugMode) {
-      print('✅ Splash loading completed');
+      debugPrint('✅ Splash loading completed');
     }
   }
 
@@ -84,7 +83,7 @@ class LoadingStateManager {
   bool startHomeLoading({bool force = false}) {
     if (_isHomeLoading) {
       if (kDebugMode) {
-        print('🚫 Home loading already in progress, skipping');
+        debugPrint('🚫 Home loading already in progress, skipping');
       }
       return false;
     }
@@ -93,7 +92,7 @@ class LoadingStateManager {
         _lastHomeLoad != null &&
         DateTime.now().difference(_lastHomeLoad!) < _minHomeInterval) {
       if (kDebugMode) {
-        print('🚫 Too soon since last home load, skipping');
+        debugPrint('🚫 Too soon since last home load, skipping');
       }
       return false;
     }
@@ -102,7 +101,7 @@ class LoadingStateManager {
     _lastHomeLoad = DateTime.now();
 
     if (kDebugMode) {
-      print('🚀 Starting home loading${force ? ' (FORCED)' : ''}');
+      debugPrint('🚀 Starting home loading${force ? ' (FORCED)' : ''}');
     }
     return true;
   }
@@ -111,7 +110,7 @@ class LoadingStateManager {
   void completeHomeLoading() {
     _isHomeLoading = false;
     if (kDebugMode) {
-      print('✅ Home loading completed');
+      debugPrint('✅ Home loading completed');
     }
   }
 
@@ -119,7 +118,7 @@ class LoadingStateManager {
   bool startBackgroundRefresh() {
     if (_isBackgroundRefreshing) {
       if (kDebugMode) {
-        print('🚫 Background refresh already in progress, skipping');
+        debugPrint('🚫 Background refresh already in progress, skipping');
       }
       return false;
     }
@@ -128,7 +127,7 @@ class LoadingStateManager {
         DateTime.now().difference(_lastBackgroundRefresh!) <
             _minBackgroundInterval) {
       if (kDebugMode) {
-        print('🚫 Too soon since last background refresh, skipping');
+        debugPrint('🚫 Too soon since last background refresh, skipping');
       }
       return false;
     }
@@ -137,7 +136,7 @@ class LoadingStateManager {
     _lastBackgroundRefresh = DateTime.now();
 
     if (kDebugMode) {
-      print('🚀 Starting background refresh');
+      debugPrint('🚀 Starting background refresh');
     }
     return true;
   }
@@ -146,7 +145,7 @@ class LoadingStateManager {
   void completeBackgroundRefresh() {
     _isBackgroundRefreshing = false;
     if (kDebugMode) {
-      print('✅ Background refresh completed');
+      debugPrint('✅ Background refresh completed');
     }
   }
 
@@ -154,7 +153,7 @@ class LoadingStateManager {
   bool startComprehensiveLoading() {
     if (_isComprehensiveLoading) {
       if (kDebugMode) {
-        print('🚫 Comprehensive loading already in progress, skipping');
+        debugPrint('🚫 Comprehensive loading already in progress, skipping');
       }
       return false;
     }
@@ -163,7 +162,7 @@ class LoadingStateManager {
         DateTime.now().difference(_lastComprehensiveLoad!) <
             _minComprehensiveInterval) {
       if (kDebugMode) {
-        print('🚫 Too soon since last comprehensive load, skipping');
+        debugPrint('🚫 Too soon since last comprehensive load, skipping');
       }
       return false;
     }
@@ -172,7 +171,7 @@ class LoadingStateManager {
     _lastComprehensiveLoad = DateTime.now();
 
     if (kDebugMode) {
-      print('🚀 Starting comprehensive loading');
+      debugPrint('🚀 Starting comprehensive loading');
     }
     return true;
   }
@@ -181,7 +180,7 @@ class LoadingStateManager {
   void completeComprehensiveLoading() {
     _isComprehensiveLoading = false;
     if (kDebugMode) {
-      print('✅ Comprehensive loading completed');
+      debugPrint('✅ Comprehensive loading completed');
     }
   }
 
@@ -190,7 +189,7 @@ class LoadingStateManager {
     // Don't start comprehensive loading if splash is loading
     if (_isSplashLoading) {
       if (kDebugMode) {
-        print('🚫 Cannot start comprehensive loading - splash is loading');
+        debugPrint('🚫 Cannot start comprehensive loading - splash is loading');
       }
       return false;
     }
@@ -198,7 +197,7 @@ class LoadingStateManager {
     // Don't start if already loading
     if (_isComprehensiveLoading) {
       if (kDebugMode) {
-        print('🚫 Cannot start comprehensive loading - already in progress');
+        debugPrint('🚫 Cannot start comprehensive loading - already in progress');
       }
       return false;
     }
@@ -211,7 +210,7 @@ class LoadingStateManager {
     // Don't start home loading if splash is loading
     if (_isSplashLoading) {
       if (kDebugMode) {
-        print('🚫 Cannot start home loading - splash is loading');
+        debugPrint('🚫 Cannot start home loading - splash is loading');
       }
       return false;
     }
@@ -219,7 +218,7 @@ class LoadingStateManager {
     // Don't start if already loading
     if (_isHomeLoading) {
       if (kDebugMode) {
-        print('🚫 Cannot start home loading - already in progress');
+        debugPrint('🚫 Cannot start home loading - already in progress');
       }
       return false;
     }
@@ -235,7 +234,7 @@ class LoadingStateManager {
     _isComprehensiveLoading = false;
 
     if (kDebugMode) {
-      print('🛑 Force stopped all loading operations');
+      debugPrint('🛑 Force stopped all loading operations');
     }
   }
 
@@ -251,7 +250,7 @@ class LoadingStateManager {
     _lastComprehensiveLoad = null;
 
     if (kDebugMode) {
-      print('🔄 Reset all loading states and timestamps');
+      debugPrint('🔄 Reset all loading states and timestamps');
     }
   }
 
@@ -278,7 +277,7 @@ class LoadingStateManager {
     _lastComprehensiveLoad = null;
 
     if (kDebugMode) {
-      print('🔄 Reset all loading timestamps');
+      debugPrint('🔄 Reset all loading timestamps');
     }
   }
 }

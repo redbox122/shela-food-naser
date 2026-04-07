@@ -1,4 +1,3 @@
-// ignore_for_file: avoid_print
 
 import 'package:flutter/material.dart';
 import 'package:get/get_connect/http/src/response/response.dart';
@@ -42,7 +41,7 @@ class HomeRepository implements HomeRepositoryInterface {
         debugPrint('\x1B[32m  /${response.body}  \x1B[0m');
         businessSettings = BusinessSettingsModel.fromJson(response.body as Map<String, dynamic>);
       } catch (e) {
-        print('خطأ أثناء تحويل بيانات business settings: $e');
+        debugPrint('خطأ أثناء تحويل بيانات business settings: $e');
       }
     }
 

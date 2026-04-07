@@ -1,4 +1,3 @@
-// ignore_for_file: avoid_print, unused_import
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -222,7 +221,7 @@ class CategoryController extends GetxController implements GetxService {
 
       // âœ… Logging Ù„Ù„ØªØ£ÙƒØ¯ Ù…Ù† Ø¹Ù…Ù„ Ø§Ù„Ø¯Ø§Ù„Ø©
       if (kDebugMode) {
-        print('ðŸ§© Categories visible: $visibleCount / ${currentList.length}');
+        debugPrint('ðŸ§© Categories visible: $visibleCount / ${currentList.length}');
       }
 
       update(); // GetX
@@ -469,7 +468,7 @@ class CategoryController extends GetxController implements GetxService {
       await categoryServiceInterface.clearCategoryItemCache(categoryId);
     } catch (e) {
       if (kDebugMode) {
-        print('âš ï¸ CategoryController.clearCacheForCategory failed: $e');
+        debugPrint('âš ï¸ CategoryController.clearCacheForCategory failed: $e');
       }
     }
   }
@@ -591,10 +590,10 @@ class CategoryController extends GetxController implements GetxService {
       expectedModuleId: _getCurrentModuleId(),
     );
     if (kDebugMode) {
-      print(
+      debugPrint(
           'âœ… CategoryController: Category data set from bootstrap (${categories.length} categories)');
       if (_initialCategoryBatch != null) {
-        print(
+        debugPrint(
             'âš¡ CategoryController: Initial batch ready (${_initialCategoryBatch!.length} categories)');
       }
     }
@@ -607,7 +606,7 @@ class CategoryController extends GetxController implements GetxService {
   void setFromUnified(List<CategoryModel>? data, {int? expectedModuleId}) {
     if (data == null || data.isEmpty) {
       if (kDebugMode) {
-        print(
+        debugPrint(
             'âš ï¸ CategoryController: setFromUnified called with null or empty data');
       }
       return;
@@ -617,7 +616,7 @@ class CategoryController extends GetxController implements GetxService {
     _prepareCategoryList(data, expectedModuleId: expectedModuleId);
 
     if (kDebugMode) {
-      print(
+      debugPrint(
           'âœ… CategoryController: Category data set from unified endpoint (${data.length} categories)');
     }
   }
@@ -634,7 +633,7 @@ class CategoryController extends GetxController implements GetxService {
         !fromRecall &&
         _categoryList != null &&
         _categoryList!.isNotEmpty) {
-      print(
+      debugPrint(
           'âœ… CategoryController: Categories already loaded (${_categoryList!.length}), skipping redundant fetch');
       debugPrintCategoryIndex(source: 'memory');
       return _categoryList;
@@ -657,16 +656,16 @@ class CategoryController extends GetxController implements GetxService {
           homeController = Get.find<HomeController>();
         }
       } catch (e) {
-        print('âš ï¸ CategoryController: HomeController not available: $e');
+        debugPrint('âš ï¸ CategoryController: HomeController not available: $e');
       }
       final businessSettings = homeController?.business_Settings;
 
       // Log business settings for debugging
       if (businessSettings?.categoriesSection?.toString() != '1') {
-        print(
+        debugPrint(
             'âš ï¸ CategoryController: Categories section is disabled in business settings (categoriesSection: ${businessSettings?.categoriesSection})');
       } else {
-        print(
+        debugPrint(
             'âœ… CategoryController: Categories section is enabled (categoriesSection: 1)');
       }
 
@@ -686,7 +685,7 @@ class CategoryController extends GetxController implements GetxService {
                       CategoryModel.fromJson(json as Map<String, dynamic>))
                   .toList();
               if (cachedCategoryList.isNotEmpty) {
-                print(
+                debugPrint(
                     'âœ… CategoryController: Loading ${cachedCategoryList.length} categories from comprehensive cache');
                 _prepareCategoryList(
                   cachedCategoryList,
@@ -698,7 +697,7 @@ class CategoryController extends GetxController implements GetxService {
             }
           }
         } catch (e) {
-          print(
+          debugPrint(
               'âš ï¸ CategoryController: Error loading from comprehensive cache: $e');
         }
       }
@@ -759,22 +758,22 @@ class CategoryController extends GetxController implements GetxService {
 
     // Debug: Log input categories for troubleshooting
     if (categoryList != null && categoryList.isNotEmpty) {
-      print(
+      debugPrint(
           'ðŸ” CategoryController: _prepareCategoryList called with ${categoryList.length} categories');
-      print(
+      debugPrint(
           'ðŸ” CategoryController: useBffV2Endpoint = ${AppConstants.useBffV2Endpoint}');
       // Log first 3 categories for debugging
       final sampleCount = categoryList.length > 3 ? 3 : categoryList.length;
       for (int i = 0; i < sampleCount; i++) {
         final cat = categoryList[i];
-        print(
+        debugPrint(
             '   [Sample $i] id: ${cat.id}, name: ${cat.name}, module_id: ${cat.moduleId}, store_id: ${cat.storeId}');
       }
     } else if (categoryList != null && categoryList.isEmpty) {
-      print(
+      debugPrint(
           'âš ï¸ CategoryController: _prepareCategoryList called with EMPTY list (0 categories)');
     } else {
-      print(
+      debugPrint(
           'âš ï¸ CategoryController: _prepareCategoryList called with NULL categoryList');
     }
 
@@ -784,7 +783,7 @@ class CategoryController extends GetxController implements GetxService {
     if (expectedModuleId != null) {
       if (currentModuleId != null && expectedModuleId != currentModuleId) {
         if (kDebugMode) {
-          print(
+          debugPrint(
               '🛡️ CategoryController: REJECTED stale categories (expected=$expectedModuleId, current=$currentModuleId, count=${categoryList?.length ?? 0})');
         }
         return;
@@ -803,7 +802,7 @@ class CategoryController extends GetxController implements GetxService {
           _homeCategoryModuleId != currentModuleId;
       if (moduleChanged) {
         if (kDebugMode) {
-          print(
+          debugPrint(
               'CategoryController: Empty categories with module change ($_homeCategoryModuleId -> $currentModuleId) - clearing old home categories');
         }
         _homeCategoryList = null;
@@ -816,7 +815,7 @@ class CategoryController extends GetxController implements GetxService {
         return;
       }
       if (kDebugMode) {
-        print(
+        debugPrint(
             'âœ… CategoryController: Empty categories received - preserving existing categories');
       }
       return;
@@ -836,16 +835,16 @@ class CategoryController extends GetxController implements GetxService {
         final storeController = Get.find<StoreController>();
         isStore = storeController.store != null;
         if (isStore && kDebugMode) {
-          print(
+          debugPrint(
               'âœ… CategoryController: Store detail screen detected (Store ID: ${storeController.store?.id}) - DISABLING ALL FILTERS');
-          print(
+          debugPrint(
               '   ðŸ“¦ Returning all ${categoryList?.length ?? 0} categories without filtering');
         }
       }
     } catch (e) {
       // StoreController not available - not a store detail screen
       if (kDebugMode) {
-        print(
+        debugPrint(
             'ðŸ” CategoryController: StoreController not available or error: $e');
       }
     }
@@ -875,7 +874,7 @@ class CategoryController extends GetxController implements GetxService {
       _initialCategoryBatch = _initialStoreCategoryBatch;
 
       if (kDebugMode) {
-        print(
+        debugPrint(
             'âœ… CategoryController: Store categories set - ${_storeCategoryList!.length} categories (Home categories preserved: ${_homeCategoryList?.length ?? 0})');
       }
 
@@ -910,11 +909,11 @@ class CategoryController extends GetxController implements GetxService {
         // âš¡ V2 ENDPOINT: Backend has already filtered by module_id, TRUST the backend and DISABLE client-side module_id filtering
         // Only filter by store_id (exclude restaurant menu categories)
         if (kDebugMode) {
-          print(
+          debugPrint(
               'âœ… CategoryController: [BFF v2] Using v2 endpoint - TRUSTING backend, DISABLING module_id filter');
-          print(
+          debugPrint(
               'ðŸ” CategoryController: [BFF v2] Input categories count: ${categoryList.length}');
-          print(
+          debugPrint(
               'ðŸ” CategoryController: [BFF v2] Current module ID from SplashController: $currentModuleId');
         }
 
@@ -930,23 +929,23 @@ class CategoryController extends GetxController implements GetxService {
 
         if (kDebugMode) {
           if (filteredByStore > 0) {
-            print(
+            debugPrint(
                 'âš ï¸ CategoryController: [BFF v2] Filtered out $filteredByStore store-specific categories (store_id != null)');
           }
-          print(
+          debugPrint(
               'âœ… CategoryController: [BFF v2] After store_id filter: ${moduleFilteredList.length} categories (from ${categoryList.length} total)');
-          print(
+          debugPrint(
               'âœ… CategoryController: [BFF v2] Module_id filtering DISABLED - trusting backend');
 
           // Debug: Log sample categories to verify they're not being filtered incorrectly
           if (moduleFilteredList.isEmpty && categoryList.isNotEmpty) {
-            print(
+            debugPrint(
                 'âŒ CategoryController: [BFF v2] WARNING: All categories filtered out! Sample categories:');
             for (int i = 0;
                 i < (categoryList.length > 3 ? 3 : categoryList.length);
                 i++) {
               final cat = categoryList[i];
-              print(
+              debugPrint(
                   '   [$i] id: ${cat.id}, name: ${cat.name}, module_id: ${cat.moduleId}, store_id: ${cat.storeId}');
             }
           }
@@ -981,9 +980,9 @@ class CategoryController extends GetxController implements GetxService {
 
         // Log filtering results
         if (filteredByModule > 0 || filteredByStore > 0) {
-          print(
+          debugPrint(
               'âš ï¸ CategoryController: Filtered out $filteredByModule categories by module_id (expected: $currentModuleId)');
-          print(
+          debugPrint(
               'âš ï¸ CategoryController: Filtered out $filteredByStore store-specific categories (store_id != null)');
         }
       } else {
@@ -1000,7 +999,7 @@ class CategoryController extends GetxController implements GetxService {
             categoryList.where((category) => category.storeId == null).toList();
 
         if (filteredByStore > 0) {
-          print(
+          debugPrint(
               'âš ï¸ CategoryController: Filtered out $filteredByStore store-specific categories (store_id != null)');
         }
       }
@@ -1018,11 +1017,11 @@ class CategoryController extends GetxController implements GetxService {
         final int beforeCount = parentFilteredList.length;
 
         // Debug: Log category details before filtering
-        print(
+        debugPrint(
             'ðŸ” CategoryController: Module 7 - Checking categories for filtering ($beforeCount total):');
         for (int i = 0; i < (beforeCount > 10 ? 10 : beforeCount); i++) {
           final cat = moduleFilteredList[i];
-          print(
+          debugPrint(
               '   [$i] id: ${cat.id}, name: ${cat.name}, parent_id: ${cat.parentId}, cat_site_id: ${cat.catSiteId}');
         }
 
@@ -1035,10 +1034,10 @@ class CategoryController extends GetxController implements GetxService {
         }).toList();
         final int afterCount = parentFilteredList.length;
         if (beforeCount != afterCount) {
-          print(
+          debugPrint(
               'âš ï¸ CategoryController: Module 7 - Filtered out ${beforeCount - afterCount} categories (parent_id != 0), showing $afterCount top-level categories');
         } else {
-          print(
+          debugPrint(
               'âœ… CategoryController: Module 7 - All $afterCount categories are top-level');
         }
       }
@@ -1066,7 +1065,7 @@ class CategoryController extends GetxController implements GetxService {
         // Food/Pharmacy: Don't filter by productsCount until stores are loaded
         categoryResults = parentFilteredList;
         if (kDebugMode) {
-          print(
+          debugPrint(
               'âœ… CategoryController: ${isFood ? 'Food' : 'Pharmacy'} module - skipping productsCount filtering until stores load');
         }
       } else if (isFood || isModule7) {
@@ -1076,10 +1075,10 @@ class CategoryController extends GetxController implements GetxService {
         // These categories are container categories that organize stores, not products, so productsCount doesn't matter
         categoryResults = parentFilteredList;
         if (isFood) {
-          print(
+          debugPrint(
               'âœ… CategoryController: Food module - showing all ${parentFilteredList.length} cuisine categories (no count filtering - used for restaurants)');
         } else if (isModule7) {
-          print(
+          debugPrint(
               'âœ… CategoryController: Module 7 - showing all ${parentFilteredList.length} top-level categories (no count filtering - used for store containers)');
         }
       } else {
@@ -1090,29 +1089,29 @@ class CategoryController extends GetxController implements GetxService {
                 test.productsCount > 0 ||
                 (test.childesCount != null && test.childesCount! > 0))
             .toList();
-        print(
+        debugPrint(
             'âœ… CategoryController: Filtered ${categoryList.length} categories to ${moduleFilteredList.length} (module/store filtering) to ${categoryResults.length} (with count filtering)');
       }
 
       // Debug: Log sample of filtered categories for verification (first 3 categories)
       if (categoryResults.isNotEmpty) {
-        print(
+        debugPrint(
             'âœ… CategoryController: Final filtered categories count: ${categoryResults.length}');
-        print('ðŸ” CategoryController: Sample filtered categories (first 3):');
+        debugPrint('ðŸ” CategoryController: Sample filtered categories (first 3):');
         final sampleCount =
             categoryResults.length > 3 ? 3 : categoryResults.length;
         for (int i = 0; i < sampleCount; i++) {
           final cat = categoryResults[i];
-          print(
+          debugPrint(
               '   [$i] id: ${cat.id}, name: ${cat.name}, module_id: ${cat.moduleId}, store_id: ${cat.storeId}, productsCount: ${cat.productsCount}, childesCount: ${cat.childesCount}');
         }
       } else {
-        print(
+        debugPrint(
             'âŒ CategoryController: categoryResults is EMPTY after all filtering!');
-        print('   Input count: ${categoryList.length}');
-        print('   After module/store filter: ${moduleFilteredList.length}');
-        print('   After parent filter: ${parentFilteredList.length}');
-        print('   Final count: ${categoryResults.length}');
+        debugPrint('   Input count: ${categoryList.length}');
+        debugPrint('   After module/store filter: ${moduleFilteredList.length}');
+        debugPrint('   After parent filter: ${parentFilteredList.length}');
+        debugPrint('   Final count: ${categoryResults.length}');
       }
 
       // ðŸ”§ TASK 1: CATEGORY DATA ISOLATION - Populate ONLY _homeCategoryList (NEVER _storeCategoryList)
@@ -1160,7 +1159,7 @@ class CategoryController extends GetxController implements GetxService {
         // #endregion
 
         if (kDebugMode) {
-          print(
+          debugPrint(
               'âš¡ CategoryController: Showing initial batch of ${_initialHomeCategoryBatch!.length} HOME categories immediately (visibleCount: $visibleCount)');
         }
 
@@ -1214,7 +1213,7 @@ class CategoryController extends GetxController implements GetxService {
           update();
 
           if (kDebugMode) {
-            print(
+            debugPrint(
                 'âœ… CategoryController: Loaded remaining ${remainingCategories.length} HOME categories in background');
           }
         });
@@ -1263,7 +1262,7 @@ class CategoryController extends GetxController implements GetxService {
       if (_deepEquality.equals(oldJsonSnapshot, newJson)) {
         _isLoading = false;
         if (kDebugMode) {
-          print(
+          debugPrint(
               'âœ… CategoryController: Data unchanged (deep equality check), skipping UI update to prevent flicker');
         }
         return;
@@ -1299,7 +1298,7 @@ class CategoryController extends GetxController implements GetxService {
             .map((item) => CategoryModel.fromJson(item as Map<String, dynamic>))
             .toList();
       } else {
-        print(
+        debugPrint(
             'âš ï¸ CategoryController: Unexpected data type: ${data.runtimeType}');
         return;
       }
@@ -1311,7 +1310,7 @@ class CategoryController extends GetxController implements GetxService {
         if (_deepEquality.equals(oldJson, newJson)) {
           _isLoading = false;
           if (kDebugMode) {
-            print(
+            debugPrint(
                 'âœ… CategoryController: Data unchanged (deep equality check), skipping UI update to prevent flicker');
           }
           return;
@@ -1322,10 +1321,10 @@ class CategoryController extends GetxController implements GetxService {
       visibleCount = 6;
 
       _prepareCategoryList(categoryList, expectedModuleId: expectedModuleId);
-      print(
+      debugPrint(
           'âœ… CategoryController: Loaded ${_categoryList?.length ?? 0} categories from cache');
     } catch (e) {
-      print('âŒ CategoryController: Error setting categories from cache: $e');
+      debugPrint('âŒ CategoryController: Error setting categories from cache: $e');
     }
   }
 
@@ -1525,7 +1524,7 @@ class CategoryController extends GetxController implements GetxService {
     // âœ… Only block items while the stores tab is active.
     if (_isStore && !allowWhenStore) {
       if (kDebugMode) {
-        print(
+        debugPrint(
             'ðŸš« CategoryController: Skipping getCategoryItemList - store tab active (categoryId: $categoryID)');
       }
       return;
@@ -1559,7 +1558,7 @@ class CategoryController extends GetxController implements GetxService {
 
       if (_inFlightCategoryItemOffsets[requestKey] == effectiveOffset) {
         if (kDebugMode) {
-          print(
+          debugPrint(
               'âš ï¸ CategoryController: Skipping duplicate in-flight item request (key=$requestKey, offset=$effectiveOffset)');
         }
         return;
@@ -1569,7 +1568,7 @@ class CategoryController extends GetxController implements GetxService {
           (_lastCompletedCategoryItemOffsets[requestKey] ?? 0) >=
               effectiveOffset) {
         if (kDebugMode) {
-          print(
+          debugPrint(
               'âš ï¸ CategoryController: Skipping already completed item request (key=$requestKey, offset=$effectiveOffset)');
         }
         return;
@@ -1586,7 +1585,7 @@ class CategoryController extends GetxController implements GetxService {
         _categoryItemGeneration++;
         _currentCategoryItemId = categoryID;
         if (kDebugMode) {
-          print(
+          debugPrint(
               'ðŸ”„ CategoryController: New generation $_categoryItemGeneration for category $categoryID');
         }
       }
@@ -1640,7 +1639,7 @@ class CategoryController extends GetxController implements GetxService {
       // âš¡ GENERATION CHECK: Discard stale response if category changed during API call
       if (currentGeneration != _categoryItemGeneration) {
         if (kDebugMode) {
-          print(
+          debugPrint(
               'ðŸš« CategoryController: Discarding stale response (gen $currentGeneration != $_categoryItemGeneration)');
         }
         _isLoading = false;
@@ -1680,11 +1679,11 @@ class CategoryController extends GetxController implements GetxService {
 
           // ðŸ” DEBUG: Log incoming items from API
           if (kDebugMode) {
-            print(
+            debugPrint(
                 'ðŸ“¦ [Page $effectiveOffset] API returned ${filteredItems.length} items:');
             for (int i = 0; i < filteredItems.length; i++) {
               final item = filteredItems[i];
-              print('   ${i + 1}. [ID: ${item.id}] ${item.name}');
+              debugPrint('   ${i + 1}. [ID: ${item.id}] ${item.name}');
             }
           }
 
@@ -1702,16 +1701,16 @@ class CategoryController extends GetxController implements GetxService {
           // ðŸ” DEBUG: Log duplicates and new items
           if (kDebugMode) {
             if (skippedItems.isNotEmpty) {
-              print(
+              debugPrint(
                   'âš ï¸ [Page $effectiveOffset] DUPLICATES SKIPPED (${skippedItems.length}):');
               for (final item in skippedItems) {
-                print('   âŒ [ID: ${item.id}] ${item.name}');
+                debugPrint('   âŒ [ID: ${item.id}] ${item.name}');
               }
             }
-            print(
+            debugPrint(
                 'âœ… [Page $effectiveOffset] NEW items added (${newItems.length}):');
             for (final item in newItems) {
-              print('   âœ“ [ID: ${item.id}] ${item.name}');
+              debugPrint('   âœ“ [ID: ${item.id}] ${item.name}');
             }
           }
 
@@ -1719,7 +1718,7 @@ class CategoryController extends GetxController implements GetxService {
 
           // ðŸ” DEBUG: Log total items in list
           if (kDebugMode) {
-            print(
+            debugPrint(
                 'ðŸ“Š [Page $effectiveOffset] Total items in list: ${_categoryItemList!.length}');
           }
 
@@ -1727,7 +1726,7 @@ class CategoryController extends GetxController implements GetxService {
             // Stop pagination if backend keeps returning duplicates
             _pageSize = _categoryItemList!.length;
             if (kDebugMode) {
-              print(
+              debugPrint(
                   'ðŸ›‘ [Page $effectiveOffset] Pagination stopped - all items were duplicates');
             }
           }
@@ -1793,7 +1792,7 @@ class CategoryController extends GetxController implements GetxService {
     }
     if (_inFlightCategoryStoreOffsets[requestKey] == offset) {
       if (kDebugMode) {
-        print(
+        debugPrint(
             'âš ï¸ CategoryController: Skipping duplicate in-flight store request (key=$requestKey, offset=$offset)');
       }
       return;
@@ -1801,7 +1800,7 @@ class CategoryController extends GetxController implements GetxService {
     if (offset > 1 &&
         (_lastCompletedCategoryStoreOffsets[requestKey] ?? 0) >= offset) {
       if (kDebugMode) {
-        print(
+        debugPrint(
             'âš ï¸ CategoryController: Skipping already completed store request (key=$requestKey, offset=$offset)');
       }
       return;
@@ -1940,7 +1939,7 @@ class CategoryController extends GetxController implements GetxService {
 
   void searchData({Search_FilterModel? search_filterModel}) async {
     if (search_filterModel == null) {
-      print('Error: search_filterModel is null');
+      debugPrint('Error: search_filterModel is null');
       return;
     }
 

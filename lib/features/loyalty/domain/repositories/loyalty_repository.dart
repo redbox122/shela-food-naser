@@ -46,7 +46,7 @@ class LoyaltyRepository implements LoyaltyRepositoryInterface {
     // ⚡ 304 HANDLING: If 304 received, load cached data
     if (response.statusCode == 304) {
       if (kDebugMode) {
-        print('🔄 [LoyaltyRepository] Received 304 for transactions - loading cache');
+        debugPrint('🔄 [LoyaltyRepository] Received 304 for transactions - loading cache');
       }
       final String? cachedData = await LocalClient.organize(DataSourceEnum.local, cacheKey, null, null);
       if (cachedData != null && cachedData.isNotEmpty) {
@@ -56,19 +56,19 @@ class LoyaltyRepository implements LoyaltyRepositoryInterface {
               ? decoded 
               : (decoded as Map).cast<String, dynamic>();
           if (kDebugMode) {
-            print('✅ [LoyaltyRepository] Loaded cached transactions');
+            debugPrint('✅ [LoyaltyRepository] Loaded cached transactions');
           }
           return TransactionModel.fromJson(cachedBody);
         } catch (e) {
           if (kDebugMode) {
-            print('⚠️ [LoyaltyRepository] Failed to parse cached transactions: $e');
+            debugPrint('⚠️ [LoyaltyRepository] Failed to parse cached transactions: $e');
           }
           // Cache parsing failed - return null to trigger retry
           return null;
         }
       } else {
         if (kDebugMode) {
-          print('❌ [LoyaltyRepository] 304 received but no cache - making fresh request');
+          debugPrint('❌ [LoyaltyRepository] 304 received but no cache - making fresh request');
         }
         // Cache missing - make fresh request (retry without ETag)
         final freshResponse = await apiClient.getData(uri);
@@ -83,7 +83,7 @@ class LoyaltyRepository implements LoyaltyRepositoryInterface {
             );
           } catch (e) {
             if (kDebugMode) {
-              print('⚠️ Failed to cache transactions: $e');
+              debugPrint('⚠️ Failed to cache transactions: $e');
             }
           }
           final dynamic body = freshResponse.body;
@@ -105,7 +105,7 @@ class LoyaltyRepository implements LoyaltyRepositoryInterface {
         );
       } catch (e) {
         if (kDebugMode) {
-          print('⚠️ Failed to cache transactions: $e');
+          debugPrint('⚠️ Failed to cache transactions: $e');
         }
       }
       final dynamic body = response.body;

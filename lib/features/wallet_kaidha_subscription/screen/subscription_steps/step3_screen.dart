@@ -1,4 +1,3 @@
-// ignore_for_file: non_constant_identifier_names, avoid_print, use_build_context_synchronously, camel_case_types, unnecessary_string_interpolations
 
 import 'dart:async';
 import 'package:flutter/material.dart';

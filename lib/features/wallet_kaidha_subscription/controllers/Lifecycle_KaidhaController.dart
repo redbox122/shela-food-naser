@@ -1,6 +1,5 @@
-// ignore_for_file: avoid_print, camel_case_types, file_names
-
 import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
 import 'package:lifecycle_controller/lifecycle_controller.dart';
 import 'package:sixam_mart/features/wallet_kaidha_subscription/controllers/kaidhaSub_controller.dart';
@@ -15,7 +14,7 @@ class Lifecycle_KaidhaController extends LifecycleController {
   void _sendState(String state, String messageAr) {
     kaidhaController.SendState_kaidha(state);
 
-    print('📤 الحالة الحالية: $messageAr ($state)');
+    debugPrint('📤 الحالة الحالية: $messageAr ($state)');
   }
 
   // ==================================================

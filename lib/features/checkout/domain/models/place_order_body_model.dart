@@ -536,7 +536,7 @@ class OnlineCart {
                       'hypothesisId': 'D'
                     })}\n',
                 mode: FileMode.append);
-      } catch (_) {}
+      } catch (e) { if (kDebugMode) debugPrint('$e'); }
     }
     // #endregion
 
@@ -568,7 +568,7 @@ class OnlineCart {
                         'hypothesisId': 'D'
                       })}\n',
                   mode: FileMode.append);
-        } catch (_) {}
+        } catch (e) { if (kDebugMode) debugPrint('$e'); }
       }
       // #endregion
       if (logEnabled) {
@@ -596,7 +596,7 @@ class OnlineCart {
                         'hypothesisId': 'D'
                       })}\n',
                   mode: FileMode.append);
-        } catch (_) {}
+        } catch (e) { if (kDebugMode) debugPrint('$e'); }
       }
       // #endregion
       if (logEnabled) {
@@ -620,7 +620,7 @@ class OnlineCart {
                         'hypothesisId': 'D'
                       })}\n',
                   mode: FileMode.append);
-        } catch (_) {}
+        } catch (e) { if (kDebugMode) debugPrint('$e'); }
       }
       // #endregion
       if (logEnabled) {

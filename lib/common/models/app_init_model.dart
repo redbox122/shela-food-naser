@@ -90,7 +90,7 @@ class BusinessSettings {
       try {
         final logFile = File(r'c:\Users\pc\Desktop\clone\app-test\.cursor\debug.log');
         logFile.writeAsStringSync('${jsonEncode({"location":"app_init_model.dart:78","message":"BusinessSettings.fromJson entry","data":{"bannerSectionType":json['banner_section'].runtimeType.toString(),"bannerSectionValue":json['banner_section'].toString(),"categoriesSectionType":json['categories_section'].runtimeType.toString(),"categoriesSectionValue":json['categories_section'].toString()},"timestamp":DateTime.now().millisecondsSinceEpoch,"sessionId":"debug-session","runId":"run1","hypothesisId":"A"})}\n', mode: FileMode.append);
-      } catch (_) {}
+      } catch (e) { if (kDebugMode) debugPrint('$e'); }
     }
     // #endregion
     

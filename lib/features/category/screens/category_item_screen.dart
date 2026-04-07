@@ -1,4 +1,3 @@
-// ignore_for_file: avoid_print
 
 import 'package:flutter/foundation.dart';
 import 'package:sixam_mart/common/widgets/footer_view.dart';
@@ -251,7 +250,7 @@ class CategoryItemScreenState extends State<CategoryItemScreen>
         final int pageSize = (categoryController.pageSize! / 10).ceil();
         if (categoryController.offset < pageSize) {
           if (kDebugMode) {
-            print('end of the page');
+            debugPrint('end of the page');
           }
           categoryController.showBottomLoader();
           categoryController.getCategoryItemList(
@@ -280,7 +279,7 @@ class CategoryItemScreenState extends State<CategoryItemScreen>
         final totalSize = catController.restPageSize ?? 0;
         if (loadedCount < totalSize) {
           if (kDebugMode) {
-            print(
+            debugPrint(
                 'end of the page - loading more stores: $loadedCount/$totalSize');
           }
           catController.showBottomLoader();

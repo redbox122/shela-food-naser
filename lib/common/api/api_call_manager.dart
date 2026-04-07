@@ -1,4 +1,3 @@
-// ignore_for_file: avoid_print
 
 import 'dart:async';
 import 'dart:convert';
@@ -41,7 +40,7 @@ class ApiCallManager extends GetxService {
     super.onInit();
     _initDiskCache();
     if (kDebugMode) {
-      print('🚀 ApiCallManager initialized with persistent caching');
+      debugPrint('🚀 ApiCallManager initialized with persistent caching');
     }
   }
 
@@ -52,11 +51,11 @@ class ApiCallManager extends GetxService {
       await _loadDiskCache();
       _diskCacheLoaded = true;
       if (kDebugMode) {
-        print('💾 Disk cache loaded: ${_diskCache.length} entries');
+        debugPrint('💾 Disk cache loaded: ${_diskCache.length} entries');
       }
     } catch (e) {
       if (kDebugMode) {
-        print('❌ Failed to load disk cache: $e');
+        debugPrint('❌ Failed to load disk cache: $e');
       }
     }
   }
@@ -78,7 +77,7 @@ class ApiCallManager extends GetxService {
       if (DateTime.now().isBefore(cacheEntry.expiresAt)) {
         _cacheHits++;
         if (kDebugMode) {
-          print('📦 Memory cache hit: $callId');
+          debugPrint('📦 Memory cache hit: $callId');
         }
         return cacheEntry.data as T;
       } else {
@@ -92,7 +91,7 @@ class ApiCallManager extends GetxService {
       if (DateTime.now().isBefore(diskEntry.expiresAt)) {
         _diskCacheHits++;
         if (kDebugMode) {
-          print('💾 Disk cache hit: $callId');
+          debugPrint('💾 Disk cache hit: $callId');
         }
         // Load disk cache into memory cache for faster subsequent access
         _responseCache[callId] = CacheEntry(
@@ -110,7 +109,7 @@ class ApiCallManager extends GetxService {
     if (_ongoingCalls.containsKey(callId)) {
       _duplicateCallsPrevented++;
       if (kDebugMode) {
-        print('🚫 Preventing duplicate call: $callId');
+        debugPrint('🚫 Preventing duplicate call: $callId');
       }
       return await _ongoingCalls[callId]!.future as T;
     }
@@ -149,7 +148,7 @@ class ApiCallManager extends GetxService {
 
     try {
       if (kDebugMode) {
-        print('🌐 Executing API call: $callId');
+        debugPrint('🌐 Executing API call: $callId');
       }
 
       final result = await apiCall();
@@ -197,7 +196,7 @@ class ApiCallManager extends GetxService {
         );
       } catch (e) {
         if (kDebugMode) {
-          print('⚠️  Failed to load disk cache entry: $key');
+          debugPrint('⚠️  Failed to load disk cache entry: $key');
         }
       }
     }
@@ -228,7 +227,7 @@ class ApiCallManager extends GetxService {
                     "hypothesisId": "A"
                   })}\n',
               mode: FileMode.append);
-        } catch (_) {}
+        } catch (e) { if (kDebugMode) debugPrint('$e'); }
       }
       // #endregion
 
@@ -264,11 +263,11 @@ class ApiCallManager extends GetxService {
       );
 
       if (kDebugMode) {
-        print('💾 Saved to disk cache: $callId');
+        debugPrint('💾 Saved to disk cache: $callId');
       }
     } catch (e) {
       if (kDebugMode) {
-        print('❌ Failed to save to disk cache: $callId - $e');
+        debugPrint('❌ Failed to save to disk cache: $callId - $e');
       }
     }
   }
@@ -286,7 +285,7 @@ class ApiCallManager extends GetxService {
       _diskCache.remove(callId);
       await _removeDiskCacheEntry(callId);
       if (kDebugMode) {
-        print('🗑️ Cleared cache for: $callId');
+        debugPrint('🗑️ Cleared cache for: $callId');
       }
     } else {
       _responseCache.clear();
@@ -301,7 +300,7 @@ class ApiCallManager extends GetxService {
         }
       }
       if (kDebugMode) {
-        print('🗑️ Cleared all cache (memory + disk)');
+        debugPrint('🗑️ Cleared all cache (memory + disk)');
       }
     }
   }

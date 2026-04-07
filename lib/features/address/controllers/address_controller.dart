@@ -64,14 +64,14 @@ class AddressController extends GetxController implements GetxService {
             final storeController = Get.find<StoreController>();
             await storeController.clearAllModuleState(reload: true);
             if (kDebugMode) {
-              print('🧹 AddressController: Location changed by ${distanceInMeters.toStringAsFixed(0)}m (>500m) - Cleared all module state and Hive cache');
+              debugPrint('🧹 AddressController: Location changed by ${distanceInMeters.toStringAsFixed(0)}m (>500m) - Cleared all module state and Hive cache');
             }
           }
         }
       }
     } catch (e) {
       if (kDebugMode) {
-        print('⚠️ AddressController: Error calculating distance for cache purge: $e');
+        debugPrint('⚠️ AddressController: Error calculating distance for cache purge: $e');
       }
       // Don't fail the update if distance calculation fails
     }
@@ -101,13 +101,13 @@ class AddressController extends GetxController implements GetxService {
         _addressList!.addAll(sorted);
         _allAddressList.addAll(sorted);
         if (kDebugMode) {
-          print(
+          debugPrint(
               '📍 AddressController.getAddressList: loaded=${sorted.length}, ids=${sorted.map((e) => e.id).toList()}');
         }
       }
     } catch (e) {
       if (kDebugMode) {
-        print('⚠️ AddressController.getAddressList: Failed to load addresses: $e');
+        debugPrint('⚠️ AddressController.getAddressList: Failed to load addresses: $e');
       }
       _hasError = true;
       _addressList = <AddressModel>[];
@@ -139,7 +139,7 @@ class AddressController extends GetxController implements GetxService {
         // Always select the first item after reload (newest address appears first).
         Get.find<CheckoutController>().setAddressIndex(0);
         if (kDebugMode) {
-          print(
+          debugPrint(
               '✅ AddressController.addAddress: selectedIndex=0, selectedAddressId=${_addressList?.isNotEmpty == true ? _addressList!.first.id : null}');
         }
         responseModel = ResponseModel(true, responseModel.message);

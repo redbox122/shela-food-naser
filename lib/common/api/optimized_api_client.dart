@@ -1,4 +1,3 @@
-// ignore_for_file: avoid_print
 
 import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
@@ -103,7 +102,7 @@ class OptimizedApiClient extends ApiClient {
     }
 
     if (kDebugMode) {
-      print('📦 Batch completed: ${results.length} calls');
+      debugPrint('📦 Batch completed: ${results.length} calls');
     }
 
     return results;
@@ -127,7 +126,7 @@ class OptimizedApiClient extends ApiClient {
     }
 
     if (kDebugMode) {
-      print('🔄 Smart refresh completed');
+      debugPrint('🔄 Smart refresh completed');
     }
   }
 
@@ -155,11 +154,11 @@ class OptimizedApiClient extends ApiClient {
           cacheDuration: const Duration(minutes: 10));
 
       if (kDebugMode) {
-        print('⚡ Critical data preloaded');
+        debugPrint('⚡ Critical data preloaded');
       }
     } catch (e) {
       if (kDebugMode) {
-        print('❌ Error preloading critical data: $e');
+        debugPrint('❌ Error preloading critical data: $e');
       }
     }
   }

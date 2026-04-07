@@ -892,7 +892,7 @@ class FoodVariation {
     if (optionsData is String && optionsData.trim().isNotEmpty) {
       try {
         optionsData = jsonDecode(optionsData);
-      } catch (_) {}
+      } catch (e) { if (kDebugMode) debugPrint('$e'); }
     }
     if (optionsData != null && optionsData is List) {
       variationValues = [];

@@ -1,4 +1,4 @@
-﻿// ignore_for_file: prefer_const_literals_to_create_immutables, non_constant_identifier_names, camel_case_types, avoid_print
+﻿// ignore_for_file: prefer_const_literals_to_create_immutables, non_constant_identifier_names, camel_case_types
 
 import 'dart:io';
 import 'package:flutter/material.dart';

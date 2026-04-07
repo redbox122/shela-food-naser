@@ -10,7 +10,6 @@ import 'package:sixam_mart/features/banner/domain/models/banner_model.dart';
 import 'package:sixam_mart/features/banner/domain/models/others_banner_model.dart';
 import 'package:sixam_mart/features/banner/domain/models/promotional_banner_model.dart';
 import 'package:sixam_mart/features/banner/domain/repositories/banner_repository_interface.dart';
-import 'package:sixam_mart/features/banner/controllers/banner_controller.dart';
 import 'package:sixam_mart/features/splash/controllers/splash_controller.dart';
 import 'package:sixam_mart/helper/header_helper.dart';
 import 'package:sixam_mart/util/app_constants.dart';
@@ -112,34 +111,8 @@ class BannerRepository implements BannerRepositoryInterface {
               }
             }
 
-            // Fallback 3: Try BannerController static pre-fetched data
-            if (kDebugMode && AppConstants.enableVerboseLogs) {
-              appLogger.debug(
-                  '🔄 Banner_Repository: Trying BannerController static pre-fetched data');
-            }
-
-            try {
-              // Access static getter through class name
-              // Note: Using dynamic access to avoid analyzer issues with static getters
-              final preFetchedBannerData = (BannerController as dynamic)
-                  .preFetchedBannerData as BannerModel?;
-              if (preFetchedBannerData != null &&
-                  ((preFetchedBannerData.banners != null &&
-                          preFetchedBannerData.banners!.isNotEmpty) ||
-                      (preFetchedBannerData.campaigns != null &&
-                          preFetchedBannerData.campaigns!.isNotEmpty))) {
-                if (kDebugMode && AppConstants.enableVerboseLogs) {
-                  appLogger.info(
-                      '✅ Banner_Repository: Loaded banners from static pre-fetched data');
-                }
-                return preFetchedBannerData;
-              }
-            } catch (e) {
-              if (kDebugMode && AppConstants.enableVerboseLogs) {
-                appLogger.warning(
-                    '⚠️ Banner_Repository: Error accessing BannerController static data: $e');
-              }
-            }
+            // Fallback 3: BannerController exposes URL lists only, not a BannerModel,
+            // so no further fallback is possible here.
           } catch (e) {
             if (kDebugMode && AppConstants.enableVerboseLogs) {
               appLogger.error('❌ Banner_Repository: Error loading from cache on 304: $e', e);

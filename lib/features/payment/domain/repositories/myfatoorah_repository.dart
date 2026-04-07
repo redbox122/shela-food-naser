@@ -44,12 +44,12 @@ class MyFatoorahRepository {
           apiClient.getHeader(),
         );
         if (kDebugMode) {
-          print('✅ Cached payment methods for key: $cacheKey');
+          debugPrint('✅ Cached payment methods for key: $cacheKey');
         }
       } catch (e) {
         // Cache failure shouldn't break the flow
         if (kDebugMode) {
-          print('⚠️ Failed to cache payment methods: $e');
+          debugPrint('⚠️ Failed to cache payment methods: $e');
         }
       }
       // Return 200 response immediately
@@ -59,9 +59,9 @@ class MyFatoorahRepository {
     // ⚡ 304 HANDLING: If 304 received, load cached data and return as 200
     if (response.statusCode == 304) {
       if (kDebugMode) {
-        print('🔄 [MyFatoorahRepository] Received 304 Not Modified');
-        print('   📦 Loading cached payment methods for key: $cacheKey');
-        print('   💰 Amount: $amount, Currency: $currency');
+        debugPrint('🔄 [MyFatoorahRepository] Received 304 Not Modified');
+        debugPrint('   📦 Loading cached payment methods for key: $cacheKey');
+        debugPrint('   💰 Amount: $amount, Currency: $currency');
       }
       
       // Load cache AFTER receiving 304 (cache should exist from previous 200 response)
@@ -71,9 +71,9 @@ class MyFatoorahRepository {
         try {
           final Map<String, dynamic> cachedBody = jsonDecode(cachedData) as Map<String, dynamic>;
           if (kDebugMode) {
-            print('✅ [MyFatoorahRepository] Loaded cached payment methods successfully');
-            print('   📊 Cached data keys: ${cachedBody.keys.join(", ")}');
-            print('   ✅ Returning cached data as 200 OK');
+            debugPrint('✅ [MyFatoorahRepository] Loaded cached payment methods successfully');
+            debugPrint('   📊 Cached data keys: ${cachedBody.keys.join(", ")}');
+            debugPrint('   ✅ Returning cached data as 200 OK');
           }
           return Response(
             statusCode: 200, // Return as 200 with cached data
@@ -82,28 +82,28 @@ class MyFatoorahRepository {
           );
         } catch (e, stackTrace) {
           if (kDebugMode) {
-            print('❌ [MyFatoorahRepository] Failed to parse cached payment methods');
-            print('   📋 Error: $e');
-            print('   📋 Stack trace: $stackTrace');
-            print('   📦 Cache data length: ${cachedData.length}');
-            print('   📦 Cache data preview: ${cachedData.substring(0, cachedData.length > 200 ? 200 : cachedData.length)}...');
+            debugPrint('❌ [MyFatoorahRepository] Failed to parse cached payment methods');
+            debugPrint('   📋 Error: $e');
+            debugPrint('   📋 Stack trace: $stackTrace');
+            debugPrint('   📦 Cache data length: ${cachedData.length}');
+            debugPrint('   📦 Cache data preview: ${cachedData.substring(0, cachedData.length > 200 ? 200 : cachedData.length)}...');
           }
           // Return 304 as-is if cache parsing fails
           return response;
         }
       } else {
         if (kDebugMode) {
-          print('❌ [MyFatoorahRepository] 304 received but no cached payment methods available');
-          print('   🔑 Cache key: $cacheKey');
-          print('   💰 Amount: $amount, Currency: $currency');
-          print('   ⚠️ Cache missing - making fresh request without ETag');
+          debugPrint('❌ [MyFatoorahRepository] 304 received but no cached payment methods available');
+          debugPrint('   🔑 Cache key: $cacheKey');
+          debugPrint('   💰 Amount: $amount, Currency: $currency');
+          debugPrint('   ⚠️ Cache missing - making fresh request without ETag');
         }
         
         // ⚡ FIX: Cache missing - make fresh request without If-None-Match header
         // This happens when cache was cleared or first time loading
         try {
           if (kDebugMode) {
-            print('🔄 [MyFatoorahRepository] Retrying request without ETag to get fresh data');
+            debugPrint('🔄 [MyFatoorahRepository] Retrying request without ETag to get fresh data');
           }
           
           // Make fresh request (ApiClient will handle it normally, no ETag sent if cache doesn't exist)
@@ -121,23 +121,23 @@ class MyFatoorahRepository {
                 apiClient.getHeader(),
               );
               if (kDebugMode) {
-                print('✅ [MyFatoorahRepository] Fresh data received and cached');
+                debugPrint('✅ [MyFatoorahRepository] Fresh data received and cached');
               }
             } catch (e) {
               if (kDebugMode) {
-                print('⚠️ Failed to cache fresh payment methods: $e');
+                debugPrint('⚠️ Failed to cache fresh payment methods: $e');
               }
             }
             return freshResponse;
           } else {
             if (kDebugMode) {
-              print('❌ [MyFatoorahRepository] Fresh request also failed: ${freshResponse.statusCode}');
+              debugPrint('❌ [MyFatoorahRepository] Fresh request also failed: ${freshResponse.statusCode}');
             }
             return freshResponse;
           }
         } catch (e) {
           if (kDebugMode) {
-            print('❌ [MyFatoorahRepository] Error making fresh request: $e');
+            debugPrint('❌ [MyFatoorahRepository] Error making fresh request: $e');
           }
           // Return original 304 if retry fails
           return response;

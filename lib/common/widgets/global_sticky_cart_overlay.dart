@@ -443,9 +443,9 @@ class _GlobalStickyCartOverlayState extends State<GlobalStickyCartOverlay> {
       _controllerDisposers.add(() {
         try {
           c.removeListener(_scheduleRebuild);
-        } catch (_) {}
+        } catch (e) { if (kDebugMode) debugPrint('$e'); }
       });
-    } catch (_) {}
+    } catch (e) { if (kDebugMode) debugPrint('$e'); }
   }
 
   // ------------------------------------------------------------------

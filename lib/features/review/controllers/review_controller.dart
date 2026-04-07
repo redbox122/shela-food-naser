@@ -65,8 +65,8 @@ class ReviewController extends GetxController implements GetxService {
       _loadingList.add(false);
       _submitList.add(false);
       if (kDebugMode) {
-        print(orderDetails);
-       }
+        debugPrint(orderDetails.toString());
+      }
     }
   }
 
@@ -84,10 +84,12 @@ class ReviewController extends GetxController implements GetxService {
     update();
   }
 
-  Future<ResponseModel> submitReview(int index, ReviewBodyModel reviewBody) async {
+  Future<ResponseModel> submitReview(
+      int index, ReviewBodyModel reviewBody) async {
     _loadingList[index] = true;
     update();
-    final ResponseModel responseModel = await reviewServiceInterface.submitReview(reviewBody);
+    final ResponseModel responseModel =
+        await reviewServiceInterface.submitReview(reviewBody);
     if (responseModel.isSuccess) {
       _submitList[index] = true;
       update();
@@ -97,10 +99,12 @@ class ReviewController extends GetxController implements GetxService {
     return responseModel;
   }
 
-  Future<ResponseModel> submitDeliveryManReview(ReviewBodyModel reviewBody) async {
+  Future<ResponseModel> submitDeliveryManReview(
+      ReviewBodyModel reviewBody) async {
     _isLoading = true;
     update();
-    final ResponseModel responseModel = await reviewServiceInterface.submitDeliveryManReview(reviewBody);
+    final ResponseModel responseModel =
+        await reviewServiceInterface.submitDeliveryManReview(reviewBody);
     if (responseModel.isSuccess) {
       _deliveryManRating = 0;
       update();
@@ -109,5 +113,4 @@ class ReviewController extends GetxController implements GetxService {
     update();
     return responseModel;
   }
-
 }

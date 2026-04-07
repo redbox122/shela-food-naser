@@ -1,4 +1,3 @@
-// ignore_for_file: avoid_print
 /*
  * Secure Token Storage Test File
  * 
@@ -17,14 +16,14 @@ class SecureTokenStorageTest {
   /// Run basic functionality tests
   static Future<void> runBasicTests() async {
     if (kDebugMode) {
-      print('🧪 Starting Secure Token Storage Tests...');
+      debugPrint('🧪 Starting Secure Token Storage Tests...');
     }
     
     try {
       // Test 1: Initialize the system
       await SecureTokenStorage.initialize();
       if (kDebugMode) {
-        print('✅ Test 1 PASSED: Initialization successful');
+        debugPrint('✅ Test 1 PASSED: Initialization successful');
       }
       
       // Test 2: Save a test token
@@ -33,11 +32,11 @@ class SecureTokenStorageTest {
       
       if (saveResult) {
         if (kDebugMode) {
-          print('✅ Test 2 PASSED: Token saved successfully');
+          debugPrint('✅ Test 2 PASSED: Token saved successfully');
         }
       } else {
         if (kDebugMode) {
-          print('❌ Test 2 FAILED: Token save failed');
+          debugPrint('❌ Test 2 FAILED: Token save failed');
         }
         return;
       }
@@ -47,13 +46,13 @@ class SecureTokenStorageTest {
       
       if (retrievedToken == testToken) {
         if (kDebugMode) {
-          print('✅ Test 3 PASSED: Token retrieved and decrypted correctly');
+          debugPrint('✅ Test 3 PASSED: Token retrieved and decrypted correctly');
         }
       } else {
         if (kDebugMode) {
-          print('❌ Test 3 FAILED: Token retrieval failed');
-          print('Expected: $testToken');
-          print('Got: $retrievedToken');
+          debugPrint('❌ Test 3 FAILED: Token retrieval failed');
+          debugPrint('Expected: $testToken');
+          debugPrint('Got: $retrievedToken');
         }
         return;
       }
@@ -63,11 +62,11 @@ class SecureTokenStorageTest {
       
       if (hasValidToken) {
         if (kDebugMode) {
-          print('✅ Test 4 PASSED: Token validation successful');
+          debugPrint('✅ Test 4 PASSED: Token validation successful');
         }
       } else {
         if (kDebugMode) {
-          print('❌ Test 4 FAILED: Token validation failed');
+          debugPrint('❌ Test 4 FAILED: Token validation failed');
         }
         return;
       }
@@ -78,13 +77,13 @@ class SecureTokenStorageTest {
       if (securityStatus['isInitialized'] == true && 
           securityStatus['hasToken'] == true) {
         if (kDebugMode) {
-          print('✅ Test 5 PASSED: Security status check successful');
-          print('🔐 Security Status: $securityStatus');
+          debugPrint('✅ Test 5 PASSED: Security status check successful');
+          debugPrint('🔐 Security Status: $securityStatus');
         }
       } else {
         if (kDebugMode) {
-          print('❌ Test 5 FAILED: Security status check failed');
-          print('Status: $securityStatus');
+          debugPrint('❌ Test 5 FAILED: Security status check failed');
+          debugPrint('Status: $securityStatus');
         }
         return;
       }
@@ -94,11 +93,11 @@ class SecureTokenStorageTest {
       
       if (clearResult) {
         if (kDebugMode) {
-          print('✅ Test 6 PASSED: Token cleared successfully');
+          debugPrint('✅ Test 6 PASSED: Token cleared successfully');
         }
       } else {
         if (kDebugMode) {
-          print('❌ Test 6 FAILED: Token clear failed');
+          debugPrint('❌ Test 6 FAILED: Token clear failed');
         }
         return;
       }
@@ -108,23 +107,23 @@ class SecureTokenStorageTest {
       
       if (tokenAfterClear == null) {
         if (kDebugMode) {
-          print('✅ Test 7 PASSED: Token verification after clear successful');
+          debugPrint('✅ Test 7 PASSED: Token verification after clear successful');
         }
       } else {
         if (kDebugMode) {
-          print('❌ Test 7 FAILED: Token still exists after clear');
-          print('Token: $tokenAfterClear');
+          debugPrint('❌ Test 7 FAILED: Token still exists after clear');
+          debugPrint('Token: $tokenAfterClear');
         }
         return;
       }
       
       if (kDebugMode) {
-        print('🎉 ALL TESTS PASSED! Secure Token Storage is working correctly.');
+        debugPrint('🎉 ALL TESTS PASSED! Secure Token Storage is working correctly.');
       }
       
     } catch (e) {
       if (kDebugMode) {
-        print('❌ Test FAILED with exception: $e');
+        debugPrint('❌ Test FAILED with exception: $e');
       }
     }
   }
@@ -132,7 +131,7 @@ class SecureTokenStorageTest {
   /// Test token rotation functionality
   static Future<void> testTokenRotation() async {
     if (kDebugMode) {
-      print('🔄 Testing Token Rotation...');
+      debugPrint('🔄 Testing Token Rotation...');
     }
     
     try {
@@ -143,7 +142,7 @@ class SecureTokenStorageTest {
       // Check if rotation is needed
       final shouldRotate = await SecureTokenStorage.shouldRotateToken();
       if (kDebugMode) {
-        print('Should rotate token: $shouldRotate');
+        debugPrint('Should rotate token: $shouldRotate');
       }
       
       // Rotate token
@@ -152,23 +151,23 @@ class SecureTokenStorageTest {
       
       if (rotationResult) {
         if (kDebugMode) {
-          print('✅ Token rotation successful');
+          debugPrint('✅ Token rotation successful');
         }
         
         // Verify new token
         final retrievedToken = await SecureTokenStorage.getToken();
         if (retrievedToken == newToken) {
           if (kDebugMode) {
-            print('✅ New token verified after rotation');
+            debugPrint('✅ New token verified after rotation');
           }
         } else {
           if (kDebugMode) {
-            print('❌ New token verification failed after rotation');
+            debugPrint('❌ New token verification failed after rotation');
           }
         }
       } else {
         if (kDebugMode) {
-          print('❌ Token rotation failed');
+          debugPrint('❌ Token rotation failed');
         }
       }
       
@@ -177,7 +176,7 @@ class SecureTokenStorageTest {
       
     } catch (e) {
       if (kDebugMode) {
-        print('❌ Token rotation test failed: $e');
+        debugPrint('❌ Token rotation test failed: $e');
       }
     }
   }
@@ -185,7 +184,7 @@ class SecureTokenStorageTest {
   /// Test refresh token functionality
   static Future<void> testRefreshToken() async {
     if (kDebugMode) {
-      print('🔄 Testing Refresh Token...');
+      debugPrint('🔄 Testing Refresh Token...');
     }
     
     try {
@@ -199,23 +198,23 @@ class SecureTokenStorageTest {
       
       if (refreshSaveResult) {
         if (kDebugMode) {
-          print('✅ Refresh token saved successfully');
+          debugPrint('✅ Refresh token saved successfully');
         }
         
         // Retrieve refresh token
         final retrievedRefreshToken = await SecureTokenStorage.getRefreshToken();
         if (retrievedRefreshToken == refreshToken) {
           if (kDebugMode) {
-            print('✅ Refresh token retrieved successfully');
+            debugPrint('✅ Refresh token retrieved successfully');
           }
         } else {
           if (kDebugMode) {
-            print('❌ Refresh token retrieval failed');
+            debugPrint('❌ Refresh token retrieval failed');
           }
         }
       } else {
         if (kDebugMode) {
-          print('❌ Refresh token save failed');
+          debugPrint('❌ Refresh token save failed');
         }
       }
       
@@ -224,7 +223,7 @@ class SecureTokenStorageTest {
       
     } catch (e) {
       if (kDebugMode) {
-        print('❌ Refresh token test failed: $e');
+        debugPrint('❌ Refresh token test failed: $e');
       }
     }
   }
@@ -232,26 +231,26 @@ class SecureTokenStorageTest {
   /// Run all tests
   static Future<void> runAllTests() async {
     if (kDebugMode) {
-      print('🚀 Running All Secure Token Storage Tests...\n');
+      debugPrint('🚀 Running All Secure Token Storage Tests...\n');
     }
     
     await runBasicTests();
     if (kDebugMode) {
-      print('\n${'='*50}\n');
+      debugPrint('\n${'='*50}\n');
     }
     
     await testTokenRotation();
     if (kDebugMode) {
-      print('\n${'='*50}\n');
+      debugPrint('\n${'='*50}\n');
     }
     
     await testRefreshToken();
     if (kDebugMode) {
-      print('\n${'='*50}\n');
+      debugPrint('\n${'='*50}\n');
     }
     
     if (kDebugMode) {
-      print('🎯 All test suites completed!');
+      debugPrint('🎯 All test suites completed!');
     }
   }
 }

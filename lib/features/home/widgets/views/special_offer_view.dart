@@ -19,7 +19,7 @@ class SpecialOfferView extends StatelessWidget {
     return GetBuilder<ItemController>(builder: (itemController) {
       final List<Item>? discountedItemList = itemController.discountedItemList;
       
-      // print()
+      // debugPrint()
 
       return discountedItemList != null ? discountedItemList.isNotEmpty ? Padding(
         padding: const EdgeInsets.symmetric(vertical: Dimensions.paddingSizeDefault),

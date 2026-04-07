@@ -206,7 +206,7 @@ Widget _buildDialog() {
   @override
   Widget build(BuildContext context) {
     return InkWell(
-      onTap: widget.enabled! ? _openPicker : null,
+      onTap: (widget.enabled ?? true) ? _openPicker : null,
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [

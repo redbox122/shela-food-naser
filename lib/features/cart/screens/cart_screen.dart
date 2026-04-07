@@ -1,4 +1,3 @@
-// ignore_for_file: avoid_print, unused_local_variable
 
 import 'dart:io';
 import 'dart:convert';
@@ -313,7 +312,7 @@ class _CartScreenState extends State<CartScreen> with RouteAware {
       }
 
       if (kDebugMode) {
-        print('----cart item : ${firstCartItem.toJson()}');
+        debugPrint('----cart item : ${firstCartItem.toJson()}');
       }
 
       if (cartController.addCutlery) {
@@ -455,8 +454,6 @@ class _CartScreenState extends State<CartScreen> with RouteAware {
 
   @override
   Widget build(BuildContext context) {
-    final bool isDesktop = ResponsiveHelper.isDesktop(context);
-
     return Directionality(
       textDirection: _isRTL ? TextDirection.rtl : TextDirection.ltr,
       child: PopScope(
@@ -2173,7 +2170,6 @@ class CheckoutButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    double percentage = 0; // تم الحفاظ على المتغير ولو لم يستخدم لإبقاء الهيكل
     final bool isRTL = Get.locale?.languageCode == 'ar';
 
     return Container(
@@ -2185,13 +2181,6 @@ class CheckoutButton extends StatelessWidget {
             ResponsiveHelper.isDesktop(context) ? Dimensions.radiusDefault : 0),
       ),
       child: GetBuilder<StoreController>(builder: (storeController) {
-        if (Get.find<StoreController>().store != null &&
-            !Get.find<StoreController>().store!.freeDelivery! &&
-            Get.find<SplashController>().configModel!.freeDeliveryOver !=
-                null) {
-          percentage = cartController.subTotal /
-              Get.find<SplashController>().configModel!.freeDeliveryOver!;
-        }
         return Column(
           children: [
             SizedBox(

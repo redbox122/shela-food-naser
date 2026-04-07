@@ -1,4 +1,3 @@
-// ignore_for_file: unused_import, avoid_print
 
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -12,7 +11,6 @@ import 'package:sixam_mart/features/auth/domain/models/delivery_man_body.dart';
 import 'package:sixam_mart/features/auth/domain/models/delivery_man_vehicles_model.dart';
 import 'package:sixam_mart/features/auth/domain/reposotories/deliveryman_registration_repository_interface.dart';
 import 'package:sixam_mart/util/app_constants.dart';
-import '../../../../common/widgets/custom_snackbar.dart';
 import 'package:http/http.dart' as http;
 
 class DeliverymanRegistrationRepository
@@ -32,7 +30,7 @@ class DeliverymanRegistrationRepository
     DeliveryManBody deliveryManBody,
   ) async {
     if (apiClient.token == null || apiClient.token!.isEmpty) {
-      print('⚠️ لا يوجد توكن.');
+      debugPrint('⚠️ لا يوجد توكن.');
       return false;
     }
 
@@ -90,7 +88,7 @@ class DeliverymanRegistrationRepository
 
       return true;
     } else {
-      print('❌ Error: ${response.statusCode}');
+      debugPrint('❌ Error: ${response.statusCode}');
       return false;
     }
   }

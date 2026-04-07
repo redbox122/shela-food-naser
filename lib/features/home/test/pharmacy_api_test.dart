@@ -16,7 +16,6 @@ import 'package:sixam_mart/features/home/controllers/advertisement_controller.da
 import 'package:sixam_mart/features/splash/controllers/splash_controller.dart';
 import 'package:sixam_mart/util/app_constants.dart';
 
-// ignore_for_file: avoid_print
 class PharmacyApiTest {
   /// Test all pharmacy module APIs
   static Future<Map<String, dynamic>> testAllPharmacyApis() async {
@@ -201,21 +200,21 @@ class PharmacyApiTest {
     
     // Print results
     if (kDebugMode) {
-      print('═══════════════════════════════════════════════════════════');
-      print('🔬 PHARMACY MODULE API TEST RESULTS');
-      print('═══════════════════════════════════════════════════════════');
-      print('Module ID: ${results['module_id']}');
-      print('Module Name: ${results['module_name']}');
-      print('');
+      debugPrint('═══════════════════════════════════════════════════════════');
+      debugPrint('🔬 PHARMACY MODULE API TEST RESULTS');
+      debugPrint('═══════════════════════════════════════════════════════════');
+      debugPrint('Module ID: ${results['module_id']}');
+      debugPrint('Module Name: ${results['module_name']}');
+      debugPrint('');
       results.forEach((key, value) {
         if (key != 'module_id' && key != 'module_name' && key != 'error') {
-          print('$key: ${(value['success'] as bool?) == true ? '✅' : '❌'} ${value['count'] ?? ''} ${(value['data'] as bool?) == true ? '(HAS DATA)' : (value['data'] as bool?) == false ? '(NO DATA)' : ''}');
+          debugPrint('$key: ${(value['success'] as bool?) == true ? '✅' : '❌'} ${value['count'] ?? ''} ${(value['data'] as bool?) == true ? '(HAS DATA)' : (value['data'] as bool?) == false ? '(NO DATA)' : ''}');
           if (value['error'] != null) {
-            print('  Error: ${value['error']}');
+            debugPrint('  Error: ${value['error']}');
           }
         }
       });
-      print('═══════════════════════════════════════════════════════════');
+      debugPrint('═══════════════════════════════════════════════════════════');
     }
     
     return results;

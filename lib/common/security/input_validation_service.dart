@@ -151,7 +151,7 @@ class InputValidationService {
       );
     } catch (e) {
       if (kDebugMode) {
-        print('❌ Input validation error: $e');
+        debugPrint('❌ Input validation error: $e');
       }
       return ValidationResult(
         isValid: false,

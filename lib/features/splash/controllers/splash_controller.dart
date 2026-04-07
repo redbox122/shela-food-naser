@@ -1,4 +1,3 @@
-// ignore_for_file: avoid_print, avoid_web_libraries_in_flutter
 
 import 'dart:async';
 import 'package:flutter/foundation.dart';
@@ -17,8 +16,6 @@ import 'package:sixam_mart/features/item/controllers/campaign_controller.dart';
 import 'package:sixam_mart/features/cart/controllers/cart_controller.dart';
 import 'package:sixam_mart/features/item/controllers/item_controller.dart';
 import 'package:sixam_mart/features/notification/domain/models/notification_body_model.dart';
-import 'package:sixam_mart/features/notification/controllers/notification_controller.dart';
-import 'package:sixam_mart/features/profile/controllers/profile_controller.dart';
 import 'package:sixam_mart/features/store/controllers/store_controller.dart';
 import 'package:sixam_mart/api/api_client.dart';
 import 'package:sixam_mart/features/splash/domain/models/landing_model.dart';
@@ -150,82 +147,6 @@ class SplashController extends GetxController implements GetxService {
   /// This loads content from Module 3 (eCommerce) to display on multi-module screen
   /// Can be called before module selection (promotional content) or after (reactive update)
   /// Uses loadAndCachePromotionalContent() which handles API calls and Controller updates
-  Future<void> _loadPromotionalContentForMultiModuleScreen() async {
-    try {
-      // Promotional content is only for MultiModuleHomeScreen.
-      // Never refresh it while a module is actively selected.
-      if (selectedModule.value != null || _module != null) {
-        if (kDebugMode) {
-          debugPrint(
-              '⏭️ SplashController: Active module detected - skip promotional content load');
-        }
-        return;
-      }
-
-      // Check if Module 3 exists in available modules
-      final module3Exists = _moduleList?.any((m) => m.id == 3) ?? false;
-      if (!module3Exists) {
-        if (kDebugMode) {
-          debugPrint(
-              '⏭️ SplashController: Module 3 not available - skipping promotional content load');
-        }
-        return;
-      }
-      // Use existing method that loads and updates Controllers directly
-      // This method temporarily sets Module 3 in headers, loads content, and restores headers
-      await loadAndCachePromotionalContent(moduleId: 3);
-      if (kDebugMode) {
-        debugPrint(
-            '✅ SplashController: Promotional content loaded for MultiModuleHomeScreen');
-      }
-    } catch (e, stackTrace) {
-      _hasLoadedPromotionalContent = false;
-      update(['promotional_content']);
-      if (kDebugMode) {
-        debugPrint('❌ SplashController: Error loading promotional content: $e');
-        debugPrint('Stack trace: $stackTrace');
-      }
-    }
-  }
-
-  Future<void> _loadPromotionalContentIfReady() async {
-    if (!_isSplashFlowActive) {
-      if (kDebugMode) {
-        debugPrint(
-            '⏭️ SplashController: Skipping promotional content - splash flow inactive');
-      }
-      return;
-    }
-    if (_hasLoadedPromotionalContent) {
-      return;
-    }
-    // Promotional content is only for MultiModuleHomeScreen.
-    // If module is already selected, do not override active module data.
-    if (selectedModule.value != null || _module != null) {
-      if (kDebugMode) {
-        debugPrint(
-            '⏭️ SplashController: Module already selected - skip initial promotional content preload');
-      }
-      return;
-    }
-    // ⚡ PERF FIX: Don't attempt promotional API calls when address/zone headers
-    // are empty (fresh install). The backend rejects them and we waste 1-3s.
-    if (AddressHelper.getUserAddressFromSharedPref() == null) {
-      if (kDebugMode) {
-        debugPrint(
-            '⚡ SplashController: Skipping promotional content — no address/zone headers yet (fresh install)');
-      }
-      return;
-    }
-    // Keep this false until we actually load promotional data successfully.
-    // Otherwise offline failures can leave the UI stuck in a loading state.
-    _hasLoadedPromotionalContent = false;
-    if (kDebugMode) {
-      debugPrint('🔥 SplashController: Loading promotional content (Module 3)');
-    }
-    await _loadPromotionalContentForMultiModuleScreen();
-    update(['promotional_content']);
-  }
 
   ConfigModel? _configModel;
   ConfigModel? get configModel => _configModel;
@@ -1532,7 +1453,7 @@ class SplashController extends GetxController implements GetxService {
       // the image-cache DB still points at deleted files).
       try {
         await DefaultCacheManager().emptyCache();
-      } catch (_) {}
+      } catch (e) { if (kDebugMode) debugPrint('$e'); }
 
       final prefs = await SharedPreferences.getInstance();
       final keysToRemove = prefs.getKeys().where((key) =>
@@ -1673,83 +1594,9 @@ class SplashController extends GetxController implements GetxService {
   /// Pre-load user profile data during splash screen
   /// Only loads if userInfoModel is not already set (e.g., from login response)
   /// ⚡ TASK 3: Core Endpoint #3 - /api/v1/customer/info (User/Wallet Balance)
-  Future<bool> _preloadUserProfile() async {
-    final apiClient = Get.find<ApiClient>();
-    final hasAuthHeader =
-        (apiClient.getHeader()['Authorization'] ?? '').trim().isNotEmpty;
-    if (!hasAuthHeader) {
-      if (kDebugMode) {
-        debugPrint(
-            '⏭️ SplashController: Skip /customer/info preload - auth header not ready');
-      }
-      return false;
-    }
-
-    final profileController = Get.find<ProfileController>();
-    // Only load if userInfoModel is null (not already set from login)
-    if (profileController.userInfoModel == null) {
-      if (kDebugMode) {
-        debugPrint(
-            '🔄 SplashController: Pre-loading user profile data (Core Endpoint #3: /api/v1/customer/info)...');
-      }
-      try {
-        await profileController.getUserInfo();
-        if (kDebugMode) {
-          debugPrint(
-              '✅ SplashController: User profile pre-loaded successfully');
-        }
-        return true;
-      } catch (e) {
-        if (kDebugMode) {
-          debugPrint(
-              '⚠️ SplashController: User profile pre-fetch failed (non-blocking): $e');
-        }
-        return false;
-      }
-    } else {
-      if (kDebugMode) {
-        debugPrint(
-            '⏭️ SplashController: User profile already set (from login) - skipping pre-load');
-      }
-      return true; // Already loaded
-    }
-  }
 
   /// Pre-load notifications during splash screen
   /// ⚡ TASK 3: Core Endpoint #4 - /api/v1/customer/notifications (Unread Signal)
-  Future<bool> _preloadNotifications() async {
-    final apiClient = Get.find<ApiClient>();
-    final hasAuthHeader =
-        (apiClient.getHeader()['Authorization'] ?? '').trim().isNotEmpty;
-    if (!hasAuthHeader) {
-      if (kDebugMode) {
-        debugPrint(
-            '⏭️ SplashController: Skip /customer/notifications preload - auth header not ready');
-      }
-      return false;
-    }
-
-    if (kDebugMode) {
-      debugPrint(
-          '🔄 SplashController: Pre-loading notifications (Core Endpoint #4: /api/v1/customer/notifications)...');
-    }
-    try {
-      final notificationController = Get.find<NotificationController>();
-      await notificationController
-          .getNotificationList(false); // Don't reload if already loaded
-      if (kDebugMode) {
-        debugPrint(
-            '✅ SplashController: Notifications pre-loaded successfully (hasUnread: ${notificationController.hasUnread.value})');
-      }
-      return true;
-    } catch (e) {
-      if (kDebugMode) {
-        debugPrint(
-            '⚠️ SplashController: Notifications pre-fetch failed (non-blocking): $e');
-      }
-      return false;
-    }
-  }
 
   Future<void> _handleConfigResponse(
       BuildContext context,

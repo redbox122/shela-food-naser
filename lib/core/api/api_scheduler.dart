@@ -1,8 +1,10 @@
 import 'dart:async';
 import 'dart:collection';
 
+import 'package:flutter/foundation.dart';
+
 /// 🔥 Priority-based API Loading
-/// 
+///
 /// Manages API calls with priority levels:
 /// - HIGH: Current screen (gets all resources)
 /// - MEDIUM: Next expected screens (loads when idle)
@@ -14,12 +16,12 @@ enum ApiPriority {
 }
 
 /// 🔥 Smart API Request Scheduler
-/// 
+///
 /// Executes API calls based on priority:
 /// 1. HIGH priority always runs first
 /// 2. MEDIUM runs when HIGH queue is empty
 /// 3. LOW runs only when both HIGH and MEDIUM are empty
-/// 
+///
 /// Features:
 /// - Non-blocking execution
 /// - Automatic queue processing
@@ -37,7 +39,7 @@ class ApiScheduler {
   final Set<CancellationToken> _cancellationTokens = {};
 
   /// Add a task to the scheduler with priority
-  /// 
+  ///
   /// Returns a CancellationToken that can be used to cancel the task
   CancellationToken add(
     Future<void> Function() task, {
@@ -137,8 +139,7 @@ class ApiScheduler {
         } catch (e) {
           // Log error but don't break the queue
           // Errors should be handled by the task itself
-          // ignore: avoid_print
-          print('⚠️ ApiScheduler: Task "${task.tag}" failed: $e');
+          debugPrint('ApiScheduler: Task "${task.tag}" failed: $e');
         } finally {
           _cancellationTokens.remove(task.token);
         }

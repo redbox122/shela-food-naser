@@ -1,4 +1,3 @@
-// ignore_for_file: avoid_print
 
 import 'dart:async';
 import 'dart:convert';
@@ -58,13 +57,13 @@ class CachedSplashLoader {
 
     // Check if we can start splash loading
     if (!loadingManager.startSplashLoading()) {
-      print(
+      debugPrint(
           '🚫 CachedSplashLoader: Cannot start - splash loading already in progress');
       return;
     }
 
     try {
-      print(
+      debugPrint(
           '🚀 CachedSplashLoader: Starting splash data load (forceRefresh: $forceRefresh)');
 
       // Check if we should use cache
@@ -75,12 +74,12 @@ class CachedSplashLoader {
       }
 
       if (useCache) {
-        print('📦 CachedSplashLoader: Loading from cache - INSTANT STARTUP!');
+        debugPrint('📦 CachedSplashLoader: Loading from cache - INSTANT STARTUP!');
         await _loadFromCache(context, loadModuleData, loadLandingData);
 
         // Refresh in background only if not already refreshing
         if (!loadingManager.isBackgroundRefreshing) {
-          print('🔄 CachedSplashLoader: Refreshing in background');
+          debugPrint('🔄 CachedSplashLoader: Refreshing in background');
           if (!context.mounted) {
             return;
           }
@@ -89,11 +88,11 @@ class CachedSplashLoader {
                 context, notificationBody, loadModuleData, loadLandingData);
           }
         } else {
-          print(
+          debugPrint(
               '🚫 CachedSplashLoader: Background refresh already in progress, skipping');
         }
       } else {
-        print(
+        debugPrint(
             '🌐 CachedSplashLoader: Loading from API - FIRST TIME OR CACHE INVALID');
         if (!context.mounted) {
           return;
@@ -102,7 +101,7 @@ class CachedSplashLoader {
             context, notificationBody, loadModuleData, loadLandingData);
       }
     } catch (e) {
-      print('❌ CachedSplashLoader: Error - $e');
+      debugPrint('❌ CachedSplashLoader: Error - $e');
       // Fallback to API loading
       if (!context.mounted) {
         return;
@@ -128,7 +127,7 @@ class CachedSplashLoader {
       final configStr = await SplashCacheManager.loadConfigDataRaw();
 
       if (configStr == null || configStr.isEmpty) {
-        print(
+        debugPrint(
             'CachedSplashLoader: No cached config data available, falling back to API');
         throw Exception('Cache config data is null or empty');
       }
@@ -162,15 +161,15 @@ class CachedSplashLoader {
 
       // 🔧 FIX: Verify data was actually populated after restore
       if (splashController.configModel == null) {
-        print(
+        debugPrint(
             'CachedSplashLoader: configModel is null after cache restore - falling back to API');
         throw Exception('configModel null after cache restore');
       }
 
-      print(
+      debugPrint(
           'CachedSplashLoader: Splash data restored from cache - instant startup ready');
     } catch (e) {
-      print('CachedSplashLoader: Error loading from cache - $e');
+      debugPrint('CachedSplashLoader: Error loading from cache - $e');
       // 🔧 FIX: Rethrow so the caller triggers API fallback
       rethrow;
     }
@@ -193,7 +192,7 @@ class CachedSplashLoader {
       _configCompleter = Completer<bool>();
 
       if (kDebugMode) {
-        print(
+        debugPrint(
             '🚀 CachedSplashLoader: Starting API load (non-blocking Completer pattern)');
       }
 
@@ -216,7 +215,7 @@ class CachedSplashLoader {
         if (_configCompleter != null && !_configCompleter!.isCompleted) {
           final hasConfig = splashController.configModel != null;
           if (kDebugMode) {
-            print(
+            debugPrint(
                 '✅ CachedSplashLoader: getConfigData completed, configModel=${hasConfig ? "✓" : "✗"}');
           }
           _configCompleter!.complete(hasConfig);
@@ -225,7 +224,7 @@ class CachedSplashLoader {
         // 🔧 FIX: Complete with error to prevent hanging
         if (_configCompleter != null && !_configCompleter!.isCompleted) {
           if (kDebugMode) {
-            print('❌ CachedSplashLoader: getConfigData failed: $error');
+            debugPrint('❌ CachedSplashLoader: getConfigData failed: $error');
           }
           _configCompleter!.complete(false);
         }
@@ -238,7 +237,7 @@ class CachedSplashLoader {
             seconds: 4), // ⚡ PERF: 4s cap keeps splash under 6s worst-case
         onTimeout: () {
           if (kDebugMode) {
-            print(
+            debugPrint(
                 '⚠️ CachedSplashLoader: Config load timed out after 4s - routing with cached/default data');
           }
           return splashController.configModel != null;
@@ -247,16 +246,16 @@ class CachedSplashLoader {
 
       if (!success && splashController.configModel == null) {
         if (kDebugMode) {
-          print('❌ CachedSplashLoader: ConfigModel is null after await');
-          print('   - This may indicate 304 response with missing Hive cache');
-          print(
+          debugPrint('❌ CachedSplashLoader: ConfigModel is null after await');
+          debugPrint('   - This may indicate 304 response with missing Hive cache');
+          debugPrint(
               '   - App will continue with null config (may show error screen)');
         }
         // Don't throw - let the app continue and show appropriate error UI
         // This prevents infinite loops and allows graceful degradation
       } else {
         if (kDebugMode) {
-          print('✅ CachedSplashLoader: ConfigModel verified loaded');
+          debugPrint('✅ CachedSplashLoader: ConfigModel verified loaded');
         }
       }
 
@@ -264,11 +263,11 @@ class CachedSplashLoader {
       await _saveDataToCache();
 
       if (kDebugMode) {
-        print('✅ CachedSplashLoader: Splash data loaded from API and cached');
+        debugPrint('✅ CachedSplashLoader: Splash data loaded from API and cached');
       }
     } catch (e) {
       if (kDebugMode) {
-        print('❌ CachedSplashLoader: Error loading from API - $e');
+        debugPrint('❌ CachedSplashLoader: Error loading from API - $e');
       }
       // 🔧 FIX: Don't rethrow - allow graceful degradation
       // The app should continue and show appropriate error UI
@@ -298,9 +297,9 @@ class CachedSplashLoader {
           shouldRoute: false, // Don't route during background refresh
         );
         await _saveDataToCache();
-        print('🔄 CachedSplashLoader: Background refresh completed');
+        debugPrint('🔄 CachedSplashLoader: Background refresh completed');
       } catch (e) {
-        print('❌ CachedSplashLoader: Background refresh failed - $e');
+        debugPrint('❌ CachedSplashLoader: Background refresh failed - $e');
       }
     });
   }
@@ -332,7 +331,7 @@ class CachedSplashLoader {
         await SplashCacheManager.saveModuleListData(moduleListData);
       }
     } catch (e) {
-      print('CachedSplashLoader: Error saving to cache - $e');
+      debugPrint('CachedSplashLoader: Error saving to cache - $e');
     }
   }
 
@@ -343,7 +342,7 @@ class CachedSplashLoader {
     bool loadModuleData = false,
     bool loadLandingData = false,
   }) async {
-    print('🗑️ CachedSplashLoader: Clearing cache and refreshing');
+    debugPrint('🗑️ CachedSplashLoader: Clearing cache and refreshing');
     await SplashCacheManager.clearSplashCache();
     if (!context.mounted) {
       return;

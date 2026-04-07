@@ -49,21 +49,43 @@ class _WebLandingPageState extends State<WebLandingPage> {
   final PageController _pageController = PageController();
   AddressModel? _address;
   Timer? _timer;
+  bool _timerScheduled = false;
   bool? _isRtl;
 
   @override
   void initState() {
     super.initState();
 
-    if (Get.find<SplashController>().moduleList == null) {
+    final splashController = Get.find<SplashController>();
+    if (splashController.moduleList == null) {
       if (kDebugMode) {
-        print('-------call from web landing page------------');
+        debugPrint('WebLandingPage: module list not loaded, fetching...');
       }
-      Get.find<SplashController>().getModules(headers: {
+      splashController.getModules(headers: {
         'Content-Type': 'application/json; charset=UTF-8',
-        AppConstants.localizationKey: Get.find<LocalizationController>().locale.languageCode
+        AppConstants.localizationKey: Get.find<LocalizationController>().locale.languageCode,
       });
+    } else {
+      // Modules already available — start the carousel timer immediately
+      WidgetsBinding.instance.addPostFrameCallback((_) => _startCarouselTimer());
     }
+  }
+
+  void _startCarouselTimer() {
+    if (_timer != null || !mounted) return;
+    final splashController = Get.find<SplashController>();
+    if (splashController.moduleList == null) return;
+    _timer = Timer.periodic(const Duration(seconds: 5), (timer) {
+      if (!mounted) {
+        timer.cancel();
+        return;
+      }
+      final int index = splashController.moduleIndex >= splashController.moduleList!.length - 1
+          ? 0
+          : splashController.moduleIndex + 1;
+      splashController.setModuleIndex(index);
+      _pageController.animateToPage(index, duration: const Duration(seconds: 2), curve: Curves.easeInOut);
+    });
   }
 
   @override
@@ -342,14 +364,10 @@ class _WebLandingPageState extends State<WebLandingPage> {
                         ),
                         const SizedBox(height: 40),
                         GetBuilder<SplashController>(builder: (splashController) {
-                          if (splashController.moduleList != null && _timer == null) {
-                            _timer = Timer.periodic(const Duration(seconds: 5), (timer) {
-                              final int index = splashController.moduleIndex >= splashController.moduleList!.length - 1
-                                  ? 0
-                                  : splashController.moduleIndex + 1;
-                              splashController.setModuleIndex(index);
-                              _pageController.animateToPage(index, duration: const Duration(seconds: 2), curve: Curves.easeInOut);
-                            });
+                          // Start timer once modules arrive — queue at most one post-frame callback
+                          if (splashController.moduleList != null && _timer == null && !_timerScheduled) {
+                            _timerScheduled = true;
+                            WidgetsBinding.instance.addPostFrameCallback((_) => _startCarouselTimer());
                           }
                           return splashController.moduleList != null
                               ? SizedBox(

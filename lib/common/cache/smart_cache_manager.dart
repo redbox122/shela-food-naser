@@ -1,6 +1,5 @@
-// ignore_for_file: avoid_print
-
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sixam_mart/features/splash/controllers/splash_controller.dart';
@@ -24,7 +23,7 @@ class SmartCacheManager {
 
       // Check if cache exists
       if (!prefs.containsKey(_cacheDataKey)) {
-        print('🔄 Cache: No cached data found');
+        debugPrint('🔄 Cache: No cached data found');
         return false;
       }
 
@@ -34,7 +33,7 @@ class SmartCacheManager {
       final cacheAge = Duration(milliseconds: now - cacheTimestamp);
 
       if (cacheAge > _cacheExpiry) {
-        print('🔄 Cache: Expired (${cacheAge.inHours}h old)');
+        debugPrint('🔄 Cache: Expired (${cacheAge.inHours}h old)');
         return false;
       }
 
@@ -45,7 +44,7 @@ class SmartCacheManager {
               '1.0.0';
 
       if (cachedAppVersion != currentAppVersion) {
-        print(
+        debugPrint(
             '🔄 Cache: App version changed ($cachedAppVersion -> $currentAppVersion)');
         return false;
       }
@@ -56,15 +55,16 @@ class SmartCacheManager {
           splashController.module?.id?.toString() ?? '1.0.0';
 
       if (cachedBootstrapVersion != currentBootstrapVersion) {
-        print(
+        debugPrint(
             '🔄 Cache: Bootstrap version changed ($cachedBootstrapVersion -> $currentBootstrapVersion)');
         return false;
       }
 
-      print('✅ Cache: Valid and up-to-date - USER WILL SEE INSTANT LOADING!');
+      debugPrint(
+          '✅ Cache: Valid and up-to-date - USER WILL SEE INSTANT LOADING!');
       return true;
     } catch (e) {
-      print('❌ Cache: Error checking validity - $e');
+      debugPrint('❌ Cache: Error checking validity - $e');
       return false;
     }
   }
@@ -89,10 +89,10 @@ class SmartCacheManager {
           splashController.module?.id?.toString() ?? '1.0.0');
       await prefs.setString(_cacheVersionKey, '1.0.0');
 
-      print(
+      debugPrint(
           '💾 Cache: Data saved successfully - NEXT APP OPEN WILL BE INSTANT!');
     } catch (e) {
-      print('❌ Cache: Error saving data - $e');
+      debugPrint('❌ Cache: Error saving data - $e');
     }
   }
 
@@ -102,21 +102,21 @@ class SmartCacheManager {
       final prefs = await SharedPreferences.getInstance();
 
       if (!prefs.containsKey(_cacheDataKey)) {
-        print('🔄 Cache: No cached data available');
+        debugPrint('🔄 Cache: No cached data available');
         return null;
       }
 
       final cacheData = prefs.getString(_cacheDataKey);
       if (cacheData == null) {
-        print('🔄 Cache: Cache data is null');
+        debugPrint('🔄 Cache: Cache data is null');
         return null;
       }
 
       final data = jsonDecode(cacheData) as Map<String, dynamic>;
-      print('📦 Cache: Data loaded successfully');
+      debugPrint('📦 Cache: Data loaded successfully');
       return data;
     } catch (e) {
-      print('❌ Cache: Error loading data - $e');
+      debugPrint('❌ Cache: Error loading data - $e');
       return null;
     }
   }
@@ -132,9 +132,9 @@ class SmartCacheManager {
       await prefs.remove(_bootstrapVersionKey);
       await prefs.remove(_cacheVersionKey);
 
-      print('🗑️ Cache: Cleared successfully');
+      debugPrint('🗑️ Cache: Cleared successfully');
     } catch (e) {
-      print('❌ Cache: Error clearing cache - $e');
+      debugPrint('❌ Cache: Error clearing cache - $e');
     }
   }
 

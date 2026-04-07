@@ -1,4 +1,3 @@
-// ignore_for_file: avoid_print
 
 import 'dart:convert';
 import 'dart:io';
@@ -22,9 +21,9 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   await Firebase.initializeApp();
 
   if (kDebugMode) {
-    print('📱 Background message received: ${message.messageId}');
-    print("📱 Title: ${message.notification?.title ?? message.data['title']}");
-    print("📱 Body: ${message.notification?.body ?? message.data['body']}");
+    debugPrint('📱 Background message received: ${message.messageId}');
+    debugPrint("📱 Title: ${message.notification?.title ?? message.data['title']}");
+    debugPrint("📱 Body: ${message.notification?.body ?? message.data['body']}");
   }
 
   if (message.notification != null) {
@@ -54,7 +53,7 @@ class NotificationService {
   Future<void> initialize() async {
     if (_isInitialized) {
       if (kDebugMode) {
-        print(
+        debugPrint(
             '⏭️ NotificationService: initialize skipped (already initialized)');
       }
       return;
@@ -64,7 +63,7 @@ class NotificationService {
     if (!kIsWeb) {
       _firebaseMessaging.subscribeToTopic('all');
     } else {
-      print('⛔ Skipping topic subscription: not supported on web.');
+      debugPrint('⛔ Skipping topic subscription: not supported on web.');
     }
 
     const AndroidInitializationSettings androidSettings =
@@ -96,7 +95,7 @@ class NotificationService {
         );
 
         await androidPlugin.createNotificationChannel(channel);
-        print('✅ Notification channel created: AzizBaffoun');
+        debugPrint('✅ Notification channel created: AzizBaffoun');
       }
     }
 
@@ -122,9 +121,9 @@ class NotificationService {
 
   // Foreground notification
   Future<void> _onMessage(RemoteMessage message) async {
-    print('Foreground message: ${message.notification?.title}');
+    debugPrint('Foreground message: ${message.notification?.title}');
     if (_shouldSuppressForegroundOrderNotification(message)) {
-      print(
+      debugPrint(
           '🔕 NotificationService: Suppressed pending/unpaid order notification during payment webview');
       return;
     }
@@ -140,9 +139,9 @@ class NotificationService {
   // Terminated notification
   Future<void> _onInitialMessage(RemoteMessage? message) async {
     if (message != null) {
-      print('Terminated state message: ${message.notification?.title}');
+      debugPrint('Terminated state message: ${message.notification?.title}');
       if (_shouldSuppressForegroundOrderNotification(message)) {
-        print(
+        debugPrint(
             '🔕 NotificationService: Suppressed pending/unpaid initial order notification during payment webview');
         return;
       }
@@ -243,14 +242,14 @@ class NotificationService {
           AppConstants.localNotificationLogList, existing);
     } catch (e) {
       if (kDebugMode) {
-        print('🔔 NotificationService: Failed to persist local log: $e');
+        debugPrint('🔔 NotificationService: Failed to persist local log: $e');
       }
     }
   }
 
   Future<void> _getDeviceToken() async {
     final String? token = await _firebaseMessaging.getToken();
-    print('Device Token: $token');
+    debugPrint('Device Token: $token');
   }
 
   void _handleNotificationTap(RemoteMessage message) {
@@ -269,14 +268,14 @@ class NotificationService {
         // Save for popup display
         notificationController
             .saveLatestNotificationForPopup(notificationModel);
-        print(
+        debugPrint(
             '🔔 NotificationService: Saved notification for popup: ${message.notification?.title}');
       } else {
-        print(
+        debugPrint(
             '🔔 NotificationService: NotificationController not registered yet');
       }
     } catch (e) {
-      print('🔔 NotificationService: Error saving notification for popup: $e');
+      debugPrint('🔔 NotificationService: Error saving notification for popup: $e');
     }
   }
 

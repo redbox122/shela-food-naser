@@ -1,5 +1,4 @@
-// ignore_for_file: avoid_print
-
+import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
 import 'package:sixam_mart/features/notification/domain/models/notification_model.dart';
 import 'package:sixam_mart/features/notification/domain/repository/notification_repository_interface.dart';
@@ -18,7 +17,7 @@ class NotificationPopupService {
       // Global kill switch: keep notifications in list only, never show popup.
       if (!_popupEnabled) {
         if (_notificationRepository.hasUnshownNotificationPopup()) {
-          print(
+          debugPrint(
               '🔕 NotificationPopupService: Popup disabled - marking pending popup as handled');
           _notificationRepository.markNotificationPopupAsShown();
         }
@@ -27,7 +26,7 @@ class NotificationPopupService {
 
       // Check if there's an unshown notification popup
       if (!_notificationRepository.hasUnshownNotificationPopup()) {
-        print(
+        debugPrint(
             '🔔 NotificationPopupService: No unshown notification popup found');
         return;
       }
@@ -36,7 +35,7 @@ class NotificationPopupService {
       final NotificationModel? notification =
           _notificationRepository.getLatestNotificationForPopup();
       if (notification == null) {
-        print(
+        debugPrint(
             '🔔 NotificationPopupService: No notification data found for popup');
         _notificationRepository.clearLatestNotificationForPopup();
         return;
@@ -44,12 +43,12 @@ class NotificationPopupService {
 
       // Check if we have a valid context
       if (Get.context == null) {
-        print(
+        debugPrint(
             '🔔 NotificationPopupService: No context available, delaying popup');
         return;
       }
 
-      print(
+      debugPrint(
           '🔔 NotificationPopupService: Showing notification popup for: ${notification.data?.title}');
 
       // Convert to PayloadModel with translations
@@ -62,11 +61,11 @@ class NotificationPopupService {
 
       // Mark as shown when dialog is dismissed
       Future.delayed(Duration.zero, () {
-        print('🔔 NotificationPopupService: Notification popup dismissed');
+        debugPrint('🔔 NotificationPopupService: Notification popup dismissed');
         _notificationRepository.markNotificationPopupAsShown();
       });
     } catch (e) {
-      print(
+      debugPrint(
           '🔔 NotificationPopupService: Error showing notification popup: $e');
       // Clear invalid data
       _notificationRepository.clearLatestNotificationForPopup();
@@ -76,11 +75,11 @@ class NotificationPopupService {
   /// Save a notification for popup display
   static void saveNotificationForPopup(NotificationModel notification) {
     try {
-      print(
+      debugPrint(
           '🔔 NotificationPopupService: Saving notification for popup: ${notification.data?.title}');
       _notificationRepository.saveLatestNotificationForPopup(notification);
     } catch (e) {
-      print(
+      debugPrint(
           '🔔 NotificationPopupService: Error saving notification for popup: $e');
     }
   }
@@ -88,10 +87,10 @@ class NotificationPopupService {
   /// Clear any pending notification popup
   static void clearNotificationPopup() {
     try {
-      print('🔔 NotificationPopupService: Clearing notification popup');
+      debugPrint('🔔 NotificationPopupService: Clearing notification popup');
       _notificationRepository.clearLatestNotificationForPopup();
     } catch (e) {
-      print(
+      debugPrint(
           '🔔 NotificationPopupService: Error clearing notification popup: $e');
     }
   }
@@ -101,7 +100,7 @@ class NotificationPopupService {
     try {
       return _notificationRepository.hasUnshownNotificationPopup();
     } catch (e) {
-      print(
+      debugPrint(
           '🔔 NotificationPopupService: Error checking pending notification popup: $e');
       return false;
     }
@@ -112,7 +111,7 @@ class NotificationPopupService {
     try {
       return _notificationRepository.getLatestNotificationForPopup();
     } catch (e) {
-      print(
+      debugPrint(
           '🔔 NotificationPopupService: Error getting latest notification for popup: $e');
       return null;
     }
@@ -135,9 +134,9 @@ class NotificationPopupService {
     final translatedTitle = BackendMessageTranslator.translate(rawTitle);
     final translatedBody = BackendMessageTranslator.translate(rawBody);
 
-    print(
+    debugPrint(
         '🔔 NotificationPopupService: Translated title: "$rawTitle" → "$translatedTitle"');
-    print(
+    debugPrint(
         '🔔 NotificationPopupService: Translated body: "$rawBody" → "$translatedBody"');
 
     // Extract order ID if present in the text (for navigation)

@@ -5,7 +5,22 @@
       "Read(//c/Users/jaber/Desktop/analiz/shella_Source_code/app-test-main/**)",
       "Bash(python3:*)",
       "Bash(python -c:*)",
-      "Bash(python:*)"
+      "Bash(python:*)",
+      "Bash(xargs grep:*)",
+      "Bash(grep -E \"\\\\\\\\.env|config|\\\\.properties\")",
+      "Bash(node -e ':*)",
+      "Bash(grep -o \"lib\\\\\\\\\\\\\\\\[^:]*\")",
+      "Bash(grep -oP \"lib[\\\\\\\\/][^\\\\s:]+\")",
+      "Bash(grep -o \"lib[/\\\\\\\\][^:]*\")",
+      "Bash(findstr \"error -\")",
+      "Bash(findstr \"undefined_method\\\\|undefined_identifier\\\\|expected_executable\")",
+      "Bash(timeout 30)",
+      "Read(//c/tmp/**)",
+      "Bash(tee /tmp/errs.txt)",
+      "Bash(tee /tmp/flutter_errors.txt)",
+      "Bash(echo \"Exit: $?\")",
+      "Read(//tmp/**)",
+      "Bash(grep -v \"^$\")"
     ]
   }
 }

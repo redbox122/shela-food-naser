@@ -96,12 +96,12 @@ class ValidateCheck {
             ? '+${phoneNumber.countryCode}${phoneNumber.nsn}'
             : phoneNumber.nsn.toString();
         if (kDebugMode) {
-          print('Phone Number : $phone');
+          debugPrint('Phone Number : $phone');
         }
       }
     } catch (e) {
       if (kDebugMode) {
-        print(e.toString());
+        debugPrint(e.toString());
       }
     }
     return phone;

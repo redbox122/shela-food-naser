@@ -1,5 +1,4 @@
-// ignore_for_file: avoid_print
-
+import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
 import 'package:sixam_mart/features/brands/controllers/brands_controller.dart';
 import 'package:sixam_mart/features/category/controllers/category_controller.dart';
@@ -19,7 +18,7 @@ class SmartPreloader {
 
   /// Preload popular sections on app startup
   static Future<void> preloadPopularSections() async {
-    print('🚀 SmartPreloader: Starting popular sections preload...');
+    debugPrint('🚀 SmartPreloader: Starting popular sections preload...');
 
     try {
       // Preload popular items
@@ -34,15 +33,16 @@ class SmartPreloader {
       // Preload top stores
       await _preloadTopStores();
 
-      print('✅ SmartPreloader: Popular sections preloaded successfully');
+      debugPrint('✅ SmartPreloader: Popular sections preloaded successfully');
     } catch (e) {
-      print('❌ SmartPreloader: Error preloading sections: $e');
+      debugPrint('❌ SmartPreloader: Error preloading sections: $e');
     }
   }
 
   /// Preload items for a specific brand when user taps on it
   static Future<void> preloadBrandItems(int brandId) async {
-    print('🚀 SmartPreloader: Preloading brand items for brandId: $brandId');
+    debugPrint(
+        '🚀 SmartPreloader: Preloading brand items for brandId: $brandId');
 
     try {
       final brandsController = Get.find<BrandsController>();
@@ -50,15 +50,16 @@ class SmartPreloader {
       // Preload first page of brand items
       await brandsController.getBrandItemList(brandId, 1, false);
 
-      print('✅ SmartPreloader: Brand items preloaded for brandId: $brandId');
+      debugPrint(
+          '✅ SmartPreloader: Brand items preloaded for brandId: $brandId');
     } catch (e) {
-      print('❌ SmartPreloader: Error preloading brand items: $e');
+      debugPrint('❌ SmartPreloader: Error preloading brand items: $e');
     }
   }
 
   /// Preload items for a specific category when user taps on it
   static Future<void> preloadCategoryItems(int categoryId, String type) async {
-    print(
+    debugPrint(
         '🚀 SmartPreloader: Preloading category items for categoryId: $categoryId, type: $type');
 
     try {
@@ -68,17 +69,17 @@ class SmartPreloader {
       categoryController.getCategoryItemList(
           categoryId.toString(), 1, type, false);
 
-      print(
+      debugPrint(
           '✅ SmartPreloader: Category items preloaded for categoryId: $categoryId');
     } catch (e) {
-      print('❌ SmartPreloader: Error preloading category items: $e');
+      debugPrint('❌ SmartPreloader: Error preloading category items: $e');
     }
   }
 
   /// Preload items for a specific store when user taps on it
   static Future<void> preloadStoreItems(int storeId,
       {int? categoryId, String type = 'all'}) async {
-    print(
+    debugPrint(
         '🚀 SmartPreloader: Preloading store items for storeId: $storeId, categoryId: $categoryId, type: $type');
 
     try {
@@ -87,9 +88,10 @@ class SmartPreloader {
       // Preload first page of store items
       storeController.getStoreItemList(storeId, 1, type, false);
 
-      print('✅ SmartPreloader: Store items preloaded for storeId: $storeId');
+      debugPrint(
+          '✅ SmartPreloader: Store items preloaded for storeId: $storeId');
     } catch (e) {
-      print('❌ SmartPreloader: Error preloading store items: $e');
+      debugPrint('❌ SmartPreloader: Error preloading store items: $e');
     }
   }
 
@@ -101,7 +103,7 @@ class SmartPreloader {
 
       // Only preload for ecommerce module
       if (splashController.module?.moduleType.toString() == 'ecommerce') {
-        print('🔄 Preloading popular items...');
+        debugPrint('🔄 Preloading popular items...');
 
         // Preload popular items
         await itemController.getPopularItemList(false, 'all', false);
@@ -118,10 +120,10 @@ class SmartPreloader {
         // Preload discounted items
         await itemController.getDiscountedItemList(false, false, 'all');
 
-        print('✅ Popular items preloaded');
+        debugPrint('✅ Popular items preloaded');
       }
     } catch (e) {
-      print('❌ Error preloading popular items: $e');
+      debugPrint('❌ Error preloading popular items: $e');
     }
   }
 
@@ -132,7 +134,7 @@ class SmartPreloader {
 
       if (brandsController.brandList != null &&
           brandsController.brandList!.isNotEmpty) {
-        print('🔄 Preloading top brands...');
+        debugPrint('🔄 Preloading top brands...');
 
         // Preload first 3 brands
         final topBrands = brandsController.brandList!.take(_maxPreloadBrands);
@@ -140,16 +142,16 @@ class SmartPreloader {
         for (final brand in topBrands) {
           try {
             await brandsController.getBrandItemList(brand.id!, 1, false);
-            print('✅ Preloaded brand: ${brand.name}');
+            debugPrint('✅ Preloaded brand: ${brand.name}');
           } catch (e) {
-            print('❌ Error preloading brand ${brand.name}: $e');
+            debugPrint('❌ Error preloading brand ${brand.name}: $e');
           }
         }
 
-        print('✅ Top brands preloaded');
+        debugPrint('✅ Top brands preloaded');
       }
     } catch (e) {
-      print('❌ Error preloading top brands: $e');
+      debugPrint('❌ Error preloading top brands: $e');
     }
   }
 
@@ -162,22 +164,25 @@ class SmartPreloader {
 
       if (categoryController.categoryList != null &&
           categoryController.categoryList!.isNotEmpty) {
-        print('🔄 Preloading top categories...');
+        debugPrint('🔄 Preloading top categories...');
 
         // ✅ FIXED: Removed automatic category item preloading to prevent unnecessary API calls
         // Category items are only preloaded when user actually taps on a category
         // This prevents 500 errors and reduces API calls significantly
-        
+
         // Only log that categories are available for preloading
         final topCategories =
             categoryController.categoryList!.take(_maxPreloadCategories);
-        print('✅ Top categories available for preloading: ${topCategories.map((c) => c.name).join(", ")}');
-        print('ℹ️  Category items will be preloaded when user taps on categories');
+        debugPrint(
+            '✅ Top categories available for preloading: ${topCategories.map((c) => c.name).join(", ")}');
+        debugPrint(
+            'ℹ️  Category items will be preloaded when user taps on categories');
 
-        print('✅ Top categories preloaded (skipping item preload to avoid unnecessary API calls)');
+        debugPrint(
+            '✅ Top categories preloaded (skipping item preload to avoid unnecessary API calls)');
       }
     } catch (e) {
-      print('❌ Error preloading top categories: $e');
+      debugPrint('❌ Error preloading top categories: $e');
     }
   }
 
@@ -188,7 +193,7 @@ class SmartPreloader {
 
       if (storeController.popularStoreList != null &&
           storeController.popularStoreList!.isNotEmpty) {
-        print('🔄 Preloading top stores...');
+        debugPrint('🔄 Preloading top stores...');
 
         // Preload first 3 stores
         final topStores =
@@ -197,16 +202,16 @@ class SmartPreloader {
         for (final store in topStores) {
           try {
             storeController.getStoreItemList(store.id, 1, 'all', false);
-            print('✅ Preloaded store: ${store.name}');
+            debugPrint('✅ Preloaded store: ${store.name}');
           } catch (e) {
-            print('❌ Error preloading store ${store.name}: $e');
+            debugPrint('❌ Error preloading store ${store.name}: $e');
           }
         }
 
-        print('✅ Top stores preloaded');
+        debugPrint('✅ Top stores preloaded');
       }
     } catch (e) {
-      print('❌ Error preloading top stores: $e');
+      debugPrint('❌ Error preloading top stores: $e');
     }
   }
 

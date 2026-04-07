@@ -1,4 +1,3 @@
-// ignore_for_file: avoid_print
 
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
@@ -57,13 +56,13 @@ class HiveHomeCacheService {
           // Android: /data/data/<package>/app_flutter/hive/
           // iOS: <AppDocumentsDirectory>/hive/
           // This path is managed by path_provider and should persist across app restarts
-          print('✅ HiveHomeCacheService: Hive initialized');
-          print(
+          debugPrint('✅ HiveHomeCacheService: Hive initialized');
+          debugPrint(
               '   - Storage path managed by path_provider (persists across restarts)');
-          print('   - Android: /data/data/<package>/app_flutter/hive/');
-          print('   - iOS: <AppDocumentsDirectory>/hive/');
+          debugPrint('   - Android: /data/data/<package>/app_flutter/hive/');
+          debugPrint('   - iOS: <AppDocumentsDirectory>/hive/');
         } catch (e) {
-          print('⚠️ HiveHomeCacheService: Could not log storage path: $e');
+          debugPrint('⚠️ HiveHomeCacheService: Could not log storage path: $e');
         }
       }
 
@@ -99,11 +98,11 @@ class HiveHomeCacheService {
 
       _isInitialized = true;
       if (kDebugMode) {
-        print('✅ HiveHomeCacheService: Initialized successfully');
+        debugPrint('✅ HiveHomeCacheService: Initialized successfully');
       }
     } catch (e) {
       if (kDebugMode) {
-        print('❌ HiveHomeCacheService: Initialization failed - $e');
+        debugPrint('❌ HiveHomeCacheService: Initialization failed - $e');
       }
       _isInitialized = false;
       rethrow;
@@ -128,11 +127,11 @@ class HiveHomeCacheService {
     try {
       await _getLazyBox(HiveCacheConfig.multiModulePromotionalCacheBoxName);
       if (kDebugMode) {
-        print('✅ HiveHomeCacheService: Promotional cache box pre-opened');
+        debugPrint('✅ HiveHomeCacheService: Promotional cache box pre-opened');
       }
     } catch (e) {
       if (kDebugMode) {
-        print(
+        debugPrint(
             '⚠️ HiveHomeCacheService: Error pre-opening promotional cache box: $e');
       }
     }
@@ -158,12 +157,12 @@ class HiveHomeCacheService {
       ]);
 
       if (kDebugMode) {
-        print(
+        debugPrint(
             '✅ HiveHomeCacheService: All home unified cache boxes pre-opened for module $moduleId');
       }
     } catch (e) {
       if (kDebugMode) {
-        print(
+        debugPrint(
             '⚠️ HiveHomeCacheService: Error pre-opening home unified cache boxes: $e');
       }
       // Don't throw - continue even if pre-opening fails
@@ -202,7 +201,7 @@ class HiveHomeCacheService {
       return box;
     } catch (e) {
       if (kDebugMode) {
-        print('❌ HiveHomeCacheService: Failed to open lazy box $boxName - $e');
+        debugPrint('❌ HiveHomeCacheService: Failed to open lazy box $boxName - $e');
       }
       rethrow;
     }
@@ -218,7 +217,7 @@ class HiveHomeCacheService {
           '${boxName}_${key}_timestamp', timestamp.millisecondsSinceEpoch);
     } catch (e) {
       if (kDebugMode) {
-        print('⚠️ HiveHomeCacheService: Failed to save timestamp - $e');
+        debugPrint('⚠️ HiveHomeCacheService: Failed to save timestamp - $e');
       }
     }
   }
@@ -235,7 +234,7 @@ class HiveHomeCacheService {
       }
     } catch (e) {
       if (kDebugMode) {
-        print('⚠️ HiveHomeCacheService: Failed to get timestamp - $e');
+        debugPrint('⚠️ HiveHomeCacheService: Failed to get timestamp - $e');
       }
     }
     return null;
@@ -249,7 +248,7 @@ class HiveHomeCacheService {
       await box.delete('${boxName}_${key}_timestamp');
     } catch (e) {
       if (kDebugMode) {
-        print('⚠️ HiveHomeCacheService: Failed to delete timestamp - $e');
+        debugPrint('⚠️ HiveHomeCacheService: Failed to delete timestamp - $e');
       }
     }
   }
@@ -270,7 +269,7 @@ class HiveHomeCacheService {
       return age < ttl;
     } catch (e) {
       if (kDebugMode) {
-        print('❌ HiveHomeCacheService: Error checking cache validity - $e');
+        debugPrint('❌ HiveHomeCacheService: Error checking cache validity - $e');
       }
       return false;
     }
@@ -293,11 +292,11 @@ class HiveHomeCacheService {
       // 🔧 CRITICAL FIX: Flush to ensure data is persisted to disk immediately
       await box.flush();
       if (kDebugMode) {
-        print('💾 HiveHomeCacheService: Saved banners for module $moduleId');
+        debugPrint('💾 HiveHomeCacheService: Saved banners for module $moduleId');
       }
     } catch (e) {
       if (kDebugMode) {
-        print('❌ HiveHomeCacheService: Error saving banners - $e');
+        debugPrint('❌ HiveHomeCacheService: Error saving banners - $e');
       }
       throw HiveCacheConfig.boxNotFound;
     }
@@ -332,12 +331,12 @@ class HiveHomeCacheService {
       }
       await box.flush();
       if (kDebugMode) {
-        print(
+        debugPrint(
             '💾 HiveHomeCacheService: Saved ${data.length} categories for module $moduleId');
       }
     } catch (e) {
       if (kDebugMode) {
-        print('❌ HiveHomeCacheService: Error saving categories - $e');
+        debugPrint('❌ HiveHomeCacheService: Error saving categories - $e');
       }
       throw HiveCacheConfig.boxNotFound;
     }
@@ -365,7 +364,7 @@ class HiveHomeCacheService {
       return _generateLocationHash(lat, lng);
     } catch (e) {
       if (kDebugMode) {
-        print('⚠️ HiveHomeCacheService: Error getting location hash - $e');
+        debugPrint('⚠️ HiveHomeCacheService: Error getting location hash - $e');
       }
       return null;
     }
@@ -394,12 +393,12 @@ class HiveHomeCacheService {
       // 🔧 CRITICAL FIX: Flush to ensure data is persisted to disk immediately
       await box.flush();
       if (kDebugMode) {
-        print(
+        debugPrint(
             '💾 HiveHomeCacheService: Saved stores for module $moduleId${finalLocationHash != null ? ' (location: $finalLocationHash)' : ''}');
       }
     } catch (e) {
       if (kDebugMode) {
-        print('❌ HiveHomeCacheService: Error saving stores - $e');
+        debugPrint('❌ HiveHomeCacheService: Error saving stores - $e');
       }
       throw HiveCacheConfig.boxNotFound;
     }
@@ -422,12 +421,12 @@ class HiveHomeCacheService {
       // 🔧 CRITICAL FIX: Flush to ensure data is persisted to disk immediately
       await box.flush();
       if (kDebugMode) {
-        print(
+        debugPrint(
             '💾 HiveHomeCacheService: Saved ${data.length} brands for module $moduleId');
       }
     } catch (e) {
       if (kDebugMode) {
-        print('❌ HiveHomeCacheService: Error saving brands - $e');
+        debugPrint('❌ HiveHomeCacheService: Error saving brands - $e');
       }
       throw HiveCacheConfig.boxNotFound;
     }
@@ -448,11 +447,11 @@ class HiveHomeCacheService {
       // 🔧 CRITICAL FIX: Flush to ensure data is persisted to disk immediately
       await box.flush();
       if (kDebugMode) {
-        print('💾 HiveHomeCacheService: Saved offers for module $moduleId');
+        debugPrint('💾 HiveHomeCacheService: Saved offers for module $moduleId');
       }
     } catch (e) {
       if (kDebugMode) {
-        print('❌ HiveHomeCacheService: Error saving offers - $e');
+        debugPrint('❌ HiveHomeCacheService: Error saving offers - $e');
       }
       throw HiveCacheConfig.boxNotFound;
     }
@@ -474,12 +473,12 @@ class HiveHomeCacheService {
       // 🔧 CRITICAL FIX: Flush to ensure data is persisted to disk immediately
       await box.flush();
       if (kDebugMode) {
-        print(
+        debugPrint(
             '💾 HiveHomeCacheService: Saved business settings for module $moduleId');
       }
     } catch (e) {
       if (kDebugMode) {
-        print('❌ HiveHomeCacheService: Error saving business settings - $e');
+        debugPrint('❌ HiveHomeCacheService: Error saving business settings - $e');
       }
       throw HiveCacheConfig.boxNotFound;
     }
@@ -509,7 +508,7 @@ class HiveHomeCacheService {
         // 🔧 CRITICAL FIX: Flush to ensure data is persisted to disk immediately
         await box.flush();
         if (kDebugMode) {
-          print('💾 HiveHomeCacheService: Saved promotional banners');
+          debugPrint('💾 HiveHomeCacheService: Saved promotional banners');
         }
       }
 
@@ -523,12 +522,12 @@ class HiveHomeCacheService {
         // 🔧 CRITICAL FIX: Flush to ensure data is persisted to disk immediately
         await box.flush();
         if (kDebugMode) {
-          print('💾 HiveHomeCacheService: Saved promotional offers');
+          debugPrint('💾 HiveHomeCacheService: Saved promotional offers');
         }
       }
     } catch (e) {
       if (kDebugMode) {
-        print('❌ HiveHomeCacheService: Error saving promotional content - $e');
+        debugPrint('❌ HiveHomeCacheService: Error saving promotional content - $e');
       }
     }
   }
@@ -565,7 +564,7 @@ class HiveHomeCacheService {
         if (bannersData != null && bannersData is BannerModel) {
           resultMap['banners'] = bannersData;
           if (kDebugMode) {
-            print(
+            debugPrint(
                 '📦 HiveHomeCacheService: Loaded promotional banners from cache');
           }
         }
@@ -576,7 +575,7 @@ class HiveHomeCacheService {
         if (offersData != null && offersData is OffersModel) {
           resultMap['offers'] = offersData;
           if (kDebugMode) {
-            print(
+            debugPrint(
                 '📦 HiveHomeCacheService: Loaded promotional offers from cache');
           }
         }
@@ -585,7 +584,7 @@ class HiveHomeCacheService {
       return resultMap.isNotEmpty ? resultMap : null;
     } catch (e) {
       if (kDebugMode) {
-        print('❌ HiveHomeCacheService: Error loading promotional content - $e');
+        debugPrint('❌ HiveHomeCacheService: Error loading promotional content - $e');
       }
       return null;
     }
@@ -611,14 +610,14 @@ class HiveHomeCacheService {
       final data = await box.get('banners');
       if (data != null && data is BannerModel) {
         if (kDebugMode) {
-          print('📦 HiveHomeCacheService: Loaded banners for module $moduleId');
+          debugPrint('📦 HiveHomeCacheService: Loaded banners for module $moduleId');
         }
         return data;
       }
       return null;
     } catch (e) {
       if (kDebugMode) {
-        print('❌ HiveHomeCacheService: Error loading banners - $e');
+        debugPrint('❌ HiveHomeCacheService: Error loading banners - $e');
       }
       return null;
     }
@@ -644,7 +643,7 @@ class HiveHomeCacheService {
         // ⚡ Perform JSON decoding in isolate (non-blocking)
         final categories = await HiveIsolateHelper.deserializeCategories(data);
         if (kDebugMode) {
-          print(
+          debugPrint(
               '📦 HiveHomeCacheService: Loaded ${categories.length} categories for module $moduleId');
         }
         return categories;
@@ -652,7 +651,7 @@ class HiveHomeCacheService {
       return null;
     } catch (e) {
       if (kDebugMode) {
-        print('❌ HiveHomeCacheService: Error loading categories - $e');
+        debugPrint('❌ HiveHomeCacheService: Error loading categories - $e');
       }
       return null;
     }
@@ -687,7 +686,7 @@ class HiveHomeCacheService {
             await _isCacheValid(fallbackBoxName, 'stores', 'stores');
         if (fallbackValid) {
           if (kDebugMode) {
-            print(
+            debugPrint(
                 '📍 HiveHomeCacheService: Found old cache without location hash - location changed, skipping cache');
           }
           // Location changed - don't use old cache
@@ -704,7 +703,7 @@ class HiveHomeCacheService {
       final data = await box.get('stores');
       if (data != null && data is StoreModel) {
         if (kDebugMode) {
-          print(
+          debugPrint(
               '📦 HiveHomeCacheService: Loaded stores for module $moduleId${currentLocationHash != null ? ' (location: $currentLocationHash)' : ''}');
         }
         return data;
@@ -726,7 +725,7 @@ class HiveHomeCacheService {
       return null;
     } catch (e) {
       if (kDebugMode) {
-        print('❌ HiveHomeCacheService: Error loading stores - $e');
+        debugPrint('❌ HiveHomeCacheService: Error loading stores - $e');
       }
       return null;
     }
@@ -752,7 +751,7 @@ class HiveHomeCacheService {
         // ⚡ Perform JSON decoding in isolate (non-blocking)
         final brands = await HiveIsolateHelper.deserializeBrands(data);
         if (kDebugMode) {
-          print(
+          debugPrint(
               '📦 HiveHomeCacheService: Loaded ${brands.length} brands for module $moduleId');
         }
         return brands;
@@ -760,7 +759,7 @@ class HiveHomeCacheService {
       return null;
     } catch (e) {
       if (kDebugMode) {
-        print('❌ HiveHomeCacheService: Error loading brands - $e');
+        debugPrint('❌ HiveHomeCacheService: Error loading brands - $e');
       }
       return null;
     }
@@ -784,7 +783,7 @@ class HiveHomeCacheService {
       final data = await box.get('offers');
       if (data != null && data is OffersModel) {
         if (kDebugMode) {
-          print('📦 HiveHomeCacheService: Loaded offers for module $moduleId');
+          debugPrint('📦 HiveHomeCacheService: Loaded offers for module $moduleId');
         }
         return data;
       }
@@ -805,7 +804,7 @@ class HiveHomeCacheService {
       return null;
     } catch (e) {
       if (kDebugMode) {
-        print('❌ HiveHomeCacheService: Error loading offers - $e');
+        debugPrint('❌ HiveHomeCacheService: Error loading offers - $e');
       }
       return null;
     }
@@ -830,7 +829,7 @@ class HiveHomeCacheService {
       final data = await box.get('business_settings');
       if (data != null && data is BusinessSettingsModel) {
         if (kDebugMode) {
-          print(
+          debugPrint(
               '📦 HiveHomeCacheService: Loaded business settings for module $moduleId');
         }
         return data;
@@ -838,7 +837,7 @@ class HiveHomeCacheService {
       return null;
     } catch (e) {
       if (kDebugMode) {
-        print('❌ HiveHomeCacheService: Error loading business settings - $e');
+        debugPrint('❌ HiveHomeCacheService: Error loading business settings - $e');
       }
       return null;
     }
@@ -903,7 +902,7 @@ class HiveHomeCacheService {
       return false;
     } catch (e) {
       if (kDebugMode) {
-        print('❌ HiveHomeCacheService: Error checking cache validity - $e');
+        debugPrint('❌ HiveHomeCacheService: Error checking cache validity - $e');
       }
       return false;
     }
@@ -936,17 +935,17 @@ class HiveHomeCacheService {
           }
         } catch (e) {
           if (kDebugMode) {
-            print('⚠️ HiveHomeCacheService: Failed to clear box $boxName - $e');
+            debugPrint('⚠️ HiveHomeCacheService: Failed to clear box $boxName - $e');
           }
         }
       }
 
       if (kDebugMode) {
-        print('🗑️ HiveHomeCacheService: Cleared cache for module $moduleId');
+        debugPrint('🗑️ HiveHomeCacheService: Cleared cache for module $moduleId');
       }
     } catch (e) {
       if (kDebugMode) {
-        print('❌ HiveHomeCacheService: Error clearing module cache - $e');
+        debugPrint('❌ HiveHomeCacheService: Error clearing module cache - $e');
       }
     }
   }
@@ -970,11 +969,11 @@ class HiveHomeCacheService {
       }
 
       if (kDebugMode) {
-        print('🗑️ HiveHomeCacheService: Cleared all cache');
+        debugPrint('🗑️ HiveHomeCacheService: Cleared all cache');
       }
     } catch (e) {
       if (kDebugMode) {
-        print('❌ HiveHomeCacheService: Error clearing all cache - $e');
+        debugPrint('❌ HiveHomeCacheService: Error clearing all cache - $e');
       }
     }
   }
@@ -1004,12 +1003,12 @@ class HiveHomeCacheService {
       // 🔧 CRITICAL FIX: Flush to ensure data is persisted to disk immediately
       await box.flush();
       if (kDebugMode) {
-        print(
+        debugPrint(
             '💾 HiveHomeCacheService: Saved unified home data for module $moduleId');
       }
     } catch (e) {
       if (kDebugMode) {
-        print('❌ HiveHomeCacheService: Error saving unified home data - $e');
+        debugPrint('❌ HiveHomeCacheService: Error saving unified home data - $e');
       }
       throw HiveCacheConfig.boxNotFound;
     }
@@ -1038,7 +1037,7 @@ class HiveHomeCacheService {
         final model = HomeUnifiedModel.fromJson(jsonMap);
 
         if (kDebugMode) {
-          print(
+          debugPrint(
               '📦 HiveHomeCacheService: Loaded unified home data for module $moduleId');
         }
         return model;
@@ -1046,7 +1045,7 @@ class HiveHomeCacheService {
       return null;
     } catch (e) {
       if (kDebugMode) {
-        print('❌ HiveHomeCacheService: Error loading unified home data - $e');
+        debugPrint('❌ HiveHomeCacheService: Error loading unified home data - $e');
       }
       return null;
     }
@@ -1073,12 +1072,12 @@ class HiveHomeCacheService {
       }
 
       if (kDebugMode) {
-        print(
+        debugPrint(
             'HiveHomeCacheService: Invalidated home unified cache for module $moduleId${clearEtag ? ' (including ETag)' : ''}');
       }
     } catch (e) {
       if (kDebugMode) {
-        print(
+        debugPrint(
             '❌ HiveHomeCacheService: Error invalidating home unified cache - $e');
       }
     }
@@ -1109,12 +1108,12 @@ class HiveHomeCacheService {
         await box.delete(key);
       }
       if (kDebugMode) {
-        print(
+        debugPrint(
             '🗑️ HiveHomeCacheService: Cleared ETag for $uri (${1 + keysToDelete.length} key(s))');
       }
     } catch (e) {
       if (kDebugMode) {
-        print('❌ HiveHomeCacheService: Error clearing ETag for $uri - $e');
+        debugPrint('❌ HiveHomeCacheService: Error clearing ETag for $uri - $e');
       }
     }
   }
@@ -1143,12 +1142,12 @@ class HiveHomeCacheService {
       // 🔧 CRITICAL FIX: Flush to ensure data is persisted to disk immediately
       await box.flush();
       if (kDebugMode) {
-        print(
+        debugPrint(
             '💾 HiveHomeCacheService: Saved store details for store $storeId');
       }
     } catch (e) {
       if (kDebugMode) {
-        print('❌ HiveHomeCacheService: Error saving store details - $e');
+        debugPrint('❌ HiveHomeCacheService: Error saving store details - $e');
       }
       throw HiveCacheConfig.boxNotFound;
     }
@@ -1177,7 +1176,7 @@ class HiveHomeCacheService {
         final store = Store.fromJson(jsonMap);
 
         if (kDebugMode) {
-          print(
+          debugPrint(
               '📦 HiveHomeCacheService: Loaded store details for store $storeId');
         }
         return store;
@@ -1185,7 +1184,7 @@ class HiveHomeCacheService {
       return null;
     } catch (e) {
       if (kDebugMode) {
-        print('❌ HiveHomeCacheService: Error loading store details - $e');
+        debugPrint('❌ HiveHomeCacheService: Error loading store details - $e');
       }
       return null;
     }
@@ -1209,12 +1208,12 @@ class HiveHomeCacheService {
       await _deleteTimestamp(boxName, 'store_$storeId');
 
       if (kDebugMode) {
-        print(
+        debugPrint(
             '🗑️ HiveHomeCacheService: Invalidated store details cache for store $storeId');
       }
     } catch (e) {
       if (kDebugMode) {
-        print(
+        debugPrint(
             '❌ HiveHomeCacheService: Error invalidating store details cache - $e');
       }
     }
@@ -1238,11 +1237,11 @@ class HiveHomeCacheService {
       // 🔧 CRITICAL FIX: Flush to ensure data is persisted to disk immediately
       await box.flush();
       if (kDebugMode) {
-        print('💾 HiveHomeCacheService: Saved app-init data to app_config box');
+        debugPrint('💾 HiveHomeCacheService: Saved app-init data to app_config box');
       }
     } catch (e) {
       if (kDebugMode) {
-        print('❌ HiveHomeCacheService: Error saving app-init data - $e');
+        debugPrint('❌ HiveHomeCacheService: Error saving app-init data - $e');
       }
       throw HiveCacheConfig.boxNotFound;
     }
@@ -1259,7 +1258,7 @@ class HiveHomeCacheService {
       final data = await box.get('app_init');
       if (data != null && data is AppInitModel) {
         if (kDebugMode) {
-          print(
+          debugPrint(
               '📦 HiveHomeCacheService: Loaded app-init data from app_config box');
         }
         return data;
@@ -1267,7 +1266,7 @@ class HiveHomeCacheService {
       return null;
     } catch (e) {
       if (kDebugMode) {
-        print('❌ HiveHomeCacheService: Error loading app-init data - $e');
+        debugPrint('❌ HiveHomeCacheService: Error loading app-init data - $e');
       }
       return null;
     }
@@ -1287,11 +1286,11 @@ class HiveHomeCacheService {
       // 🔧 CRITICAL FIX: Flush to ensure data is persisted to disk immediately
       await box.flush();
       if (kDebugMode) {
-        print('💾 HiveHomeCacheService: Saved ETag for $uri');
+        debugPrint('💾 HiveHomeCacheService: Saved ETag for $uri');
       }
     } catch (e) {
       if (kDebugMode) {
-        print('❌ HiveHomeCacheService: Error saving ETag - $e');
+        debugPrint('❌ HiveHomeCacheService: Error saving ETag - $e');
       }
     }
   }
@@ -1310,7 +1309,7 @@ class HiveHomeCacheService {
       return etag is String ? etag : null;
     } catch (e) {
       if (kDebugMode) {
-        print('❌ HiveHomeCacheService: Error getting ETag - $e');
+        debugPrint('❌ HiveHomeCacheService: Error getting ETag - $e');
       }
       return null;
     }
@@ -1329,11 +1328,11 @@ class HiveHomeCacheService {
       await box.delete(etagKey);
 
       if (kDebugMode) {
-        print('🗑️ HiveHomeCacheService: Cleared ETag for $uri');
+        debugPrint('🗑️ HiveHomeCacheService: Cleared ETag for $uri');
       }
     } catch (e) {
       if (kDebugMode) {
-        print('❌ HiveHomeCacheService: Error clearing ETag - $e');
+        debugPrint('❌ HiveHomeCacheService: Error clearing ETag - $e');
       }
     }
   }
@@ -1360,11 +1359,11 @@ class HiveHomeCacheService {
       // 🔧 CRITICAL FIX: Flush to ensure data is persisted to disk immediately
       await box.flush();
       if (kDebugMode) {
-        print('💾 HiveHomeCacheService: Saved zone data for key $cacheKey');
+        debugPrint('💾 HiveHomeCacheService: Saved zone data for key $cacheKey');
       }
     } catch (e) {
       if (kDebugMode) {
-        print('❌ HiveHomeCacheService: Error saving zone data - $e');
+        debugPrint('❌ HiveHomeCacheService: Error saving zone data - $e');
       }
       throw HiveCacheConfig.boxNotFound;
     }
@@ -1391,14 +1390,14 @@ class HiveHomeCacheService {
         // ⚡ Perform JSON decoding in isolate (non-blocking)
         final jsonMap = await JsonIsolateHelper.decodeJson(data);
         if (kDebugMode) {
-          print('📦 HiveHomeCacheService: Loaded zone data for key $cacheKey');
+          debugPrint('📦 HiveHomeCacheService: Loaded zone data for key $cacheKey');
         }
         return jsonMap;
       }
       return null;
     } catch (e) {
       if (kDebugMode) {
-        print('❌ HiveHomeCacheService: Error loading zone data - $e');
+        debugPrint('❌ HiveHomeCacheService: Error loading zone data - $e');
       }
       return null;
     }
@@ -1429,12 +1428,12 @@ class HiveHomeCacheService {
       // 🔧 CRITICAL FIX: Flush to ensure data is persisted to disk immediately
       await box.flush();
       if (kDebugMode) {
-        print(
+        debugPrint(
             '💾 HiveHomeCacheService: Saved cart data for module ${moduleId ?? 'global'}');
       }
     } catch (e) {
       if (kDebugMode) {
-        print('❌ HiveHomeCacheService: Error saving cart data - $e');
+        debugPrint('❌ HiveHomeCacheService: Error saving cart data - $e');
       }
       throw HiveCacheConfig.boxNotFound;
     }
@@ -1466,7 +1465,7 @@ class HiveHomeCacheService {
           final cartList =
               (jsonMap['cartList'] as List).cast<Map<String, dynamic>>();
           if (kDebugMode) {
-            print(
+            debugPrint(
                 '📦 HiveHomeCacheService: Loaded ${cartList.length} cart items for module ${moduleId ?? 'global'}');
           }
           return cartList;
@@ -1475,7 +1474,7 @@ class HiveHomeCacheService {
       return null;
     } catch (e) {
       if (kDebugMode) {
-        print('❌ HiveHomeCacheService: Error loading cart data - $e');
+        debugPrint('❌ HiveHomeCacheService: Error loading cart data - $e');
       }
       return null;
     }
@@ -1512,12 +1511,12 @@ class HiveHomeCacheService {
       // 🔧 CRITICAL FIX: Flush to ensure data is persisted to disk immediately
       await box.flush();
       if (kDebugMode) {
-        print(
+        debugPrint(
             '💾 HiveHomeCacheService: Saved last known zone ID $zoneId for coordinates $latitude,$longitude');
       }
     } catch (e) {
       if (kDebugMode) {
-        print('❌ HiveHomeCacheService: Error saving last known zone - $e');
+        debugPrint('❌ HiveHomeCacheService: Error saving last known zone - $e');
       }
       throw HiveCacheConfig.boxNotFound;
     }
@@ -1537,12 +1536,12 @@ class HiveHomeCacheService {
       await box.put('last_selected_module_id', moduleId);
       await box.flush();
       if (kDebugMode) {
-        print(
+        debugPrint(
             '💾 HiveHomeCacheService: Saved last selected module ID: $moduleId');
       }
     } catch (e) {
       if (kDebugMode) {
-        print(
+        debugPrint(
             '❌ HiveHomeCacheService: Error saving last selected module ID - $e');
       }
     }
@@ -1562,7 +1561,7 @@ class HiveHomeCacheService {
       final moduleId = await box.get('last_selected_module_id');
       if (moduleId != null && moduleId is int) {
         if (kDebugMode) {
-          print(
+          debugPrint(
               '📦 HiveHomeCacheService: Loaded last selected module ID: $moduleId');
         }
         return moduleId;
@@ -1570,7 +1569,7 @@ class HiveHomeCacheService {
       return null;
     } catch (e) {
       if (kDebugMode) {
-        print(
+        debugPrint(
             '❌ HiveHomeCacheService: Error loading last selected module ID - $e');
       }
       return null;
@@ -1592,7 +1591,7 @@ class HiveHomeCacheService {
         // ⚡ Perform JSON decoding in isolate (non-blocking)
         final jsonMap = await JsonIsolateHelper.decodeJson(data);
         if (kDebugMode) {
-          print(
+          debugPrint(
               '📦 HiveHomeCacheService: Loaded last known zone ID ${jsonMap['zoneId']}');
         }
         return jsonMap;
@@ -1600,7 +1599,7 @@ class HiveHomeCacheService {
       return null;
     } catch (e) {
       if (kDebugMode) {
-        print('❌ HiveHomeCacheService: Error loading last known zone - $e');
+        debugPrint('❌ HiveHomeCacheService: Error loading last known zone - $e');
       }
       return null;
     }

@@ -83,7 +83,7 @@ class HomeUnifiedService {
     final inFlight = _inFlightRequests[dedupKey];
     if (inFlight != null) {
       if (kDebugMode) {
-        print(
+        debugPrint(
             '🔄 HomeUnifiedService: Reusing in-flight request for module $effectiveModuleId');
       }
       return inFlight;
@@ -143,7 +143,7 @@ class HomeUnifiedService {
         _lastRequestStatusCode = 428;
         _lastRequestErrorCode = 'home_headers_invalid';
         if (kDebugMode) {
-          print('❌ HomeUnifiedService: Invalid headers, cannot make request');
+          debugPrint('❌ HomeUnifiedService: Invalid headers, cannot make request');
         }
         return null;
       }
@@ -167,7 +167,7 @@ class HomeUnifiedService {
             includeList.add(section);
             hasChanges = true;
             if (kDebugMode) {
-              print('🔧 HomeUnifiedService: Auto-added "$section" to include parameter');
+              debugPrint('🔧 HomeUnifiedService: Auto-added "$section" to include parameter');
             }
           }
         }
@@ -181,7 +181,7 @@ class HomeUnifiedService {
         // ⚡ BRANDS FIX: Added brands to default include so brands section loads correctly
         queryParams['include'] = 'banners,offers,campaigns,categories,brands';
         if (kDebugMode) {
-          print('🔧 HomeUnifiedService: No include specified, defaulting to "banners,offers,campaigns,categories,brands"');
+          debugPrint('🔧 HomeUnifiedService: No include specified, defaulting to "banners,offers,campaigns,categories,brands"');
         }
       }
       
@@ -199,12 +199,12 @@ class HomeUnifiedService {
       }
       
       if (kDebugMode) {
-        print('🚀 HomeUnifiedService: Fetching home-unified data...');
-        print('   Endpoint: $uri');
-        print('   Module ID: ${headers[AppConstants.moduleId]}');
-        print('   Zone IDs: ${headers[AppConstants.zoneId]}');
+        debugPrint('🚀 HomeUnifiedService: Fetching home-unified data...');
+        debugPrint('   Endpoint: $uri');
+        debugPrint('   Module ID: ${headers[AppConstants.moduleId]}');
+        debugPrint('   Zone IDs: ${headers[AppConstants.zoneId]}');
         if (queryParams.isNotEmpty) {
-          print('   Query Params: $queryParams');
+          debugPrint('   Query Params: $queryParams');
         }
       }
       
@@ -234,7 +234,7 @@ class HomeUnifiedService {
             dataKeys = rawData.keys.toList();
           }
         }
-        print(
+        debugPrint(
             '[Diag] HomeUnifiedService: status=${response.statusCode}, bodyType=${response.body.runtimeType}, success=$successFlag, dataKeys=$dataKeys');
       }
       
@@ -242,9 +242,9 @@ class HomeUnifiedService {
       // Cloudflare serves 304 in <20ms - use local Hive cache for zero-lag transition
       if (response.statusCode == 304) {
         if (kDebugMode) {
-          print('⚡ HomeUnifiedService: 304 Not Modified - Cloudflare served in <20ms');
-          print('   - Using local Hive cache immediately');
-          print('   - Duration: ${stopwatch.elapsedMilliseconds}ms (CDN handshake)');
+          debugPrint('⚡ HomeUnifiedService: 304 Not Modified - Cloudflare served in <20ms');
+          debugPrint('   - Using local Hive cache immediately');
+          debugPrint('   - Duration: ${stopwatch.elapsedMilliseconds}ms (CDN handshake)');
         }
         
         // Load from Hive cache immediately
@@ -255,15 +255,15 @@ class HomeUnifiedService {
             final cachedData = await cacheService.loadHomeUnifiedData(moduleIdForCache);
             if (cachedData != null && cachedData.isValid) {
               if (kDebugMode) {
-                print('✅ HomeUnifiedService: Loaded from Hive cache (304 response)');
-                print('   - Total duration: ${stopwatch.elapsedMilliseconds}ms (CDN + cache load)');
+                debugPrint('✅ HomeUnifiedService: Loaded from Hive cache (304 response)');
+                debugPrint('   - Total duration: ${stopwatch.elapsedMilliseconds}ms (CDN + cache load)');
               }
               return cachedData;
             }
           }
         } catch (e) {
           if (kDebugMode) {
-            print('⚠️ HomeUnifiedService: Error loading from cache after 304: $e');
+            debugPrint('⚠️ HomeUnifiedService: Error loading from cache after 304: $e');
           }
         }
         
@@ -282,13 +282,13 @@ class HomeUnifiedService {
             );
           }
           if (kDebugMode) {
-            print(
+            debugPrint(
                 '⚠️ HomeUnifiedService: 304 but Hive cache empty — ETag cleared. '
                 'Next request will fetch fresh data.');
           }
         } catch (e) {
           if (kDebugMode) {
-            print('⚠️ HomeUnifiedService: Error clearing stale ETag: $e');
+            debugPrint('⚠️ HomeUnifiedService: Error clearing stale ETag: $e');
           }
         }
         return null;
@@ -299,7 +299,7 @@ class HomeUnifiedService {
         
         if (responseBody == null) {
           if (kDebugMode) {
-            print('❌ HomeUnifiedService: Response body is null');
+            debugPrint('❌ HomeUnifiedService: Response body is null');
           }
           return null;
         }
@@ -312,7 +312,7 @@ class HomeUnifiedService {
           if (responseBody.length >= 65 * 1024) {
             // Large response - MUST use isolate to prevent jank
             if (kDebugMode) {
-              print('⚡ HomeUnifiedService: Large response (${(responseBody.length / 1024).toStringAsFixed(1)}KB), parsing in isolate...');
+              debugPrint('⚡ HomeUnifiedService: Large response (${(responseBody.length / 1024).toStringAsFixed(1)}KB), parsing in isolate...');
             }
             data = await JsonIsolateHelper.parseUnifiedPayload(responseBody);
           } else {
@@ -324,7 +324,7 @@ class HomeUnifiedService {
           data = Map<String, dynamic>.from(responseBody);
         } else {
           if (kDebugMode) {
-            print('❌ HomeUnifiedService: Unexpected response type: ${responseBody.runtimeType}');
+            debugPrint('❌ HomeUnifiedService: Unexpected response type: ${responseBody.runtimeType}');
           }
           return null;
         }
@@ -333,49 +333,49 @@ class HomeUnifiedService {
         if (data['success'] != true) {
           _lastRequestErrorCode = 'api_success_false';
           if (kDebugMode) {
-            print('❌ HomeUnifiedService: API returned success=false');
-            print('   Error: ${data['error']}');
+            debugPrint('❌ HomeUnifiedService: API returned success=false');
+            debugPrint('   Error: ${data['error']}');
           }
           return null;
         }
         
         // 🔍 DEBUG: Log raw API response structure before parsing
         if (kDebugMode) {
-          print('🔍 HomeUnifiedService: Raw API response structure:');
-          print('   - Top-level keys: ${data.keys.toList()}');
+          debugPrint('🔍 HomeUnifiedService: Raw API response structure:');
+          debugPrint('   - Top-level keys: ${data.keys.toList()}');
           if (data.containsKey('data')) {
             final responseData = data['data'];
             if (responseData is Map) {
-              print('   - Data keys: ${(responseData).keys.toList()}');
+              debugPrint('   - Data keys: ${(responseData).keys.toList()}');
               if ((responseData).containsKey('banners')) {
                 final banners = (responseData)['banners'];
-                print('   - banners type: ${banners.runtimeType}');
+                debugPrint('   - banners type: ${banners.runtimeType}');
                 if (banners is List) {
-                  print('   - banners length: ${banners.length}');
+                  debugPrint('   - banners length: ${banners.length}');
                   if (banners.isNotEmpty) {
-                    print('   - First banner: ${banners.first}');
+                    debugPrint('   - First banner: ${banners.first}');
                   }
                 }
               } else {
-                print('   - ⚠️ No "banners" key in data');
+                debugPrint('   - ⚠️ No "banners" key in data');
               }
               if ((responseData).containsKey('campaigns')) {
                 final campaigns = (responseData)['campaigns'];
-                print('   - campaigns type: ${campaigns.runtimeType}');
+                debugPrint('   - campaigns type: ${campaigns.runtimeType}');
                 if (campaigns is List) {
-                  print('   - campaigns length: ${campaigns.length}');
+                  debugPrint('   - campaigns length: ${campaigns.length}');
                 }
               } else {
-                print('   - ⚠️ No "campaigns" key in data');
+                debugPrint('   - ⚠️ No "campaigns" key in data');
               }
             }
           } else {
             // Check if banners are at top level
             if (data.containsKey('banners')) {
               final banners = data['banners'];
-              print('   - banners at top level, type: ${banners.runtimeType}');
+              debugPrint('   - banners at top level, type: ${banners.runtimeType}');
               if (banners is List) {
-                print('   - banners length: ${banners.length}');
+                debugPrint('   - banners length: ${banners.length}');
               }
             }
           }
@@ -386,17 +386,17 @@ class HomeUnifiedService {
         final model = HomeUnifiedModel.fromJson(data);
         
         if (kDebugMode) {
-          print('✅ HomeUnifiedService: Data fetched successfully');
-          print('   Duration: ${stopwatch.elapsedMilliseconds}ms');
-          print('   Banners: ${model.banners?.length ?? 0}');
-          print('   Campaigns: ${model.campaigns?.length ?? 0}');
-          print('   Categories: ${model.categories?.length ?? 0}');
-          print('   Popular Stores: ${model.popularStores?.length ?? 0}');
-          print('   Brands: ${model.brands?.length ?? 0}');
-          print('   Offers: ${model.offers?.length ?? 0}');
+          debugPrint('✅ HomeUnifiedService: Data fetched successfully');
+          debugPrint('   Duration: ${stopwatch.elapsedMilliseconds}ms');
+          debugPrint('   Banners: ${model.banners?.length ?? 0}');
+          debugPrint('   Campaigns: ${model.campaigns?.length ?? 0}');
+          debugPrint('   Categories: ${model.categories?.length ?? 0}');
+          debugPrint('   Popular Stores: ${model.popularStores?.length ?? 0}');
+          debugPrint('   Brands: ${model.brands?.length ?? 0}');
+          debugPrint('   Offers: ${model.offers?.length ?? 0}');
           if (model.meta != null) {
-            print('   Server Execution Time: ${model.meta!.executionTimeMs}ms');
-            print('   Cache Hit: ${model.meta!.cacheHit}');
+            debugPrint('   Server Execution Time: ${model.meta!.executionTimeMs}ms');
+            debugPrint('   Cache Hit: ${model.meta!.cacheHit}');
           }
           final isEffectivelyEmpty = (model.banners?.isEmpty ?? true) &&
               (model.campaigns?.isEmpty ?? true) &&
@@ -405,7 +405,7 @@ class HomeUnifiedService {
               (model.brands?.isEmpty ?? true) &&
               (model.offers?.isEmpty ?? true);
           if (isEffectivelyEmpty) {
-            print(
+            debugPrint(
                 '[Diag] HomeUnifiedService: Parsed model is effectively empty for module=${headers[AppConstants.moduleId]}');
           }
         }
@@ -414,9 +414,9 @@ class HomeUnifiedService {
       } else {
         _lastRequestErrorCode = 'api_http_${response.statusCode ?? 0}';
         if (kDebugMode) {
-          print('❌ HomeUnifiedService: API error');
-          print('   Status Code: ${response.statusCode}');
-          print('   Status Text: ${response.statusText}');
+          debugPrint('❌ HomeUnifiedService: API error');
+          debugPrint('   Status Code: ${response.statusCode}');
+          debugPrint('   Status Text: ${response.statusText}');
         }
         return null;
       }
@@ -424,9 +424,9 @@ class HomeUnifiedService {
       _lastRequestStatusCode ??= 1;
       _lastRequestErrorCode ??= 'exception';
       if (kDebugMode) {
-        print('❌ HomeUnifiedService: Exception occurred');
-        print('   Error: $e');
-        print('   Stack Trace: $stackTrace');
+        debugPrint('❌ HomeUnifiedService: Exception occurred');
+        debugPrint('   Error: $e');
+        debugPrint('   Stack Trace: $stackTrace');
       }
       return null;
     }
@@ -449,7 +449,7 @@ class HomeUnifiedService {
       return response.statusCode == 200;
     } catch (e) {
       if (kDebugMode) {
-        print('⚠️ HomeUnifiedService: Endpoint availability check failed: $e');
+        debugPrint('⚠️ HomeUnifiedService: Endpoint availability check failed: $e');
       }
       return false;
     }

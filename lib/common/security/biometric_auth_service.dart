@@ -55,7 +55,7 @@ class BiometricAuthService {
         _isBiometricAvailable = _availableBiometrics.isNotEmpty;
         
         if (kDebugMode) {
-          print('🔐 Biometric types available: $_availableBiometrics');
+          debugPrint('🔐 Biometric types available: $_availableBiometrics');
         }
       }
       
@@ -63,13 +63,13 @@ class BiometricAuthService {
       await _loadBiometricSettings();
       
       if (kDebugMode) {
-        print('🔐 Biometric Auth Service initialized');
-        print('🔐 Available: $_isBiometricAvailable');
-        print('🔐 Enabled: $_isBiometricEnabled');
+        debugPrint('🔐 Biometric Auth Service initialized');
+        debugPrint('🔐 Available: $_isBiometricAvailable');
+        debugPrint('🔐 Enabled: $_isBiometricEnabled');
       }
     } catch (e) {
       if (kDebugMode) {
-        print('❌ Error initializing biometric auth: $e');
+        debugPrint('❌ Error initializing biometric auth: $e');
       }
       _isBiometricAvailable = false;
     }
@@ -84,7 +84,7 @@ class BiometricAuthService {
              await _localAuth.isDeviceSupported();
     } catch (e) {
       if (kDebugMode) {
-        print('❌ Error checking biometric availability: $e');
+        debugPrint('❌ Error checking biometric availability: $e');
       }
       return false;
     }
@@ -135,13 +135,13 @@ class BiometricAuthService {
       _isBiometricEnabled = true;
       
       if (kDebugMode) {
-        print('🔐 Biometric authentication enabled with security level: $securityLevel');
+        debugPrint('🔐 Biometric authentication enabled with security level: $securityLevel');
       }
       
       return true;
     } catch (e) {
       if (kDebugMode) {
-        print('❌ Error enabling biometric: $e');
+        debugPrint('❌ Error enabling biometric: $e');
       }
       return false;
     }
@@ -158,13 +158,13 @@ class BiometricAuthService {
       _isBiometricEnabled = false;
       
       if (kDebugMode) {
-        print('🔐 Biometric authentication disabled');
+        debugPrint('🔐 Biometric authentication disabled');
       }
       
       return true;
     } catch (e) {
       if (kDebugMode) {
-        print('❌ Error disabling biometric: $e');
+        debugPrint('❌ Error disabling biometric: $e');
       }
       return false;
     }
@@ -212,7 +212,7 @@ class BiometricAuthService {
 
       if (authenticated) {
         if (kDebugMode) {
-          print('🔐 Biometric authentication successful');
+          debugPrint('🔐 Biometric authentication successful');
         }
         
         return BiometricAuthResult(
@@ -228,7 +228,7 @@ class BiometricAuthService {
       }
     } catch (e) {
       if (kDebugMode) {
-        print('❌ Biometric authentication error: $e');
+        debugPrint('❌ Biometric authentication error: $e');
       }
       
       return BiometricAuthResult(
@@ -265,7 +265,7 @@ class BiometricAuthService {
 
       if (pin == storedPin) {
         if (kDebugMode) {
-          print('🔐 PIN authentication successful');
+          debugPrint('🔐 PIN authentication successful');
         }
         
         return BiometricAuthResult(
@@ -282,7 +282,7 @@ class BiometricAuthService {
       }
     } catch (e) {
       if (kDebugMode) {
-        print('❌ Authentication with fallback error: $e');
+        debugPrint('❌ Authentication with fallback error: $e');
       }
       
       return BiometricAuthResult(
@@ -316,13 +316,13 @@ class BiometricAuthService {
       );
 
       if (kDebugMode) {
-        print('🔐 Security level updated to: $newLevel');
+        debugPrint('🔐 Security level updated to: $newLevel');
       }
       
       return true;
     } catch (e) {
       if (kDebugMode) {
-        print('❌ Error updating security level: $e');
+        debugPrint('❌ Error updating security level: $e');
       }
       return false;
     }

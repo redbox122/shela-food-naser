@@ -1,5 +1,3 @@
-// ignore_for_file: unnecessary_brace_in_string_interps, use_build_context_synchronously, unused_local_variable, unnecessary_import, non_constant_identifier_names, avoid_print, unrelated_type_equality_checks, unnecessary_string_interpolations
-
 import 'dart:convert';
 import 'package:country_code_picker/country_code_picker.dart';
 import 'package:flutter/foundation.dart';
@@ -8,10 +6,6 @@ import 'package:geolocator/geolocator.dart';
 import 'package:get/get.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:myfatoorah_flutter/MFApplePayButton.dart';
-import 'package:myfatoorah_flutter/MFCardView.dart';
-import 'package:myfatoorah_flutter/MFGooglePayButton.dart';
-import 'package:myfatoorah_flutter/MFModels.dart';
 import 'package:myfatoorah_flutter/myfatoorah_flutter.dart';
 import 'package:sixam_mart/features/cart/controllers/cart_controller.dart';
 import 'package:sixam_mart/features/cart/domain/models/cart_model.dart';
@@ -44,7 +38,7 @@ import 'package:sixam_mart/common/widgets/custom_snackbar.dart';
 import 'package:sixam_mart/features/payment/domain/services/myfatoorah_service.dart';
 import 'package:sixam_mart/features/payment/domain/repositories/myfatoorah_repository.dart';
 import 'package:sixam_mart/features/payment/domain/utils/myfatoorah_mapper.dart';
-import 'package:get/get_connect/connect.dart';
+import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 import '../../my_coupon/controllers/my_coupon_controller.dart';
 
 class CheckoutController extends GetxController implements GetxService {
@@ -177,7 +171,9 @@ class CheckoutController extends GetxController implements GetxService {
   void clearCartOnPaymentConfirmed() {
     try {
       Get.find<CartController>().clearCartList();
-    } catch (_) {}
+    } catch (e) {
+      if (kDebugMode) debugPrint('$e');
+    }
     resetPaymentState();
   }
 
@@ -191,6 +187,7 @@ class CheckoutController extends GetxController implements GetxService {
     isSelected[index] = true;
     select_payment_Methods = paymentMethods[index];
     update();
+    update(['payment']);
   }
 
   AddressModel? _guestAddress;
@@ -423,6 +420,7 @@ class CheckoutController extends GetxController implements GetxService {
           } else {
             debugPrint(
                 '✅ Loaded ${paymentMethods.length} payment methods from backend');
+            _precachePaymentMethodImages();
           }
           update();
         } else {
@@ -462,6 +460,27 @@ class CheckoutController extends GetxController implements GetxService {
       isSelected = [];
       showCustomSnackBar('خطأ في تحميل وسائل الدفع');
       update();
+    }
+  }
+
+  /// Precache payment method images so they display instantly in the bottom sheet.
+  /// Uses fire-and-forget downloads via DefaultCacheManager (same cache CachedNetworkImage uses).
+  void _precachePaymentMethodImages() {
+    final cacheManager = DefaultCacheManager();
+    const headers = {
+      'User-Agent':
+          'Mozilla/5.0 (Linux; Android 10; Mobile) AppleWebKit/537.36',
+      'Accept': 'image/webp,image/apng,image/*,*/*;q=0.8',
+    };
+    for (final method in paymentMethods) {
+      final url = method.imageUrl;
+      if (url != null && url.isNotEmpty && url.startsWith('http')) {
+        cacheManager.downloadFile(url, authHeaders: headers).then((_) {
+          debugPrint('📦 Precached payment icon: ${method.paymentMethodEn}');
+        }).catchError((e) {
+          // Ignore precaching errors - images will load on demand
+        });
+      }
     }
   }
 
@@ -933,6 +952,7 @@ class CheckoutController extends GetxController implements GetxService {
 
       // Show the in-app payment modal
       await showDialog(
+        // ignore: use_build_context_synchronously
         context: context,
         barrierDismissible: false,
         builder: (context) => InAppPaymentModal(
@@ -1170,7 +1190,7 @@ class CheckoutController extends GetxController implements GetxService {
     if (isUpdate) {
       update();
     }
-    // ❌ تم إزالة print(_paymentMethodIndex) - كان يطبع 0 ويسبب confusion في اللوج
+    // ❌ تم إزالة debugPrint(_paymentMethodIndex) - كان يطبع 0 ويسبب confusion في اللوج
   }
 
   void changeDigitalPaymentName(String name, {bool willUpdate = true}) {
@@ -1634,7 +1654,6 @@ class CheckoutController extends GetxController implements GetxService {
     update(['payment']); // ✅ استخدام ID لتحديث جزئي
 
     String orderID = '';
-    String userID = '';
 
     // ============================ تجهيز المرفقات ============================
     final List<MultipartBody> multiParts = [];
@@ -1670,8 +1689,6 @@ class CheckoutController extends GetxController implements GetxService {
         // 🔧 FIX: Use 'id' instead of 'order_id' (backend returns 'id' field)
         orderID =
             (response.body['id'] ?? response.body['order_id'] ?? '').toString();
-        userID = response.body['user_id']?.toString() ?? '';
-
         debugPrint(
             '\x1B[32m✅ Order created successfully: $orderID (unpaid)\x1B[0m');
         debugPrint(
@@ -1904,7 +1921,9 @@ class CheckoutController extends GetxController implements GetxService {
         }
         candidate = decoded;
       }
-    } catch (_) {}
+    } catch (e) {
+      if (kDebugMode) debugPrint('$e');
+    }
 
     return input;
   }
@@ -2224,7 +2243,8 @@ class CheckoutController extends GetxController implements GetxService {
         _rawAttachment = null;
 
         if (kDebugMode) {
-          print('-------- Order placed successfully $orderIdString ----------');
+          debugPrint(
+              '-------- Order placed successfully $orderIdString ----------');
         }
 
         // Clear current order data
@@ -2374,7 +2394,7 @@ class CheckoutController extends GetxController implements GetxService {
       _orderAttachment = null;
       _rawAttachment = null;
       if (kDebugMode) {
-        print('-------- Order placed successfully $orderID ----------');
+        debugPrint('-------- Order placed successfully $orderID ----------');
       }
     } else {
       String errorMessage = response.statusText ?? '';

@@ -1,6 +1,5 @@
-// ignore_for_file: avoid_print
-
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sixam_mart/core/isolate/json_isolate_helper.dart';
@@ -25,7 +24,7 @@ class SplashCacheManager {
       final prefs = await SharedPreferences.getInstance();
       return prefs.getString(_configCacheKey);
     } catch (e) {
-      print('❌ Splash Cache: Error loading raw config data - $e');
+      debugPrint('❌ Splash Cache: Error loading raw config data - $e');
       return null;
     }
   }
@@ -37,7 +36,7 @@ class SplashCacheManager {
       if (!prefs.containsKey(_moduleCacheKey)) return null;
       return prefs.getString(_moduleCacheKey);
     } catch (e) {
-      print('❌ Module Cache: Error loading raw data - $e');
+      debugPrint('❌ Module Cache: Error loading raw data - $e');
       return null;
     }
   }
@@ -49,7 +48,7 @@ class SplashCacheManager {
       if (!prefs.containsKey(_moduleListCacheKey)) return null;
       return prefs.getString(_moduleListCacheKey);
     } catch (e) {
-      print('❌ Module List Cache: Error loading raw data - $e');
+      debugPrint('❌ Module List Cache: Error loading raw data - $e');
       return null;
     }
   }
@@ -62,7 +61,7 @@ class SplashCacheManager {
 
       // Check if config cache exists
       if (!prefs.containsKey(_configCacheKey)) {
-        print('🔄 Splash Cache: No cached config data found');
+        debugPrint('🔄 Splash Cache: No cached config data found');
         return false;
       }
 
@@ -72,7 +71,8 @@ class SplashCacheManager {
       final configAge = Duration(milliseconds: now - configTimestamp);
 
       if (configAge > _configCacheExpiry) {
-        print('🔄 Splash Cache: Config expired (${configAge.inHours}h old)');
+        debugPrint(
+            '🔄 Splash Cache: Config expired (${configAge.inHours}h old)');
         return false;
       }
 
@@ -82,20 +82,20 @@ class SplashCacheManager {
           splashController.configModel?.appMinimumVersionAndroid;
 
       if (cachedAppVersion == null) {
-        print('???? Splash Cache: Cached version missing');
+        debugPrint('???? Splash Cache: Cached version missing');
         return false;
       }
 
       if (currentAppVersion != null &&
           cachedAppVersion != currentAppVersion.toString()) {
-        print('???? Splash Cache: App version changed');
+        debugPrint('???? Splash Cache: App version changed');
         return false;
       }
 
-      print('✅ Splash Cache: Valid - INSTANT APP STARTUP!');
+      debugPrint('✅ Splash Cache: Valid - INSTANT APP STARTUP!');
       return true;
     } catch (e) {
-      print('❌ Splash Cache: Error checking validity - $e');
+      debugPrint('❌ Splash Cache: Error checking validity - $e');
       return false;
     }
   }
@@ -115,7 +115,7 @@ class SplashCacheManager {
 
       return moduleAge <= _moduleCacheExpiry;
     } catch (e) {
-      print('❌ Module Cache: Error checking validity - $e');
+      debugPrint('❌ Module Cache: Error checking validity - $e');
       return false;
     }
   }
@@ -135,9 +135,10 @@ class SplashCacheManager {
           splashController.configModel?.appMinimumVersionAndroid?.toString();
       await prefs.setString(_splashVersionKey, cachedVersion ?? '1.0.0');
 
-      print('💾 Splash Cache: Config data saved - INSTANT STARTUP NEXT TIME!');
+      debugPrint(
+          '💾 Splash Cache: Config data saved - INSTANT STARTUP NEXT TIME!');
     } catch (e) {
-      print('❌ Splash Cache: Error saving config data - $e');
+      debugPrint('❌ Splash Cache: Error saving config data - $e');
     }
   }
 
@@ -150,9 +151,9 @@ class SplashCacheManager {
       await prefs.setInt(
           _moduleTimestampKey, DateTime.now().millisecondsSinceEpoch);
 
-      print('💾 Module Cache: Data saved');
+      debugPrint('💾 Module Cache: Data saved');
     } catch (e) {
-      print('❌ Module Cache: Error saving data - $e');
+      debugPrint('❌ Module Cache: Error saving data - $e');
     }
   }
 
@@ -163,9 +164,9 @@ class SplashCacheManager {
 
       await prefs.setString(_moduleListCacheKey, jsonEncode(moduleList));
 
-      print('💾 Module List Cache: Data saved');
+      debugPrint('💾 Module List Cache: Data saved');
     } catch (e) {
-      print('❌ Module List Cache: Error saving data - $e');
+      debugPrint('❌ Module List Cache: Error saving data - $e');
     }
   }
 
@@ -183,10 +184,10 @@ class SplashCacheManager {
 
       // ⚡ PERF FIX: Use isolate for JSON decoding to avoid blocking main thread
       final data = await JsonIsolateHelper.decodeJson(cacheData);
-      print('📦 Splash Cache: Config data loaded successfully');
+      debugPrint('📦 Splash Cache: Config data loaded successfully');
       return data;
     } catch (e) {
-      print('❌ Splash Cache: Error loading config data - $e');
+      debugPrint('❌ Splash Cache: Error loading config data - $e');
       return null;
     }
   }
@@ -205,10 +206,10 @@ class SplashCacheManager {
 
       // ⚡ PERF FIX: Use isolate for JSON decoding to avoid blocking main thread
       final data = await JsonIsolateHelper.decodeJson(cacheData);
-      print('📦 Module Cache: Data loaded successfully');
+      debugPrint('📦 Module Cache: Data loaded successfully');
       return data;
     } catch (e) {
-      print('❌ Module Cache: Error loading data - $e');
+      debugPrint('❌ Module Cache: Error loading data - $e');
       return null;
     }
   }
@@ -227,10 +228,10 @@ class SplashCacheManager {
 
       // ⚡ PERF FIX: Use isolate for JSON decoding to avoid blocking main thread
       final data = await JsonIsolateHelper.decodeJsonList(cacheData);
-      print('📦 Module List Cache: Data loaded successfully');
+      debugPrint('📦 Module List Cache: Data loaded successfully');
       return data;
     } catch (e) {
-      print('❌ Module List Cache: Error loading data - $e');
+      debugPrint('❌ Module List Cache: Error loading data - $e');
       return null;
     }
   }
@@ -247,9 +248,9 @@ class SplashCacheManager {
       await prefs.remove(_moduleTimestampKey);
       await prefs.remove(_splashVersionKey);
 
-      print('🗑️ Splash Cache: Cleared successfully');
+      debugPrint('🗑️ Splash Cache: Cleared successfully');
     } catch (e) {
-      print('❌ Splash Cache: Error clearing cache - $e');
+      debugPrint('❌ Splash Cache: Error clearing cache - $e');
     }
   }
 

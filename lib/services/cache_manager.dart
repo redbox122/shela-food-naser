@@ -1,4 +1,3 @@
-// ignore_for_file: avoid_print
 
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
@@ -44,11 +43,11 @@ class CacheManager {
       _persistentInitialized = true;
       
       if (kDebugMode) {
-        print('✅ CacheManager initialized successfully');
+        debugPrint('✅ CacheManager initialized successfully');
       }
     } catch (e) {
       if (kDebugMode) {
-        print('❌ CacheManager initialization failed: $e');
+        debugPrint('❌ CacheManager initialization failed: $e');
       }
       _persistentInitialized = false;
     }
@@ -66,7 +65,7 @@ class CacheManager {
       if (!entry.isExpired(ttl ?? _defaultTTL)) {
         _memoryHits++;
         if (kDebugMode) {
-          print('🎯 Memory cache HIT: $key');
+          debugPrint('🎯 Memory cache HIT: $key');
         }
         return _deserialize<T>(entry.data);
       } else {
@@ -88,7 +87,7 @@ class CacheManager {
             _evictMemoryCacheIfNeeded();
             
             if (kDebugMode) {
-              print('💾 Persistent cache HIT: $key');
+              debugPrint('💾 Persistent cache HIT: $key');
             }
             return _deserialize<T>(entry.data);
           } else {
@@ -98,14 +97,14 @@ class CacheManager {
         }
       } catch (e) {
         if (kDebugMode) {
-          print('❌ Persistent cache error for $key: $e');
+          debugPrint('❌ Persistent cache error for $key: $e');
         }
       }
     }
 
     _cacheMisses++;
     if (kDebugMode) {
-      print('❌ Cache MISS: $key');
+      debugPrint('❌ Cache MISS: $key');
     }
     return null;
   }
@@ -128,13 +127,13 @@ class CacheManager {
         await _sharedPreferences.setString(key, jsonEncode(entry.toJson()));
       } catch (e) {
         if (kDebugMode) {
-          print('❌ Failed to store in persistent cache: $e');
+          debugPrint('❌ Failed to store in persistent cache: $e');
         }
       }
     }
 
     if (kDebugMode) {
-      print('💾 Cached: $key (TTL: ${ttl ?? _defaultTTL})');
+      debugPrint('💾 Cached: $key (TTL: ${ttl ?? _defaultTTL})');
     }
   }
 
@@ -147,13 +146,13 @@ class CacheManager {
         await _sharedPreferences.remove(key);
       } catch (e) {
         if (kDebugMode) {
-          print('❌ Failed to remove from persistent cache: $e');
+          debugPrint('❌ Failed to remove from persistent cache: $e');
         }
       }
     }
 
     if (kDebugMode) {
-      print('🗑️ Removed from cache: $key');
+      debugPrint('🗑️ Removed from cache: $key');
     }
   }
 
@@ -178,13 +177,13 @@ class CacheManager {
         }
       } catch (e) {
         if (kDebugMode) {
-          print('❌ Failed to clear persistent cache by pattern: $e');
+          debugPrint('❌ Failed to clear persistent cache by pattern: $e');
         }
       }
     }
 
     if (kDebugMode) {
-      print('🧹 Cleared cache pattern: $pattern');
+      debugPrint('🧹 Cleared cache pattern: $pattern');
     }
   }
 
@@ -197,13 +196,13 @@ class CacheManager {
         await _sharedPreferences.clear();
       } catch (e) {
         if (kDebugMode) {
-          print('❌ Failed to clear persistent cache: $e');
+          debugPrint('❌ Failed to clear persistent cache: $e');
         }
       }
     }
 
     if (kDebugMode) {
-      print('🧹 Cleared all cache');
+      debugPrint('🧹 Cleared all cache');
     }
   }
 
@@ -260,7 +259,7 @@ class CacheManager {
       }
     } catch (e) {
       if (kDebugMode) {
-        print('❌ Failed to deserialize data: $e');
+        debugPrint('❌ Failed to deserialize data: $e');
       }
       return null;
     }
@@ -272,7 +271,7 @@ class CacheManager {
     _memoryCache.removeWhere((key, entry) {
       if (entry.isExpired(_defaultTTL)) {
         if (kDebugMode) {
-          print('🧹 Removed expired memory cache: $key');
+          debugPrint('🧹 Removed expired memory cache: $key');
         }
         return true;
       }
@@ -303,12 +302,12 @@ class CacheManager {
         for (final key in expiredKeys) {
           await _sharedPreferences.remove(key);
           if (kDebugMode) {
-            print('🧹 Removed expired persistent cache: $key');
+            debugPrint('🧹 Removed expired persistent cache: $key');
           }
         }
       } catch (e) {
         if (kDebugMode) {
-          print('❌ Failed to cleanup persistent cache: $e');
+          debugPrint('❌ Failed to cleanup persistent cache: $e');
         }
       }
     }

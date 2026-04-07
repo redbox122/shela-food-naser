@@ -57,7 +57,7 @@ class _BrandsItemScreenState extends State<BrandsItemScreen> {
     super.initState();
     if (kDebugMode) {
       final controller = Get.find<BrandsController>();
-      print(
+      debugPrint(
           '[BRANDS_UI] init controller hash=${controller.hashCode} items=${controller.brandItems?.length ?? 0} hasMore=${controller.hasMoreData} end=${controller.isEndReached}');
     }
 
@@ -77,7 +77,7 @@ class _BrandsItemScreenState extends State<BrandsItemScreen> {
     scrollController.addListener(() {
       final brandsController = Get.find<BrandsController>();
       if (kDebugMode) {
-        print(
+        debugPrint(
           '[BRANDS_UI] scroll pixels=${scrollController.position.pixels.toStringAsFixed(1)} '
           'max=${scrollController.position.maxScrollExtent.toStringAsFixed(1)} '
           'offset=${brandsController.offset} hasMore=${brandsController.hasMoreData} '
@@ -118,7 +118,7 @@ class _BrandsItemScreenState extends State<BrandsItemScreen> {
         final nextOffset = brandsController.offset + 1; // Page-based pagination
 
         if (kDebugMode) {
-          print(
+          debugPrint(
               '[BRANDS_UI] near bottom -> requesting loadMore offset=$nextOffset (scroll: ${(scrollPercentage * 100).toStringAsFixed(1)}%)');
         }
 

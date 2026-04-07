@@ -1,4 +1,3 @@
-// ignore_for_file: camel_case_types, file_names, non_constant_identifier_names, avoid_print, override_on_non_overriding_member, prefer_final_fields, unused_local_variable
 
 import 'dart:async';
 import 'dart:convert';
@@ -394,8 +393,6 @@ class KaidhaSubscription_Controller extends GetxController
         0.0;
 
     // Get full due amount
-    final double fullDueAmount = double.tryParse(
-            walletKaidhaModel?.wallet?.usedBalance?.toString() ?? '0') ??
         0.0;
 
     // Parse the entered amount
@@ -703,7 +700,6 @@ class KaidhaSubscription_Controller extends GetxController
         return null;
       }
       // Create KaidhaSubModel from current form data
-      final address = AddressHelper.getUserAddressFromSharedPref();
       final KaidhaSubModel kaidhaSub = KaidhaSubModel(
         first_name: firstname.text,
         father_name: fathername.text,
@@ -825,16 +821,16 @@ class KaidhaSubscription_Controller extends GetxController
     required bool active,
     String? balance,
   }) {
-    print(
+    debugPrint(
         '💳 KaidhaSubscription_Controller: Setting wallet state from login response...');
-    print('   - Signed: $signed');
-    print('   - Active: $active');
-    print('   - Balance: ${balance ?? 'null'}');
+    debugPrint('   - Signed: $signed');
+    debugPrint('   - Active: $active');
+    debugPrint('   - Balance: ${balance ?? 'null'}');
 
     // Create minimal wallet model from login response flags
     // This allows menu screen to render wallet buttons immediately without API call
     if (signed && active && balance != null) {
-      print(
+      debugPrint(
           '✅ KaidhaSubscription_Controller: Wallet is signed and active - creating minimal wallet model');
       // Convert balance string to double for consistency with API response (API returns double)
       final double? balanceValue = double.tryParse(balance);
@@ -878,11 +874,11 @@ class KaidhaSubscription_Controller extends GetxController
       hasWalletError = false;
       hasNoWallet = false;
       isLoading_wallet = false;
-      print(
+      debugPrint(
           '✅ KaidhaSubscription_Controller: Wallet state set - menu can show Qidha Wallet button immediately');
     } else {
       // Wallet exists but not signed/active - set flags for menu logic
-      print(
+      debugPrint(
           'ℹ️ KaidhaSubscription_Controller: Wallet exists but not signed/active - menu will show subscription button');
       walletKaidhaModel = null; // Menu will show subscription button
       hasWalletError = false;
@@ -890,7 +886,7 @@ class KaidhaSubscription_Controller extends GetxController
       isLoading_wallet = false;
     }
     update();
-    print(
+    debugPrint(
         '✅ KaidhaSubscription_Controller: Wallet state updated - UI notified');
   }
 
@@ -1239,7 +1235,6 @@ class KaidhaSubscription_Controller extends GetxController
       return true;
     }
 
-    final address = AddressHelper.getUserAddressFromSharedPref();
 
     final KaidhaSubModel kaidhaSub = KaidhaSubModel(
       first_name: firstname.text,
@@ -2226,7 +2221,6 @@ class KaidhaSubscription_Controller extends GetxController
         walletKaidhaModel = existingWallet;
         return true;
       }
-      final address = AddressHelper.getUserAddressFromSharedPref();
 
       debugPrint('📋 Preparing wallet data...');
       debugPrint('👤 User: ${firstname.text} ${last_name.text}');
@@ -2920,7 +2914,6 @@ class KaidhaSubscription_Controller extends GetxController
     _loadNafathRequestFromCache();
   }
 
-  @override
   void clearForm() {
     // Cancel any pending timers
     _saveTimer?.cancel();

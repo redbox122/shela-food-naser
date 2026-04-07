@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:sixam_mart/features/splash/controllers/splash_controller.dart';
 import 'package:sixam_mart/features/language/controllers/language_controller.dart';
 import 'package:get/get.dart';
@@ -50,8 +51,9 @@ class DateConverter {
   }
 
   static String dateToDateAndTime(DateTime dateTime) {
-    final String formatted = DateFormat('yyyy-MM-dd HH:mm', _getLocale().toString())
-        .format(dateTime);
+    final String formatted =
+        DateFormat('yyyy-MM-dd HH:mm', _getLocale().toString())
+            .format(dateTime);
     return _convertToArabicIndic(formatted);
   }
 
@@ -138,8 +140,9 @@ class DateConverter {
   }
 
   static String stringToReadableString(String dateTime) {
-    final String formatted = DateFormat('dd MMMM, yyyy', _getLocale().toString())
-        .format(DateTime.parse(dateTime).toLocal());
+    final String formatted =
+        DateFormat('dd MMMM, yyyy', _getLocale().toString())
+            .format(DateTime.parse(dateTime).toLocal());
     return _convertToArabicIndic(formatted);
   }
 
@@ -170,8 +173,9 @@ class DateConverter {
   }
 
   static String convertTimeToTime(String time) {
-    final String formatted = DateFormat(_timeFormatter(), _getLocale().toString())
-        .format(DateFormat('HH:mm').parse(time));
+    final String formatted =
+        DateFormat(_timeFormatter(), _getLocale().toString())
+            .format(DateFormat('HH:mm').parse(time));
     return _convertToArabicIndic(formatted);
   }
 
@@ -273,10 +277,13 @@ class DateConverter {
       try {
         final List<String> timeList = deliveryTime.split('-'); // ['15', '20']
         minTime = int.parse(timeList[0]);
-      } catch (_) {}
+      } catch (e) {
+        if (kDebugMode) debugPrint('$e');
+      }
     }
-    final DateTime deliveryTime0 = dateTimeStringToDate(scheduleAt ?? orderTime!)
-        .add(Duration(minutes: minTime));
+    final DateTime deliveryTime0 =
+        dateTimeStringToDate(scheduleAt ?? orderTime!)
+            .add(Duration(minutes: minTime));
     return deliveryTime0.difference(_now()).inMinutes;
   }
 
@@ -284,7 +291,8 @@ class DateConverter {
     if (time.length < 23) {
       return time; // Return original if format is invalid
     }
-    final newTime = '${time.safeSubstring(10, ellipsis: '')} ${time.length > 23 ? time.substring(11, 23) : time.substring(11)}';
+    final newTime =
+        '${time.safeSubstring(10, ellipsis: '')} ${time.length > 23 ? time.substring(11, 23) : time.substring(11)}';
     final String formatted = DateFormat('dd MMM, yyyy', _getLocale().toString())
         .format(DateFormat('yyyy-MM-dd HH:mm:ss').parse(newTime));
     return _convertToArabicIndic(formatted);
@@ -335,15 +343,18 @@ class DateConverter {
   }
 
   static String dateTimeStringToFormattedTime(String dateTime) {
-    final String formatted = DateFormat(_timeFormatter(), _getLocale().toString())
-        .format(_parseFlexibleDateTime(dateTime));
+    final String formatted =
+        DateFormat(_timeFormatter(), _getLocale().toString())
+            .format(_parseFlexibleDateTime(dateTime));
     return _convertToArabicIndic(formatted);
   }
 
   static DateTime _parseFlexibleDateTime(String dateTime) {
     try {
       return DateTime.parse(dateTime).toLocal();
-    } catch (_) {}
+    } catch (e) {
+      if (kDebugMode) debugPrint('$e');
+    }
 
     const List<String> patterns = <String>[
       'yyyy-MM-dd HH:mm:ss',
@@ -357,7 +368,9 @@ class DateConverter {
     for (final String pattern in patterns) {
       try {
         return DateFormat(pattern).parse(dateTime, true).toLocal();
-      } catch (_) {}
+      } catch (e) {
+        if (kDebugMode) debugPrint('$e');
+      }
     }
 
     return DateTime.now();
@@ -379,11 +392,11 @@ class DateConverter {
   }
 
   static bool isAfterCurrentDateTime(DateTime pickedTime) {
-    final DateTime pick = DateTime(pickedTime.year, pickedTime.month, pickedTime.day,
-        pickedTime.hour, pickedTime.minute);
+    final DateTime pick = DateTime(pickedTime.year, pickedTime.month,
+        pickedTime.day, pickedTime.hour, pickedTime.minute);
     final DateTime now = _now();
-    final DateTime current = DateTime(now.year, now.month,
-        now.day, now.hour, now.minute);
+    final DateTime current =
+        DateTime(now.year, now.month, now.day, now.hour, now.minute);
     return pick.isAfter(current);
   }
 

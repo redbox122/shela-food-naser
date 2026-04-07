@@ -1,5 +1,3 @@
-// ignore_for_file: avoid_print
-
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -9,7 +7,7 @@ import 'package:get/get.dart';
 /// Tracks API response times and identifies performance bottlenecks
 class PerformanceMonitor extends StatefulWidget {
   final Widget child;
-  
+
   const PerformanceMonitor({super.key, required this.child});
 
   @override
@@ -19,16 +17,23 @@ class PerformanceMonitor extends StatefulWidget {
 class _PerformanceMonitorState extends State<PerformanceMonitor> {
   final Map<String, List<int>> _responseTimes = {};
   final Map<String, int> _errorCounts = {};
-  
+  Timer? _monitorTimer;
+
   @override
   void initState() {
     super.initState();
     _startMonitoring();
   }
-  
+
+  @override
+  void dispose() {
+    _monitorTimer?.cancel();
+    super.dispose();
+  }
+
   void _startMonitoring() {
     // Monitor API calls every 10 seconds
-    Timer.periodic(const Duration(seconds: 10), (timer) {
+    _monitorTimer = Timer.periodic(const Duration(seconds: 10), (timer) {
       if (mounted) {
         _printPerformanceReport();
       }

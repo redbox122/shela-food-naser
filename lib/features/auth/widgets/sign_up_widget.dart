@@ -400,8 +400,7 @@ class SignUpWidgetState extends State<SignUpWidget> {
         }
       }
     } else {
-      // ignore: avoid_print
-      print(status.message);
+      debugPrint(status.message);
       showCustomSnackBar(status.message);
     }
   }

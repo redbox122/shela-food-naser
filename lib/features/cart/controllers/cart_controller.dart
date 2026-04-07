@@ -1892,7 +1892,7 @@ class CartController extends GetxController implements GetxService {
       // Try one forced cart refresh first to get authoritative cart_id from server.
       try {
         await getCartDataOnline(forceRefresh: true);
-      } catch (_) {}
+      } catch (e) { if (kDebugMode) debugPrint('$e'); }
       resolvedCartId = _resolveCartIdForOnlineCart(cart);
     }
     if (resolvedCartId == null || resolvedCartId <= 0) {

@@ -1,4 +1,3 @@
-// ignore_for_file: avoid_print
 
 import 'package:flutter/foundation.dart';
 import 'package:sixam_mart/api/api_client.dart';
@@ -24,11 +23,11 @@ class AppInitService {
   }) async {
     try {
       if (kDebugMode) {
-        print('🚀 AppInitService: Calling /api/v1/app-init endpoint');
-        print('   - Headers: $headers');
-        print(
+        debugPrint('🚀 AppInitService: Calling /api/v1/app-init endpoint');
+        debugPrint('   - Headers: $headers');
+        debugPrint(
             '   - Startup owner: ${headers?['X-Startup-Owner'] ?? 'unknown'} | no-retry: ${headers?['X-No-Retry'] ?? 'false'}');
-        print(
+        debugPrint(
             '   - Header readiness: zone=${headers?.containsKey('zoneId') == true}, lat=${headers?.containsKey('latitude') == true}, lng=${headers?.containsKey('longitude') == true}');
       }
 
@@ -38,18 +37,18 @@ class AppInitService {
       );
 
       if (kDebugMode) {
-        print('📊 AppInitService: Response status: ${response.statusCode}');
+        debugPrint('📊 AppInitService: Response status: ${response.statusCode}');
       }
 
       // 🛠️ FIX 3: Handle 304 Not Modified as success (data hasn't changed)
       // 304 means data is unchanged - use local cache, do NOT trigger failure fallback
       if (response.statusCode == 304) {
         if (kDebugMode) {
-          print(
+          debugPrint(
               '✅ AppInitService: 304 LOGIC VERIFICATION - 304 Not Modified received');
-          print('   - Status: ${response.statusCode}');
-          print('   - This is a SUCCESS case, not an error');
-          print(
+          debugPrint('   - Status: ${response.statusCode}');
+          debugPrint('   - This is a SUCCESS case, not an error');
+          debugPrint(
               '   - SplashController will load ModuleModel from Hive app_config box');
         }
         // 304 is a success - data hasn't changed, continue using cached config
@@ -76,7 +75,7 @@ class AppInitService {
               Map<String, dynamic>.from(response.body as Map<dynamic, dynamic>);
         } else {
           if (kDebugMode) {
-            print(
+            debugPrint(
                 '⚠️ AppInitService: Unexpected response body type: ${response.body.runtimeType}');
           }
           return null;
@@ -85,12 +84,12 @@ class AppInitService {
         final appInitModel = AppInitModel.fromJson(jsonData);
 
         if (kDebugMode) {
-          print('✅ AppInitService: Successfully parsed app-init data');
-          print('   - Config: ${appInitModel.config != null ? "✓" : "✗"}');
-          print('   - Modules: ${appInitModel.modules?.length ?? 0}');
-          print('   - Zones: ${appInitModel.zones?.length ?? 0}');
-          print('   - User Zone ID: ${appInitModel.userZoneId}');
-          print(
+          debugPrint('✅ AppInitService: Successfully parsed app-init data');
+          debugPrint('   - Config: ${appInitModel.config != null ? "✓" : "✗"}');
+          debugPrint('   - Modules: ${appInitModel.modules?.length ?? 0}');
+          debugPrint('   - Zones: ${appInitModel.zones?.length ?? 0}');
+          debugPrint('   - User Zone ID: ${appInitModel.userZoneId}');
+          debugPrint(
               '   - Business Settings: ${appInitModel.businessSettings != null ? "✓" : "✗"}');
         }
 
@@ -98,11 +97,11 @@ class AppInitService {
       } else {
         // ⚡ ERROR UI: Handle 500 and other errors gracefully - fallback to Hive cache
         if (kDebugMode) {
-          print(
+          debugPrint(
               '⚠️ AppInitService: Non-200 status code: ${response.statusCode}');
           if (response.statusCode == 500) {
-            print('   - ⚠️ ERROR UI: 500 Server Error detected');
-            print(
+            debugPrint('   - ⚠️ ERROR UI: 500 Server Error detected');
+            debugPrint(
                 '   - Will fallback to Hive app_config box (no error dialog shown)');
           }
         }
@@ -117,10 +116,10 @@ class AppInitService {
       }
     } catch (e, stackTrace) {
       if (kDebugMode) {
-        print('❌ AppInitService: Error calling app-init endpoint');
-        print('   - Error: $e');
-        print('   - Stack trace: $stackTrace');
-        print(
+        debugPrint('❌ AppInitService: Error calling app-init endpoint');
+        debugPrint('   - Error: $e');
+        debugPrint('   - Stack trace: $stackTrace');
+        debugPrint(
             '   - ⚠️ ERROR UI: Will fallback to Hive app_config box (no error dialog shown)');
       }
 
@@ -143,7 +142,7 @@ class AppInitService {
       return response.statusCode == 200;
     } catch (e) {
       if (kDebugMode) {
-        print('⚠️ AppInitService: App-init endpoint not available: $e');
+        debugPrint('⚠️ AppInitService: App-init endpoint not available: $e');
       }
       return false;
     }

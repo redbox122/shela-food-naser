@@ -65,7 +65,7 @@ class _CircleListViewState extends State<CircleListView> {
                           isShowTransformMask: false,
                         ),
                         onClickItem: (index) {
-                          if (kDebugMode) print('currentIndex:$index');
+                          if (kDebugMode) debugPrint('currentIndex:$index');
                         },
                         itemBuilder: (context, index) {
                           return InkWell(

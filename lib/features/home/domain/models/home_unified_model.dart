@@ -55,7 +55,7 @@ class HomeUnifiedModel {
     if (data['banners'] != null && data['banners'] is List) {
       final bannersData = data['banners'] as List;
       if (kDebugMode) {
-        print(
+        debugPrint(
             '🔍 HomeUnifiedModel: Parsing banners - length: ${bannersData.length}');
       }
       bannersList = <Banner>[];
@@ -70,16 +70,16 @@ class HomeUnifiedModel {
           }
         } catch (e) {
           if (kDebugMode) {
-            print('   ⚠️ Error parsing banner: $e');
+            debugPrint('   ⚠️ Error parsing banner: $e');
           }
         }
       }
       if (kDebugMode) {
-        print('   ✅ Parsed ${bannersList.length} banners');
+        debugPrint('   ✅ Parsed ${bannersList.length} banners');
       }
     } else {
       if (kDebugMode) {
-        print(
+        debugPrint(
             '🔍 HomeUnifiedModel: No banners in response (data[\'banners\'] is null or not a List)');
       }
     }
@@ -89,7 +89,7 @@ class HomeUnifiedModel {
     if (data['campaigns'] != null && data['campaigns'] is List) {
       final campaignsData = data['campaigns'] as List;
       if (kDebugMode) {
-        print(
+        debugPrint(
             '???? HomeUnifiedModel: Parsing campaigns - length: ${campaignsData.length}');
       }
       for (final campaign in campaignsData) {
@@ -103,16 +103,16 @@ class HomeUnifiedModel {
           }
         } catch (e) {
           if (kDebugMode) {
-            print('   ?????? Error parsing campaign: $e');
+            debugPrint('   ?????? Error parsing campaign: $e');
           }
         }
       }
       if (kDebugMode) {
-        print('   ??? Parsed ${campaignsList.length} campaigns');
+        debugPrint('   ??? Parsed ${campaignsList.length} campaigns');
       }
     } else {
       if (kDebugMode) {
-        print(
+        debugPrint(
             "HomeUnifiedModel: No campaigns in response (data['campaigns'] is null or not a List)");
       }
     }
@@ -190,13 +190,13 @@ class HomeUnifiedModel {
                 if (wrappedModel.data.isNotEmpty) {
                   allOfferData.addAll(wrappedModel.data);
                   if (kDebugMode) {
-                    print(
+                    debugPrint(
                         '✅ Parsed wrapped offer with ${wrappedModel.data.length} items');
                   }
                 }
               } else {
                 if (kDebugMode) {
-                  print('⚠️ Skipping offer with empty data array: $offerMap');
+                  debugPrint('⚠️ Skipping offer with empty data array: $offerMap');
                 }
               }
             } else {
@@ -211,24 +211,24 @@ class HomeUnifiedModel {
                   if (datum.id != null && (datum.name?.isNotEmpty ?? false)) {
                     allOfferData.add(datum);
                     if (kDebugMode) {
-                      print(
+                      debugPrint(
                           '✅ Parsed offer: id=${datum.id}, name=${datum.name}, banner=${datum.banner?.isNotEmpty ?? false}');
                     }
                   } else {
                     if (kDebugMode) {
-                      print(
+                      debugPrint(
                           '⚠️ Skipping offer with invalid data: id=${datum.id}, name=${datum.name}');
                     }
                   }
                 } catch (e) {
                   if (kDebugMode) {
-                    print('❌ Error parsing offer: $e');
-                    print('   Offer JSON: $offerMap');
+                    debugPrint('❌ Error parsing offer: $e');
+                    debugPrint('   Offer JSON: $offerMap');
                   }
                 }
               } else {
                 if (kDebugMode) {
-                  print(
+                  debugPrint(
                       '⚠️ Skipping offer missing required fields (id/name): $offerMap');
                 }
               }
@@ -244,7 +244,7 @@ class HomeUnifiedModel {
             message: null,
           ));
           if (kDebugMode) {
-            print(
+            debugPrint(
                 '✅ Created OffersModel with ${allOfferData.length} offer items');
           }
         }
@@ -311,7 +311,7 @@ class HomeUnifiedModel {
             data['promotional_banner'] as Map<String, dynamic>);
       } catch (e) {
         if (kDebugMode) {
-          print('⚠️ HomeUnifiedModel: Error parsing promotional_banner: $e');
+          debugPrint('⚠️ HomeUnifiedModel: Error parsing promotional_banner: $e');
         }
       }
     }

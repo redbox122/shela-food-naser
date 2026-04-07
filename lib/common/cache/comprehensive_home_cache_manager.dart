@@ -24,7 +24,6 @@ import 'package:sixam_mart/helper/auth_helper.dart';
 /// Caches ALL home screen sections for truly instant loading
 /// ⚡ MODULE-SPECIFIC CACHING: Each module has its own isolated cache
 /// This prevents data from different modules overwriting each other
-// ignore_for_file: avoid_print
 class ComprehensiveHomeCacheManager {
   // Base cache key patterns (will be made module-specific)
   static const String _bannerCacheKeyPattern =
@@ -85,7 +84,7 @@ class ComprehensiveHomeCacheManager {
       return false;
     } catch (e) {
       if (kDebugMode) {
-        print('❌ Comprehensive Cache: Error checking user state - $e');
+        debugPrint('❌ Comprehensive Cache: Error checking user state - $e');
       }
       return false;
     }
@@ -108,14 +107,14 @@ class ComprehensiveHomeCacheManager {
           final hiveValid = await hiveService.isCacheValid(currentModuleId);
           if (hiveValid) {
             if (kDebugMode) {
-              print(
+              debugPrint(
                   '✅ Comprehensive Cache: Hive cache valid for module $currentModuleId');
             }
             return true;
           }
         } catch (e) {
           if (kDebugMode) {
-            print(
+            debugPrint(
                 '⚠️ Comprehensive Cache: Hive check failed, falling back to SharedPreferences - $e');
           }
           // Fall through to SharedPreferences check
@@ -143,7 +142,7 @@ class ComprehensiveHomeCacheManager {
           !prefs.containsKey(storeCacheKey) &&
           !prefs.containsKey(offersCacheKey)) {
         if (kDebugMode) {
-          print(
+          debugPrint(
               '🔄 Comprehensive Cache: No cache found for module $currentModuleId');
         }
         return false;
@@ -156,7 +155,7 @@ class ComprehensiveHomeCacheManager {
 
       if (age > _cacheExpiry) {
         if (kDebugMode) {
-          print(
+          debugPrint(
               '🔄 Comprehensive Cache: Cache expired for module $currentModuleId (${age.inHours}h old)');
         }
         return false;
@@ -176,7 +175,7 @@ class ComprehensiveHomeCacheManager {
 
         if (cachedMajor != currentMajor) {
           if (kDebugMode) {
-            print(
+            debugPrint(
                 '🔄 Comprehensive Cache: App version changed for module $currentModuleId ($cachedVersion -> $currentVersion)');
           }
           return false;
@@ -209,11 +208,11 @@ class ComprehensiveHomeCacheManager {
       }
 
       if (kDebugMode) {
-        print('✅ Comprehensive Cache: Cache valid for module $currentModuleId');
+        debugPrint('✅ Comprehensive Cache: Cache valid for module $currentModuleId');
       }
       return true;
     } catch (e) {
-      print('❌ Comprehensive Cache: Error checking validity - $e');
+      debugPrint('❌ Comprehensive Cache: Error checking validity - $e');
       return false;
     }
   }
@@ -269,7 +268,7 @@ class ComprehensiveHomeCacheManager {
 
       return true;
     } catch (e) {
-      print('❌ Comprehensive Cache: Error validating cached data - $e');
+      debugPrint('❌ Comprehensive Cache: Error validating cached data - $e');
       return false;
     }
   }
@@ -324,7 +323,7 @@ class ComprehensiveHomeCacheManager {
 
       return true;
     } catch (e) {
-      print('❌ Comprehensive Cache: Data restoration test failed - $e');
+      debugPrint('❌ Comprehensive Cache: Data restoration test failed - $e');
       return false;
     }
   }
@@ -348,13 +347,13 @@ class ComprehensiveHomeCacheManager {
 
       if (currentModuleId == null) {
         if (kDebugMode) {
-          print('⚠️ Comprehensive Cache: Cannot save - no module ID');
+          debugPrint('⚠️ Comprehensive Cache: Cannot save - no module ID');
         }
         return;
       }
 
       if (kDebugMode) {
-        print(
+        debugPrint(
             '💾 Comprehensive Cache: Saving data for module $currentModuleId');
       }
 
@@ -381,11 +380,11 @@ class ComprehensiveHomeCacheManager {
           userStateKey, AuthHelper.isLoggedIn() ? 'logged_in' : 'guest');
 
       if (kDebugMode) {
-        print('✅ Comprehensive Cache: Data saved for module $currentModuleId');
+        debugPrint('✅ Comprehensive Cache: Data saved for module $currentModuleId');
       }
     } catch (e) {
       if (kDebugMode) {
-        print('❌ Comprehensive Cache: Error saving data - $e');
+        debugPrint('❌ Comprehensive Cache: Error saving data - $e');
       }
     }
   }
@@ -424,7 +423,7 @@ class ComprehensiveHomeCacheManager {
 
       return hasAnyData;
     } catch (e) {
-      print('❌ Comprehensive Cache: Error checking controller data - $e');
+      debugPrint('❌ Comprehensive Cache: Error checking controller data - $e');
       return false;
     }
   }
@@ -452,7 +451,7 @@ class ComprehensiveHomeCacheManager {
       }
     } catch (e) {
       if (kDebugMode) {
-        print('❌ Comprehensive Cache: Error saving banner data - $e');
+        debugPrint('❌ Comprehensive Cache: Error saving banner data - $e');
       }
     }
   }
@@ -489,20 +488,20 @@ class ComprehensiveHomeCacheManager {
             await hiveService.saveCategories(moduleId, moduleCategories);
           } catch (e) {
             if (kDebugMode) {
-              print(
+              debugPrint(
                   '⚠️ Comprehensive Cache: Failed to save categories to Hive - $e');
             }
           }
         }
 
         if (kDebugMode) {
-          print(
+          debugPrint(
               '💾 Comprehensive Cache: Saved ${moduleCategories?.length ?? 0} categories for module $moduleId');
         }
       }
     } catch (e) {
       if (kDebugMode) {
-        print('❌ Comprehensive Cache: Error saving category data - $e');
+        debugPrint('❌ Comprehensive Cache: Error saving category data - $e');
       }
     }
   }
@@ -533,7 +532,7 @@ class ComprehensiveHomeCacheManager {
             await hiveService.saveBrands(moduleId, brandsController.brandList!);
           } catch (e) {
             if (kDebugMode) {
-              print(
+              debugPrint(
                   '⚠️ Comprehensive Cache: Failed to save brands to Hive - $e');
             }
           }
@@ -541,7 +540,7 @@ class ComprehensiveHomeCacheManager {
       }
     } catch (e) {
       if (kDebugMode) {
-        print('❌ Comprehensive Cache: Error saving brand data - $e');
+        debugPrint('❌ Comprehensive Cache: Error saving brand data - $e');
       }
     }
   }
@@ -589,7 +588,7 @@ class ComprehensiveHomeCacheManager {
                 moduleId, offersController.offersMode!);
           } catch (e) {
             if (kDebugMode) {
-              print(
+              debugPrint(
                   '⚠️ Comprehensive Cache: Failed to save offers to Hive - $e');
             }
           }
@@ -597,7 +596,7 @@ class ComprehensiveHomeCacheManager {
       }
     } catch (e) {
       if (kDebugMode) {
-        print('❌ Comprehensive Cache: Error saving offers data - $e');
+        debugPrint('❌ Comprehensive Cache: Error saving offers data - $e');
       }
     }
   }
@@ -693,7 +692,7 @@ class ComprehensiveHomeCacheManager {
             await hiveService.saveStores(moduleId, storeModel);
           } catch (e) {
             if (kDebugMode) {
-              print(
+              debugPrint(
                   '⚠️ Comprehensive Cache: Failed to save stores to Hive - $e');
             }
           }
@@ -702,13 +701,13 @@ class ComprehensiveHomeCacheManager {
         if (kDebugMode) {
           final totalStores =
               (storeData['storeModel']?['stores'] as List?)?.length ?? 0;
-          print(
+          debugPrint(
               '💾 Comprehensive Cache: Saved $totalStores stores for module $moduleId');
         }
       }
     } catch (e) {
       if (kDebugMode) {
-        print('❌ Comprehensive Cache: Error saving store data - $e');
+        debugPrint('❌ Comprehensive Cache: Error saving store data - $e');
       }
     }
   }
@@ -737,7 +736,7 @@ class ComprehensiveHomeCacheManager {
                 moduleId, homeController.business_Settings!);
           } catch (e) {
             if (kDebugMode) {
-              print(
+              debugPrint(
                   '⚠️ Comprehensive Cache: Failed to save business settings to Hive - $e');
             }
           }
@@ -745,7 +744,7 @@ class ComprehensiveHomeCacheManager {
       }
     } catch (e) {
       if (kDebugMode) {
-        print(
+        debugPrint(
             '❌ Comprehensive Cache: Error saving business settings data - $e');
       }
     }
@@ -761,7 +760,7 @@ class ComprehensiveHomeCacheManager {
 
       if (currentModuleId == null) {
         if (kDebugMode) {
-          print('⚠️ Comprehensive Cache: Cannot load - no module ID');
+          debugPrint('⚠️ Comprehensive Cache: Cannot load - no module ID');
         }
         return result;
       }
@@ -815,14 +814,14 @@ class ComprehensiveHomeCacheManager {
 
           if (result.isNotEmpty) {
             if (kDebugMode) {
-              print(
+              debugPrint(
                   '📦 Comprehensive Cache: Loaded data from Hive for module $currentModuleId');
             }
             return result;
           }
         } catch (e) {
           if (kDebugMode) {
-            print(
+            debugPrint(
                 '⚠️ Comprehensive Cache: Hive load failed, falling back to SharedPreferences - $e');
           }
           // Fall through to SharedPreferences
@@ -914,12 +913,12 @@ class ComprehensiveHomeCacheManager {
       await Future.wait(futures);
 
       if (kDebugMode && result.isNotEmpty) {
-        print(
+        debugPrint(
             '📦 Comprehensive Cache: Loaded data from SharedPreferences for module $currentModuleId');
       }
     } catch (e) {
       if (kDebugMode) {
-        print('❌ Comprehensive Cache: Error loading data - $e');
+        debugPrint('❌ Comprehensive Cache: Error loading data - $e');
       }
     }
 
@@ -951,7 +950,7 @@ class ComprehensiveHomeCacheManager {
             }
           } catch (e) {
             if (kDebugMode) {
-              print(
+              debugPrint(
                   '⚠️ Comprehensive Cache: Error parsing promotional banner: $e');
             }
             promotionalBanner = null;
@@ -980,7 +979,7 @@ class ComprehensiveHomeCacheManager {
             );
           } catch (e) {
             if (kDebugMode) {
-              print('❌ Comprehensive Cache: Error restoring banner data - $e');
+              debugPrint('❌ Comprehensive Cache: Error restoring banner data - $e');
             }
           }
         }
@@ -1002,7 +1001,7 @@ class ComprehensiveHomeCacheManager {
                 .toList();
 
             if (kDebugMode) {
-              print(
+              debugPrint(
                   '📦 Comprehensive Cache: Restoring ${categoryList.length} categories (already filtered by module)');
             }
 
@@ -1014,23 +1013,23 @@ class ComprehensiveHomeCacheManager {
             // Debug: Verify data was actually set
             await Future<void>.delayed(const Duration(milliseconds: 100));
             if (kDebugMode) {
-              print(
+              debugPrint(
                   '🔍 Comprehensive Cache: Category controller verification:');
-              print(
+              debugPrint(
                   '  - categoryList: ${categoryController.categoryList?.length ?? 0} items');
             }
           } catch (e) {
-            print('❌ Comprehensive Cache: Error restoring category data - $e');
+            debugPrint('❌ Comprehensive Cache: Error restoring category data - $e');
           }
         } else {
           if (kDebugMode) {
-            print('⚠️ Comprehensive Cache: No categoryList in cached data');
-            print('  - Available keys: ${categoryData.keys.toList()}');
+            debugPrint('⚠️ Comprehensive Cache: No categoryList in cached data');
+            debugPrint('  - Available keys: ${categoryData.keys.toList()}');
           }
         }
       } else {
         if (kDebugMode) {
-          print(
+          debugPrint(
               '⚠️ Comprehensive Cache: CategoryController not registered or no categories in cache');
         }
       }
@@ -1050,7 +1049,7 @@ class ComprehensiveHomeCacheManager {
             brandsController.setBrandDataFromCache(brandList);
           } catch (e) {
             if (kDebugMode) {
-              print('❌ Comprehensive Cache: Error restoring brand data - $e');
+              debugPrint('❌ Comprehensive Cache: Error restoring brand data - $e');
             }
           }
         }
@@ -1138,7 +1137,7 @@ class ComprehensiveHomeCacheManager {
             offersController.update();
           } catch (e) {
             if (kDebugMode) {
-              print('❌ Comprehensive Cache: Error restoring offers data - $e');
+              debugPrint('❌ Comprehensive Cache: Error restoring offers data - $e');
             }
           }
         }
@@ -1158,7 +1157,7 @@ class ComprehensiveHomeCacheManager {
             homeController.setBusinessSettingsFromCache(businessSettings);
           } catch (e) {
             if (kDebugMode) {
-              print(
+              debugPrint(
                   '❌ Comprehensive Cache: Error restoring business settings - $e');
             }
           }
@@ -1166,7 +1165,7 @@ class ComprehensiveHomeCacheManager {
       }
     } catch (e) {
       if (kDebugMode) {
-        print('❌ Comprehensive Cache: Error restoring data - $e');
+        debugPrint('❌ Comprehensive Cache: Error restoring data - $e');
       }
     }
   }
@@ -1195,7 +1194,7 @@ class ComprehensiveHomeCacheManager {
         }
 
         if (kDebugMode) {
-          print('🗑️ Comprehensive Cache: Cleared cache for module $moduleId');
+          debugPrint('🗑️ Comprehensive Cache: Cleared cache for module $moduleId');
         }
       } else {
         // Clear cache for all modules (find all keys matching patterns)
@@ -1224,13 +1223,13 @@ class ComprehensiveHomeCacheManager {
         }
 
         if (kDebugMode) {
-          print(
+          debugPrint(
               '🗑️ Comprehensive Cache: Cleared $clearedCount cache entries for all modules');
         }
       }
     } catch (e) {
       if (kDebugMode) {
-        print('❌ Comprehensive Cache: Error clearing cache - $e');
+        debugPrint('❌ Comprehensive Cache: Error clearing cache - $e');
       }
     }
   }

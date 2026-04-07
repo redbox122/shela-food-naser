@@ -1,4 +1,3 @@
-// ignore_for_file: avoid_print
 
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -18,7 +17,7 @@ class CachedDataLoader {
     List<String>? specificSections,
   }) async {
     try {
-      print(
+      debugPrint(
           '🚀 CachedDataLoader: Starting home data load (forceRefresh: $forceRefresh, fromModule: $fromModule)');
 
       // Check if we should use cache
@@ -28,17 +27,17 @@ class CachedDataLoader {
       }
 
       if (useCache) {
-        print('📦 CachedDataLoader: Loading from cache - INSTANT LOADING!');
+        debugPrint('📦 CachedDataLoader: Loading from cache - INSTANT LOADING!');
         await _loadFromCache();
 
         // Refresh in background
-        print('🔄 CachedDataLoader: Refreshing in background');
+        debugPrint('🔄 CachedDataLoader: Refreshing in background');
         if (!context.mounted) {
           return;
         }
         _refreshInBackground(context, fromModule, specificSections);
       } else {
-        print(
+        debugPrint(
             '🌐 CachedDataLoader: Loading from API - FIRST TIME OR CACHE INVALID');
         if (!context.mounted) {
           return;
@@ -46,7 +45,7 @@ class CachedDataLoader {
         await _loadFromAPI(context, fromModule, specificSections);
       }
     } catch (e) {
-      print('❌ CachedDataLoader: Error - $e');
+      debugPrint('❌ CachedDataLoader: Error - $e');
       // Fallback to API loading
       if (!context.mounted) {
         return;
@@ -60,17 +59,17 @@ class CachedDataLoader {
     try {
       final cacheData = await SmartCacheManager.loadCacheData();
       if (cacheData == null) {
-        print('🔄 CachedDataLoader: No cache data, falling back to API');
+        debugPrint('🔄 CachedDataLoader: No cache data, falling back to API');
         return;
       }
 
       // Restore data to controllers
       await _restoreDataToControllers(cacheData);
 
-      print(
+      debugPrint(
           '✅ CachedDataLoader: Data restored from cache - USER SEES INSTANT CONTENT!');
     } catch (e) {
-      print('❌ CachedDataLoader: Error loading from cache - $e');
+      debugPrint('❌ CachedDataLoader: Error loading from cache - $e');
     }
   }
 
@@ -89,9 +88,9 @@ class CachedDataLoader {
       // Save to cache
       await _saveDataToCache();
 
-      print('✅ CachedDataLoader: Data loaded from API and cached');
+      debugPrint('✅ CachedDataLoader: Data loaded from API and cached');
     } catch (e) {
-      print('❌ CachedDataLoader: Error loading from API - $e');
+      debugPrint('❌ CachedDataLoader: Error loading from API - $e');
     }
   }
 
@@ -112,9 +111,9 @@ class CachedDataLoader {
         );
 
         await _saveDataToCache();
-        print('🔄 CachedDataLoader: Background refresh completed');
+        debugPrint('🔄 CachedDataLoader: Background refresh completed');
       } catch (e) {
-        print('❌ CachedDataLoader: Background refresh failed - $e');
+        debugPrint('❌ CachedDataLoader: Background refresh failed - $e');
       }
     });
   }
@@ -137,7 +136,7 @@ class CachedDataLoader {
 
       await SmartCacheManager.saveCacheData(cacheData);
     } catch (e) {
-      print('❌ CachedDataLoader: Error saving to cache - $e');
+      debugPrint('❌ CachedDataLoader: Error saving to cache - $e');
     }
   }
 
@@ -145,7 +144,7 @@ class CachedDataLoader {
   static Future<void> _restoreDataToControllers(
       Map<String, dynamic> cacheData) async {
     try {
-      print('📦 CachedDataLoader: Restoring data from cache');
+      debugPrint('📦 CachedDataLoader: Restoring data from cache');
 
       // For now, we'll just load the data normally
       // The cache validation ensures we only use cache when it's valid
@@ -156,9 +155,9 @@ class CachedDataLoader {
       // 2. Set the data without making API calls
       // 3. Update the UI immediately
 
-      print('📦 CachedDataLoader: Cache restoration completed');
+      debugPrint('📦 CachedDataLoader: Cache restoration completed');
     } catch (e) {
-      print('❌ CachedDataLoader: Error restoring data - $e');
+      debugPrint('❌ CachedDataLoader: Error restoring data - $e');
     }
   }
 
@@ -168,7 +167,7 @@ class CachedDataLoader {
     bool fromModule = false,
     List<String>? specificSections,
   }) async {
-    print('🗑️ CachedDataLoader: Clearing cache and refreshing');
+    debugPrint('🗑️ CachedDataLoader: Clearing cache and refreshing');
     await SmartCacheManager.clearCache();
     if (!context.mounted) {
       return;

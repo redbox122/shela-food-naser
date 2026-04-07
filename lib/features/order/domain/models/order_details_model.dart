@@ -65,9 +65,9 @@ class OrderDetailsModel {
         
         // 🔍 DEBUG: Log variation data structure
         if (kDebugMode) {
-          print('🔍 [OrderDetailsModel] Parsing variations: ${variationList.length} items');
+          debugPrint('🔍 [OrderDetailsModel] Parsing variations: ${variationList.length} items');
           if (variationList.isNotEmpty && variationList[0] is Map) {
-            print('🔍 [OrderDetailsModel] First variation keys: ${(variationList[0] as Map).keys}');
+            debugPrint('🔍 [OrderDetailsModel] First variation keys: ${(variationList[0] as Map).keys}');
           }
         }
 
@@ -83,7 +83,7 @@ class OrderDetailsModel {
         }
 
         if (kDebugMode) {
-          print('🔍 [OrderDetailsModel] Is food variation format: $isFoodVariation');
+          debugPrint('🔍 [OrderDetailsModel] Is food variation format: $isFoodVariation');
         }
 
         if (isFoodVariation) {
@@ -92,13 +92,13 @@ class OrderDetailsModel {
               foodVariation!.add(FoodVariation.fromJson(v as Map<String, dynamic>));
             } catch (e) {
               if (kDebugMode) {
-                print('❌ [OrderDetailsModel] Error parsing food variation: $e');
-                print('❌ [OrderDetailsModel] Variation data: $v');
+                debugPrint('❌ [OrderDetailsModel] Error parsing food variation: $e');
+                debugPrint('❌ [OrderDetailsModel] Variation data: $v');
               }
             }
           }
           if (kDebugMode) {
-            print('✅ [OrderDetailsModel] Parsed ${foodVariation!.length} food variations');
+            debugPrint('✅ [OrderDetailsModel] Parsed ${foodVariation!.length} food variations');
           }
         } else {
           for (final v in variationList) {
@@ -106,25 +106,25 @@ class OrderDetailsModel {
               variation!.add(Variation.fromJson(v as Map<String, dynamic>));
             } catch (e) {
               if (kDebugMode) {
-                print('❌ [OrderDetailsModel] Error parsing variation: $e');
-                print('❌ [OrderDetailsModel] Variation data: $v');
+                debugPrint('❌ [OrderDetailsModel] Error parsing variation: $e');
+                debugPrint('❌ [OrderDetailsModel] Variation data: $v');
               }
             }
           }
           if (kDebugMode) {
-            print('✅ [OrderDetailsModel] Parsed ${variation!.length} old variations');
+            debugPrint('✅ [OrderDetailsModel] Parsed ${variation!.length} old variations');
           }
         }
       } else {
         // Empty array [] - no variations (this is the new backend format)
         if (kDebugMode) {
-          print('🔍 [OrderDetailsModel] Empty variations array [] - item has no variations');
+          debugPrint('🔍 [OrderDetailsModel] Empty variations array [] - item has no variations');
         }
       }
     } else {
       // null or missing - no variations
       if (kDebugMode) {
-        print('🔍 [OrderDetailsModel] No variation field in order details');
+        debugPrint('🔍 [OrderDetailsModel] No variation field in order details');
       }
     }
     if (json['add_ons'] != null) {

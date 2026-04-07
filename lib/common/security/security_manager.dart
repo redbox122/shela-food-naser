@@ -36,41 +36,41 @@ class SecurityManager {
   static Future<bool> initialize({String environment = 'production'}) async {
     try {
       if (kDebugMode) {
-        print('🔐 Initializing Security Manager...');
+        debugPrint('🔐 Initializing Security Manager...');
       }
 
       // Initialize secure token storage
       await SecureTokenStorage.initialize();
       if (kDebugMode) {
-        print('✅ Secure Token Storage initialized');
+        debugPrint('✅ Secure Token Storage initialized');
       }
 
       // Initialize certificate pinning service
       await CertificatePinningService.initialize(environment: environment);
       if (kDebugMode) {
-        print('✅ Certificate Pinning Service initialized');
+        debugPrint('✅ Certificate Pinning Service initialized');
       }
 
       // Initialize session management service
       await SessionManagementService.initialize();
       if (kDebugMode) {
-        print('✅ Session Management Service initialized');
+        debugPrint('✅ Session Management Service initialized');
       }
 
       // Initialize Phase 2 services
       await BiometricAuthService().initialize();
       if (kDebugMode) {
-        print('✅ Biometric Authentication Service initialized');
+        debugPrint('✅ Biometric Authentication Service initialized');
       }
 
       await RBACManager().initialize();
       if (kDebugMode) {
-        print('✅ RBAC Manager initialized');
+        debugPrint('✅ RBAC Manager initialized');
       }
 
       await AppIntegrityChecker().initialize();
       if (kDebugMode) {
-        print('✅ App Integrity Checker initialized');
+        debugPrint('✅ App Integrity Checker initialized');
       }
 
       _isInitialized = true;
@@ -78,7 +78,7 @@ class SecurityManager {
       _lastError = null;
 
       if (kDebugMode) {
-        print('🎉 Security Manager initialized successfully');
+        debugPrint('🎉 Security Manager initialized successfully');
       }
 
       return true;
@@ -88,7 +88,7 @@ class SecurityManager {
       _lastError = e.toString();
 
       if (kDebugMode) {
-        print('❌ Security Manager initialization failed: $e');
+        debugPrint('❌ Security Manager initialization failed: $e');
       }
 
       return false;
@@ -111,7 +111,7 @@ class SecurityManager {
   static Future<Map<String, dynamic>> getSecurityStatus() async {
     try {
       if (kDebugMode) {
-        print('🔍 Getting comprehensive security status...');
+        debugPrint('🔍 Getting comprehensive security status...');
       }
 
       // Get status from all security services
@@ -144,7 +144,7 @@ class SecurityManager {
       };
     } catch (e) {
       if (kDebugMode) {
-        print('❌ Error getting security status: $e');
+        debugPrint('❌ Error getting security status: $e');
       }
       return {
         'overallStatus': 'error',
@@ -206,14 +206,14 @@ class SecurityManager {
   static Future<bool> testAllSecurityFeatures() async {
     try {
       if (kDebugMode) {
-        print('🧪 Testing all security features...');
+        debugPrint('🧪 Testing all security features...');
       }
 
       // Test secure token storage
       final tokenTest = await SecureTokenStorage.hasValidToken();
       if (!tokenTest) {
         if (kDebugMode) {
-          print('❌ Token storage test failed');
+          debugPrint('❌ Token storage test failed');
         }
         return false;
       }
@@ -223,7 +223,7 @@ class SecurityManager {
           'https://example.com');
       if (!certTest) {
         if (kDebugMode) {
-          print('❌ Certificate pinning test failed');
+          debugPrint('❌ Certificate pinning test failed');
         }
         return false;
       }
@@ -232,7 +232,7 @@ class SecurityManager {
       final validationTest = await _testInputValidation();
       if (!validationTest) {
         if (kDebugMode) {
-          print('❌ Input Validation test failed');
+          debugPrint('❌ Input Validation test failed');
         }
         return false;
       }
@@ -240,27 +240,27 @@ class SecurityManager {
       // Test Phase 2 services
       final biometricTest = await BiometricAuthService().testBiometric();
       if (kDebugMode) {
-        print('🔐 Biometric test result: ${biometricTest.success}');
+        debugPrint('🔐 Biometric test result: ${biometricTest.success}');
       }
 
       final rbacTest = await RBACManager().getRBACStatus();
       if (kDebugMode) {
-        print('🔐 RBAC test result: ${rbacTest['currentRole']}');
+        debugPrint('🔐 RBAC test result: ${rbacTest['currentRole']}');
       }
 
       final integrityTest = await AppIntegrityChecker().testIntegrityChecker();
       if (kDebugMode) {
-        print('🔐 Integrity test result: ${integrityTest['isCompromised']}');
+        debugPrint('🔐 Integrity test result: ${integrityTest['isCompromised']}');
       }
 
       if (kDebugMode) {
-        print('✅ All security tests passed');
+        debugPrint('✅ All security tests passed');
       }
 
       return true;
     } catch (e) {
       if (kDebugMode) {
-        print('❌ Security test failed: $e');
+        debugPrint('❌ Security test failed: $e');
       }
       return false;
     }
@@ -290,7 +290,7 @@ class SecurityManager {
       return true;
     } catch (e) {
       if (kDebugMode) {
-        print('❌ Input Validation test error: $e');
+        debugPrint('❌ Input Validation test error: $e');
       }
       return false;
     }
@@ -477,7 +477,7 @@ final double successRate =
       return await BiometricAuthService().getBiometricStatus();
     } catch (e) {
       if (kDebugMode) {
-        print('❌ Error getting biometric status: $e');
+        debugPrint('❌ Error getting biometric status: $e');
       }
       return {'error': e.toString()};
     }
@@ -493,7 +493,7 @@ final double successRate =
       );
     } catch (e) {
       if (kDebugMode) {
-        print('❌ Error enabling biometric: $e');
+        debugPrint('❌ Error enabling biometric: $e');
       }
       return false;
     }
@@ -505,7 +505,7 @@ final double successRate =
       return await RBACManager().getRBACStatus();
     } catch (e) {
       if (kDebugMode) {
-        print('❌ Error getting RBAC status: $e');
+        debugPrint('❌ Error getting RBAC status: $e');
       }
       return {'error': e.toString()};
     }
@@ -521,7 +521,7 @@ final double successRate =
       return await RBACManager().setUserRole(userRole);
     } catch (e) {
       if (kDebugMode) {
-        print('❌ Error setting user role: $e');
+        debugPrint('❌ Error setting user role: $e');
       }
       return false;
     }
@@ -533,7 +533,7 @@ final double successRate =
       return await AppIntegrityChecker().getIntegrityStatus();
     } catch (e) {
       if (kDebugMode) {
-        print('❌ Error getting app integrity status: $e');
+        debugPrint('❌ Error getting app integrity status: $e');
       }
       return {'error': e.toString()};
     }
@@ -547,7 +547,7 @@ final double successRate =
     try {
       if (!_isInitialized) {
         if (kDebugMode) {
-          print('❌ Security Manager not initialized');
+          debugPrint('❌ Security Manager not initialized');
         }
         return false;
       }
@@ -565,13 +565,13 @@ final double successRate =
       }
 
       if (kDebugMode) {
-        print('✅ Security configuration updated');
+        debugPrint('✅ Security configuration updated');
       }
 
       return true;
     } catch (e) {
       if (kDebugMode) {
-        print('❌ Failed to update security configuration: $e');
+        debugPrint('❌ Failed to update security configuration: $e');
       }
       return false;
     }
@@ -585,11 +585,11 @@ final double successRate =
       _currentStatus = SecurityStatus.unknown;
 
       if (kDebugMode) {
-        print('🔐 Security Manager disposed');
+        debugPrint('🔐 Security Manager disposed');
       }
     } catch (e) {
       if (kDebugMode) {
-        print('❌ Error disposing Security Manager: $e');
+        debugPrint('❌ Error disposing Security Manager: $e');
       }
     }
   }

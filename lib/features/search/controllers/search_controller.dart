@@ -1,4 +1,3 @@
-// ignore_for_file: avoid_print
 
 import 'package:flutter/material.dart';
 import 'package:sixam_mart/features/item/domain/models/item_model.dart';
@@ -386,9 +385,9 @@ class SearchController extends GetxController implements GetxService {
         _allItemList!.addAll(items);
 
         // ✅ طباعة اختبارية للتأكد من الترتيب
-        print('=== Sorted Prices ===');
+        debugPrint('=== Sorted Prices ===');
         for (final item in items) {
-          print('${item.name} - ${item.price}');
+          debugPrint('${item.name} - ${item.price}');
         }
       } else {
         _hasError = true;

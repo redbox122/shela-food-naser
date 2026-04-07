@@ -1,4 +1,3 @@
-// ignore_for_file: non_constant_identifier_names, avoid_print
 
 import 'package:flutter/material.dart';
 import 'package:get/get_state_manager/src/simple/get_state.dart';

@@ -24,35 +24,37 @@ class PaymentMethodBottomSheet extends StatefulWidget {
 
 class _PaymentMethodBottomSheetState extends State<PaymentMethodBottomSheet> {
   // Form state
-  final bool _isProcessing = false; // ✅ FIX: Removed 'final' to allow state change
+  final bool _isProcessing =
+      false; // ✅ FIX: Removed 'final' to allow state change
   bool _isLoadingPaymentMethods = true;
 
   @override
   void initState() {
     super.initState();
 
-    // Check if payment methods are already loaded
+    // Check if payment methods are already loaded — skip loading state entirely
     final checkoutController = Get.find<CheckoutController>();
     if (checkoutController.paymentMethods.isNotEmpty) {
       _isLoadingPaymentMethods = false;
       debugPrint('✅ Payment methods already available - no loading needed');
+    } else {
+      // Only fetch if not already loaded
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _checkPaymentMethods();
+      });
     }
-
-    // Payment methods are already preloaded when checkout page opened
-    // Just check if they're available, if not load them
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _checkPaymentMethods();
-    });
   }
 
   Future<void> _checkPaymentMethods() async {
     final checkoutController = Get.find<CheckoutController>();
 
-    // If payment methods are already loaded, show them immediately
+    // If payment methods were loaded between initState and this callback
     if (checkoutController.paymentMethods.isNotEmpty) {
-      setState(() {
-        _isLoadingPaymentMethods = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isLoadingPaymentMethods = false;
+        });
+      }
       debugPrint(
           '✅ Payment methods already loaded: ${checkoutController.paymentMethods.length} - showing instantly');
       return;
@@ -66,17 +68,21 @@ class _PaymentMethodBottomSheetState extends State<PaymentMethodBottomSheet> {
       await checkoutController.initiatePaymentWithAmount(
           context, checkoutController.viewTotalPrice.toString());
 
-      setState(() {
-        _isLoadingPaymentMethods = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isLoadingPaymentMethods = false;
+        });
+      }
 
       debugPrint(
           '✅ Payment methods loaded: ${checkoutController.paymentMethods.length}');
     } catch (e) {
       debugPrint('❌ Error loading payment methods: $e');
-      setState(() {
-        _isLoadingPaymentMethods = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isLoadingPaymentMethods = false;
+        });
+      }
       showCustomSnackBar('خطأ في تحميل طرق الدفع');
     }
   }
@@ -109,16 +115,19 @@ class _PaymentMethodBottomSheetState extends State<PaymentMethodBottomSheet> {
                 color: theme.cardColor,
                 borderRadius: BorderRadius.vertical(
                   top: const Radius.circular(Dimensions.radiusLarge),
-                  bottom: Radius.circular(
-                      ResponsiveHelper.isDesktop(context) ? Dimensions.radiusLarge : 0),
+                  bottom: Radius.circular(ResponsiveHelper.isDesktop(context)
+                      ? Dimensions.radiusLarge
+                      : 0),
                 ),
               ),
               child: GetBuilder<KaidhaSubscription_Controller>(
                 builder: (KaidhaSubController) {
-                  return GetBuilder<CheckoutController>(builder: (checkoutController) {
+                  return GetBuilder<CheckoutController>(
+                      builder: (checkoutController) {
                     return SingleChildScrollView(
                       physics: const ClampingScrollPhysics(),
-                      keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+                      keyboardDismissBehavior:
+                          ScrollViewKeyboardDismissBehavior.onDrag,
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
@@ -176,7 +185,8 @@ class _PaymentMethodBottomSheetState extends State<PaymentMethodBottomSheet> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.payment, size: 48, color: theme.colorScheme.onSurfaceVariant),
+            Icon(Icons.payment,
+                size: 48, color: theme.colorScheme.onSurfaceVariant),
             const SizedBox(height: 16),
             Text('لا توجد طرق دفع متاحة',
                 style: TextStyle(color: theme.colorScheme.onSurfaceVariant)),

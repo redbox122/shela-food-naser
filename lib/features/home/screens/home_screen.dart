@@ -84,7 +84,7 @@ class HomeScreen extends StatefulWidget {
         final cacheValid = await ComprehensiveHomeCacheManager.isCacheValid();
         if (cacheValid) {
           if (kDebugMode) {
-            print(
+            debugPrint(
                 '⚡ HomeScreen.loadData: Module switch detected, restoring from cache instantly');
           }
 
@@ -118,7 +118,7 @@ class HomeScreen extends StatefulWidget {
                     bannerController.featuredBannerList!.isNotEmpty;
                 if (!hasBannerData) {
                   if (kDebugMode) {
-                    print(
+                    debugPrint(
                         '⚠️ HomeScreen.loadData: Critical cache present but banners missing, forcing banner reload');
                   }
                   // Trigger immediate banner fetch for current module.
@@ -128,13 +128,13 @@ class HomeScreen extends StatefulWidget {
 
               if (!hasBannerData) {
                 if (kDebugMode) {
-                  print(
+                  debugPrint(
                       '⚠️ HomeScreen.loadData: Skipping early return because banners are missing');
                 }
                 // Fall through to normal loading to recover missing sections.
               } else {
                 if (kDebugMode) {
-                  print(
+                  debugPrint(
                       '✅ HomeScreen.loadData: Cache restored successfully, skipping API calls');
                 }
                 // Refresh in background only (without clearing controllers)
@@ -146,7 +146,7 @@ class HomeScreen extends StatefulWidget {
               }
             } else {
               if (kDebugMode) {
-                print(
+                debugPrint(
                     '⚠️ HomeScreen.loadData: Cache restored but no critical data, falling back to API');
               }
               // Fall through to normal loading
@@ -155,7 +155,7 @@ class HomeScreen extends StatefulWidget {
         }
       } catch (e) {
         if (kDebugMode) {
-          print(
+          debugPrint(
               '⚠️ HomeScreen.loadData: Cache check failed, falling back to normal load - $e');
         }
         // Fall through to normal loading
@@ -227,7 +227,7 @@ class HomeScreen extends StatefulWidget {
         );
       } catch (e) {
         if (kDebugMode) {
-          print('⚠️ HomeScreen: Background refresh failed - $e');
+          debugPrint('⚠️ HomeScreen: Background refresh failed - $e');
         }
       } finally {
         _isBackgroundRefreshInProgress = false;
@@ -406,7 +406,7 @@ class _HomeScreenState extends State<HomeScreen> {
   void _loadStoresAfterFirstFrame() {
     if (AppConstants.useBffV2Endpoint) {
       if (kDebugMode) {
-        print(
+        debugPrint(
             '🛡️ HomeScreen: Unified-only policy - skipping post-frame legacy store fetch');
       }
       return;
@@ -421,7 +421,7 @@ class _HomeScreenState extends State<HomeScreen> {
     // ⚡ PERFORMANCE: Only load if stores are not already loaded
     if (storeController.allStoreModel == null && !storeController.isLoading) {
       if (kDebugMode) {
-        print(
+        debugPrint(
             '📡 HomeScreen: Loading stores after first frame (post-frame callback)');
       }
 
@@ -440,7 +440,7 @@ class _HomeScreenState extends State<HomeScreen> {
       // Module must be selected first (will show skeleton until module is selected)
       if (splashController.module == null) {
         if (kDebugMode) {
-          print(
+          debugPrint(
               '[Cache-First] HomeScreen: Skipping data load - module is null (will show skeleton)');
         }
         return;
@@ -457,7 +457,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
       if (showMultiModuleScreen) {
         if (kDebugMode) {
-          print(
+          debugPrint(
               '🚫 HomeScreen: Skipping data load - showing multi-module screen');
         }
         _handlePostLoadActions();
@@ -468,7 +468,7 @@ class _HomeScreenState extends State<HomeScreen> {
       // The build method will trigger module loading, and then we'll rebuild
       if (moduleList == null || moduleListLength == 0) {
         if (kDebugMode) {
-          print('🚫 HomeScreen: Skipping data load - modules not loaded yet');
+          debugPrint('🚫 HomeScreen: Skipping data load - modules not loaded yet');
         }
         return;
       }
@@ -478,7 +478,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
       if (isFirstLoad && splashController.module != null) {
         if (kDebugMode) {
-          print(
+          debugPrint(
               '[Cache-First] HomeScreen: First load detected - marking as loaded');
         }
         _hasLoadedOnce = true;
@@ -492,7 +492,7 @@ class _HomeScreenState extends State<HomeScreen> {
       if (loadingManager.isComprehensiveLoading ||
           loadingManager.isHomeLoading) {
         if (kDebugMode) {
-          print(
+          debugPrint(
               '⚠️ HomeScreen: Loading already in progress - skipping duplicate load');
         }
         _scheduleDeferredLoadCheck();
@@ -517,7 +517,7 @@ class _HomeScreenState extends State<HomeScreen> {
             loadStores: false);
         if (cacheLoaded) {
           if (kDebugMode) {
-            print(
+            debugPrint(
                 '⚡ HomeScreen: First frame loaded from cache (banners, categories, offers)');
           }
 
@@ -620,7 +620,7 @@ class _HomeScreenState extends State<HomeScreen> {
       _handlePostLoadActions();
     } catch (e) {
       if (kDebugMode) {
-        print('❌ HomeScreen: Error loading data - $e');
+        debugPrint('❌ HomeScreen: Error loading data - $e');
       }
       // Fallback to direct API loading
       await _fallbackDataLoading();
@@ -659,7 +659,7 @@ class _HomeScreenState extends State<HomeScreen> {
       return true;
     } catch (e) {
       if (kDebugMode) {
-        print('❌ HomeScreen: Error checking controller data - $e');
+        debugPrint('❌ HomeScreen: Error checking controller data - $e');
       }
       return false;
     }
@@ -700,7 +700,7 @@ class _HomeScreenState extends State<HomeScreen> {
       }
     } catch (e) {
       if (kDebugMode) {
-        print('❌ HomeScreen: Error verifying data - $e');
+        debugPrint('❌ HomeScreen: Error verifying data - $e');
       }
       await _fallbackDataLoading();
     }
@@ -919,7 +919,7 @@ class _HomeScreenState extends State<HomeScreen> {
       }
     } catch (e) {
       if (kDebugMode) {
-        print('❌ HomeScreen: Error restoring data from cache - $e');
+        debugPrint('❌ HomeScreen: Error restoring data from cache - $e');
       }
     }
   }
@@ -1121,7 +1121,7 @@ class _HomeScreenState extends State<HomeScreen> {
       // This prevents empty screen on first load when module hasn't been selected yet
       if (splashController.module == null) {
         if (kDebugMode) {
-          print('[Cache-First] HomeScreen: Module is null - showing skeleton');
+          debugPrint('[Cache-First] HomeScreen: Module is null - showing skeleton');
         }
         // Show skeleton while waiting for module selection
         return Scaffold(
@@ -1201,9 +1201,9 @@ class _HomeScreenState extends State<HomeScreen> {
 
       // Debug logging disabled for performance
       // if (kDebugMode && currentModule != null) {
-      //   print('🔍 DEBUG: Module Type: ${currentModule!.moduleType}');
-      //   print('🔍 DEBUG: isFood: $isFood');
-      //   print('🔍 DEBUG: isShop: $isShop');
+      //   debugPrint('🔍 DEBUG: Module Type: ${currentModule!.moduleType}');
+      //   debugPrint('🔍 DEBUG: isFood: $isFood');
+      //   debugPrint('🔍 DEBUG: isShop: $isShop');
       // }
       final bool isGrocery = currentModule != null &&
           currentModule.moduleType.toString() == AppConstants.grocery;

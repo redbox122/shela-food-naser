@@ -13,7 +13,7 @@ class LocalClient {
     switch (source) {
       case DataSourceEnum.client:
         try {
-          // print('==========cache data : endpoint banner=${cacheId}, '
+          // debugPrint('==========cache data : endpoint banner=${cacheId}, '
           //     'header= ${header.toString()}, '
           //     'response= ${responseBody}');
 
@@ -33,7 +33,7 @@ class LocalClient {
           }
         } catch (e) {
           if (kDebugMode) {
-            print('=====error occure in repo api bannaer add: $e');
+            debugPrint('=====error occure in repo api bannaer add: $e');
           }
         }
         break;
@@ -49,7 +49,7 @@ class LocalClient {
           }
         } catch (e) {
           if (kDebugMode) {
-            print('=====error occur in repo local banner: $e');
+            debugPrint('=====error occur in repo local banner: $e');
           }
         }
         break;

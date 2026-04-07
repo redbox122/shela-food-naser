@@ -1,4 +1,3 @@
-// ignore_for_file: unnecessary_brace_in_string_interps, use_build_context_synchronously, unused_local_variable, unnecessary_import, non_constant_identifier_names, avoid_print, unrelated_type_equality_checks, unnecessary_string_interpolations
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';

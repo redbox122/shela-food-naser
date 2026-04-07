@@ -25,7 +25,7 @@ class ProfileRepository implements ProfileRepositoryInterface {
     // ⚡ FIX: Handle 304 Not Modified - return existing userInfoModel from ProfileController
     if (response.statusCode == 304) {
       if (kDebugMode) {
-        print('✅ Profile Repository: 304 Not Modified - checking existing userInfoModel from controller');
+        debugPrint('✅ Profile Repository: 304 Not Modified - checking existing userInfoModel from controller');
       }
       // Return existing userInfoModel from ProfileController if available (304 means data hasn't changed)
       if (Get.isRegistered<ProfileController>()) {
@@ -33,20 +33,20 @@ class ProfileRepository implements ProfileRepositoryInterface {
         final existingUserInfo = profileController.userInfoModel;
         if (existingUserInfo != null) {
           if (kDebugMode) {
-            print('   - Existing userInfoModel: EXISTS (${existingUserInfo.fName} ${existingUserInfo.lName}) - returning cached data');
+            debugPrint('   - Existing userInfoModel: EXISTS (${existingUserInfo.fName} ${existingUserInfo.lName}) - returning cached data');
           }
           return existingUserInfo;
         } else {
           // ⚠️ 304 received but userInfoModel is NULL - force refresh without ETag
           if (kDebugMode) {
-            print('   - Existing userInfoModel: NULL - 304 received with no cache');
-            print('   - 🔄 Forcing refresh (no ETag)...');
+            debugPrint('   - Existing userInfoModel: NULL - 304 received with no cache');
+            debugPrint('   - 🔄 Forcing refresh (no ETag)...');
           }
           return await _forceRefreshUserInfo();
         }
       }
       if (kDebugMode) {
-        print('   - ProfileController not registered, returning null');
+        debugPrint('   - ProfileController not registered, returning null');
       }
       return null;
     }
@@ -66,12 +66,12 @@ class ProfileRepository implements ProfileRepositoryInterface {
       final model = UserInfoModel.fromJson(
           freshResponse.body as Map<String, dynamic>);
       if (kDebugMode) {
-        print('✅ Profile Repository: Forced refresh succeeded (200)');
+        debugPrint('✅ Profile Repository: Forced refresh succeeded (200)');
       }
       return model;
     }
     if (kDebugMode) {
-      print(
+      debugPrint(
           '❌ Profile Repository: Forced refresh failed - status: ${freshResponse.statusCode}');
     }
     return null;

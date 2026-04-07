@@ -1,4 +1,3 @@
-// ignore_for_file: avoid_print
 
 import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
@@ -42,7 +41,7 @@ class PreloadedDataManager {
       // E-commerce data is completely independent of user authentication
       if (_hasUserStateChanged()) {
         if (kDebugMode) {
-          print(
+          debugPrint(
               '🔄 PreloadedDataManager: User state changed from $_lastUserState to ${_getCurrentUserState()} - e-commerce data remains preloaded');
         }
         // Update user state but NEVER invalidate e-commerce data
@@ -63,25 +62,25 @@ class PreloadedDataManager {
 
       if (_isDataPreloaded && _isDataValid) {
         if (kDebugMode) {
-          print(
+          debugPrint(
               '✅ PreloadedDataManager: Home data is preloaded and valid - INSTANT DISPLAY!');
         }
         return true;
       } else {
         if (kDebugMode) {
-          print(
+          debugPrint(
               '🔄 PreloadedDataManager: Home data not preloaded or invalid - need to load');
-          print('   - Preloaded: $_isDataPreloaded');
-          print('   - Valid: $_isDataValid');
-          print('   - User State: ${_getCurrentUserState()}');
-          print(
+          debugPrint('   - Preloaded: $_isDataPreloaded');
+          debugPrint('   - Valid: $_isDataValid');
+          debugPrint('   - User State: ${_getCurrentUserState()}');
+          debugPrint(
               '   - SplashController.homeDataPreLoaded: ${Get.isRegistered<SplashController>() ? Get.find<SplashController>().homeDataPreLoaded : "not registered"}');
         }
         return false;
       }
     } catch (e) {
       if (kDebugMode) {
-        print('❌ PreloadedDataManager: Error checking preloaded data - $e');
+        debugPrint('❌ PreloadedDataManager: Error checking preloaded data - $e');
       }
       return false;
     }
@@ -94,7 +93,7 @@ class PreloadedDataManager {
     _lastUserState = _getCurrentUserState(); // Track current user state
 
     if (kDebugMode) {
-      print(
+      debugPrint(
           '✅ PreloadedDataManager: Data marked as preloaded for user state: ${_getCurrentUserState()}');
     }
   }
@@ -105,7 +104,7 @@ class PreloadedDataManager {
     _isDataValid = false;
 
     if (kDebugMode) {
-      print('🔄 PreloadedDataManager: Data marked as invalid');
+      debugPrint('🔄 PreloadedDataManager: Data marked as invalid');
     }
   }
 
@@ -115,7 +114,7 @@ class PreloadedDataManager {
     _lastUserState = _getCurrentUserState();
 
     if (kDebugMode) {
-      print(
+      debugPrint(
           '🔄 PreloadedDataManager: Cache invalidated due to user state change to: ${_getCurrentUserState()}');
     }
   }
@@ -126,7 +125,7 @@ class PreloadedDataManager {
     _lastUserState = _getCurrentUserState();
 
     if (kDebugMode) {
-      print(
+      debugPrint(
           '🔄 PreloadedDataManager: User-specific data invalidated, e-commerce data preserved for user state: ${_getCurrentUserState()}');
     }
   }
@@ -137,7 +136,7 @@ class PreloadedDataManager {
 
     if (isPreloaded) {
       if (kDebugMode) {
-        print(
+        debugPrint(
             '🚫 PreloadedDataManager: Skipping loading - data already preloaded and valid');
       }
       return true;
@@ -146,7 +145,7 @@ class PreloadedDataManager {
     // Fallback: Check if we have any cached data at all (even if version doesn't match)
     if (_isDataPreloaded) {
       if (kDebugMode) {
-        print(
+        debugPrint(
             '🔄 PreloadedDataManager: Data is preloaded but cache validation failed - using fallback');
       }
       return true; // Use cached data even if version doesn't match
@@ -173,7 +172,7 @@ class PreloadedDataManager {
     _lastUserState = null;
 
     if (kDebugMode) {
-      print('🔄 PreloadedDataManager: Preload status reset');
+      debugPrint('🔄 PreloadedDataManager: Preload status reset');
     }
   }
 

@@ -1,4 +1,3 @@
-// ignore_for_file: avoid_print, camel_case_types, unused_local_variable
 
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -501,12 +500,6 @@ class _ShopHomeScreenState extends State<ShopHomeScreen> {
           }) {
             // ⚡ PERFORMANCE: Removed verbose debug logs from build() to prevent main thread blocking
             // Log only on first render or when data structure changes significantly
-            final shouldShowCategories = settings == null ||
-                settings.categoriesSection?.toString() == '1' ||
-                isEcommerce ||
-                isFood ||
-                isGrocery;
-
             return Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [

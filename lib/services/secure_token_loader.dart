@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
@@ -6,11 +7,16 @@ import 'package:sixam_mart/common/utils/app_logger.dart';
 
 class SecureTokenLoader {
   static bool _initialized = false;
+  static Completer<void>? _initCompleter;
 
-  /// Initialize secure tokens from platform-specific sources
+  /// Initialize secure tokens from platform-specific sources.
+  /// Concurrent callers await the same in-flight initialization instead of
+  /// running multiple parallel initializations.
   static Future<void> initialize() async {
     if (_initialized) return;
+    if (_initCompleter != null) return _initCompleter!.future;
 
+    _initCompleter = Completer<void>();
     try {
       if (Platform.isAndroid) {
         await _loadAndroidTokens();
@@ -19,14 +25,18 @@ class SecureTokenLoader {
       }
 
       _initialized = true;
+      _initCompleter!.complete();
       if (kDebugMode) {
-        appLogger.info('✅ Secure tokens loaded successfully');
+        appLogger.info('Secure tokens loaded successfully');
       }
     } catch (e) {
       if (kDebugMode) {
-        appLogger.error('❌ Failed to load secure tokens: $e', e);
+        appLogger.error('Failed to load secure tokens: $e', e);
       }
-      // Fallback to empty tokens (app will show error)
+      // Allow retry on failure by clearing the completer
+      _initCompleter!.completeError(e);
+      _initCompleter = null;
+      // Fallback to empty tokens (app will continue without payment)
     }
   }
 

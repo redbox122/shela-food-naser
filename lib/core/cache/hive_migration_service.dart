@@ -1,4 +1,3 @@
-// ignore_for_file: avoid_print
 
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
@@ -39,11 +38,11 @@ class HiveMigrationService {
         HiveCacheConfig.currentMigrationVersion,
       );
       if (kDebugMode) {
-        print('✅ HiveMigrationService: Migration marked as complete');
+        debugPrint('✅ HiveMigrationService: Migration marked as complete');
       }
     } catch (e) {
       if (kDebugMode) {
-        print('❌ HiveMigrationService: Error marking migration complete - $e');
+        debugPrint('❌ HiveMigrationService: Error marking migration complete - $e');
       }
     }
   }
@@ -54,14 +53,14 @@ class HiveMigrationService {
     // Check if migration already completed
     if (await isMigrationComplete()) {
       if (kDebugMode) {
-        print('⏭️ HiveMigrationService: Migration already completed, skipping');
+        debugPrint('⏭️ HiveMigrationService: Migration already completed, skipping');
       }
       return;
     }
 
     try {
       if (kDebugMode) {
-        print(
+        debugPrint(
             '🚀 HiveMigrationService: Starting migration from SharedPreferences to Hive');
       }
 
@@ -89,7 +88,7 @@ class HiveMigrationService {
       }
 
       if (kDebugMode) {
-        print(
+        debugPrint(
             '📦 HiveMigrationService: Found ${moduleIds.length} modules to migrate: $moduleIds');
       }
 
@@ -104,7 +103,7 @@ class HiveMigrationService {
         } catch (e) {
           failureCount++;
           if (kDebugMode) {
-            print(
+            debugPrint(
                 '❌ HiveMigrationService: Failed to migrate module $moduleId - $e');
           }
         }
@@ -114,19 +113,19 @@ class HiveMigrationService {
       if (successCount > 0) {
         await markMigrationComplete();
         if (kDebugMode) {
-          print(
+          debugPrint(
             '✅ HiveMigrationService: Migration completed - $successCount modules migrated, $failureCount failures',
           );
         }
       } else {
         if (kDebugMode) {
-          print(
+          debugPrint(
               '⚠️ HiveMigrationService: Migration failed - no modules migrated successfully');
         }
       }
     } catch (e) {
       if (kDebugMode) {
-        print('❌ HiveMigrationService: Migration error - $e');
+        debugPrint('❌ HiveMigrationService: Migration error - $e');
       }
       // Don't mark as complete if migration failed
       // Will retry on next app launch
@@ -158,7 +157,7 @@ class HiveMigrationService {
     await _migrateBusinessSettings(prefs, hiveService, moduleId);
 
     if (kDebugMode) {
-      print('✅ HiveMigrationService: Module $moduleId migrated successfully');
+      debugPrint('✅ HiveMigrationService: Module $moduleId migrated successfully');
     }
   }
 
@@ -178,13 +177,13 @@ class HiveMigrationService {
         // For now, we'll skip banners migration as it has a complex structure
         // They'll be cached fresh from API on next load
         if (kDebugMode) {
-          print(
+          debugPrint(
               '⏭️ HiveMigrationService: Skipping banners migration (complex structure)');
         }
       }
     } catch (e) {
       if (kDebugMode) {
-        print('⚠️ HiveMigrationService: Error migrating banners - $e');
+        debugPrint('⚠️ HiveMigrationService: Error migrating banners - $e');
       }
     }
   }
@@ -207,7 +206,7 @@ class HiveMigrationService {
               .toList();
           await hiveService.saveCategories(moduleId, categoryList);
           if (kDebugMode) {
-            print(
+            debugPrint(
               '✅ HiveMigrationService: Migrated ${categoryList.length} categories for module $moduleId',
             );
           }
@@ -215,7 +214,7 @@ class HiveMigrationService {
       }
     } catch (e) {
       if (kDebugMode) {
-        print('⚠️ HiveMigrationService: Error migrating categories - $e');
+        debugPrint('⚠️ HiveMigrationService: Error migrating categories - $e');
       }
     }
   }
@@ -236,14 +235,14 @@ class HiveMigrationService {
               storeData['storeModel'] as Map<String, dynamic>);
           await hiveService.saveStores(moduleId, storeModel);
           if (kDebugMode) {
-            print(
+            debugPrint(
                 '✅ HiveMigrationService: Migrated stores for module $moduleId');
           }
         }
       }
     } catch (e) {
       if (kDebugMode) {
-        print('⚠️ HiveMigrationService: Error migrating stores - $e');
+        debugPrint('⚠️ HiveMigrationService: Error migrating stores - $e');
       }
     }
   }
@@ -265,7 +264,7 @@ class HiveMigrationService {
               .toList();
           await hiveService.saveBrands(moduleId, brandList);
           if (kDebugMode) {
-            print(
+            debugPrint(
               '✅ HiveMigrationService: Migrated ${brandList.length} brands for module $moduleId',
             );
           }
@@ -273,7 +272,7 @@ class HiveMigrationService {
       }
     } catch (e) {
       if (kDebugMode) {
-        print('⚠️ HiveMigrationService: Error migrating brands - $e');
+        debugPrint('⚠️ HiveMigrationService: Error migrating brands - $e');
       }
     }
   }
@@ -301,14 +300,14 @@ class HiveMigrationService {
 
           await hiveService.saveOffers(moduleId, offersModel);
           if (kDebugMode) {
-            print(
+            debugPrint(
                 '✅ HiveMigrationService: Migrated offers for module $moduleId');
           }
         }
       }
     } catch (e) {
       if (kDebugMode) {
-        print('⚠️ HiveMigrationService: Error migrating offers - $e');
+        debugPrint('⚠️ HiveMigrationService: Error migrating offers - $e');
       }
     }
   }
@@ -330,14 +329,14 @@ class HiveMigrationService {
           );
           await hiveService.saveBusinessSettings(moduleId, businessSettings);
           if (kDebugMode) {
-            print(
+            debugPrint(
                 '✅ HiveMigrationService: Migrated business settings for module $moduleId');
           }
         }
       }
     } catch (e) {
       if (kDebugMode) {
-        print(
+        debugPrint(
             '⚠️ HiveMigrationService: Error migrating business settings - $e');
       }
     }
