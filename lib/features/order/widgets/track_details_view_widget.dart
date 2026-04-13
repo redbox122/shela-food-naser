@@ -19,7 +19,11 @@ class TrackDetailsViewWidget extends StatelessWidget {
   final Function? callback;
   final bool showChatPermission;
   const TrackDetailsViewWidget(
-      {super.key, required this.track, required this.status, this.callback, required this.showChatPermission});
+      {super.key,
+      required this.track,
+      required this.status,
+      this.callback,
+      required this.showChatPermission});
 
   void _showContactOptions(BuildContext context, bool takeAway) {
     final String phone = takeAway
@@ -40,21 +44,24 @@ class TrackDetailsViewWidget extends StatelessWidget {
               Text('contact_options'.tr, style: robotoMedium),
               const SizedBox(height: 16),
               ListTile(
-                leading: const Icon(Icons.wb_sunny_outlined, color: Color(0xFF25D366)),
+                leading: const Icon(Icons.wb_sunny_outlined,
+                    color: Color(0xFF25D366)),
                 title: Text('whatsapp'.tr, style: robotoRegular),
                 onTap: () async {
                   Navigator.pop(ctx);
                   final cleanPhone = phone.replaceAll(RegExp(r'[^\d+]'), '');
                   final url = 'https://wa.me/$cleanPhone';
                   if (await canLaunchUrlString(url)) {
-                    await launchUrlString(url, mode: LaunchMode.externalApplication);
+                    await launchUrlString(url,
+                        mode: LaunchMode.externalApplication);
                   } else {
                     showCustomSnackBar('${'can_not_launch'.tr} WhatsApp');
                   }
                 },
               ),
               ListTile(
-                leading: Icon(Icons.chat_bubble_outline, color: Theme.of(context).primaryColor),
+                leading: Icon(Icons.chat_bubble_outline,
+                    color: Theme.of(context).primaryColor),
                 title: Text('in_app_chat'.tr, style: robotoRegular),
                 onTap: () {
                   Navigator.pop(ctx);
@@ -128,28 +135,47 @@ class TrackDetailsViewWidget extends StatelessWidget {
                 Expanded(
                     flex: 3,
                     child: Text(
-                      takeAway ? track.deliveryAddress?.address ?? '' : track.deliveryMan?.location ?? '',
-                      style: robotoRegular.copyWith(fontSize: Dimensions.fontSizeSmall),
+                      takeAway
+                          ? track.deliveryAddress?.address ?? ''
+                          : (track.deliveryMan?.location != null &&
+                                  track.deliveryMan!.location!.isNotEmpty &&
+                                  track.deliveryMan!.location !=
+                                      'Location unavailable')
+                              ? track.deliveryMan!.location!
+                              : track.store?.address ??
+                                  'location_not_available'.tr,
+                      style: robotoRegular.copyWith(
+                          fontSize: Dimensions.fontSizeSmall),
                       maxLines: 5,
                       overflow: TextOverflow.ellipsis,
                     )),
                 const SizedBox(width: Dimensions.paddingSizeExtraSmall),
-                SizedBox(width: 80, child: CustomDivider(color: Theme.of(context).primaryColor, height: 2)),
+                SizedBox(
+                    width: 80,
+                    child: CustomDivider(
+                        color: Theme.of(context).primaryColor, height: 2)),
                 Container(
-                    height: 10, width: 10, decoration: BoxDecoration(shape: BoxShape.circle, color: Theme.of(context).primaryColor)),
+                    height: 10,
+                    width: 10,
+                    decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: Theme.of(context).primaryColor)),
                 const SizedBox(width: Dimensions.paddingSizeExtraSmall),
                 Expanded(
                   flex: 5,
                   child: (takeAway && track.orderType != 'parcel')
                       ? Text(
                           track.store != null ? track.store!.address! : '',
-                          style: robotoRegular.copyWith(fontSize: Dimensions.fontSizeSmall),
+                          style: robotoRegular.copyWith(
+                              fontSize: Dimensions.fontSizeSmall),
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                         )
                       : (track.orderType == 'parcel' && status == 'picked_up')
-                          ? AddressDetailsWidget(addressDetails: track.receiverDetails)
-                          : AddressDetailsWidget(addressDetails: track.deliveryAddress),
+                          ? AddressDetailsWidget(
+                              addressDetails: track.receiverDetails)
+                          : AddressDetailsWidget(
+                              addressDetails: track.deliveryAddress),
                 ),
               ]),
               const SizedBox(height: Dimensions.paddingSizeSmall),
@@ -160,26 +186,34 @@ class TrackDetailsViewWidget extends StatelessWidget {
                             'https://www.google.com/maps/dir/?api=1&destination=${track.store != null ? track.store!.latitude : ''}'
                             ',${track.store != null ? track.store!.longitude : ''}&mode=d';
                         if (await canLaunchUrlString(url)) {
-                          await launchUrlString(url, mode: LaunchMode.externalApplication);
+                          await launchUrlString(url,
+                              mode: LaunchMode.externalApplication);
                         } else {
                           showCustomSnackBar('unable_to_launch_google_map'.tr);
                         }
                       },
                       child: Column(children: [
-                        Icon(Icons.directions, size: 25, color: Theme.of(context).primaryColor),
+                        Icon(Icons.directions,
+                            size: 25, color: Theme.of(context).primaryColor),
                         Text(
                           'direction'.tr,
-                          style:
-                              robotoRegular.copyWith(fontSize: Dimensions.fontSizeExtraSmall, color: Theme.of(context).disabledColor),
+                          style: robotoRegular.copyWith(
+                              fontSize: Dimensions.fontSizeExtraSmall,
+                              color: Theme.of(context).disabledColor),
                         ),
                         const SizedBox(height: Dimensions.paddingSizeSmall),
                       ]),
                     )
                   : Column(children: [
-                      Image.asset(Images.route, height: 20, width: 20, color: Theme.of(context).primaryColor),
+                      Image.asset(Images.route,
+                          height: 20,
+                          width: 20,
+                          color: Theme.of(context).primaryColor),
                       Text(
                         '${distance.toStringAsFixed(2)} ${'km'.tr}',
-                        style: robotoRegular.copyWith(fontSize: Dimensions.fontSizeExtraSmall, color: Theme.of(context).disabledColor),
+                        style: robotoRegular.copyWith(
+                            fontSize: Dimensions.fontSizeExtraSmall,
+                            color: Theme.of(context).disabledColor),
                       ),
                       const SizedBox(height: Dimensions.paddingSizeSmall),
                     ]),
@@ -187,47 +221,56 @@ class TrackDetailsViewWidget extends StatelessWidget {
                   alignment: Alignment.centerLeft,
                   child: Text(
                     takeAway
-                        ? Get.find<SplashController>().configModel!.moduleConfig!.module!.showRestaurantText!
+                        ? Get.find<SplashController>()
+                                .configModel!
+                                .moduleConfig!
+                                .module!
+                                .showRestaurantText!
                             ? 'store'.tr
                             : 'store'.tr
                         : 'delivery_man'.tr,
-                    style: robotoMedium.copyWith(fontSize: Dimensions.fontSizeSmall),
+                    style: robotoMedium.copyWith(
+                        fontSize: Dimensions.fontSizeSmall),
                   )),
               const SizedBox(height: Dimensions.paddingSizeExtraSmall),
               Row(children: [
                 ClipOval(
                     child: CustomImage(
-                  image: '${takeAway ? (track.store != null ? track.store!.logoFullUrl : '') : track.deliveryMan!.imageFullUrl}',
+                  image:
+                      '${takeAway ? (track.store != null ? track.store!.logoFullUrl : '') : track.deliveryMan!.imageFullUrl}',
                   height: 35,
                   width: 35,
                 )),
                 const SizedBox(width: Dimensions.paddingSizeSmall),
                 Expanded(
-                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text(
-                    takeAway
-                        ? track.store != null
-                            ? track.store!.name!
-                            : ''
-                        : '${track.deliveryMan!.fName} ${track.deliveryMan!.lName}',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: robotoMedium.copyWith(fontSize: Dimensions.fontSizeExtraSmall),
-                  ),
-                  RatingBar(
-                    rating: takeAway
-                        ? track.store != null
-                            ? track.store!.avgRating
-                            : '' as double?
-                        : track.deliveryMan!.avgRating,
-                    size: 10,
-                    ratingCount: takeAway
-                        ? track.store != null
-                            ? track.store!.ratingCount
-                            : '' as int?
-                        : track.deliveryMan!.ratingCount,
-                  ),
-                ])),
+                    child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                      Text(
+                        takeAway
+                            ? track.store != null
+                                ? track.store!.name!
+                                : ''
+                            : '${track.deliveryMan!.fName} ${track.deliveryMan!.lName}',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: robotoMedium.copyWith(
+                            fontSize: Dimensions.fontSizeExtraSmall),
+                      ),
+                      RatingBar(
+                        rating: takeAway
+                            ? track.store != null
+                                ? track.store!.avgRating
+                                : '' as double?
+                            : track.deliveryMan!.avgRating,
+                        size: 10,
+                        ratingCount: takeAway
+                            ? track.store != null
+                                ? track.store!.ratingCount
+                                : '' as int?
+                            : track.deliveryMan!.ratingCount,
+                      ),
+                    ])),
                 InkWell(
                   onTap: () async {
                     if (await canLaunchUrlString(
@@ -242,14 +285,18 @@ class TrackDetailsViewWidget extends StatelessWidget {
                   },
                   child: Container(
                     padding: const EdgeInsets.symmetric(
-                        vertical: Dimensions.paddingSizeExtraSmall, horizontal: Dimensions.paddingSizeSmall),
+                        vertical: Dimensions.paddingSizeExtraSmall,
+                        horizontal: Dimensions.paddingSizeSmall),
                     decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(Dimensions.radiusSmall),
+                      borderRadius:
+                          BorderRadius.circular(Dimensions.radiusSmall),
                       color: Colors.green,
                     ),
                     child: Text(
                       'call'.tr,
-                      style: robotoRegular.copyWith(fontSize: Dimensions.fontSizeExtraSmall, color: Theme.of(context).cardColor),
+                      style: robotoRegular.copyWith(
+                          fontSize: Dimensions.fontSizeExtraSmall,
+                          color: Theme.of(context).cardColor),
                     ),
                   ),
                 ),
@@ -259,13 +306,17 @@ class TrackDetailsViewWidget extends StatelessWidget {
                         onTap: () => _showContactOptions(context, takeAway),
                         child: Container(
                           padding: EdgeInsets.symmetric(
-                              vertical: Get.context!.width >= 1300 ? 7 : Dimensions.paddingSizeExtraSmall,
+                              vertical: Get.context!.width >= 1300
+                                  ? 7
+                                  : Dimensions.paddingSizeExtraSmall,
                               horizontal: Dimensions.paddingSizeSmall),
                           decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(Dimensions.radiusSmall),
+                            borderRadius:
+                                BorderRadius.circular(Dimensions.radiusSmall),
                             color: Colors.green,
                           ),
-                          child: Icon(Icons.chat, size: 12, color: Theme.of(context).cardColor),
+                          child: Icon(Icons.chat,
+                              size: 12, color: Theme.of(context).cardColor),
                         ),
                       )
                     : const SizedBox(),

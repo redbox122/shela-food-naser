@@ -439,7 +439,7 @@ Future<Map<String, Map<String, String>>> init() async {
   /// Service Interface
   final CheckoutServiceInterface checkoutServiceInterface =
       CheckoutService(checkoutRepositoryInterface: Get.find());
-  Get.lazyPut(() => checkoutServiceInterface);
+  Get.lazyPut(() => checkoutServiceInterface, fenix: true);
 
   final AuthServiceInterface authServiceInterface =
       AuthService(authRepositoryInterface: Get.find());
@@ -672,7 +672,8 @@ Future<Map<String, Map<String, String>>> init() async {
   Get.lazyPut(() => ParcelController(parcelServiceInterface: Get.find()));
   Get.lazyPut(() => ChatController(chatServiceInterface: Get.find()));
   Get.lazyPut(() => FlashSaleController(flashSaleServiceInterface: Get.find()));
-  Get.lazyPut(() => CheckoutController(checkoutServiceInterface: Get.find()));
+  Get.lazyPut(() => CheckoutController(checkoutServiceInterface: Get.find()),
+      fenix: true);
   Get.lazyPut(() => PaymentController(paymentServiceInterface: Get.find()));
   Get.lazyPut(() => HtmlController(htmlServiceInterface: Get.find()));
   Get.lazyPut(() => ReviewController(reviewServiceInterface: Get.find()));
@@ -811,8 +812,7 @@ Future<Map<String, Map<String, String>>> init() async {
       }
     } catch (fallbackError) {
       if (kDebugMode) {
-        appLogger.error(
-            '🔍 Error loading fallback language: $fallbackError',
+        appLogger.error('🔍 Error loading fallback language: $fallbackError',
             fallbackError);
       }
     }
