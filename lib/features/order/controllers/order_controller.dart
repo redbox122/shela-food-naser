@@ -632,9 +632,9 @@ class OrderController extends GetxController implements GetxService {
         await walletController.getWalletTransactionList('1', true, 'all');
       }
 
-      if (Get.isRegistered<KaidhaSubscription_Controller>()) {
-        final KaidhaSubscription_Controller qidhaController =
-            Get.find<KaidhaSubscription_Controller>();
+      if (Get.isRegistered<KaidhaSubscriptionController>()) {
+        final KaidhaSubscriptionController qidhaController =
+            Get.find<KaidhaSubscriptionController>();
 
         // Refresh now, then retry shortly because some backends apply refund asynchronously.
         await qidhaController.get_Wallet_Kaidh(forceRefresh: true);

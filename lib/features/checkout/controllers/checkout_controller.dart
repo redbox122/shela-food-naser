@@ -1947,7 +1947,7 @@ class CheckoutController extends GetxController implements GetxService {
   // 🥇 Anti-loop Guard: يستخدم PaymentFlowState لمنع أي navigation تلقائي
   Future<String> processPayment(
     context,
-    KaidhaSubscription_Controller kaidhaSubController,
+    KaidhaSubscriptionController kaidhaSubController,
     ProfileController profile_Controller,
     int? zoneID,
     double? maximumCodOrderAmount,
@@ -2290,7 +2290,7 @@ class CheckoutController extends GetxController implements GetxService {
   // ============================ LEGACY METHOD (for backward compatibility) ============================
   Future<String> placeOrder(
     context,
-    KaidhaSubscription_Controller kaidhaSubController,
+    KaidhaSubscriptionController kaidhaSubController,
     ProfileController profile_Controller,
     PlaceOrderBodyModel placeOrderBody,
     int? zoneID,

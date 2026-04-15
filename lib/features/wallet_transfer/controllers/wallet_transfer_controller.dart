@@ -170,7 +170,7 @@ class WalletTransferController extends GetxController implements GetxService {
       await Get.find<ProfileController>().getUserInfo();
     } else if (paymentSource == 'wallet_qidha') {
       // Update Qidha wallet balance
-      await Get.find<KaidhaSubscription_Controller>().get_Wallet_Kaidh();
+      await Get.find<KaidhaSubscriptionController>().get_Wallet_Kaidh();
     }
   }
 
@@ -274,7 +274,7 @@ class WalletTransferController extends GetxController implements GetxService {
 
     if (paymentSource == 'wallet_qidha') {
       final wallet =
-          Get.find<KaidhaSubscription_Controller>().walletKaidhaModel?.wallet;
+          Get.find<KaidhaSubscriptionController>().walletKaidhaModel?.wallet;
 
       final double availableBalance = wallet?.availableBalance is num
           ? (wallet!.availableBalance as num).toDouble()
@@ -292,7 +292,7 @@ class WalletTransferController extends GetxController implements GetxService {
     if (paymentSource == 'wallet') {
       return Get.find<ProfileController>().userInfoModel?.walletBalance ?? 0;
     } else if (paymentSource == 'wallet_qidha') {
-      final balanceValue = Get.find<KaidhaSubscription_Controller>()
+      final balanceValue = Get.find<KaidhaSubscriptionController>()
           .walletKaidhaModel
           ?.wallet
           ?.availableBalance;

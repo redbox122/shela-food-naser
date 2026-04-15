@@ -314,7 +314,7 @@ class CategoryItemScreenState extends State<CategoryItemScreen>
     required String categoryId,
   }) {
     Get.bottomSheet<void>(
-      Search_Filter(categoryID: categoryId),
+      SearchFilter(categoryID: categoryId),
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
     );

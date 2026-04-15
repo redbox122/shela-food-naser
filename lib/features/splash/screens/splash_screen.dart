@@ -101,7 +101,7 @@ class SplashScreenState extends State<SplashScreen> {
     // ✅ OPTIMIZATION: Removed premature API calls
     // Previously called:
     // - HomeController.getBusiness_Settings() → caused /api/v1/business-settings/mobile-app-home-screen-setup
-    // - Offers_Controller.getOffers() → caused /api/v1/offers/active
+    // - OffersController.getOffers() → caused /api/v1/offers/active
     // - CartController.getCartDataOnline() → caused /api/v1/customer/cart/list
     //
     // These should NOT be called on splash screen because:

@@ -423,7 +423,7 @@ class CategoryController extends GetxController implements GetxService {
   static const int _searchPageSize = 10;
   int _searchOffset = 1;
   bool _hasMoreSearchResults = true;
-  Search_FilterModel? _activeSearchFilterModel;
+  SearchFilterModel? _activeSearchFilterModel;
   bool get hasMoreSearchResults => _hasMoreSearchResults;
 
   // ==================================================================================
@@ -1900,7 +1900,7 @@ class CategoryController extends GetxController implements GetxService {
     _currentHasDiscount = discount;
     _currentSearchName = research_Name;
 
-    final Search_FilterModel searchFiltermodel = Search_FilterModel(
+    final SearchFilterModel searchFiltermodel = SearchFilterModel(
       research_Name: research_Name,
       product_arrangement: product_arrangement,
       id_category: id_category,
@@ -1937,7 +1937,7 @@ class CategoryController extends GetxController implements GetxService {
     }
   }
 
-  void searchData({Search_FilterModel? search_filterModel}) async {
+  void searchData({SearchFilterModel? search_filterModel}) async {
     if (search_filterModel == null) {
       debugPrint('Error: search_filterModel is null');
       return;
@@ -1972,12 +1972,12 @@ class CategoryController extends GetxController implements GetxService {
   }
 
   Future<void> _fetchSearchPage({required bool append}) async {
-    final Search_FilterModel? baseFilter = _activeSearchFilterModel;
+    final SearchFilterModel? baseFilter = _activeSearchFilterModel;
     if (baseFilter == null) {
       return;
     }
 
-    final Search_FilterModel pagedFilter = Search_FilterModel(
+    final SearchFilterModel pagedFilter = SearchFilterModel(
       research_Name: baseFilter.research_Name,
       product_arrangement: baseFilter.product_arrangement,
       id_category: baseFilter.id_category,
@@ -2040,7 +2040,7 @@ class CategoryController extends GetxController implements GetxService {
   }
 
   Future<void> _fallbackToGeneralSearch(
-      Search_FilterModel searchFilterModel) async {
+      SearchFilterModel searchFilterModel) async {
     if (_isStore) {
       _searchStoreList = [];
       return;

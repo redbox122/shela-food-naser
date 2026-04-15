@@ -1,5 +1,3 @@
-import 'dart:convert';
-
 import 'package:get/get.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:sixam_mart/api/api_client.dart';
@@ -8,7 +6,7 @@ import 'package:sixam_mart/features/auth/domain/models/store_body_model.dart';
 import 'package:sixam_mart/features/auth/domain/reposotories/store_registration_repository_interface.dart';
 import 'package:sixam_mart/features/business/domain/models/package_model.dart';
 import 'package:sixam_mart/util/app_constants.dart';
-import 'package:http/http.dart' as http;
+import 'package:dio/dio.dart' as dio_pkg;
 import 'package:flutter/foundation.dart';
 import 'package:sixam_mart/common/utils/app_logger.dart';
 
@@ -29,32 +27,25 @@ class StoreRegistrationRepository
           statusCode: 401, statusText: 'Unauthorized: Missing token');
     }
 
-    final uri = Uri.parse(AppConstants.baseUrl + AppConstants.storeRegisterUri);
-    final request = http.MultipartRequest('POST', uri);
-
-    request.headers.addAll({
-      'Accept': 'application/json',
-      'X-localization': 'en',
-      'Authorization': 'Bearer ${apiClient.token}',
-    });
-
-    request.fields.addAll({
-      'f_name': store.fName!,
-      'l_name': store.lName!,
-      'latitude': store.lat!,
-      'longitude': store.lng!,
-      'email': store.email!,
-      'phone': store.phone!,
-      'minimum_delivery_time': store.minDeliveryTime!,
-      'maximum_delivery_time': store.maxDeliveryTime!,
-      'delivery_time_type': store.deliveryTimeType!,
-      'password': store.password!,
-      'zone_id': store.zoneId!,
-      'module_id': store.moduleId!,
-      'tax': store.tax!,
-      'tax_cal': 'percent', // لا تتركه فارغ
-      'translations': store.translation!,
-    });
+    final url = AppConstants.baseUrl + AppConstants.storeRegisterUri;
+    final formData = dio_pkg.FormData();
+    formData.fields.addAll([
+      MapEntry('f_name', store.fName!),
+      MapEntry('l_name', store.lName!),
+      MapEntry('latitude', store.lat!),
+      MapEntry('longitude', store.lng!),
+      MapEntry('email', store.email!),
+      MapEntry('phone', store.phone!),
+      MapEntry('minimum_delivery_time', store.minDeliveryTime!),
+      MapEntry('maximum_delivery_time', store.maxDeliveryTime!),
+      MapEntry('delivery_time_type', store.deliveryTimeType!),
+      MapEntry('password', store.password!),
+      MapEntry('zone_id', store.zoneId!),
+      MapEntry('module_id', store.moduleId!),
+      MapEntry('tax', store.tax!),
+      MapEntry('tax_cal', 'percent'),
+      MapEntry('translations', store.translation!),
+    ]);
     if (kDebugMode) {
       final maskedPhone = store.phone != null && store.phone!.length > 4
           ? '${store.phone!.substring(0, 4)}***'
@@ -71,35 +62,54 @@ class StoreRegistrationRepository
     }
 
     if (logo != null) {
-      request.files.add(await http.MultipartFile.fromPath('logo', logo.path));
+      formData.files.add(MapEntry(
+        'logo',
+        await dio_pkg.MultipartFile.fromFile(logo.path),
+      ));
     }
     if (cover != null) {
-      request.files
-          .add(await http.MultipartFile.fromPath('cover_photo', cover.path));
+      formData.files.add(MapEntry(
+        'cover_photo',
+        await dio_pkg.MultipartFile.fromFile(cover.path),
+      ));
     }
 
     try {
-      final http.StreamedResponse response = await request.send();
-      final body = await response.stream.bytesToString();
+      final dio = dio_pkg.Dio();
+      final dioResponse = await dio.post<dynamic>(
+        url,
+        data: formData,
+        options: dio_pkg.Options(
+          headers: {
+            'Accept': 'application/json',
+            'X-localization': 'en',
+            'Authorization': 'Bearer ${apiClient.token}',
+          },
+          validateStatus: (s) => s != null,
+        ),
+      );
+
       if (kDebugMode) {
-        appLogger.info('[StoreRegistration] Response status=${response.statusCode}');
+        appLogger.info('[StoreRegistration] Response status=${dioResponse.statusCode}');
       }
       if (kDebugMode && AppConstants.enableVerboseLogs) {
-        appLogger.debug('📩 Response: $body');
+        appLogger.debug('📩 Response: ${dioResponse.data}');
       }
 
       final Map<String, dynamic> jsonResponse =
-          jsonDecode(body) as Map<String, dynamic>;
+          (dioResponse.data is Map<String, dynamic>)
+              ? dioResponse.data as Map<String, dynamic>
+              : {};
       final bool hasErrors = jsonResponse['errors'] is List &&
           (jsonResponse['errors'] as List).isNotEmpty;
 
-      debugPrint('\x1B[32m  /${response.statusCode}   \x1B[0m');
+      debugPrint('\x1B[32m  /${dioResponse.statusCode}   \x1B[0m');
 
-      if ((response.statusCode == 200 || response.statusCode == 201) &&
+      if ((dioResponse.statusCode == 200 || dioResponse.statusCode == 201) &&
           !hasErrors) {
         Get.back();
         showCustomSnackBar('✅ تم إرسال الطلب بنجاح', isError: false);
-      } else if (response.statusCode == 500) {
+      } else if (dioResponse.statusCode == 500) {
         final String message = jsonResponse['message']?.toString().trim() ?? '';
         if (message.isNotEmpty) {
           showCustomSnackBar(message);
@@ -144,7 +154,7 @@ class StoreRegistrationRepository
         }
 
         debugPrint(
-            '\x1B[32m  / ${response.statusCode}    ${errorMessages.trim()}  \x1B[0m');
+            '\x1B[32m  / ${dioResponse.statusCode}    ${errorMessages.trim()}  \x1B[0m');
       } else if (jsonResponse.containsKey('message')) {
         // في حال كان الرد يحتوي فقط على رسالة عامة
         final String message = jsonResponse['message']?.toString() ?? '';
@@ -158,8 +168,8 @@ class StoreRegistrationRepository
 
       return Response(
         body: jsonResponse,
-        statusCode: response.statusCode,
-        statusText: response.reasonPhrase,
+        statusCode: dioResponse.statusCode,
+        statusText: dioResponse.statusMessage,
       );
     } catch (e) {
       showCustomSnackBar('❌ حدث خطأ أثناء الاتصال بالخادم');

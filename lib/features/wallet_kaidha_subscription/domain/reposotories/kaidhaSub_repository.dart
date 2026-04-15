@@ -3,7 +3,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:http/http.dart' as http;
+import 'package:dio/dio.dart' as dio_pkg;
 import 'package:sixam_mart/api/api_client.dart';
 import 'package:sixam_mart/common/widgets/custom_snackbar.dart';
 // import 'package:sixam_mart/common/widgets/dialog/wallet_dialog.dart';
@@ -25,7 +25,7 @@ import 'package:sixam_mart/common/exceptions/validation_exception.dart';
 
 class KaidhaSubRepository implements KaidhaSubRepositoryInterface {
   final ApiClient apiClient;
-  http.MultipartFile? signatureFile;
+  dio_pkg.MultipartFile? signatureFile;
 
   KaidhaSubRepository({required this.apiClient, this.signatureFile});
 
@@ -79,32 +79,25 @@ class KaidhaSubRepository implements KaidhaSubRepositoryInterface {
       return false;
     }
 
-    final headers = {
-      'Accept': 'application/json',
-      'Authorization': 'Bearer ${apiClient.token}'
-    };
+    final url = AppConstants.baseUrl + AppConstants.store_qidhaUri;
+    final formData = dio_pkg.FormData();
 
-    final uri = Uri.parse(AppConstants.baseUrl + AppConstants.store_qidhaUri);
-
-    final request = http.MultipartRequest('POST', uri);
-
-    request.headers.addAll(headers);
-
-    request.fields.clear();
     debugPrint('📤 Sending fields to server:');
     kaidhaSub.toJson().forEach((key, value) {
-      request.fields[key] = value.toString();
+      formData.fields.add(MapEntry(key, value.toString()));
       debugPrint('   $key: $value');
     });
-    debugPrint('?? Final request fields (map): ${jsonEncode(request.fields)}');
+    debugPrint('?? Final request fields: ${formData.fields}');
 
     if (list_img.isNotEmpty) {
       debugPrint('📁 Sending files:');
       for (final file in list_img) {
         if (file.file.path != null && file.file.path!.isNotEmpty) {
           debugPrint('   - ${file.name}: ${file.file.path}');
-          request.files.add(await http.MultipartFile.fromPath(
-              'attachments[]', file.file.path!));
+          formData.files.add(MapEntry(
+            'attachments[]',
+            await dio_pkg.MultipartFile.fromFile(file.file.path!),
+          ));
         }
       }
     } else {
@@ -113,16 +106,28 @@ class KaidhaSubRepository implements KaidhaSubRepositoryInterface {
 
     // ==========================================
 
-    final http.StreamedResponse response = await request.send();
-    final String responseBody = await response.stream.bytesToString();
+    final dio = dio_pkg.Dio();
+    final dioResponse = await dio.post<dynamic>(
+      url,
+      data: formData,
+      options: dio_pkg.Options(
+        headers: {
+          'Accept': 'application/json',
+          'Authorization': 'Bearer ${apiClient.token}',
+        },
+        validateStatus: (s) => s != null,
+      ),
+    );
 
-    debugPrint('\x1B[32m   Stor_info:   ${response.statusCode}  \x1B[0m');
-    debugPrint('📋 Response Body: $responseBody');
-    debugPrint('📋 Response Headers: ${response.headers}');
+    debugPrint('\x1B[32m   Stor_info:   ${dioResponse.statusCode}  \x1B[0m');
+    debugPrint('📋 Response Body: ${dioResponse.data}');
+    debugPrint('📋 Response Headers: ${dioResponse.headers}');
 
-    if (response.statusCode == 200 || response.statusCode == 201) {
+    if (dioResponse.statusCode == 200 || dioResponse.statusCode == 201) {
       final Map<String, dynamic> decodedJson =
-          jsonDecode(responseBody) as Map<String, dynamic>;
+          dioResponse.data is Map<String, dynamic>
+              ? dioResponse.data as Map<String, dynamic>
+              : {};
       final ResponseApiIncomeSourceModel model =
           ResponseApiIncomeSourceModel.fromJson(decodedJson);
 
@@ -131,14 +136,16 @@ class KaidhaSubRepository implements KaidhaSubRepositoryInterface {
 
       return true;
     } else {
-      debugPrint('❌ Server error: ${response.statusCode}');
-      debugPrint('📋 Error response body: $responseBody');
+      debugPrint('❌ Server error: ${dioResponse.statusCode}');
+      debugPrint('📋 Error response body: ${dioResponse.data}');
 
       try {
         final Map<String, dynamic> decodedJson =
-            jsonDecode(responseBody) as Map<String, dynamic>;
+            dioResponse.data is Map<String, dynamic>
+                ? dioResponse.data as Map<String, dynamic>
+                : {};
 
-        if (response.statusCode == 422 && decodedJson['errors'] is List) {
+        if (dioResponse.statusCode == 422 && decodedJson['errors'] is List) {
           final List<dynamic> errors = decodedJson['errors'] as List<dynamic>;
           final Map<String, String> fieldErrors = {};
           for (final item in errors) {
@@ -225,8 +232,8 @@ class KaidhaSubRepository implements KaidhaSubRepositoryInterface {
         }
       } catch (e) {
         debugPrint('❌ Error parsing server response: $e');
-        debugPrint('📋 Raw response: $responseBody');
-        showCustomSnackBar('خطأ في استجابة الخادم: ${response.statusCode}');
+        debugPrint('📋 Raw response: ${dioResponse.data}');
+        showCustomSnackBar('خطأ في استجابة الخادم: ${dioResponse.statusCode}');
         return false;
       }
     }
@@ -518,18 +525,20 @@ class KaidhaSubRepository implements KaidhaSubRepositoryInterface {
         debugPrint('⚠️ لم يتم العثور على بيانات المحفظة - سيتم جلب العقد العادي');
       }
 
-      final request =
-          http.Request('GET', Uri.parse('${AppConstants.baseUrl}$pdfEndpoint'));
-
-      request.headers.addAll(headers);
-
       debugPrint('📤 جاري جلب عقد PDF من الخادم... ($pdfEndpoint)');
 
-      final streamedResponse = await request.send();
+      final dioPdf = dio_pkg.Dio();
+      final pdfResponse = await dioPdf.get<List<int>>(
+        '${AppConstants.baseUrl}$pdfEndpoint',
+        options: dio_pkg.Options(
+          headers: headers,
+          responseType: dio_pkg.ResponseType.bytes,
+          validateStatus: (s) => s != null,
+        ),
+      );
 
-      if (streamedResponse.statusCode == 200 ||
-          streamedResponse.statusCode == 201) {
-        final bytes = await streamedResponse.stream.toBytes();
+      if (pdfResponse.statusCode == 200 || pdfResponse.statusCode == 201) {
+        final bytes = pdfResponse.data ?? <int>[];
 
         if (bytes.isEmpty) {
           debugPrint('⚠️ تم استلام ملف فارغ');
@@ -545,16 +554,14 @@ class KaidhaSubRepository implements KaidhaSubRepositoryInterface {
         debugPrint('✅ تم تنزيل العقد (${bytes.length} بايت)');
         debugPrint('📁 المسار: $filePath');
         debugPrint('🔗 النقطة المستخدمة: $pdfEndpoint');
-        Pdf_Model =
-            ContractPdfModel(filePath: filePath, fileSize: bytes.length);
+        Pdf_Model = ContractPdfModel(filePath: filePath, fileSize: bytes.length);
 
         return Pdf_Model;
       } else {
-        debugPrint('❌ فشل التنزيل - الرمز: ${streamedResponse.statusCode}');
-        debugPrint('📄 السبب: ${streamedResponse.reasonPhrase}');
+        debugPrint('❌ فشل التنزيل - الرمز: ${pdfResponse.statusCode}');
         debugPrint('🔗 النقطة المستخدمة: $pdfEndpoint');
         throw Exception(
-            'Failed to download PDF. Status: ${streamedResponse.statusCode}');
+            'Failed to download PDF. Status: ${pdfResponse.statusCode}');
       }
     } catch (e) {
       debugPrint('❌ حدث خطأ غير متوقع أثناء تحميل PDF');
@@ -662,6 +669,7 @@ class KaidhaSubRepository implements KaidhaSubRepositoryInterface {
   }
   // send National Id   =========================
 
+  @override
   Future<NafathRandomModel?> Nafath_send_National_Id(
       BuildContext context, String nationalId) async {
     NafathRandomModel model = NafathRandomModel();

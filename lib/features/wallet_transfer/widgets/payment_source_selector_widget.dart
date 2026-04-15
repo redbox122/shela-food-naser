@@ -59,7 +59,7 @@ class _PaymentSourceSelectorWidgetState extends State<PaymentSourceSelectorWidge
         const SizedBox(height: Dimensions.paddingSizeSmall),
         
         // Qidha Wallet Option
-        GetBuilder<KaidhaSubscription_Controller>(
+        GetBuilder<KaidhaSubscriptionController>(
           builder: (kaidhaController) {
             final bool hasQidhaWallet = kaidhaController.walletKaidhaModel?.wallet != null &&
                 kaidhaController.walletKaidhaModel!.wallet!.signatureStatus == 1 &&

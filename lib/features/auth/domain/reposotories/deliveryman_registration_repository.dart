@@ -11,7 +11,7 @@ import 'package:sixam_mart/features/auth/domain/models/delivery_man_body.dart';
 import 'package:sixam_mart/features/auth/domain/models/delivery_man_vehicles_model.dart';
 import 'package:sixam_mart/features/auth/domain/reposotories/deliveryman_registration_repository_interface.dart';
 import 'package:sixam_mart/util/app_constants.dart';
-import 'package:http/http.dart' as http;
+import 'package:dio/dio.dart' as dio_pkg;
 
 class DeliverymanRegistrationRepository
     implements DeliverymanRegistrationRepositoryInterface {
@@ -34,61 +34,61 @@ class DeliverymanRegistrationRepository
       return false;
     }
 
-    final headers = {
-      'Accept': 'application/json',
-      'Authorization': 'Bearer ${apiClient.token}'
-    };
-    final uri = Uri.parse(AppConstants.baseUrl + AppConstants.dmRegisterUri);
-    final request = http.MultipartRequest('POST', uri);
+    final url = AppConstants.baseUrl + AppConstants.dmRegisterUri;
+    final formData = dio_pkg.FormData();
 
-    request.fields.addAll({
-      'f_name': deliveryManBody.fName!,
-      'identity_type': deliveryManBody.identityType!,
-      'identity_number': deliveryManBody.identityNumber!,
-      'email': deliveryManBody.email!,
-      'phone': deliveryManBody.phone!,
-      'password': deliveryManBody.password!,
-      'zone_id': deliveryManBody.zoneId.toString(),
-      'vehicle_id': deliveryManBody.vehicleId.toString(),
-      'earning': deliveryManBody.earning.toString(),
-    });
+    formData.fields.addAll([
+      MapEntry('f_name', deliveryManBody.fName!),
+      MapEntry('identity_type', deliveryManBody.identityType!),
+      MapEntry('identity_number', deliveryManBody.identityNumber!),
+      MapEntry('email', deliveryManBody.email!),
+      MapEntry('phone', deliveryManBody.phone!),
+      MapEntry('password', deliveryManBody.password!),
+      MapEntry('zone_id', deliveryManBody.zoneId.toString()),
+      MapEntry('vehicle_id', deliveryManBody.vehicleId.toString()),
+      MapEntry('earning', deliveryManBody.earning.toString()),
+    ]);
 
-    // هوية
     for (final file in identityImages) {
-      request.files.add(
-          await http.MultipartFile.fromPath('identity_image[]', file.path));
+      formData.files.add(MapEntry(
+        'identity_image[]',
+        await dio_pkg.MultipartFile.fromFile(file.path),
+      ));
     }
-
-    // رخصة القيادة
     for (final file in vehicleLicenseImages) {
-      request.files.add(await http.MultipartFile.fromPath(
-          'driving_license_image[]', file.path));
+      formData.files.add(MapEntry(
+        'driving_license_image[]',
+        await dio_pkg.MultipartFile.fromFile(file.path),
+      ));
     }
-
-    // رخصة السائق
     for (final file in driverLicenseImages) {
-      request.files.add(await http.MultipartFile.fromPath(
-          'driver_license_image[]', file.path));
+      formData.files.add(MapEntry(
+        'driver_license_image[]',
+        await dio_pkg.MultipartFile.fromFile(file.path),
+      ));
     }
 
-    request.headers.addAll(headers);
+    final dio = dio_pkg.Dio();
+    final dioResponse = await dio.post<dynamic>(
+      url,
+      data: formData,
+      options: dio_pkg.Options(
+        headers: {
+          'Accept': 'application/json',
+          'Authorization': 'Bearer ${apiClient.token}',
+        },
+        validateStatus: (s) => s != null,
+      ),
+    );
 
-    final http.StreamedResponse response = await request.send();
+    debugPrint('\x1B[32m     ${dioResponse.statusCode} \x1B[0m');
+    debugPrint('✅ Response Body:\n${dioResponse.data}');
 
-    //
-
-    final body = await response.stream.bytesToString();
-
-    debugPrint('\x1B[32m     ${response.statusCode} \x1B[0m');
-
-    debugPrint('✅ Response Body:\n$body');
-
-    if (response.statusCode == 200) {
-      debugPrint('\x1B[32m ✅    ${response.reasonPhrase} \x1B[0m');
-
+    if (dioResponse.statusCode == 200) {
+      debugPrint('\x1B[32m ✅    ${dioResponse.statusMessage} \x1B[0m');
       return true;
     } else {
-      debugPrint('❌ Error: ${response.statusCode}');
+      debugPrint('❌ Error: ${dioResponse.statusCode}');
       return false;
     }
   }

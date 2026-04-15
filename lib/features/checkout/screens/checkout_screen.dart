@@ -342,7 +342,7 @@ class CheckoutScreenState extends State<CheckoutScreen> {
 
       // Load Qidha wallet data immediately and wait for completion
       debugPrint('🔄 Loading Qidha wallet data immediately...');
-      await Get.find<KaidhaSubscription_Controller>().get_Wallet_Kaidh();
+      await Get.find<KaidhaSubscriptionController>().get_Wallet_Kaidh();
       debugPrint('✅ Qidha wallet data loaded successfully');
     }
 
@@ -496,8 +496,8 @@ class CheckoutScreenState extends State<CheckoutScreen> {
     final bool guestCheckoutPermission = AuthHelper.isGuestLoggedIn() &&
         Get.find<SplashController>().configModel!.guestCheckoutStatus!;
     final bool isLoggedIn = AuthHelper.isLoggedIn();
-    final KaidhaSubscription_Controller kaidhaSubController =
-        Get.find<KaidhaSubscription_Controller>();
+    final KaidhaSubscriptionController kaidhaSubController =
+        Get.find<KaidhaSubscriptionController>();
 
     return Scaffold(
       appBar: CustomAppBar(title: 'checkout'.tr),
@@ -1268,7 +1268,7 @@ class CheckoutScreenState extends State<CheckoutScreen> {
   }
 
   Widget _orderPlaceButton(
-      KaidhaSubscription_Controller kaidhaSubController,
+      KaidhaSubscriptionController kaidhaSubController,
       CheckoutController checkoutController,
       bool todayClosed,
       bool tomorrowClosed,
@@ -1786,7 +1786,7 @@ class CheckoutScreenState extends State<CheckoutScreen> {
                             final String paymentResult =
                                 await checkoutController.processPayment(
                               context,
-                              Get.find<KaidhaSubscription_Controller>(),
+                              Get.find<KaidhaSubscriptionController>(),
                               Get.find<ProfileController>(),
                               checkoutController.store!.zoneId,
                               maxCodOrderAmount,

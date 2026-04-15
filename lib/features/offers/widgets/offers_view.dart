@@ -38,8 +38,8 @@ class OffersView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GetBuilder<Offers_Controller>(
-      builder: (Offers_Controller controller) {
+    return GetBuilder<OffersController>(
+      builder: (OffersController controller) {
         final List<Datum> rawOffers = controller.offersMode?.data ?? <Datum>[];
         final List<Datum> offers = rawOffers
             .where((Datum o) => !_isInvestInQidhaOfferCard(o))

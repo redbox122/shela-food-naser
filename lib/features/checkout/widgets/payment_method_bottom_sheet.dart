@@ -120,7 +120,7 @@ class _PaymentMethodBottomSheetState extends State<PaymentMethodBottomSheet> {
                       : 0),
                 ),
               ),
-              child: GetBuilder<KaidhaSubscription_Controller>(
+              child: GetBuilder<KaidhaSubscriptionController>(
                 builder: (KaidhaSubController) {
                   return GetBuilder<CheckoutController>(
                       builder: (checkoutController) {

@@ -226,8 +226,8 @@ class BootstrapDataLoader {
       // Offers
       if (bootstrapModel.offers != null &&
           bootstrapModel.offers!.data.isNotEmpty &&
-          Get.isRegistered<Offers_Controller>()) {
-        final offersController = Get.find<Offers_Controller>();
+          Get.isRegistered<OffersController>()) {
+        final offersController = Get.find<OffersController>();
         offersController.setOfferDataFromBootstrap(bootstrapModel.offers!);
         if (kDebugMode) {
           debugPrint(

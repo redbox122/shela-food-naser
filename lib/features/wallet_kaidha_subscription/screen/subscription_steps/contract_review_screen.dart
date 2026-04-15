@@ -42,7 +42,7 @@ class _Contract_ReviewScreenState extends State<Contract_ReviewScreen> {
     });
 
     try {
-      final controller = Get.find<KaidhaSubscription_Controller>();
+      final controller = Get.find<KaidhaSubscriptionController>();
       ContractPdfModel? pdfModel = controller.contract_Pdf_Model;
 
       // If screen is opened directly, fetch PDF before rendering.
@@ -96,7 +96,7 @@ class _Contract_ReviewScreenState extends State<Contract_ReviewScreen> {
     }
 
     if (_errorMessage != null) {
-      return GetBuilder<KaidhaSubscription_Controller>(
+      return GetBuilder<KaidhaSubscriptionController>(
         builder: (KaidhaSubController) {
           return Center(
             child: Column(

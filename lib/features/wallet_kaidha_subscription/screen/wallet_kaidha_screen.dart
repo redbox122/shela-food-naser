@@ -54,7 +54,7 @@ class _WalletKaidhaScreenState extends State<WalletKaidhaScreen> {
 
     // Listen to focus changes on custom amount field
     _customAmountFocusListener = () {
-      final controller = Get.find<KaidhaSubscription_Controller>();
+      final controller = Get.find<KaidhaSubscriptionController>();
 
       if (_customAmountFocusNode.hasFocus) {
         if (kDebugMode) {
@@ -102,7 +102,7 @@ class _WalletKaidhaScreenState extends State<WalletKaidhaScreen> {
     }
     
     WidgetsBinding.instance.addPostFrameCallback((_) async {
-      final controller = Get.find<KaidhaSubscription_Controller>();
+      final controller = Get.find<KaidhaSubscriptionController>();
       
       // ⚡ TASK 3: SWR Pattern - Show UI instantly with partial data from Profile
       _safeSetState(() {});
@@ -155,7 +155,7 @@ class _WalletKaidhaScreenState extends State<WalletKaidhaScreen> {
 
   /// ⚡ TASK 4: Payment validation retry - loads payment methods with retry logic
   /// If usedBalance is missing/invalid, forces wallet fetch and retries
-  Future<void> _loadPaymentMethodsWithRetry(KaidhaSubscription_Controller controller) async {
+  Future<void> _loadPaymentMethodsWithRetry(KaidhaSubscriptionController controller) async {
     if (controller.hasNoWallet) {
       if (kDebugMode) {
         debugPrint('💳 [WalletKaidhaScreen] No wallet detected - skipping payment methods load');
@@ -274,7 +274,7 @@ class _WalletKaidhaScreenState extends State<WalletKaidhaScreen> {
 
   /// Build payment method selector UI
   /// Displays available payment methods (VISA, mada, STC Pay, etc.)
-  Widget _buildPaymentMethodSelector(KaidhaSubscription_Controller controller) {
+  Widget _buildPaymentMethodSelector(KaidhaSubscriptionController controller) {
     final theme = Theme.of(context);
     final tokens = theme.extension<AppColorTokens>();
 
@@ -410,7 +410,7 @@ class _WalletKaidhaScreenState extends State<WalletKaidhaScreen> {
           title: 'kiadha_wallet'.tr,
           icon: Icons.arrow_back_sharp,
           titleIcon: Icons.account_balance_wallet_outlined),
-      body: GetBuilder<KaidhaSubscription_Controller>(
+      body: GetBuilder<KaidhaSubscriptionController>(
           builder: (KaidhaSubController) {
         final wallet = KaidhaSubController.walletKaidhaModel?.wallet;
         return SingleChildScrollView(

@@ -197,7 +197,7 @@ class StoreService implements StoreServiceInterface {
 
   @override
   Future<Response> get_new_search_filtera(
-      {required Search_FilterModel search_filterModel}) async {
+      {required SearchFilterModel search_filterModel}) async {
     return await storeRepositoryInterface.get_new_search_filtera(
         search_filterModel: search_filterModel);
   }

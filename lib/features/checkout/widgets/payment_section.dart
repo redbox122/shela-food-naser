@@ -84,7 +84,7 @@ class _PaymentSectionState extends State<PaymentSection> {
               //   partialPayView: widget.partialPayView,
               // ),
 
-              GetBuilder<KaidhaSubscription_Controller>(
+              GetBuilder<KaidhaSubscriptionController>(
                   builder: (KaidhaSub_Controller) {
                 return GetBuilder<ProfileController>(
                     builder: (profileController) {
@@ -460,7 +460,7 @@ class _PaymentSectionState extends State<PaymentSection> {
   String _getWalletBalance(int index) {
     switch (index) {
       case 0: // Qidha Wallet
-        final kaidhaController = Get.find<KaidhaSubscription_Controller>();
+        final kaidhaController = Get.find<KaidhaSubscriptionController>();
         if (kaidhaController.walletKaidhaModel?.wallet?.availableBalance !=
             null) {
           final double balance = double.tryParse(kaidhaController

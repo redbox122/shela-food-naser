@@ -2288,9 +2288,9 @@ class SplashController extends GetxController implements GetxService {
       }
     }
 
-    if (Get.isRegistered<Offers_Controller>()) {
+    if (Get.isRegistered<OffersController>()) {
       try {
-        final offersController = Get.find<Offers_Controller>();
+        final offersController = Get.find<OffersController>();
         // ⚡ Check if has cached data before reset
         final hasCachedData = offersController.offersMode != null &&
             offersController.offersMode!.data.isNotEmpty;
@@ -2298,16 +2298,16 @@ class SplashController extends GetxController implements GetxService {
           offersController.resetToDefault();
           if (kDebugMode) {
             debugPrint(
-                '[Cache-First] SplashController: Reset Offers_Controller (forceClear=$forceClear)');
+                '[Cache-First] SplashController: Reset OffersController (forceClear=$forceClear)');
           }
         } else if (kDebugMode) {
           debugPrint(
-              '[Cache-First] SplashController: Preserving Offers_Controller cached data');
+              '[Cache-First] SplashController: Preserving OffersController cached data');
         }
       } catch (e) {
         if (kDebugMode) {
           debugPrint(
-              '⚠️ SplashController: Error resetting Offers_Controller: $e');
+              '⚠️ SplashController: Error resetting OffersController: $e');
         }
       }
     }
@@ -2714,9 +2714,9 @@ class SplashController extends GetxController implements GetxService {
       // Reason: home-unified returns correct active offers while /api/v1/offers/active
       // may return empty due to different backend filtering, which would overwrite
       // valid offers already loaded during the preload phase.
-      if (Get.isRegistered<Offers_Controller>()) {
+      if (Get.isRegistered<OffersController>()) {
         try {
-          final offersController = Get.find<Offers_Controller>();
+          final offersController = Get.find<OffersController>();
           bool loadedFromUnified = false;
 
           if (Get.isRegistered<HomeUnifiedController>()) {

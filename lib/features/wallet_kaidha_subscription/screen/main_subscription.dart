@@ -6,7 +6,7 @@ import 'package:lifecycle_controller/lifecycle_controller.dart';
 import 'package:sixam_mart/common/widgets/custom_snackbar.dart';
 import 'package:sixam_mart/features/auth/controllers/auth_controller.dart';
 import 'package:sixam_mart/features/profile/controllers/profile_controller.dart';
-import 'package:sixam_mart/features/wallet_kaidha_subscription/controllers/Lifecycle_KaidhaController.dart';
+import 'package:sixam_mart/features/wallet_kaidha_subscription/controllers/LifecycleKaidhaController.dart';
 import 'package:sixam_mart/features/wallet_kaidha_subscription/controllers/kaidhaSub_controller.dart';
 import 'package:sixam_mart/features/wallet_kaidha_subscription/screen/show_pdf_screen.dart';
 import 'package:sixam_mart/features/wallet_kaidha_subscription/screen/subscription_steps/step1_screen.dart';
@@ -37,7 +37,7 @@ class _KiadaWalletSubscriptionScreenState
   }
 
   Future<void> getDate() async {
-    final KaidhaSubController = Get.find<KaidhaSubscription_Controller>();
+    final KaidhaSubController = Get.find<KaidhaSubscriptionController>();
     final profileController = Get.find<ProfileController>();
 
     WidgetsBinding.instance.addPostFrameCallback((_) async {
@@ -94,9 +94,9 @@ class _KiadaWalletSubscriptionScreenState
   @override
   Widget build(BuildContext context) {
     return LifecycleScope.create(
-      create: () => Lifecycle_KaidhaController(),
+      create: () => LifecycleKaidhaController(),
       builder: (context) {
-        return GetBuilder<KaidhaSubscription_Controller>(
+        return GetBuilder<KaidhaSubscriptionController>(
           builder: (KaidhaSubController) {
             // ✅ تمرير لأعلى فقط عند الوصول إلى المرحلة 2
             if (KaidhaSubController.currentStage == 2) {
@@ -147,7 +147,7 @@ class _KiadaWalletSubscriptionScreenState
                                   KaidhaSubController.walletKaidhaModel!.wallet!
                                           .signatureStatus ==
                                       true))
-                          ? const Show_Pdf_Screen()
+                          ? const ShowPdfScreen()
                           : Column(
                               children: [
                                 const StagesWidget(),
@@ -161,7 +161,7 @@ class _KiadaWalletSubscriptionScreenState
                                             : KaidhaSubController
                                                         .currentStage ==
                                                     2
-                                                ? const Step_2_Screen()
+                                                ? const Step2Screen()
                                                 : KaidhaSubController
                                                             .currentStage ==
                                                         3
@@ -169,7 +169,7 @@ class _KiadaWalletSubscriptionScreenState
                                                         height: height_media(
                                                                 context) /
                                                             1.5,
-                                                        child: const Step_3_Screen(),
+                                                        child: const Step3Screen(),
                                                       )
                                                     : const SizedBox(),
                                       ],

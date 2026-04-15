@@ -39,7 +39,7 @@ class _PaymentOptionsState extends State<PaymentOptions> {
         'amount': minimumDueAmount,
       },
     ];
-    return GetBuilder<KaidhaSubscription_Controller>(
+    return GetBuilder<KaidhaSubscriptionController>(
         builder: (KaidhaSubController) {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,

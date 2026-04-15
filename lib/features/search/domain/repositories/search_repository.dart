@@ -41,7 +41,7 @@ class SearchRepository implements SearchRepositoryInterface {
   Future<dynamic> getList({
     int? offset,
     String? query,
-    Search_FilterModel? search_filterModel,
+    SearchFilterModel? search_filterModel,
     bool? isStore,
     bool isSuggestedItems = false,
   }) async {
@@ -80,7 +80,7 @@ class SearchRepository implements SearchRepositoryInterface {
     return await apiClient.getData(uri);
   }
 
-  Future<Response<dynamic>> _getFilteredSearchData(Search_FilterModel searchFilterModel, bool isStore) async {
+  Future<Response<dynamic>> _getFilteredSearchData(SearchFilterModel searchFilterModel, bool isStore) async {
     // Hyper all-categories search is more stable on legacy endpoint and supports offset pagination.
     if ((searchFilterModel.id_category ?? '').trim().isEmpty) {
       return _getLegacyFilteredSearchData(searchFilterModel, isStore);
@@ -115,7 +115,7 @@ class SearchRepository implements SearchRepositoryInterface {
   }
 
   Future<Response<dynamic>> _getLegacyFilteredSearchData(
-    Search_FilterModel searchFilterModel,
+    SearchFilterModel searchFilterModel,
     bool isStore,
   ) async {
     final String offset = (searchFilterModel.offset ?? '1').trim().isEmpty

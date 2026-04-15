@@ -230,8 +230,8 @@ class AuthService implements AuthServiceInterface {
           debugPrint('   - Active: ${userData['qidha_wallet_active'] ?? false}');
           debugPrint('   - Balance: ${userData['qidha_wallet_balance'] ?? 'null'}');
           
-          if (Get.isRegistered<KaidhaSubscription_Controller>()) {
-            final kaidhaController = Get.find<KaidhaSubscription_Controller>();
+          if (Get.isRegistered<KaidhaSubscriptionController>()) {
+            final kaidhaController = Get.find<KaidhaSubscriptionController>();
             kaidhaController.setWalletStateFromLogin(
               signed: userData['qidha_wallet_signed'] == true,
               active: userData['qidha_wallet_active'] == true,
@@ -254,7 +254,7 @@ class AuthService implements AuthServiceInterface {
               debugPrint('⚡ AuthService: Wallet is signed and active - no API call needed (balance already set)');
             }
           } else {
-            debugPrint('⚠️ AuthService: KaidhaSubscription_Controller not registered');
+            debugPrint('⚠️ AuthService: KaidhaSubscriptionController not registered');
           }
         } else {
           debugPrint('ℹ️ AuthService: User has no Qidha wallet');

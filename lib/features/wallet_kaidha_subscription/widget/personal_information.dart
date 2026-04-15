@@ -23,7 +23,7 @@ class _PersonalInformationState extends State<PersonalInformation> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) async {
-      final kaidhaController = Get.find<KaidhaSubscription_Controller>();
+      final kaidhaController = Get.find<KaidhaSubscriptionController>();
       final profileController = Get.find<ProfileController>();
 
       if (profileController.userInfoModel == null) {
@@ -254,7 +254,7 @@ class _PersonalInformationState extends State<PersonalInformation> {
       },
     ];
 
-    return GetBuilder<KaidhaSubscription_Controller>(
+    return GetBuilder<KaidhaSubscriptionController>(
         builder: (KaidhaSub_Controller) {
       return Form(
         key: KaidhaSub_Controller.formstate,
@@ -319,7 +319,7 @@ class _PersonalInformationState extends State<PersonalInformation> {
             Focus(
               focusNode: KaidhaSub_Controller.nationalityFocus,
               child: Container(
-                key: KaidhaSubscription_Controller.nationalityKey,
+                key: KaidhaSubscriptionController.nationalityKey,
                 child: DropdownButtonFormField<String>(
                   // ignore: deprecated_member_use
                   value: (nationalities.firstWhere(
@@ -398,7 +398,7 @@ class _PersonalInformationState extends State<PersonalInformation> {
               text: 'number_of_family_members'.tr,
               context: context,
               focusNode: KaidhaSub_Controller.numberOfFamilyFocus,
-              containerKey: KaidhaSubscription_Controller.numberOfFamilyKey,
+              containerKey: KaidhaSubscriptionController.numberOfFamilyKey,
               isEmpty: KaidhaSub_Controller.isNumberOfFamilyEmpty,
             ),
 
@@ -411,7 +411,7 @@ class _PersonalInformationState extends State<PersonalInformation> {
               text: 'identity_card_number'.tr,
               context: context,
               focusNode: KaidhaSub_Controller.identityCardFocus,
-              containerKey: KaidhaSubscription_Controller.identityCardKey,
+              containerKey: KaidhaSubscriptionController.identityCardKey,
               isEmpty: KaidhaSub_Controller.isIdentityCardEmpty,
               errorKey: 'identity_card_number',
               errorText:
@@ -430,7 +430,7 @@ class _PersonalInformationState extends State<PersonalInformation> {
               text: 'phone_number'.tr,
               context: context,
               focusNode: KaidhaSub_Controller.phoneFocus,
-              containerKey: KaidhaSubscription_Controller.phoneKey,
+              containerKey: KaidhaSubscriptionController.phoneKey,
               isEmpty: KaidhaSub_Controller.isPhoneEmpty,
               errorKey: 'mobile',
               errorText: KaidhaSub_Controller.fieldErrors['mobile'],
@@ -476,7 +476,7 @@ class _PersonalInformationState extends State<PersonalInformation> {
               text: 'total_salary'.tr,
               context: context,
               focusNode: KaidhaSub_Controller.totalSalaryFocus,
-              containerKey: KaidhaSubscription_Controller.totalSalaryKey,
+              containerKey: KaidhaSubscriptionController.totalSalaryKey,
               isEmpty: KaidhaSub_Controller.isTotalSalaryEmpty,
             ),
 
@@ -488,7 +488,7 @@ class _PersonalInformationState extends State<PersonalInformation> {
   }
 
   Widget _buildInstallments(BuildContext context) {
-    final KaidhaSub_Controller = Get.find<KaidhaSubscription_Controller>();
+    final KaidhaSub_Controller = Get.find<KaidhaSubscriptionController>();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -527,7 +527,7 @@ class _PersonalInformationState extends State<PersonalInformation> {
   }
 
   Widget _buildMaritalStatusRadio(BuildContext context) {
-    final KaidhaSub_Controller = Get.find<KaidhaSubscription_Controller>();
+    final KaidhaSub_Controller = Get.find<KaidhaSubscriptionController>();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -575,7 +575,7 @@ class _PersonalInformationState extends State<PersonalInformation> {
   }
 
   Widget _buildHouseType(BuildContext context) {
-    return GetBuilder<KaidhaSubscription_Controller>(
+    return GetBuilder<KaidhaSubscriptionController>(
       builder: (c) => Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -776,7 +776,7 @@ class _PersonalInformationState extends State<PersonalInformation> {
       },
     ];
 
-    return GetBuilder<KaidhaSubscription_Controller>(
+    return GetBuilder<KaidhaSubscriptionController>(
       builder: (c) => Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -858,7 +858,7 @@ class _PersonalInformationState extends State<PersonalInformation> {
   }
 
   Widget _custom_number(
-    KaidhaSubscription_Controller KaidhaSub_Controller, {
+    KaidhaSubscriptionController KaidhaSub_Controller, {
     String? hintText,
     final bool? obscureText,
     final TextEditingController? mycontroller,
@@ -954,7 +954,7 @@ class _PersonalInformationState extends State<PersonalInformation> {
   }
 
   Widget _customTextFormAuth(
-    KaidhaSubscription_Controller KaidhaSub_Controller, {
+    KaidhaSubscriptionController KaidhaSub_Controller, {
     String? hintText,
     bool isNumber = false,
     bool? obscureText,
@@ -1032,7 +1032,7 @@ class _PersonalInformationState extends State<PersonalInformation> {
   }
 
   Widget _buildDate_old_10(BuildContext context,
-      KaidhaSubscription_Controller KaidhaSub_Controller) {
+      KaidhaSubscriptionController KaidhaSub_Controller) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1045,7 +1045,7 @@ class _PersonalInformationState extends State<PersonalInformation> {
         Focus(
           focusNode: KaidhaSub_Controller.birthDateFocus,
           child: Container(
-            key: KaidhaSubscription_Controller.birthDateKey, // <-- مهم
+            key: KaidhaSubscriptionController.birthDateKey, // <-- مهم
             child: TextFormField(
               controller:
                   TextEditingController(text: KaidhaSub_Controller.birthDate),
@@ -1089,7 +1089,7 @@ class _PersonalInformationState extends State<PersonalInformation> {
   }
 
   Future<void> _selectDate_Old_10(
-      BuildContext context, KaidhaSubscription_Controller controller) async {
+      BuildContext context, KaidhaSubscriptionController controller) async {
     final DateTime today = DateTime.now();
     final DateTime maxAllowedDate = DateTime(
         today.year - 10, today.month, today.day); // الحد الأقصى (العمر >= 10)
@@ -1116,7 +1116,7 @@ class _PersonalInformationState extends State<PersonalInformation> {
   }
 
   Widget _buildExpirationDateField(BuildContext context, {String? text}) {
-    final KaidhaSub_Controller = Get.find<KaidhaSubscription_Controller>();
+    final KaidhaSub_Controller = Get.find<KaidhaSubscriptionController>();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1128,7 +1128,7 @@ class _PersonalInformationState extends State<PersonalInformation> {
         ),
         const SizedBox(height: 10),
         TextFormField(
-          key: KaidhaSubscription_Controller.endDateKey,
+          key: KaidhaSubscriptionController.endDateKey,
           focusNode: KaidhaSub_Controller.endDateFocus,
           controller:
               TextEditingController(text: KaidhaSub_Controller.end_date),
@@ -1166,7 +1166,7 @@ class _PersonalInformationState extends State<PersonalInformation> {
               // التمرير إلى الحقل
               Future.delayed(const Duration(milliseconds: 100), () {
                 Scrollable.ensureVisible(
-                  KaidhaSubscription_Controller.endDateKey.currentContext!,
+                  KaidhaSubscriptionController.endDateKey.currentContext!,
                   duration: const Duration(milliseconds: 500),
                   curve: Curves.easeInOut,
                 );
@@ -1207,7 +1207,7 @@ class _PersonalInformationState extends State<PersonalInformation> {
     if (picked != null) {
       final formattedDate =
           "${picked.year}-${picked.month.toString().padLeft(2, '0')}-${picked.day.toString().padLeft(2, '0')}";
-      Get.find<KaidhaSubscription_Controller>()
+      Get.find<KaidhaSubscriptionController>()
           .updateExpirationDate(formattedDate);
     }
   }

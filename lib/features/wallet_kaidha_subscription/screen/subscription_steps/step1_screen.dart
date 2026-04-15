@@ -17,7 +17,7 @@ class Step_1_Screen extends StatefulWidget {
 class _Step_1_ScreenState extends State<Step_1_Screen> {
   @override
   Widget build(BuildContext context) {
-    return GetBuilder<KaidhaSubscription_Controller>(
+    return GetBuilder<KaidhaSubscriptionController>(
         builder: (KaidhaSubController) {
       return Padding(
         padding: const EdgeInsets.all(16.0),

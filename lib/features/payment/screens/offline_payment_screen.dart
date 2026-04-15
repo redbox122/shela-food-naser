@@ -84,7 +84,7 @@ class _OfflinePaymentScreenState extends State<OfflinePaymentScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final KaidhaSubscription_Controller KaidhaSubController = Get.find<KaidhaSubscription_Controller>();
+    final KaidhaSubscriptionController KaidhaSubController = Get.find<KaidhaSubscriptionController>();
 
     return Scaffold(
       appBar: CustomAppBar(title: 'offline_payment'.tr),
@@ -196,7 +196,7 @@ class _OfflinePaymentScreenState extends State<OfflinePaymentScreen> {
     );
   }
 
-  Widget completeButton(KaidhaSubscription_Controller KaidhaSubController, PaymentController paymentController,
+  Widget completeButton(KaidhaSubscriptionController KaidhaSubController, PaymentController paymentController,
       List<MethodInformations>? methodInformation) {
     if (methodInformation == null || methodInformation.isEmpty) {
       return const SizedBox();

@@ -11,7 +11,7 @@ class StagesWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GetBuilder<KaidhaSubscription_Controller>(
+    return GetBuilder<KaidhaSubscriptionController>(
       builder: (controller) {
         return Column(
           children: [
@@ -62,7 +62,7 @@ class StagesWidget extends StatelessWidget {
   Widget _buildStageIcon(
     IconData icon,
     int stage,
-    KaidhaSubscription_Controller controller,
+    KaidhaSubscriptionController controller,
     String text,
     BuildContext context,
   ) {

@@ -20,7 +20,10 @@
       "Bash(tee /tmp/flutter_errors.txt)",
       "Bash(echo \"Exit: $?\")",
       "Read(//tmp/**)",
-      "Bash(grep -v \"^$\")"
+      "Bash(grep -v \"^$\")",
+      "Bash(flutter pub:*)",
+      "Bash(find lib:*)",
+      "Bash(xargs sed:*)"
     ]
   }
 }

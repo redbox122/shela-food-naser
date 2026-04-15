@@ -1,6 +1,6 @@
 // ignore_for_file: camel_case_types
 
-class Search_FilterModel {
+class SearchFilterModel {
   String? research_Name = '';
   String? product_arrangement = '';
   String? id_category = '';
@@ -11,7 +11,7 @@ class Search_FilterModel {
   String? offset = '1';
   String? limit = '10';
 
-  Search_FilterModel({
+  SearchFilterModel({
     this.research_Name,
     this.product_arrangement,
     this.id_category,

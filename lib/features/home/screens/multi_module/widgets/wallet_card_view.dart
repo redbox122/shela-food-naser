@@ -34,7 +34,7 @@ class WalletCardView extends StatelessWidget {
       return const SizedBox.shrink();
     }
 
-    return GetBuilder<KaidhaSubscription_Controller>(
+    return GetBuilder<KaidhaSubscriptionController>(
       builder: (kaidhaController) {
         final wallet = kaidhaController.walletKaidhaModel?.wallet;
         final isLoading = kaidhaController.isLoading_wallet;
@@ -173,7 +173,7 @@ class WalletCardView extends StatelessWidget {
   }
 
   /// 🔧 FIX: Build error card with refresh option instead of showing BNPL placeholder
-  Widget _buildErrorCard(BuildContext context, KaidhaSubscription_Controller controller) {
+  Widget _buildErrorCard(BuildContext context, KaidhaSubscriptionController controller) {
     return InkWell(
       onTap: () {
         // Tap to refresh wallet data
@@ -208,7 +208,7 @@ class WalletCardView extends StatelessWidget {
 
   /// 🔧 FIX: Build register wallet card when hasNoWallet is true
   /// Shows "Register Wallet" button or "Reload" icon instead of confusing 0 balance
-  Widget _buildRegisterWalletCard(BuildContext context, KaidhaSubscription_Controller controller) {
+  Widget _buildRegisterWalletCard(BuildContext context, KaidhaSubscriptionController controller) {
     return InkWell(
       onTap: () {
         // Navigate to wallet registration/subscription page

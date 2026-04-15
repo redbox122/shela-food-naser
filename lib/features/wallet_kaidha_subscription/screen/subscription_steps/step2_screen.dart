@@ -10,14 +10,14 @@ import 'package:sixam_mart/util/app_colors.dart';
 import 'package:sixam_mart/util/dimensions.dart';
 import 'package:sixam_mart/util/styles.dart';
 
-class Step_2_Screen extends StatefulWidget {
-  const Step_2_Screen({super.key});
+class Step2Screen extends StatefulWidget {
+  const Step2Screen({super.key});
 
   @override
-  State<Step_2_Screen> createState() => _Step_2_ScreenState();
+  State<Step2Screen> createState() => _Step2ScreenState();
 }
 
-class _Step_2_ScreenState extends State<Step_2_Screen> {
+class _Step2ScreenState extends State<Step2Screen> {
   int? selectedDay;
 
   void _safeSetState(VoidCallback fn) {
@@ -30,7 +30,7 @@ class _Step_2_ScreenState extends State<Step_2_Screen> {
   }
   @override
   Widget build(BuildContext context) {
-    return GetBuilder<KaidhaSubscription_Controller>(
+    return GetBuilder<KaidhaSubscriptionController>(
         builder: (KaidhaSubController) {
       return Padding(
         padding: const EdgeInsets.all(12.0),

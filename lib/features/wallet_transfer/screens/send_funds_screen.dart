@@ -120,7 +120,7 @@ class _SendFundsScreenState extends State<SendFundsScreen> {
 
             // Qidha Wallet
             Expanded(
-              child: GetBuilder<KaidhaSubscription_Controller>(
+              child: GetBuilder<KaidhaSubscriptionController>(
                 builder: (kaidhaController) {
                   final bool hasQidhaWallet =
                       kaidhaController.walletKaidhaModel?.wallet != null &&

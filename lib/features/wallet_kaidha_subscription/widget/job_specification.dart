@@ -10,7 +10,7 @@ class JobSpecification extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GetBuilder<KaidhaSubscription_Controller>(
+    return GetBuilder<KaidhaSubscriptionController>(
       builder: (kaidhaFormController) {
         return Column(
           children: [

@@ -53,7 +53,7 @@ class _OffersItemScreen extends State<OffersItemScreen> {
     {'label': '700 - 1000', 'min': '700', 'max': '1000'},
   ];
 
-  bool _hasActiveOffersFilters(Offers_Controller controller) {
+  bool _hasActiveOffersFilters(OffersController controller) {
     return _selectedSort != 'popular' ||
         (_minPrice.isNotEmpty && _minPrice != '0') ||
         (_maxPrice.isNotEmpty && _maxPrice != '0') ||
@@ -62,7 +62,7 @@ class _OffersItemScreen extends State<OffersItemScreen> {
         controller.searchText.trim().isNotEmpty;
   }
 
-  void _resetOffersFiltersAndReload(Offers_Controller controller) {
+  void _resetOffersFiltersAndReload(OffersController controller) {
     setState(() {
       _selectedSort = 'popular';
       _selectedPriceLabel = 'all';
@@ -81,7 +81,7 @@ class _OffersItemScreen extends State<OffersItemScreen> {
 
   Widget _buildNoResultsWithReset({
     required BuildContext context,
-    required Offers_Controller controller,
+    required OffersController controller,
     required String message,
   }) {
     final bool canReset = _hasActiveOffersFilters(controller);
@@ -120,7 +120,7 @@ class _OffersItemScreen extends State<OffersItemScreen> {
 
     // Load initial data after build - categories will be extracted from API response
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      Get.find<Offers_Controller>().getOffersItemList(
+      Get.find<OffersController>().getOffersItemList(
         id: widget.offerId.toString(),
         offset: 1,
         forceRefresh: true,
@@ -130,32 +130,32 @@ class _OffersItemScreen extends State<OffersItemScreen> {
     scrollController.addListener(() {
       if (scrollController.position.pixels ==
               scrollController.position.maxScrollExtent &&
-          Get.find<Offers_Controller>().offersItemList != null &&
-          !Get.find<Offers_Controller>().isItemsLoading &&
+          Get.find<OffersController>().offersItemList != null &&
+          !Get.find<OffersController>().isItemsLoading &&
           !_isLoadingMore) {
         // Calculate total pages based on total items and items per page (20)
-        final int totalItems = Get.find<Offers_Controller>().pageSize ?? 0;
+        final int totalItems = Get.find<OffersController>().pageSize ?? 0;
         const int itemsPerPage = 20; // API limit is 20 items per page
         final int totalPages = (totalItems / itemsPerPage).ceil();
 
-        if (Get.find<Offers_Controller>().offset < totalPages) {
+        if (Get.find<OffersController>().offset < totalPages) {
           if (kDebugMode) {
             debugPrint(
-                'end of the page - loading page ${Get.find<Offers_Controller>().offset + 1} of $totalPages');
+                'end of the page - loading page ${Get.find<OffersController>().offset + 1} of $totalPages');
           }
 
           _isLoadingMore = true; // Set flag to prevent multiple calls
-          Get.find<Offers_Controller>().showBottomLoader();
+          Get.find<OffersController>().showBottomLoader();
 
-          if (Get.find<Offers_Controller>().isSearching) {
+          if (Get.find<OffersController>().isSearching) {
             // For live search, we don't need pagination since we have all results
-            if (!Get.find<Offers_Controller>().isLiveSearching) {
+            if (!Get.find<OffersController>().isLiveSearching) {
               // Only use API search for pagination if not using live search
-              Get.find<Offers_Controller>()
+              Get.find<OffersController>()
                   .getOffersSearchItemList(
-                Get.find<Offers_Controller>().searchText,
+                Get.find<OffersController>().searchText,
                 offerId: widget.offerId.toString(),
-                offset: Get.find<Offers_Controller>().offset + 1,
+                offset: Get.find<OffersController>().offset + 1,
               )
                   .then((_) {
                 _isLoadingMore = false; // Reset flag after completion
@@ -164,10 +164,10 @@ class _OffersItemScreen extends State<OffersItemScreen> {
               _isLoadingMore = false; // Reset flag for live search
             }
           } else {
-            Get.find<Offers_Controller>()
+            Get.find<OffersController>()
                 .getOffersItemList(
                     id: widget.offerId.toString(),
-                    offset: Get.find<Offers_Controller>().offset + 1)
+                    offset: Get.find<OffersController>().offset + 1)
                 .then((_) {
               _isLoadingMore = false; // Reset flag after completion
             });
@@ -188,8 +188,8 @@ class _OffersItemScreen extends State<OffersItemScreen> {
     scrollController.dispose();
     _isLoadingMore = false; // Reset loading flag
     // Reset controller states when leaving the screen
-    Get.find<Offers_Controller>().resetFilterState(notify: false);
-    Get.find<Offers_Controller>().resetLoadingStates(notify: false);
+    Get.find<OffersController>().resetFilterState(notify: false);
+    Get.find<OffersController>().resetLoadingStates(notify: false);
   }
 
   @override
@@ -204,7 +204,7 @@ class _OffersItemScreen extends State<OffersItemScreen> {
         left: false,
         right: false,
         minimum: EdgeInsets.zero,
-        child: GetBuilder<Offers_Controller>(builder: (offersController) {
+        child: GetBuilder<OffersController>(builder: (offersController) {
         final bool hasNoOfferItems =
             (offersController.offersItemList == null ||
                 offersController.offersItemList!.isEmpty);
@@ -248,7 +248,7 @@ class _OffersItemScreen extends State<OffersItemScreen> {
             children: [
               RefreshIndicator(
                 onRefresh: () async {
-                  await Get.find<Offers_Controller>().getOffersItemList(
+                  await Get.find<OffersController>().getOffersItemList(
                     id: widget.offerId.toString(),
                     offset: 1,
                   );
@@ -414,7 +414,7 @@ class _OffersItemScreen extends State<OffersItemScreen> {
 
   Widget _buildOffersContent(
     BuildContext context,
-    Offers_Controller offersController,
+    OffersController offersController,
     bool isDesktop,
   ) {
     if (offersController.isSearching) {
@@ -489,7 +489,7 @@ class _OffersItemScreen extends State<OffersItemScreen> {
           const SizedBox(height: 8),
           ElevatedButton(
             onPressed: () {
-              Get.find<Offers_Controller>().getOffersItemList(
+              Get.find<OffersController>().getOffersItemList(
                 id: widget.offerId.toString(),
                 offset: 1,
               );
@@ -524,7 +524,7 @@ class _OffersItemScreen extends State<OffersItemScreen> {
   }
 
   void _showFilterBottomSheet(
-      BuildContext context, Offers_Controller controller) {
+      BuildContext context, OffersController controller) {
     showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
@@ -749,7 +749,7 @@ class _OffersItemScreen extends State<OffersItemScreen> {
     );
   }
 
-  Widget _buildCategoryChips(Offers_Controller controller,
+  Widget _buildCategoryChips(OffersController controller,
       {StateSetter? modalSetState}) {
     if (controller.categoryList == null || controller.categoryList!.isEmpty) {
       return Text(
@@ -794,7 +794,7 @@ class _OffersItemScreen extends State<OffersItemScreen> {
   }
 
   Widget _buildOffersItemsView(List<Item> items, {bool isSearching = false}) {
-    return GetBuilder<Offers_Controller>(builder: (offersController) {
+    return GetBuilder<OffersController>(builder: (offersController) {
       final List<Item> filteredItems = List<Item>.from(items);
 
       final double? minPrice =

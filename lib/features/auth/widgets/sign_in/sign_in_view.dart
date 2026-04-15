@@ -408,7 +408,7 @@ class _SignInViewState extends State<SignInView> {
 
       // Check current state before navigation
       final profileController = Get.find<ProfileController>();
-      final kaidhaController = Get.find<KaidhaSubscription_Controller>();
+      final kaidhaController = Get.find<KaidhaSubscriptionController>();
       debugPrint('🔍 SignInView: Pre-navigation state check:');
       debugPrint(
           '   - User Info: ${profileController.userInfoModel != null ? 'SET (${profileController.userInfoModel?.fName} ${profileController.userInfoModel?.lName})' : 'NULL'}');
@@ -538,7 +538,7 @@ class _SignInViewState extends State<SignInView> {
       if (AuthHelper.isLoggedIn()) {
         try {
           final profileController = Get.find<ProfileController>();
-          final kaidhaController = Get.find<KaidhaSubscription_Controller>();
+          final kaidhaController = Get.find<KaidhaSubscriptionController>();
           final cartController = Get.find<CartController>();
           final favouriteController = Get.find<FavouriteController>();
 

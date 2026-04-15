@@ -15,11 +15,10 @@ import 'package:get/get.dart';
 import 'package:intl/intl.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:http/http.dart' as http;
 import 'package:sixam_mart/common/security/secure_token_storage.dart';
 import 'package:sixam_mart/common/security/certificate_pinning_service.dart';
 import 'package:sixam_mart/common/security/secure_http_client.dart';
-import 'package:dio/dio.dart' hide Response, FormData, MultipartFile;
+import 'package:dio/dio.dart' as dio_pkg;
 import 'package:sixam_mart/util/environment_config.dart';
 import 'package:sixam_mart/common/utils/app_logger.dart';
 import 'package:sixam_mart/core/cache/hive_home_cache_service.dart';
@@ -41,11 +40,18 @@ class ApiClient extends GetxService {
   late final SecureHttpClient _secureHttpClient;
   bool _useSecureClient = false;
 
+  // Fallback Dio client (replaces http package)
+  late final dio_pkg.Dio _fallbackDio;
+
   // ETag storage for conditional requests
   static const String _etagPrefix = 'etag_';
   Completer<void>? _contextSyncCompleter;
 
   ApiClient({required this.appBaseUrl, required this.sharedPreferences}) {
+    _fallbackDio = dio_pkg.Dio(dio_pkg.BaseOptions(
+      connectTimeout: const Duration(seconds: 30),
+      receiveTimeout: const Duration(seconds: 30),
+    ));
     _initializeSecureServices();
     token = sharedPreferences.getString(AppConstants.token);
     AddressModel? addressModel;
@@ -55,7 +61,9 @@ class ApiClient extends GetxService {
         addressModel = AddressModel.fromJson(
             jsonDecode(rawAddress) as Map<String, dynamic>);
       }
-    } catch (e) { if (kDebugMode) debugPrint('ApiClient: $e'); }
+    } catch (e) {
+      if (kDebugMode) debugPrint('ApiClient: $e');
+    }
     // MOBILE-MODULE-ID FIX: Read saved moduleId on ALL platforms (not just web).
     // Without this, every cold start on Android/iOS fires API calls with
     // module-id=null until resolveInitialModule or _ensureApiHeadersUpdated runs.
@@ -66,7 +74,9 @@ class ApiClient extends GetxService {
                 jsonDecode(sharedPreferences.getString(AppConstants.moduleId)!)
                     as Map<String, dynamic>)
             .id;
-      } catch (e) { if (kDebugMode) debugPrint('ApiClient: $e'); }
+      } catch (e) {
+        if (kDebugMode) debugPrint('ApiClient: $e');
+      }
     }
     updateHeader(
         token,
@@ -104,7 +114,9 @@ class ApiClient extends GetxService {
             addressModel = AddressModel.fromJson(
                 jsonDecode(rawAddress) as Map<String, dynamic>);
           }
-        } catch (e) { if (kDebugMode) debugPrint('ApiClient: $e'); }
+        } catch (e) {
+          if (kDebugMode) debugPrint('ApiClient: $e');
+        }
         // MOBILE-MODULE-ID FIX: Read saved moduleId on ALL platforms.
         int? moduleID;
         if (sharedPreferences.containsKey(AppConstants.moduleId)) {
@@ -113,7 +125,9 @@ class ApiClient extends GetxService {
                         sharedPreferences.getString(AppConstants.moduleId)!)
                     as Map<String, dynamic>)
                 .id;
-          } catch (e) { if (kDebugMode) debugPrint('ApiClient: $e'); }
+          } catch (e) {
+            if (kDebugMode) debugPrint('ApiClient: $e');
+          }
         }
         updateHeader(
             token,
@@ -145,7 +159,9 @@ class ApiClient extends GetxService {
             addressModel = AddressModel.fromJson(
                 jsonDecode(rawAddress) as Map<String, dynamic>);
           }
-        } catch (e) { if (kDebugMode) debugPrint('ApiClient: $e'); }
+        } catch (e) {
+          if (kDebugMode) debugPrint('ApiClient: $e');
+        }
         // MOBILE-MODULE-ID FIX: Read saved moduleId on ALL platforms.
         int? moduleID;
         if (sharedPreferences.containsKey(AppConstants.moduleId)) {
@@ -154,7 +170,9 @@ class ApiClient extends GetxService {
                         sharedPreferences.getString(AppConstants.moduleId)!)
                     as Map<String, dynamic>)
                 .id;
-          } catch (e) { if (kDebugMode) debugPrint('ApiClient: $e'); }
+          } catch (e) {
+            if (kDebugMode) debugPrint('ApiClient: $e');
+          }
         }
         updateHeader(
             token,
@@ -426,7 +444,9 @@ class ApiClient extends GetxService {
       }
     } catch (e) {
       // If backend/client sent non-JSON zone-id, keep old behavior and accept non-empty value.
-      if (kDebugMode) debugPrint('ApiClient: zone-id parse (non-JSON treated as valid): $e');
+      if (kDebugMode) {
+        debugPrint('ApiClient: zone-id parse (non-JSON treated as valid): $e');
+      }
     }
     return true;
   }
@@ -451,7 +471,9 @@ class ApiClient extends GetxService {
               splashController.module?.id ??
               splashController.getDefaultModuleId();
         }
-      } catch (e) { if (kDebugMode) debugPrint('ApiClient: $e'); }
+      } catch (e) {
+        if (kDebugMode) debugPrint('ApiClient: $e');
+      }
 
       if (moduleId == null) {
         try {
@@ -462,7 +484,9 @@ class ApiClient extends GetxService {
                 jsonDecode(cachedModuleId) as Map<String, dynamic>);
             moduleId = moduleModel.id;
           }
-        } catch (e) { if (kDebugMode) debugPrint('ApiClient: $e'); }
+        } catch (e) {
+          if (kDebugMode) debugPrint('ApiClient: $e');
+        }
       }
 
       if (moduleId != null) {
@@ -477,7 +501,9 @@ class ApiClient extends GetxService {
         if (zoneIds != null && zoneIds.isNotEmpty) {
           headers[AppConstants.zoneId] = jsonEncode(zoneIds);
         }
-      } catch (e) { if (kDebugMode) debugPrint('ApiClient: $e'); }
+      } catch (e) {
+        if (kDebugMode) debugPrint('ApiClient: $e');
+      }
     }
   }
 
@@ -497,7 +523,9 @@ class ApiClient extends GetxService {
           await Get.find<SplashController>()
               .ensureModuleReady()
               .timeout(const Duration(seconds: 2));
-        } catch (e) { if (kDebugMode) debugPrint('ApiClient: $e'); }
+        } catch (e) {
+          if (kDebugMode) debugPrint('ApiClient: $e');
+        }
       }
 
       // Give a small window for address/module writes racing from other controllers.
@@ -593,7 +621,7 @@ class ApiClient extends GetxService {
       bool changeBaseUrl = false,
       Uri? newUri,
       bool useEtag = true,
-      CancelToken? cancelToken,
+      dio_pkg.CancelToken? cancelToken,
       String? requestId}) async {
     try {
       final fullUri = changeBaseUrl ? newUri!.toString() : uri;
@@ -760,7 +788,7 @@ class ApiClient extends GetxService {
           final response = await _secureHttpClient.dio.get<dynamic>(
             uri,
             queryParameters: query,
-            options: Options(
+            options: dio_pkg.Options(
               headers: finalHeaders,
               receiveTimeout: secureReceiveTimeoutOverride,
               sendTimeout: _secureHttpClient.dio.options.sendTimeout,
@@ -836,7 +864,7 @@ class ApiClient extends GetxService {
         } catch (e) {
           stopwatch.stop();
           if (kDebugMode) {
-            if (e is DioException) {
+            if (e is dio_pkg.DioException) {
               appLogger.error(
                   '[ApiClient] SECURE ERROR | requestId=$effectiveRequestId | uri=$uri | type=${e.type} | status=${e.response?.statusCode} | message=${e.message} | durationMs=${stopwatch.elapsed.inMilliseconds}');
             } else {
@@ -896,58 +924,64 @@ class ApiClient extends GetxService {
               ? 120
               : timeoutInSeconds;
 
-      final http.Response response = await http
-          .get(changeBaseUrl ? newUri! : Uri.parse(appBaseUrl + uri),
-              headers: finalHeaders)
-          .timeout(Duration(seconds: effectiveTimeoutSeconds));
+      final dynamic dioGetResp = await _fallbackDio.get<dynamic>(
+        changeBaseUrl ? newUri!.toString() : (appBaseUrl + uri),
+        options: dio_pkg.Options(
+          headers: finalHeaders,
+          receiveTimeout: Duration(seconds: effectiveTimeoutSeconds),
+          sendTimeout: Duration(seconds: effectiveTimeoutSeconds),
+          validateStatus: (s) => s != null,
+        ),
+      );
 
       stopwatch.stop();
 
       // ⚡ ETAG SUPPORT: Extract and store ETag from response headers
-      if (useEtag && response.statusCode == 200) {
-        final etag = response.headers['etag'] ?? response.headers['ETag'];
+      final Map<String, String> getFallbackHeaders = {};
+      try {
+        (dioGetResp.headers.map as Map).forEach((k, v) {
+          getFallbackHeaders[k.toString()] =
+              (v is List) ? v.join(',') : v.toString();
+        });
+      } catch (_) {}
+
+      if (useEtag && (dioGetResp.statusCode as int?) == 200) {
+        final etag = getFallbackHeaders['etag'] ?? getFallbackHeaders['ETag'];
         if (etag != null) {
           await _storeEtag(uri, etag, headers: finalHeaders);
         }
       }
 
       // ⚡ ETAG SUPPORT: Handle 304 Not Modified
-      if (response.statusCode == 304) {
+      if ((dioGetResp.statusCode as int?) == 304) {
         appLogger.logApiCallSuccess('GET', uri, 304, stopwatch.elapsed,
             response: 'Not Modified (cached)');
-        // Return a response indicating data is unchanged
-        // The caller should use cached data
         final localCacheResponse = Response<dynamic>(
           statusCode: 304,
           statusText: 'Not Modified',
           bodyString: '',
-          headers: response.headers,
+          headers: getFallbackHeaders,
         );
         return localCacheResponse;
       }
 
       // Log API call success with full response details
       try {
-        dynamic responseData;
-        try {
-          responseData = jsonDecode(response.body);
-        } catch (e) {
-          responseData = response.body;
-        }
         appLogger.logApiCallSuccess(
-            'GET', uri, response.statusCode, stopwatch.elapsed,
-            response: responseData);
+            'GET', uri, dioGetResp.statusCode as int, stopwatch.elapsed,
+            response: dioGetResp.data);
       } catch (e) {
-        appLogger.logApiCallSuccess(
-            'GET', uri, response.statusCode, stopwatch.elapsed);
+        appLogger.logApiCallSuccess('GET', uri,
+            (dioGetResp.statusCode as int?) ?? 0, stopwatch.elapsed);
       }
 
       if (kDebugMode) {
         appLogger.debug(
-            '[ApiClient] FALLBACK SUCCESS | requestId=$effectiveRequestId | uri=$uri | status=${response.statusCode} | durationMs=${stopwatch.elapsed.inMilliseconds}');
+            '[ApiClient] FALLBACK SUCCESS | requestId=$effectiveRequestId | uri=$uri | status=${dioGetResp.statusCode} | durationMs=${stopwatch.elapsed.inMilliseconds}');
       }
 
-      final converted = handleResponse(response, uri, handleError);
+      final converted =
+          _handleDioFallbackResponse(dioGetResp, uri, handleError);
 
       if (kDebugMode) {
         appLogger.debug(
@@ -985,7 +1019,7 @@ class ApiClient extends GetxService {
       {Map<String, String>? headers,
       int? timeout,
       bool handleError = true,
-      ValidateStatus? validateStatus}) async {
+      dio_pkg.ValidateStatus? validateStatus}) async {
     try {
       // ⚠️ CRITICAL: Merge custom headers with default headers to ensure moduleId is always included
       final Map<String, String> finalHeaders = _prepareFinalHeaders(headers);
@@ -1018,7 +1052,7 @@ class ApiClient extends GetxService {
           final response = await _secureHttpClient.dio.post<dynamic>(
             uri,
             data: body,
-            options: Options(
+            options: dio_pkg.Options(
               headers: finalHeaders,
               sendTimeout: Duration(seconds: timeout ?? timeoutInSeconds),
               validateStatus: validateStatus,
@@ -1054,31 +1088,31 @@ class ApiClient extends GetxService {
         }
       }
 
-      // Fallback to standard HTTP client
-      final http.Response response = await http
-          .post(Uri.parse(appBaseUrl + uri),
-              body: jsonEncode(body), headers: finalHeaders)
-          .timeout(Duration(seconds: timeout ?? timeoutInSeconds));
+      // Fallback to standard HTTP client (using Dio)
+      final dynamic dioPostResp = await _fallbackDio.post<dynamic>(
+        appBaseUrl + uri,
+        data: jsonEncode(body),
+        options: dio_pkg.Options(
+          headers: finalHeaders,
+          receiveTimeout: Duration(seconds: timeout ?? timeoutInSeconds),
+          sendTimeout: Duration(seconds: timeout ?? timeoutInSeconds),
+          validateStatus: (s) => s != null,
+          contentType: 'application/json; charset=UTF-8',
+        ),
+      );
 
       stopwatch.stop();
 
-      // Log API call success with full response details
       try {
-        dynamic responseData;
-        try {
-          responseData = jsonDecode(response.body);
-        } catch (e) {
-          responseData = response.body;
-        }
-        appLogger.logApiCallSuccess(
-            'POST', uri, response.statusCode, stopwatch.elapsed,
-            response: responseData);
+        appLogger.logApiCallSuccess('POST', uri,
+            (dioPostResp.statusCode as int?) ?? 0, stopwatch.elapsed,
+            response: dioPostResp.data);
       } catch (e) {
-        appLogger.logApiCallSuccess(
-            'POST', uri, response.statusCode, stopwatch.elapsed);
+        appLogger.logApiCallSuccess('POST', uri,
+            (dioPostResp.statusCode as int?) ?? 0, stopwatch.elapsed);
       }
 
-      return handleResponse(response, uri, handleError);
+      return _handleDioFallbackResponse(dioPostResp, uri, handleError);
     } catch (e) {
       if (!uri.contains('registration-activity')) {
         appLogger.logApiCallError('POST', uri, e.toString());
@@ -1114,7 +1148,7 @@ class ApiClient extends GetxService {
         }
       }
 
-      // Fallback to standard HTTP client
+      // Fallback to standard HTTP client (using Dio FormData)
       // 🔧 FIX: Ensure Authorization header is included when secure client fails
       if (token != null && token!.isNotEmpty) {
         finalHeaders['Authorization'] = 'Bearer $token';
@@ -1124,30 +1158,32 @@ class ApiClient extends GetxService {
         }
       }
 
-      final http.MultipartRequest request =
-          http.MultipartRequest('POST', Uri.parse(appBaseUrl + uri));
-      request.headers.addAll(finalHeaders);
+      final dioFormData = dio_pkg.FormData();
       for (final MultipartBody multipart in multipartBody) {
         if (multipart.file != null) {
-          final Uint8List list = await multipart.file!.readAsBytes();
-          request.files.add(http.MultipartFile(
+          final Uint8List bytes = await multipart.file!.readAsBytes();
+          dioFormData.files.add(MapEntry(
             multipart.key,
-            multipart.file!.readAsBytes().asStream(),
-            list.length,
-            filename: '${DateTime.now().toString()}.png',
+            dio_pkg.MultipartFile.fromBytes(
+              bytes,
+              filename: '${DateTime.now().millisecondsSinceEpoch}.png',
+            ),
           ));
         }
       }
-      final Map<String, String> newBody = {};
       body.forEach((s, i) {
-        if (i.isNotEmpty) {
-          newBody.addAll({s: i});
-        }
+        if (i.isNotEmpty) dioFormData.fields.add(MapEntry(s, i));
       });
-      request.fields.addAll(newBody);
-      final http.Response response =
-          await http.Response.fromStream(await request.send());
-      return handleResponse(response, uri, handleError);
+
+      final dynamic dioMultipartResp = await _fallbackDio.post<dynamic>(
+        appBaseUrl + uri,
+        data: dioFormData,
+        options: dio_pkg.Options(
+          headers: finalHeaders,
+          validateStatus: (s) => s != null,
+        ),
+      );
+      return _handleDioFallbackResponse(dioMultipartResp, uri, handleError);
     } catch (e) {
       return Response(statusCode: 1, statusText: noInternetMessage);
     }
@@ -1226,7 +1262,7 @@ class ApiClient extends GetxService {
           final response = await _secureHttpClient.dio.post<dynamic>(
             uri,
             data: formData,
-            options: Options(
+            options: dio_pkg.Options(
               headers: finalHeaders,
               sendTimeout: Duration(seconds: timeoutInSeconds),
               validateStatus: (int? status) => status != null && status < 500,
@@ -1242,10 +1278,10 @@ class ApiClient extends GetxService {
               response.statusCode ?? 0, stopwatch.elapsed);
 
           return _convertDioResponseToGetResponse(response, uri);
-        } on DioException catch (e) {
+        } on dio_pkg.DioException catch (e) {
           stopwatch.stop();
           debugPrint(
-              '\x1B[31m❌❌❌ DioException in postFormData (Secure Client):\x1B[0m');
+              '\x1B[31m❌❌❌ dio_pkg.DioException in postFormData (Secure Client):\x1B[0m');
           debugPrint(
               '\x1B[31m - Status Code: ${e.response?.statusCode}\x1B[0m');
           debugPrint(
@@ -1287,7 +1323,7 @@ class ApiClient extends GetxService {
       debugPrint(
           '\x1B[35m - Content-Type in headers: ${finalHeaders.containsKey('Content-Type')}\x1B[0m');
 
-      final dioClient = Dio(BaseOptions(
+      final dioClient = dio_pkg.Dio(dio_pkg.BaseOptions(
         baseUrl: appBaseUrl,
         connectTimeout: Duration(seconds: timeoutInSeconds),
         receiveTimeout: Duration(seconds: timeoutInSeconds),
@@ -1299,7 +1335,7 @@ class ApiClient extends GetxService {
         final response = await dioClient.post<dynamic>(
           uri,
           data: formData,
-          options: Options(
+          options: dio_pkg.Options(
             headers: finalHeaders,
             validateStatus: (int? status) => status != null && status < 500,
           ),
@@ -1349,10 +1385,10 @@ class ApiClient extends GetxService {
           statusText: response.statusMessage,
           body: response.data,
         );
-      } on DioException catch (e) {
+      } on dio_pkg.DioException catch (e) {
         stopwatch.stop();
         debugPrint(
-            '\x1B[31m❌❌❌ DioException in postFormData (Fallback):\x1B[0m');
+            '\x1B[31m❌❌❌ dio_pkg.DioException in postFormData (Fallback):\x1B[0m');
         debugPrint('\x1B[31m - Status Code: ${e.response?.statusCode}\x1B[0m');
         debugPrint(
             '\x1B[31m - Status Message: ${e.response?.statusMessage}\x1B[0m');
@@ -1429,7 +1465,7 @@ class ApiClient extends GetxService {
           final response = await _secureHttpClient.dio.put<dynamic>(
             uri,
             data: body,
-            options: Options(headers: finalHeaders),
+            options: dio_pkg.Options(headers: finalHeaders),
           );
 
           stopwatch.stop();
@@ -1471,31 +1507,29 @@ class ApiClient extends GetxService {
         }
       }
 
-      final http.Response response = await http
-          .put(
-            Uri.parse(appBaseUrl + uri),
-            body: jsonEncode(body),
-            headers: finalHeaders,
-          )
-          .timeout(Duration(seconds: timeoutInSeconds));
+      final dynamic dioPutResp = await _fallbackDio.put<dynamic>(
+        appBaseUrl + uri,
+        data: jsonEncode(body),
+        options: dio_pkg.Options(
+          headers: finalHeaders,
+          receiveTimeout: Duration(seconds: timeoutInSeconds),
+          sendTimeout: Duration(seconds: timeoutInSeconds),
+          validateStatus: (s) => s != null,
+          contentType: 'application/json; charset=UTF-8',
+        ),
+      );
 
       stopwatch.stop();
       try {
-        dynamic responseData;
-        try {
-          responseData = jsonDecode(response.body);
-        } catch (e) {
-          responseData = response.body;
-        }
         appLogger.logApiCallSuccess(
-            'PUT', uri, response.statusCode, stopwatch.elapsed,
-            response: responseData);
+            'PUT', uri, (dioPutResp.statusCode as int?) ?? 0, stopwatch.elapsed,
+            response: dioPutResp.data);
       } catch (e) {
-        appLogger.logApiCallSuccess(
-            'PUT', uri, response.statusCode, stopwatch.elapsed);
+        appLogger.logApiCallSuccess('PUT', uri,
+            (dioPutResp.statusCode as int?) ?? 0, stopwatch.elapsed);
       }
 
-      return handleResponse(response, uri, handleError);
+      return _handleDioFallbackResponse(dioPutResp, uri, handleError);
     } catch (e) {
       appLogger.logApiCallError('PUT', uri, e.toString());
       return Response(statusCode: 1, statusText: noInternetMessage);
@@ -1524,7 +1558,7 @@ class ApiClient extends GetxService {
         try {
           final response = await _secureHttpClient.dio.delete<dynamic>(
             uri,
-            options: Options(headers: finalHeaders),
+            options: dio_pkg.Options(headers: finalHeaders),
           );
 
           stopwatch.stop();
@@ -1566,27 +1600,27 @@ class ApiClient extends GetxService {
         }
       }
 
-      final http.Response response = await http
-          .delete(Uri.parse(appBaseUrl + uri), headers: finalHeaders)
-          .timeout(Duration(seconds: timeoutInSeconds));
+      final dynamic dioDeleteResp = await _fallbackDio.delete<dynamic>(
+        appBaseUrl + uri,
+        options: dio_pkg.Options(
+          headers: finalHeaders,
+          receiveTimeout: Duration(seconds: timeoutInSeconds),
+          sendTimeout: Duration(seconds: timeoutInSeconds),
+          validateStatus: (s) => s != null,
+        ),
+      );
 
       stopwatch.stop();
       try {
-        dynamic responseData;
-        try {
-          responseData = jsonDecode(response.body);
-        } catch (e) {
-          responseData = response.body;
-        }
-        appLogger.logApiCallSuccess(
-            'DELETE', uri, response.statusCode, stopwatch.elapsed,
-            response: responseData);
+        appLogger.logApiCallSuccess('DELETE', uri,
+            (dioDeleteResp.statusCode as int?) ?? 0, stopwatch.elapsed,
+            response: dioDeleteResp.data);
       } catch (e) {
-        appLogger.logApiCallSuccess(
-            'DELETE', uri, response.statusCode, stopwatch.elapsed);
+        appLogger.logApiCallSuccess('DELETE', uri,
+            (dioDeleteResp.statusCode as int?) ?? 0, stopwatch.elapsed);
       }
 
-      return handleResponse(response, uri, handleError);
+      return _handleDioFallbackResponse(dioDeleteResp, uri, handleError);
     } catch (e) {
       appLogger.logApiCallError('DELETE', uri, e.toString());
       return Response(statusCode: 1, statusText: noInternetMessage);
@@ -1674,11 +1708,15 @@ class ApiClient extends GetxService {
       serverTimeUtc = DateFormat("EEE, dd MMM yyyy HH:mm:ss 'GMT'", 'en_US')
           .parseUtc(dateHeader!);
     } catch (e) {
-      if (kDebugMode) debugPrint('ApiClient: RFC date parse failed, trying ISO: $e');
+      if (kDebugMode) {
+        debugPrint('ApiClient: RFC date parse failed, trying ISO: $e');
+      }
       try {
         serverTimeUtc = DateTime.parse(dateHeader!).toUtc();
       } catch (e2) {
-        if (kDebugMode) debugPrint('ApiClient: ISO date parse also failed: $e2');
+        if (kDebugMode) {
+          debugPrint('ApiClient: ISO date parse also failed: $e2');
+        }
       }
     }
 
@@ -1753,43 +1791,52 @@ class ApiClient extends GetxService {
     }
   }
 
-  Response<dynamic> handleResponse(
-      http.Response response, String uri, bool handleError) {
-    dynamic body;
+  /// Convert a Dio fallback response into the GetX Response with full
+  /// error-parsing, auth-001 detection, and handleError logic.
+  Response<dynamic> _handleDioFallbackResponse(
+      dynamic dioResponse, String uri, bool handleError) {
+    final int statusCode = (dioResponse.statusCode as int?) ?? 0;
+    final dynamic rawBody = dioResponse.data;
 
-    // ⚡ PERFORMANCE: Use synchronous JSON decode for small responses
-    // Large responses (>10KB) should use JsonIsolateHelper.parseApiResponse()
-    // in async context. For handleResponse (sync), we use standard jsonDecode
-    // but the caller can pre-parse large responses using isolates.
+    // Dio already parsed JSON; serialise back only if needed for bodyString
+    final String bodyString = rawBody is String
+        ? rawBody
+        : (rawBody != null ? jsonEncode(rawBody) : '');
+
+    // Extract headers into Map<String,String>
+    final Map<String, String> headersMap = {};
     try {
-      body = jsonDecode(response.body);
-    } catch (e) {
-      if (kDebugMode) {
-        debugPrint('❌ Failed to parse response body: $e');
-      }
-      // Keep body as string if JSON parsing fails
-      body = response.body;
-    }
+      (dioResponse.headers.map as Map).forEach((k, v) {
+        headersMap[k.toString()] =
+            (v is List) ? v.join(',') : v.toString();
+      });
+    } catch (_) {}
+    _updateServerTimeOffsetFromHeaders(headersMap);
+
+    // Build request info from requestOptions
+    String reqMethod = 'GET';
+    Uri reqUrl = Uri.parse(uri);
+    Map<String, String> reqHeaders = {};
+    try {
+      reqMethod = dioResponse.requestOptions.method?.toString() ?? 'GET';
+      reqUrl = dioResponse.requestOptions.uri ?? Uri.parse(uri);
+      (dioResponse.requestOptions.headers as Map)
+          .forEach((k, v) => reqHeaders[k.toString()] = v.toString());
+    } catch (_) {}
 
     Response<dynamic> response0 = Response<dynamic>(
-      body: body ?? response.body,
-      bodyString: response.body.toString(),
-      request: Request(
-        headers: response.request?.headers ?? {},
-        method: response.request?.method ?? 'GET',
-        url: response.request?.url ?? Uri.parse(uri),
-      ),
-      headers: response.headers,
-      statusCode: response.statusCode,
-      statusText: response.reasonPhrase ?? 'Unknown',
+      body: rawBody,
+      bodyString: bodyString,
+      request: Request(headers: reqHeaders, method: reqMethod, url: reqUrl),
+      headers: headersMap,
+      statusCode: statusCode,
+      statusText: dioResponse.statusMessage?.toString() ?? 'Unknown',
     );
-    _updateServerTimeOffsetFromHeaders(response.headers);
 
     // Clean and translate message text
     String cleanMessage(String? text) {
       if (text == null) return '';
       final String cleaned = text.replaceFirst('messages.', '').trim();
-      // Translate backend messages
       return BackendMessageTranslator.translate(cleaned);
     }
 
@@ -1801,7 +1848,6 @@ class ApiClient extends GetxService {
             response0.body.toString().startsWith('{errors: [{code:')) {
           final ErrorResponse errorResponse =
               ErrorResponse.fromJson(response0.body as Map<String, dynamic>);
-
           response0 = Response(
             statusCode: response0.statusCode,
             body: response0.body,
@@ -1822,7 +1868,6 @@ class ApiClient extends GetxService {
             statusText: cleanMessage(messageText),
           );
         } else if (response0.body is Map) {
-          // Handle other error response structures using the utility method
           final String errorMessage =
               extractErrorMessage(response0.body, response0.statusText);
           response0 = Response(
@@ -1845,7 +1890,6 @@ class ApiClient extends GetxService {
       response0 = Response(statusCode: 0, statusText: noInternetMessage);
     }
 
-    // Clean statusText from reasonPhrase
     response0 = Response(
       statusCode: response0.statusCode,
       body: response0.body,
@@ -1855,20 +1899,16 @@ class ApiClient extends GetxService {
       headers: response0.headers,
     );
 
-    // 🔒 AUTH-001 HANDLER: Check for auth-001 error code in response body
-    // This handles token expiration with automatic refresh before redirecting
+    // 🔒 AUTH-001 HANDLER
     if (response0.body is Map) {
       try {
-        final bodyMap =
-            Map<String, dynamic>.from(response0.body as Map); // ← أضف as Map
+        final bodyMap = Map<String, dynamic>.from(response0.body as Map);
         if (bodyMap['code'] == 'auth-001') {
           if (kDebugMode) {
             debugPrint(
                 '🔒 ApiClient: auth-001 error detected, attempting token refresh');
           }
-          // Handle auth-001 with token refresh
           ApiChecker.handleAuth001Error(response0, uri);
-          // Return early - refresh handler manages redirect if needed
           return response0;
         }
       } catch (e) {

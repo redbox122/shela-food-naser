@@ -15,8 +15,8 @@ class SearchController extends GetxController implements GetxService {
   List<Item>? _searchItemList;
   List<Item>? get searchItemList => _searchItemList;
 
-  Search_FilterModel? _search_filterModel;
-  Search_FilterModel? get search_filterModel => _search_filterModel;
+  SearchFilterModel? _search_filterModel;
+  SearchFilterModel? get search_filterModel => _search_filterModel;
 
   List<Item>? _allItemList;
   List<Item>? get allItemList => _allItemList;
@@ -152,7 +152,7 @@ class SearchController extends GetxController implements GetxService {
   }) {
     //
 
-    final Search_FilterModel searchFiltermodel = Search_FilterModel(
+    final SearchFilterModel searchFiltermodel = SearchFilterModel(
       research_Name: research_Name,
       product_arrangement: product_arrangement,
       id_category: id_category,
@@ -428,7 +428,7 @@ class SearchController extends GetxController implements GetxService {
   }
 
   void applyNewSearchFilter(
-      {Search_FilterModel? searchFilterModel, bool? fromHome}) async {
+      {SearchFilterModel? searchFilterModel, bool? fromHome}) async {
     if (searchFilterModel == null) return;
 
     _isLoading = true;

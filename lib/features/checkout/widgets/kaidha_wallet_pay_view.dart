@@ -43,7 +43,7 @@ class _Kaidha_Wallet_Pay_BottomSheetState
             : null,
       ),
       padding: const EdgeInsets.all(Dimensions.paddingSizeLarge),
-      child: GetBuilder<KaidhaSubscription_Controller>(
+      child: GetBuilder<KaidhaSubscriptionController>(
         builder: (KaidhaSubController) {
           return GetBuilder<CheckoutController>(
             builder: (checkoutController) {

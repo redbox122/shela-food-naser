@@ -2,9 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sixam_mart/common/enums/data_source_enum.dart';
-import 'package:drift/drift.dart' as drift;
 import 'package:sixam_mart/helper/db_helper.dart';
-import 'package:sixam_mart/local/cache_response.dart';
 
 class LocalClient {
   static Future<String?> organize(DataSourceEnum source, String cacheId,
@@ -13,43 +11,30 @@ class LocalClient {
     switch (source) {
       case DataSourceEnum.client:
         try {
-          // debugPrint('==========cache data : endpoint banner=${cacheId}, '
-          //     'header= ${header.toString()}, '
-          //     'response= ${responseBody}');
-
           if (GetPlatform.isWeb) {
             await sharedPreferences.setString(cacheId, responseBody ?? '');
           } else {
-            // Await queued write to keep cache writes serialized and
-            // reduce "database has been locked" under burst requests.
             await DbHelper.insertOrUpdate(
               id: cacheId,
-              data: CacheResponseCompanion(
-                endPoint: drift.Value(cacheId),
-                header: drift.Value(header.toString()),
-                response: drift.Value(responseBody ?? ''),
-              ),
+              data: responseBody ?? '',
             );
           }
         } catch (e) {
           if (kDebugMode) {
-            debugPrint('=====error occure in repo api bannaer add: $e');
+            debugPrint('=====error occure in local_client write: $e');
           }
         }
         break;
       case DataSourceEnum.local:
         try {
           if (GetPlatform.isWeb) {
-            final String? cacheData = sharedPreferences.getString(cacheId);
-            return cacheData;
+            return sharedPreferences.getString(cacheId);
           } else {
-            final CacheResponseData? cacheResponseData =
-                await database.getCacheResponseById(cacheId);
-            return cacheResponseData?.response;
+            return await DbHelper.getCacheById(cacheId);
           }
         } catch (e) {
           if (kDebugMode) {
-            debugPrint('=====error occur in repo local banner: $e');
+            debugPrint('=====error occur in local_client read: $e');
           }
         }
         break;

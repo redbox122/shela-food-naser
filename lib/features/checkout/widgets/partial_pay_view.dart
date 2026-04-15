@@ -259,7 +259,7 @@ Widget PartialPayView(BuildContext context, {required totalPrice, required isPre
                                       style: robotoMedium.copyWith(
                                           color: Theme.of(context).primaryColor, fontSize: Dimensions.fontSizeLarge),
                                     ),
-                              GetBuilder<KaidhaSubscription_Controller>(
+                              GetBuilder<KaidhaSubscriptionController>(
                                 builder: (KaidhaSubController) {
                                   return InkWell(
                                     onTap: () {

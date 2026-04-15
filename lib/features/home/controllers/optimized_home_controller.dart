@@ -898,10 +898,10 @@ class OptimizedHomeDataLoader {
     
     await ApiCallManager.instance.executeCall(
       'offers_module_$moduleId',
-      () => Get.find<Offers_Controller>().getOffers(),
+      () => Get.find<OffersController>().getOffers(),
       cacheDuration: const Duration(minutes: 10),
     ).then((data) {
-      if (data != null) Get.find<Offers_Controller>().setOffersFromCache(data);
+      if (data != null) Get.find<OffersController>().setOffersFromCache(data);
     });
   }
 
@@ -924,7 +924,7 @@ class OptimizedHomeDataLoader {
   /// Load wallet data
   static Future<void> _loadWallet() async {
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      Get.find<KaidhaSubscription_Controller>().get_Wallet_Kaidh();
+      Get.find<KaidhaSubscriptionController>().get_Wallet_Kaidh();
     });
   }
 

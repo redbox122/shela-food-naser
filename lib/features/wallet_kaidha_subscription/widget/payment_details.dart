@@ -96,7 +96,7 @@ class PaymentDetails extends StatelessWidget {
                                 try {
                                   // Load contract PDF
                                   await Get.find<
-                                          KaidhaSubscription_Controller>()
+                                          KaidhaSubscriptionController>()
                                       .get_Pdf();
 
                                   // Close loading dialog

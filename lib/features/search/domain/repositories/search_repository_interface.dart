@@ -16,7 +16,7 @@ abstract class SearchRepositoryInterface extends RepositoryInterface {
   /// يحصل على قائمة نتائج البحث
   @override
   Future<dynamic> getList(
-      {int? offset, String? query, Search_FilterModel? search_filterModel, bool? isStore, bool isSuggestedItems = false});
+      {int? offset, String? query, SearchFilterModel? search_filterModel, bool? isStore, bool isSuggestedItems = false});
 
   /// يحصل على اقتراحات البحث
   Future<SearchSuggestionModel?> getSearchSuggestions(String searchText);

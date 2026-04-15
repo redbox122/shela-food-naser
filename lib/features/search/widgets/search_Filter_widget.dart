@@ -175,7 +175,7 @@ class _ProductFilterScreenState extends State<ProductFilterScreen> {
 
                         const SizedBox(height: 10),
 
-                        Choice_Category_Row<CategoryModel>(
+                        ChoiceCategoryRow<CategoryModel>(
                           options: categoryList,
                           selected: selectedCategory,
                           labelBuilder: (category) => category.name ?? '',
@@ -192,7 +192,7 @@ class _ProductFilterScreenState extends State<ProductFilterScreen> {
                                 fontWeight: FontWeight.bold, fontSize: 16)),
 
                         const SizedBox(height: 10),
-                        Choice_Category_Row<Store>(
+                        ChoiceCategoryRow<Store>(
                           options: storesList,
                           selected: selectedStore,
                           labelBuilder: (store) => store.name ?? '',
@@ -437,13 +437,13 @@ class CustomTextField extends StatelessWidget {
   }
 }
 
-class Choice_Category_Row<T> extends StatelessWidget {
+class ChoiceCategoryRow<T> extends StatelessWidget {
   final List<T> options;
   final T? selected;
   final ValueChanged<T> onSelected;
   final String Function(T) labelBuilder;
 
-  const Choice_Category_Row({
+  const ChoiceCategoryRow({
     super.key,
     required this.options,
     required this.selected,

@@ -275,8 +275,8 @@ class _ShopHomeScreenState extends State<ShopHomeScreen> {
           appLogger.debug('   - BrandsController:');
           appLogger.debug('     • brandList: ${brandsController.brandList?.length ?? 0} items');
         }
-        if (Get.isRegistered<Offers_Controller>()) {
-          final offersController = Get.find<Offers_Controller>();
+        if (Get.isRegistered<OffersController>()) {
+          final offersController = Get.find<OffersController>();
           appLogger.debug('   - OffersController:');
           appLogger.debug('     • offersMode.data: ${offersController.offersMode?.data.length ?? 0} items');
         }
@@ -605,9 +605,9 @@ class _ShopHomeScreenState extends State<ShopHomeScreen> {
               // 4. OFFERS - ⚡ BUSINESS SETTINGS: Use backend flags as source of truth
               // For ecommerce, always show offers if data exists (regardless of flag)
               // ⚡ TITAN BOARD: Defensive UI guard - check registration before access
-              !Get.isRegistered<Offers_Controller>()
+              !Get.isRegistered<OffersController>()
                   ? const SizedBox.shrink()
-                  : GetBuilder<Offers_Controller>(
+                  : GetBuilder<OffersController>(
                       id: 'offers_section', // ⚡ CRITICAL: Prevents rebuild storms
                       builder: (offersController) {
                   final hasData = offersController.offersMode?.data != null &&

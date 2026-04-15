@@ -176,7 +176,7 @@ class MockStoreServiceInterface implements StoreServiceInterface {
   @override
   Future<Response<dynamic>> get_new_search_filtera({
     // ignore: non_constant_identifier_names
-    required Search_FilterModel search_filterModel,
+    required SearchFilterModel search_filterModel,
   }) async {
     throw UnimplementedError();
   }
@@ -253,7 +253,7 @@ class MockSearchServiceInterface implements SearchServiceInterface {
 
   @override
   Future<Response<dynamic>> getNewSearchFilter(
-      Search_FilterModel? searchFilterModel, bool isStore) async {
+      SearchFilterModel? searchFilterModel, bool isStore) async {
     throw UnimplementedError();
   }
 

@@ -18,10 +18,10 @@ import '../../item/domain/models/item_model.dart';
 import 'package:sixam_mart/common/cache/comprehensive_home_cache_manager.dart';
 import '../../item/domain/repositories/item_repository_interface.dart';
 
-class Offers_Controller extends GetxController implements GetxService {
+class OffersController extends GetxController implements GetxService {
   final Offers_ServiceInterface offersServiceInterface;
   final ItemRepositoryInterface itemRepository;
-  Offers_Controller({
+  OffersController({
     required this.offersServiceInterface,
     required this.itemRepository,
   });
@@ -35,7 +35,7 @@ class Offers_Controller extends GetxController implements GetxService {
     if (AppConstants.useBffV2Endpoint) {
       if (kDebugMode) {
         debugPrint(
-            '✅ Offers_Controller: Skipping onInit fetch (v2 endpoint enabled - HomeUnifiedController handles data)');
+            '✅ OffersController: Skipping onInit fetch (v2 endpoint enabled - HomeUnifiedController handles data)');
       }
       return;
     }
@@ -153,7 +153,7 @@ class Offers_Controller extends GetxController implements GetxService {
                   .toList();
               if (cachedOffersList.isNotEmpty) {
                 debugPrint(
-                    '✅ Offers_Controller: Loading ${cachedOffersList.length} offers from comprehensive cache');
+                    '✅ OffersController: Loading ${cachedOffersList.length} offers from comprehensive cache');
                 offersMode = OffersModel(
                   success: (offersData['success'] as bool?) ?? false,
                   data: cachedOffersList,
@@ -167,7 +167,7 @@ class Offers_Controller extends GetxController implements GetxService {
         }
       } catch (e) {
         debugPrint(
-            '⚠️ Offers_Controller: Error loading from comprehensive cache: $e');
+            '⚠️ OffersController: Error loading from comprehensive cache: $e');
       }
     }
 
@@ -184,7 +184,7 @@ class Offers_Controller extends GetxController implements GetxService {
         _isLoading = false;
         if (kDebugMode) {
           debugPrint(
-              '✅ Offers_Controller: Silent refresh - preserving Success state (has existing offers)');
+              '✅ OffersController: Silent refresh - preserving Success state (has existing offers)');
         }
       } else {
         // First load - show loading state
@@ -207,7 +207,7 @@ class Offers_Controller extends GetxController implements GetxService {
         if (hasExistingOffers) {
           if (kDebugMode) {
             debugPrint(
-                '🔒 Offers_Controller: No module selected, preserving existing offers (${offersMode!.data.length} offers)');
+                '🔒 OffersController: No module selected, preserving existing offers (${offersMode!.data.length} offers)');
           }
           return offersMode; // Return existing data without modifying state
         }
@@ -262,7 +262,7 @@ class Offers_Controller extends GetxController implements GetxService {
         // Keep existing offersMode - don't update or trigger rebuild
         if (kDebugMode) {
           debugPrint(
-              '🔒 Offers_Controller: API returned invalid/empty response, preserving existing offers (${oldOffers.data.length} offers)');
+              '🔒 OffersController: API returned invalid/empty response, preserving existing offers (${oldOffers.data.length} offers)');
         }
         return oldOffers; // Return existing data without modifying state
       }
@@ -284,7 +284,7 @@ class Offers_Controller extends GetxController implements GetxService {
         _isLoading = false;
         update();
         if (kDebugMode) {
-          debugPrint('🔄 Offers_Controller: Data changed, UI updated');
+          debugPrint('🔄 OffersController: Data changed, UI updated');
         }
       } else {
         // Data unchanged - keep existing offersMode and don't trigger UI update to prevent flicker
@@ -292,7 +292,7 @@ class Offers_Controller extends GetxController implements GetxService {
         // Don't call update() - this prevents unnecessary UI rebuild/flicker
         if (kDebugMode) {
           debugPrint(
-              '✅ Offers_Controller: Data unchanged (deep equality check), skipping UI update to prevent flicker');
+              '✅ OffersController: Data unchanged (deep equality check), skipping UI update to prevent flicker');
         }
       }
     } catch (e) {
@@ -307,7 +307,7 @@ class Offers_Controller extends GetxController implements GetxService {
         // Keep existing offersMode - don't update or trigger rebuild
         if (kDebugMode) {
           debugPrint(
-              '🔒 Offers_Controller: Error occurred, preserving existing offers (${offersMode!.data.length} offers)');
+              '🔒 OffersController: Error occurred, preserving existing offers (${offersMode!.data.length} offers)');
         }
         return offersMode; // Return existing data without modifying state
       }
@@ -338,7 +338,7 @@ class Offers_Controller extends GetxController implements GetxService {
         offersMode = newOffers;
       } else {
         debugPrint(
-            '⚠️ Offers_Controller: Unexpected data type: ${data.runtimeType}');
+            '⚠️ OffersController: Unexpected data type: ${data.runtimeType}');
         return;
       }
 
@@ -350,16 +350,16 @@ class Offers_Controller extends GetxController implements GetxService {
         update();
         if (kDebugMode) {
           debugPrint(
-              '✅ Offers_Controller: Loaded ${offersMode?.data.length ?? 0} offers from cache - data changed, UI updated');
+              '✅ OffersController: Loaded ${offersMode?.data.length ?? 0} offers from cache - data changed, UI updated');
         }
       } else {
         if (kDebugMode) {
           debugPrint(
-              '✅ Offers_Controller: Loaded ${offersMode?.data.length ?? 0} offers from cache - data unchanged (deep equality check), skipping UI update');
+              '✅ OffersController: Loaded ${offersMode?.data.length ?? 0} offers from cache - data unchanged (deep equality check), skipping UI update');
         }
       }
     } catch (e) {
-      debugPrint('❌ Offers_Controller: Error setting offers from cache: $e');
+      debugPrint('❌ OffersController: Error setting offers from cache: $e');
     }
   }
 
@@ -370,7 +370,7 @@ class Offers_Controller extends GetxController implements GetxService {
     if (offers.isEmpty) {
       if (kDebugMode) {
         debugPrint(
-            '⚠️ Offers_Controller.setOffersFromBootstrap: Received empty offers list. Preserving existing data.');
+            '⚠️ OffersController.setOffersFromBootstrap: Received empty offers list. Preserving existing data.');
       }
       _isLoading = false;
       return; // 🔥 ELITE MOVE: Don't kill the UI if the API is starving
@@ -380,7 +380,7 @@ class Offers_Controller extends GetxController implements GetxService {
     if (newOffers.data.isEmpty) {
       if (kDebugMode) {
         debugPrint(
-            '⚠️ Offers_Controller.setOffersFromBootstrap: Received empty offers from Bootstrap. Preserving existing data.');
+            '⚠️ OffersController.setOffersFromBootstrap: Received empty offers from Bootstrap. Preserving existing data.');
       }
       _isLoading = false;
       return; // 🔥 ELITE MOVE: Don't kill the UI if the API is starving
@@ -397,7 +397,7 @@ class Offers_Controller extends GetxController implements GetxService {
         if (_areOffersEqual(offersMode, newOffers)) {
           if (kDebugMode) {
             debugPrint(
-                '✅ Offers_Controller: setOffersFromBootstrap - Data unchanged (deep equality), skipping parse and update');
+                '✅ OffersController: setOffersFromBootstrap - Data unchanged (deep equality), skipping parse and update');
           }
           _isLoading = false;
           return; // Exit early - no need to parse or update UI
@@ -412,7 +412,7 @@ class Offers_Controller extends GetxController implements GetxService {
         oldOffers.data.isNotEmpty) {
       if (kDebugMode) {
         debugPrint(
-            '🔒 Offers_Controller: New offers are empty, preserving pre-warmed data (${oldOffers.data.length} offers)');
+            '🔒 OffersController: New offers are empty, preserving pre-warmed data (${oldOffers.data.length} offers)');
       }
       _isLoading = false;
       return; // Don't overwrite with empty data
@@ -424,7 +424,7 @@ class Offers_Controller extends GetxController implements GetxService {
     if (newOffers.data.isEmpty && currentOffersList.isNotEmpty) {
       if (kDebugMode) {
         debugPrint(
-            '🔒 Offers_Controller: Empty new offers detected, preserving existing offers (${currentOffersList.length} offers)');
+            '🔒 OffersController: Empty new offers detected, preserving existing offers (${currentOffersList.length} offers)');
       }
       _isLoading = false;
       return; // Don't clear existing offers with empty response
@@ -440,12 +440,12 @@ class Offers_Controller extends GetxController implements GetxService {
       update(['offers']); // 🔧 FIX: Use specific ID for offers widget re-render
       if (kDebugMode) {
         debugPrint(
-            '✅ Offers_Controller: Injected ${offersMode?.data.length ?? 0} offers');
+            '✅ OffersController: Injected ${offersMode?.data.length ?? 0} offers');
       }
     } else {
       if (kDebugMode) {
         debugPrint(
-            '✅ Offers_Controller: Offers set from bootstrap (${offersMode?.data.length ?? 0} offers) - data unchanged (deep equality check), skipping UI update');
+            '✅ OffersController: Offers set from bootstrap (${offersMode?.data.length ?? 0} offers) - data unchanged (deep equality check), skipping UI update');
       }
     }
   }
@@ -476,16 +476,16 @@ class Offers_Controller extends GetxController implements GetxService {
       if (_activeItemsRequestKey != requestKey) {
         if (kDebugMode) {
           debugPrint(
-              '⚠️ Offers_Controller: replacing in-flight request ($_activeItemsRequestKey) with new request ($requestKey)');
+              '⚠️ OffersController: replacing in-flight request ($_activeItemsRequestKey) with new request ($requestKey)');
         }
       } else {
         if (forceRefresh && kDebugMode) {
           debugPrint(
-              '⚠️ Offers_Controller: duplicate request is forceRefresh=true but still in progress, keeping current in-flight call (id: $id, offset: $offset)');
+              '⚠️ OffersController: duplicate request is forceRefresh=true but still in progress, keeping current in-flight call (id: $id, offset: $offset)');
         }
         if (kDebugMode) {
           debugPrint(
-              '⚠️ Offers_Controller: getOffersItemList already in progress, skipping duplicate call (id: $id, offset: $offset)');
+              '⚠️ OffersController: getOffersItemList already in progress, skipping duplicate call (id: $id, offset: $offset)');
         }
         return;
       }
@@ -496,7 +496,7 @@ class Offers_Controller extends GetxController implements GetxService {
       if (_isCacheValid(id)) {
         if (kDebugMode) {
           debugPrint(
-              '✅ Offers_Controller: Serving offer items from memory cache (id: $id, cachedItemsCount: ${_offersItemsCache[id]?.length ?? 0})');
+              '✅ OffersController: Serving offer items from memory cache (id: $id, cachedItemsCount: ${_offersItemsCache[id]?.length ?? 0})');
         }
         _offersItemList = List.from(_offersItemsCache[id] ?? []);
         _isLoading = false;
@@ -586,7 +586,7 @@ class Offers_Controller extends GetxController implements GetxService {
     } catch (e, st) {
       if (kDebugMode) {
         debugPrint(
-            '❌ Offers_Controller.getOffersItemList failed (id: $id, offset: $offset): $e');
+            '❌ OffersController.getOffersItemList failed (id: $id, offset: $offset): $e');
         debugPrint(st as String?);
       }
       _hasItemsError = true;
@@ -642,7 +642,7 @@ class Offers_Controller extends GetxController implements GetxService {
   Future<void> resetToDefault() async {
     try {
       if (kDebugMode) {
-        debugPrint('🔄 Offers_Controller: Resetting to default state');
+        debugPrint('🔄 OffersController: Resetting to default state');
       }
 
       // Clear model
@@ -683,11 +683,11 @@ class Offers_Controller extends GetxController implements GetxService {
       _searchDebounceTimer = null;
 
       if (kDebugMode) {
-        debugPrint('✅ Offers_Controller: Reset to default state completed');
+        debugPrint('✅ OffersController: Reset to default state completed');
       }
     } catch (e, stackTrace) {
       if (kDebugMode) {
-        debugPrint('❌ Offers_Controller.resetToDefault: Error - $e');
+        debugPrint('❌ OffersController.resetToDefault: Error - $e');
         debugPrint('Stack trace: $stackTrace');
       }
     }

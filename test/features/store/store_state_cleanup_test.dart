@@ -147,7 +147,7 @@ class MockStoreServiceInterface implements StoreServiceInterface {
 
   @override
   Future<Response> get_new_search_filtera({
-    required Search_FilterModel search_filterModel,
+    required SearchFilterModel search_filterModel,
   }) async {
     throw UnimplementedError();
   }

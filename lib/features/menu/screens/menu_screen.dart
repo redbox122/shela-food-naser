@@ -130,7 +130,7 @@ class _MenuScreenState extends State<MenuScreen> {
             profileController.userInfoModel?.qidhaWalletBalance;
         final hasQidhaWallet =
             profileController.userInfoModel?.hasQidhaWallet ?? false;
-        final kaidhaController = Get.find<KaidhaSubscription_Controller>();
+        final kaidhaController = Get.find<KaidhaSubscriptionController>();
 
         if (hasQidhaWallet) {
           // ⚡ TASK 2: Ensure wallet state is set with default creditLimit (5000.0) if not already set
@@ -192,7 +192,7 @@ class _MenuScreenState extends State<MenuScreen> {
           final walletBalance = profileController.userInfoModel?.walletBalance;
           if (walletBalance == null) {
             // Regular wallet balance not in userInfo - need to load from wallet API
-            final kaidhaController = Get.find<KaidhaSubscription_Controller>();
+            final kaidhaController = Get.find<KaidhaSubscriptionController>();
             if (kaidhaController.walletKaidhaModel == null) {
               try {
                 if (kDebugMode) {
@@ -279,7 +279,7 @@ class _MenuScreenState extends State<MenuScreen> {
           final toggleStoreRegistration =
               config?.toggleStoreRegistration ?? false;
 
-          return GetBuilder<KaidhaSubscription_Controller>(
+          return GetBuilder<KaidhaSubscriptionController>(
               builder: (KaidhaSubController) {
             // Log menu screen render state
 
@@ -469,7 +469,7 @@ class _MenuScreenState extends State<MenuScreen> {
                         ]),
                   ),
                 ),
-                GetBuilder<KaidhaSubscription_Controller>(
+                GetBuilder<KaidhaSubscriptionController>(
                     builder: (KaidhaSubController) {
                   return GetBuilder<Delegate_Controller>(
                       builder: (delegate_Controller) {
@@ -727,8 +727,9 @@ class _MenuScreenState extends State<MenuScreen> {
                                                 () {
                                                   final balance =
                                                       wallet.availableBalance;
-                                                  if (balance == null)
+                                                  if (balance == null) {
                                                     return 0.0;
+                                                  }
                                                   if (balance is double) {
                                                     return balance;
                                                   }

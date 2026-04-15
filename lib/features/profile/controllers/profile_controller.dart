@@ -52,8 +52,8 @@ class ProfileController extends GetxController implements GetxService {
         debugPrint('✅ ProfileController: getUserInfo() - userInfoModel updated from API (200 response)');
         // Extract wallet flags from user info response (NEW - from /api/v1/customer/info)
         // ⚡ TASK 2: If qidha_wallet_balance exists, default creditLimit to 5000.0
-        if (userInfoModel.hasQidhaWallet == true && Get.isRegistered<KaidhaSubscription_Controller>()) {
-          final kaidhaController = Get.find<KaidhaSubscription_Controller>();
+        if (userInfoModel.hasQidhaWallet == true && Get.isRegistered<KaidhaSubscriptionController>()) {
+          final kaidhaController = Get.find<KaidhaSubscriptionController>();
           // Only set wallet state if not already set (e.g., from login response)
           if (kaidhaController.walletKaidhaModel == null) {
             debugPrint('💳 ProfileController: Extracting wallet flags from user info response...');

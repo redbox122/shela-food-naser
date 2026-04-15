@@ -20,7 +20,7 @@ class FileUploadWithNameWidget extends StatefulWidget {
 class _FileUploadWithNameWidgetState extends State<FileUploadWithNameWidget> {
   @override
   Widget build(BuildContext context) {
-    return GetBuilder<KaidhaSubscription_Controller>(builder: (KaidhaSubController) {
+    return GetBuilder<KaidhaSubscriptionController>(builder: (KaidhaSubController) {
       return Column(
         children: [
           // TextField لإدخال الاسم

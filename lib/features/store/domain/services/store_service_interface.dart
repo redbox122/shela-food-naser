@@ -59,7 +59,7 @@ abstract class StoreServiceInterface {
   String filterRestaurantLinkUrl(String slug, Store store);
 
   Future<Response> get_new_search_filtera(
-      {required Search_FilterModel search_filterModel});
+      {required SearchFilterModel search_filterModel});
 
   Future<List<CategoryModel>?> getSubCategoryList({String? parentID});
   Future<StoreSubcategorySamplesModel?> getStoreSubcategoriesWithSamples({

@@ -130,7 +130,7 @@ class _StoreItemSearchScreenState extends State<StoreItemSearchScreen> {
                                     horizontal: Dimensions.paddingSizeLarge,
                                     vertical: Dimensions.paddingSizeLarge,
                                   ),
-                                  child: Store_Search_Filter_Widget(storeID: widget.storeID!),
+                                  child: StoreSearchFilterWidget(storeID: widget.storeID!),
                                 ),
                                 backgroundColor: Colors.transparent,
                                 isScrollControlled: true,

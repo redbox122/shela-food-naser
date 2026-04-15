@@ -414,8 +414,8 @@ class ComprehensiveHomeLoader {
       }
 
       // Optional data: Offers (not critical)
-      if (Get.isRegistered<Offers_Controller>()) {
-        final offersController = Get.find<Offers_Controller>();
+      if (Get.isRegistered<OffersController>()) {
+        final offersController = Get.find<OffersController>();
         if (offersController.offersMode != null &&
             offersController.offersMode!.data.isNotEmpty) {
         }

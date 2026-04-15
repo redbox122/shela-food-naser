@@ -1,8 +1,7 @@
 ﻿// ignore_for_file: file_names, non_constant_identifier_names, use_build_context_synchronously, depend_on_referenced_packages, annotate_overrides, unused_local_variable, empty_catches
 
-import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
+import 'package:dio/dio.dart' as dio_pkg;
 import 'package:path/path.dart' as p;
 import 'package:sixam_mart/api/api_client.dart';
 import 'package:sixam_mart/common/widgets/custom_snackbar.dart';
@@ -25,30 +24,33 @@ class DelegateRepository implements DelegateRepositoryInterface {
 
     DelegateModel? delegateModel;
 
-    final headers = {
-      'Accept': 'application/json',
-      'Authorization': 'Bearer ${apiClient.token}',
-    };
-
-    final uri = Uri.parse(AppConstants.baseUrl + AppConstants.get_delegateUri);
-    final request = http.Request('GET', uri);
-    request.headers.addAll(headers);
+    final url = AppConstants.baseUrl + AppConstants.get_delegateUri;
 
     try {
-      final http.StreamedResponse response = await request.send();
+      final dio = dio_pkg.Dio();
+      final dioResponse = await dio.get<dynamic>(
+        url,
+        options: dio_pkg.Options(
+          headers: {
+            'Accept': 'application/json',
+            'Authorization': 'Bearer ${apiClient.token}',
+          },
+          validateStatus: (s) => s != null,
+        ),
+      );
 
-      if (response.statusCode == 200) {
-        final responseBody = await response.stream.bytesToString();
-        final Map<String, dynamic> decoded = json.decode(responseBody) as Map<String, dynamic>;
-
+      if (dioResponse.statusCode == 200) {
+        final Map<String, dynamic> decoded =
+            dioResponse.data is Map<String, dynamic>
+                ? dioResponse.data as Map<String, dynamic>
+                : {};
         delegateModel = DelegateModel.fromJson(decoded);
-        debugPrint('✅ مندوب: $responseBody');
-
+        debugPrint('✅ مندوب: ${dioResponse.data}');
         return delegateModel;
-      } else if (response.statusCode == 404) {
+      } else if (dioResponse.statusCode == 404) {
         return null;
       } else {
-        debugPrint('❌ فشل في استرجاع بيانات المندوب. كود: ${response.statusCode}');
+        debugPrint('❌ فشل في استرجاع بيانات المندوب. كود: ${dioResponse.statusCode}');
       }
     } catch (e) {
       debugPrint('❌ خطأ أثناء استرجاع بيانات المندوب: $e');
@@ -71,68 +73,71 @@ class DelegateRepository implements DelegateRepositoryInterface {
       return false;
     }
 
-    final uri = Uri.parse(AppConstants.baseUrl + AppConstants.send_delegateUri);
-    final request = http.MultipartRequest('POST', uri);
+    final url = AppConstants.baseUrl + AppConstants.send_delegateUri;
+    final formData = dio_pkg.FormData();
 
-    request.headers.addAll({
-      'Accept': 'application/json',
-      'X-localization': 'ar',
-      'Authorization': 'Bearer ${apiClient.token}',
-    });
-
-    request.fields.addAll({
-      'user_id': id.toString(),
-      'f_name': f_name,
-      'l_name': L_name,
-      'mobile': mobile,
-    });
+    formData.fields.addAll([
+      MapEntry('user_id', id.toString()),
+      MapEntry('f_name', f_name),
+      MapEntry('l_name', L_name),
+      MapEntry('mobile', mobile),
+    ]);
 
     if (list_img.isNotEmpty) {
       final file = list_img.first.file;
       final String? path = file.path;
 
       if (path != null && path.isNotEmpty) {
-        request.files.add(
-          await http.MultipartFile.fromPath('id_photo', path),
-        );
+        formData.files.add(MapEntry(
+          'id_photo',
+          await dio_pkg.MultipartFile.fromFile(path),
+        ));
       } else if (file.bytes != null) {
-        request.files.add(
-          http.MultipartFile.fromBytes(
-            'id_photo',
-            file.bytes!,
-            filename: file.name,
-          ),
-        );
+        formData.files.add(MapEntry(
+          'id_photo',
+          dio_pkg.MultipartFile.fromBytes(file.bytes!, filename: file.name),
+        ));
       } else {
         showCustomSnackBar('تعذر قراءة الملف المرفق. اختر ملفًا آخر.');
         return false;
       }
 
-      request.fields['id_photo_name'] = p.basename(file.name);
+      formData.fields.add(MapEntry('id_photo_name', p.basename(file.name)));
     } else {
       showCustomSnackBar('الرجاء إرفاق صورة الهوية');
       return false;
     }
 
-    final http.StreamedResponse response = await request.send();
-    final String responseBody = await response.stream.bytesToString();
+    final dio = dio_pkg.Dio();
+    final dioResponse = await dio.post<dynamic>(
+      url,
+      data: formData,
+      options: dio_pkg.Options(
+        headers: {
+          'Accept': 'application/json',
+          'X-localization': 'ar',
+          'Authorization': 'Bearer ${apiClient.token}',
+        },
+        validateStatus: (s) => s != null,
+      ),
+    );
 
-    if (response.statusCode == 200 || response.statusCode == 201) {
+    if (dioResponse.statusCode == 200 || dioResponse.statusCode == 201) {
       debugPrint('✅ تم الإرسال بنجاح');
       showCustomSnackBar('تم الإرسال بنجاح', isError: false);
       return true;
     }
 
-    debugPrint('❌ فشل في الإرسال: ${response.statusCode}');
-    debugPrint(responseBody);
+    debugPrint('❌ فشل في الإرسال: ${dioResponse.statusCode}');
+    debugPrint('${dioResponse.data}');
 
-    if (response.statusCode == 404) {
+    if (dioResponse.statusCode == 404) {
       showCustomSnackBar('الخدمة غير متاحة حالياً: مسار إرسال المندوب غير موجود على الخادم (404).');
       return false;
     }
 
     try {
-      final decoded = jsonDecode(responseBody);
+      final decoded = dioResponse.data;
       if (decoded is Map && decoded.containsKey('message')) {
         showCustomSnackBar(decoded['message'].toString());
       } else if (decoded is Map && decoded.containsKey('errors')) {

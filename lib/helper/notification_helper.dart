@@ -19,7 +19,7 @@ import 'package:sixam_mart/util/app_constants.dart';
 import 'package:sixam_mart/util/backend_message_translator.dart';
 import 'package:get/get.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:http/http.dart' as http;
+import 'package:dio/dio.dart' as dio_pkg;
 import 'package:sixam_mart/features/dashboard/screens/dashboard_screen.dart';
 import 'package:sixam_mart/features/notification/widgets/notifiation_popup_dialog_widget.dart';
 
@@ -413,9 +413,12 @@ if (image != null && image.isNotEmpty) {
       String url, String fileName) async {
     final Directory directory = await getApplicationDocumentsDirectory();
     final String filePath = '${directory.path}/$fileName';
-    final http.Response response = await http.get(Uri.parse(url));
+    final dio_pkg.Response<List<int>> response = await dio_pkg.Dio().get<List<int>>(
+      url,
+      options: dio_pkg.Options(responseType: dio_pkg.ResponseType.bytes),
+    );
     final File file = File(filePath);
-    await file.writeAsBytes(response.bodyBytes);
+    await file.writeAsBytes(response.data ?? []);
     return filePath;
   }
 

@@ -8,15 +8,15 @@ import 'package:sixam_mart/features/store/domain/models/store_model.dart';
 import 'package:sixam_mart/theme/app_color_tokens.dart';
 import 'package:sixam_mart/util/images.dart';
 
-class Search_Filter extends StatefulWidget {
+class SearchFilter extends StatefulWidget {
   final String categoryID;
-  const Search_Filter({super.key, required this.categoryID});
+  const SearchFilter({super.key, required this.categoryID});
 
   @override
-  State<Search_Filter> createState() => _Search_FilterState();
+  State<SearchFilter> createState() => _SearchFilterState();
 }
 
-class _Search_FilterState extends State<Search_Filter> {
+class _SearchFilterState extends State<SearchFilter> {
   // Controllers
   final TextEditingController nameController = TextEditingController();
 
@@ -136,7 +136,7 @@ class _Search_FilterState extends State<Search_Filter> {
                                   fontSize: 13,
                                 ),
                               )
-                            : Choice_Category_Row<Store>(
+                            : ChoiceCategoryRow<Store>(
                                 options: storesList,
                                 selected: selectedStore,
                                 labelBuilder: (store) => store.name ?? '',
@@ -352,13 +352,13 @@ class CustomTextField extends StatelessWidget {
   }
 }
 
-class Choice_Category_Row<T> extends StatelessWidget {
+class ChoiceCategoryRow<T> extends StatelessWidget {
   final List<T> options;
   final T? selected;
   final ValueChanged<T> onSelected;
   final String Function(T) labelBuilder;
 
-  const Choice_Category_Row({
+  const ChoiceCategoryRow({
     super.key,
     required this.options,
     required this.selected,

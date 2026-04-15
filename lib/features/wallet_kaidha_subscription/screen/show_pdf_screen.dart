@@ -7,17 +7,17 @@ import 'package:sixam_mart/helper/route_helper.dart';
 import 'package:sixam_mart/util/app_colors.dart';
 import 'package:sixam_mart/util/dimensions.dart';
 
-class Show_Pdf_Screen extends StatefulWidget {
-  const Show_Pdf_Screen({super.key});
+class ShowPdfScreen extends StatefulWidget {
+  const ShowPdfScreen({super.key});
 
   @override
-  State<Show_Pdf_Screen> createState() => _Show_Pdf_ScreenState();
+  State<ShowPdfScreen> createState() => _ShowPdfScreenState();
 }
 
-class _Show_Pdf_ScreenState extends State<Show_Pdf_Screen> {
+class _ShowPdfScreenState extends State<ShowPdfScreen> {
   @override
   Widget build(BuildContext context) {
-    return GetBuilder<KaidhaSubscription_Controller>(
+    return GetBuilder<KaidhaSubscriptionController>(
       builder: (KaidhaSubController) {
         return Padding(
           padding: const EdgeInsets.all(8.0),

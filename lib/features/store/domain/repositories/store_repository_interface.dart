@@ -56,7 +56,7 @@ abstract class StoreRepositoryInterface extends RepositoryInterface {
       int? moduleId);
 
   Future<Response> get_new_search_filtera(
-      {required Search_FilterModel search_filterModel});
+      {required SearchFilterModel search_filterModel});
 
   Future<StoreSubcategorySamplesModel?> getStoreSubcategoriesWithSamples({
     required int storeId,

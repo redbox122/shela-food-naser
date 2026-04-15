@@ -19,7 +19,7 @@ class SearchService implements SearchServiceInterface {
   }
 
   @override
-  Future<Response<dynamic>> getNewSearchFilter(Search_FilterModel? searchFilterModel, bool isStore) async {
+  Future<Response<dynamic>> getNewSearchFilter(SearchFilterModel? searchFilterModel, bool isStore) async {
     final result = await searchRepositoryInterface.getList(search_filterModel: searchFilterModel, isStore: isStore);
     return result is Response<dynamic> ? result : const Response<dynamic>();
   }

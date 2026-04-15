@@ -9,7 +9,7 @@ abstract class SearchServiceInterface {
   Future<Response<dynamic>> getSearchData(String? query, bool isStore);
 
   /// تنفيذ البحث باستخدام الفلترة الجديدة
-  Future<Response<dynamic>> getNewSearchFilter(Search_FilterModel? searchFilterModel, bool isStore);
+  Future<Response<dynamic>> getNewSearchFilter(SearchFilterModel? searchFilterModel, bool isStore);
 
   /// جلب العناصر المقترحة
   Future<List<Item>?> getSuggestedItems();

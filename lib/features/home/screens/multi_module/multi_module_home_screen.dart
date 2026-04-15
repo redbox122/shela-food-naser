@@ -315,7 +315,7 @@ class _MultiModuleHomeScreenState extends State<MultiModuleHomeScreen> {
                   // This ensures users know the offers section exists even when no offers are available
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 0),
-                    child: GetBuilder<Offers_Controller>(
+                    child: GetBuilder<OffersController>(
                       builder: (offersController) {
                         return const _SectionCard(
                           child: OffersView(),

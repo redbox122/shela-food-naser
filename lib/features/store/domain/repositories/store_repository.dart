@@ -1441,7 +1441,7 @@ class StoreRepository implements StoreRepositoryInterface {
 
   @override
   Future<Response> get_new_search_filtera(
-      {required Search_FilterModel search_filterModel}) async {
+      {required SearchFilterModel search_filterModel}) async {
     debugPrint('\x1B[32m  44444444444444444444444444444  \x1B[0m');
 
     debugPrint('\x1B[32m  /${search_filterModel.research_Name}  \x1B[0m');

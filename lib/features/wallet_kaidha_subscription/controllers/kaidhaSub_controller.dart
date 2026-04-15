@@ -18,7 +18,6 @@ import 'package:sixam_mart/features/wallet_kaidha_subscription/domain/models/naf
 import 'package:sixam_mart/features/wallet_kaidha_subscription/domain/models/nafath_random_model.dart';
 import 'package:sixam_mart/features/wallet_kaidha_subscription/domain/models/wallet_kaidha_model.dart';
 import 'package:sixam_mart/features/wallet_kaidha_subscription/domain/services/kaidhaSub_service_interface.dart';
-import 'package:sixam_mart/helper/address_helper.dart';
 import 'package:sixam_mart/helper/route_helper.dart';
 import 'package:sixam_mart/util/images.dart';
 import 'package:myfatoorah_flutter/myfatoorah_flutter.dart';
@@ -32,10 +31,10 @@ import 'package:sixam_mart/core/cache/hive_home_cache_service.dart';
 import 'package:sixam_mart/common/exceptions/validation_exception.dart';
 import 'dart:io';
 
-class KaidhaSubscription_Controller extends GetxController
+class KaidhaSubscriptionController extends GetxController
     implements GetxService {
   final kaidhaSub_ServiceInterface kaidhaSubServiceInterface;
-  KaidhaSubscription_Controller({required this.kaidhaSubServiceInterface});
+  KaidhaSubscriptionController({required this.kaidhaSubServiceInterface});
 
   // Performance optimization variables
   Timer? _saveTimer;
@@ -822,7 +821,7 @@ class KaidhaSubscription_Controller extends GetxController
     String? balance,
   }) {
     debugPrint(
-        '💳 KaidhaSubscription_Controller: Setting wallet state from login response...');
+        '💳 KaidhaSubscriptionController: Setting wallet state from login response...');
     debugPrint('   - Signed: $signed');
     debugPrint('   - Active: $active');
     debugPrint('   - Balance: ${balance ?? 'null'}');
@@ -831,7 +830,7 @@ class KaidhaSubscription_Controller extends GetxController
     // This allows menu screen to render wallet buttons immediately without API call
     if (signed && active && balance != null) {
       debugPrint(
-          '✅ KaidhaSubscription_Controller: Wallet is signed and active - creating minimal wallet model');
+          '✅ KaidhaSubscriptionController: Wallet is signed and active - creating minimal wallet model');
       // Convert balance string to double for consistency with API response (API returns double)
       final double? balanceValue = double.tryParse(balance);
       // ⚡ TASK 2: Default creditLimit to 5000.0 if qidha_wallet_balance exists
@@ -875,11 +874,11 @@ class KaidhaSubscription_Controller extends GetxController
       hasNoWallet = false;
       isLoading_wallet = false;
       debugPrint(
-          '✅ KaidhaSubscription_Controller: Wallet state set - menu can show Qidha Wallet button immediately');
+          '✅ KaidhaSubscriptionController: Wallet state set - menu can show Qidha Wallet button immediately');
     } else {
       // Wallet exists but not signed/active - set flags for menu logic
       debugPrint(
-          'ℹ️ KaidhaSubscription_Controller: Wallet exists but not signed/active - menu will show subscription button');
+          'ℹ️ KaidhaSubscriptionController: Wallet exists but not signed/active - menu will show subscription button');
       walletKaidhaModel = null; // Menu will show subscription button
       hasWalletError = false;
       hasNoWallet = false; // Wallet exists, just not active
@@ -887,14 +886,14 @@ class KaidhaSubscription_Controller extends GetxController
     }
     update();
     debugPrint(
-        '✅ KaidhaSubscription_Controller: Wallet state updated - UI notified');
+        '✅ KaidhaSubscriptionController: Wallet state updated - UI notified');
   }
 
   Future get_Wallet_Kaidh({bool forceRefresh = false}) async {
     if (kDebugMode) {
       debugPrint('═══════════════════════════════════════════════════════════');
       debugPrint(
-          '💳 [KaidhaSubscription_Controller] get_Wallet_Kaidh() called');
+          '💳 [KaidhaSubscriptionController] get_Wallet_Kaidh() called');
       debugPrint('   🔄 forceRefresh: $forceRefresh');
       debugPrint('   ⏰ Timestamp: ${DateTime.now().toIso8601String()}');
       debugPrint('═══════════════════════════════════════════════════════════');
@@ -905,7 +904,7 @@ class KaidhaSubscription_Controller extends GetxController
     final bool hadExistingWallet = existingWallet != null;
 
     if (kDebugMode) {
-      debugPrint('💳 [KaidhaSubscription_Controller] Current wallet state:');
+      debugPrint('💳 [KaidhaSubscriptionController] Current wallet state:');
       debugPrint('   📊 hadExistingWallet: $hadExistingWallet');
       if (hadExistingWallet) {
         debugPrint('   💰 Status: ${existingWallet.wallet?.status}');
@@ -945,7 +944,7 @@ class KaidhaSubscription_Controller extends GetxController
     if (!forceRefresh && hasFullWalletData) {
       if (kDebugMode) {
         debugPrint(
-            '💳 [KaidhaSubscription_Controller] ⏭️ Full wallet data already set - skipping API call');
+            '💳 [KaidhaSubscriptionController] ⏭️ Full wallet data already set - skipping API call');
         debugPrint('   💡 Use forceRefresh: true to override');
         debugPrint('   💰 Wallet Status: ${existingWallet.wallet?.status}');
         debugPrint(
@@ -957,7 +956,7 @@ class KaidhaSubscription_Controller extends GetxController
 
     if (kDebugMode) {
       debugPrint(
-          '💳 [KaidhaSubscription_Controller] Starting wallet data fetch...');
+          '💳 [KaidhaSubscriptionController] Starting wallet data fetch...');
       debugPrint('   📡 API: /api/v1/customer/wallet-kaidha');
       if (hadExistingWallet && !hasFullWalletData) {
         debugPrint(
@@ -977,7 +976,7 @@ class KaidhaSubscription_Controller extends GetxController
       // We have partial data - update silently in background without showing loader
       if (kDebugMode) {
         debugPrint(
-            '💳 [KaidhaSubscription_Controller] ⚡ Background update - not setting loading state');
+            '💳 [KaidhaSubscriptionController] ⚡ Background update - not setting loading state');
       }
     }
 
@@ -986,7 +985,7 @@ class KaidhaSubscription_Controller extends GetxController
           forceRefresh: forceRefresh);
 
       if (kDebugMode) {
-        debugPrint('💳 [KaidhaSubscription_Controller] API response received');
+        debugPrint('💳 [KaidhaSubscriptionController] API response received');
         debugPrint('   📊 newWallet: ${newWallet != null ? "EXISTS" : "NULL"}');
       }
 
@@ -1006,7 +1005,7 @@ class KaidhaSubscription_Controller extends GetxController
             // ⚡ TASK 3: Skeleton data still present - clear ETag and force refresh
             if (kDebugMode) {
               debugPrint(
-                  '💳 [KaidhaSubscription_Controller] ⚠️ Skeleton data detected after fetch - clearing ETag and retrying');
+                  '💳 [KaidhaSubscriptionController] ⚠️ Skeleton data detected after fetch - clearing ETag and retrying');
             }
 
             // Clear ETag and force refresh
@@ -1020,14 +1019,14 @@ class KaidhaSubscription_Controller extends GetxController
               walletKaidhaModel = retryWallet;
               if (kDebugMode) {
                 debugPrint(
-                    '💳 [KaidhaSubscription_Controller] ✅ Wallet hydrated after ETag clear');
+                    '💳 [KaidhaSubscriptionController] ✅ Wallet hydrated after ETag clear');
               }
             }
           }
 
           if (kDebugMode) {
             debugPrint(
-                '💳 [KaidhaSubscription_Controller] ✅ Wallet loaded successfully');
+                '💳 [KaidhaSubscriptionController] ✅ Wallet loaded successfully');
             debugPrint('   💰 Status: ${walletKaidhaModel!.wallet!.status}');
             debugPrint('   🆔 Wallet ID: ${walletKaidhaModel!.wallet!.id}');
             debugPrint(
@@ -1050,7 +1049,7 @@ class KaidhaSubscription_Controller extends GetxController
         walletKaidhaModel = null;
         if (kDebugMode) {
           debugPrint(
-              '💳 [KaidhaSubscription_Controller] ℹ️ No wallet data found - user has no wallet');
+              '💳 [KaidhaSubscriptionController] ℹ️ No wallet data found - user has no wallet');
         }
         hasWalletError = false;
         hasNoWallet = true;
@@ -1068,7 +1067,7 @@ class KaidhaSubscription_Controller extends GetxController
           walletKaidhaModel = existingWallet;
           if (kDebugMode) {
             debugPrint(
-                '💳 [KaidhaSubscription_Controller] ⚠️ API returned null but wallet has valid data - preserving');
+                '💳 [KaidhaSubscriptionController] ⚠️ API returned null but wallet has valid data - preserving');
             debugPrint(
                 '   💰 Preserved Wallet Status: ${existingWallet.wallet?.status}');
             debugPrint(
@@ -1082,7 +1081,7 @@ class KaidhaSubscription_Controller extends GetxController
           walletKaidhaModel = null;
           if (kDebugMode) {
             debugPrint(
-                '💳 [KaidhaSubscription_Controller] ⚠️ API returned null and existing wallet is skeleton - clearing state');
+                '💳 [KaidhaSubscriptionController] ⚠️ API returned null and existing wallet is skeleton - clearing state');
             debugPrint('   💡 Will show loading state instead of broken UI');
           }
           hasWalletError = false;
@@ -1092,7 +1091,7 @@ class KaidhaSubscription_Controller extends GetxController
     } catch (e, stackTrace) {
       if (kDebugMode) {
         debugPrint(
-            '💳 [KaidhaSubscription_Controller] ❌ Error fetching wallet');
+            '💳 [KaidhaSubscriptionController] ❌ Error fetching wallet');
         debugPrint('   📋 Error: $e');
         debugPrint('   📋 Stack trace: $stackTrace');
       }
@@ -1102,7 +1101,7 @@ class KaidhaSubscription_Controller extends GetxController
         walletKaidhaModel = existingWallet; // Restore existing state
         if (kDebugMode) {
           debugPrint(
-              '💳 [KaidhaSubscription_Controller] ⚠️ API error but wallet was already set');
+              '💳 [KaidhaSubscriptionController] ⚠️ API error but wallet was already set');
           debugPrint('   💡 Preserving existing state');
           debugPrint(
               '   💰 Preserved Wallet Status: ${existingWallet.wallet?.status}');
@@ -1114,7 +1113,7 @@ class KaidhaSubscription_Controller extends GetxController
         // No existing wallet - treat as error
         if (kDebugMode) {
           debugPrint(
-              '💳 [KaidhaSubscription_Controller] ❌ No existing wallet - marking as error');
+              '💳 [KaidhaSubscriptionController] ❌ No existing wallet - marking as error');
         }
         hasWalletError = true;
         hasNoWallet = false; // Error is different from no wallet
@@ -1126,14 +1125,14 @@ class KaidhaSubscription_Controller extends GetxController
           walletErrorMessage = 'Unauthorized - Please login again';
           if (kDebugMode) {
             debugPrint(
-                '💳 [KaidhaSubscription_Controller] 🔐 401 Unauthorized error detected');
+                '💳 [KaidhaSubscriptionController] 🔐 401 Unauthorized error detected');
           }
         } else if (e.toString().contains('500') ||
             e.toString().contains('Internal Server Error')) {
           walletErrorMessage = 'Server error - Please try again later';
           if (kDebugMode) {
             debugPrint(
-                '💳 [KaidhaSubscription_Controller] 🔥 500 Server error detected');
+                '💳 [KaidhaSubscriptionController] 🔥 500 Server error detected');
           }
         }
       }
@@ -1143,7 +1142,7 @@ class KaidhaSubscription_Controller extends GetxController
 
     if (kDebugMode) {
       debugPrint(
-          '💳 [KaidhaSubscription_Controller] get_Wallet_Kaidh() completed');
+          '💳 [KaidhaSubscriptionController] get_Wallet_Kaidh() completed');
       debugPrint('   📊 isLoading_wallet: $isLoading_wallet');
       debugPrint('   ❌ hasWalletError: $hasWalletError');
       debugPrint('   📭 hasNoWallet: $hasNoWallet');
@@ -1156,7 +1155,7 @@ class KaidhaSubscription_Controller extends GetxController
   Future<void> nuclearRemoteFetch() async {
     if (kDebugMode) {
       debugPrint(
-          '💳 [KaidhaSubscription_Controller] 🚨 NUCLEAR FETCH: Bypassing all cache and ETags');
+          '💳 [KaidhaSubscriptionController] 🚨 NUCLEAR FETCH: Bypassing all cache and ETags');
     }
 
     // Clear ETag first
@@ -1184,7 +1183,7 @@ class KaidhaSubscription_Controller extends GetxController
         hasNoWallet = false;
         if (kDebugMode) {
           debugPrint(
-              '💳 [KaidhaSubscription_Controller] ✅ Nuclear fetch successful');
+              '💳 [KaidhaSubscriptionController] ✅ Nuclear fetch successful');
           debugPrint('   💰 Status: ${walletKaidhaModel!.wallet?.status}');
           debugPrint(
               '   💵 usedBalance: ${walletKaidhaModel!.wallet?.usedBalance}');
@@ -1195,7 +1194,7 @@ class KaidhaSubscription_Controller extends GetxController
         hasNoWallet = true;
         if (kDebugMode) {
           debugPrint(
-              '💳 [KaidhaSubscription_Controller] ⚠️ Nuclear fetch returned null - user has no wallet');
+              '💳 [KaidhaSubscriptionController] ⚠️ Nuclear fetch returned null - user has no wallet');
         }
       }
     } catch (e) {
@@ -1205,7 +1204,7 @@ class KaidhaSubscription_Controller extends GetxController
       walletErrorMessage = e.toString();
       if (kDebugMode) {
         debugPrint(
-            '💳 [KaidhaSubscription_Controller] ❌ Nuclear fetch failed: $e');
+            '💳 [KaidhaSubscriptionController] ❌ Nuclear fetch failed: $e');
       }
     } finally {
       isLoading_wallet = false;

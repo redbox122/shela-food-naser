@@ -3976,7 +3976,7 @@ class StoreController extends GetxController implements GetxService {
     required String max,
     required bool fromHome,
   }) {
-    final searchFiltermodel = Search_FilterModel(
+    final searchFiltermodel = SearchFilterModel(
       research_Name: research_Name,
       product_arrangement: product_arrangement,
       id_category: id_category,
@@ -3998,7 +3998,7 @@ class StoreController extends GetxController implements GetxService {
   }
 
   //   ===============================
-  Future<void> getStoreSearch(Search_FilterModel searchFiltermodel) async {
+  Future<void> getStoreSearch(SearchFilterModel searchFiltermodel) async {
     _isSearching = true;
     _storeSearchItemModel = null;
     update();

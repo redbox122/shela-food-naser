@@ -1112,8 +1112,8 @@ class HomeUnifiedController extends GetxController implements GetxService {
     }
 
     // 5. Offers Controller
-    if (Get.isRegistered<Offers_Controller>()) {
-      final offersController = Get.find<Offers_Controller>();
+    if (Get.isRegistered<OffersController>()) {
+      final offersController = Get.find<OffersController>();
 
       // 🔧 FIX: Check if controller already has data from splash pre-fetch
       final hasExistingOffers = offersController.offersMode != null &&
@@ -1142,7 +1142,7 @@ class HomeUnifiedController extends GetxController implements GetxService {
                 cachedData.offers!.first, data.offers!.first)) {
               if (kDebugMode) {
                 appLogger.debug(
-                    '   ✓ Offers_Controller: Data identical, skipping update() to prevent flicker');
+                    '   ✓ OffersController: Data identical, skipping update() to prevent flicker');
               }
               // Data is identical - don't update controller but still save to cache (handled by caller)
               shouldUpdateOffers = false;
@@ -1155,26 +1155,26 @@ class HomeUnifiedController extends GetxController implements GetxService {
           shouldUpdateOffers = true;
           if (kDebugMode) {
             appLogger.debug(
-                '   ✓ Offers_Controller: Screen is empty, forcing update with ${data.offers!.length} offers');
+                '   ✓ OffersController: Screen is empty, forcing update with ${data.offers!.length} offers');
           }
         }
 
         if (shouldUpdateOffers) {
-          // 🔧 TASK 1: Titan Mandate - If offers count is 0, do NOT update Offers_Controller state
+          // 🔧 TASK 1: Titan Mandate - If offers count is 0, do NOT update OffersController state
           // This prevents empty cached responses from wiping the UI
           final offersCount = data.offers!.first.data.length;
           if (offersCount == 0) {
             if (isModuleChange) {
               if (kDebugMode) {
                 appLogger.info(
-                    '   🗑️ Offers_Controller: Module changed with empty offers - clearing stale offers');
+                    '   🗑️ OffersController: Module changed with empty offers - clearing stale offers');
               }
               offersController.clearOffersFromUnified(notify: true);
               shouldUpdateUI = true;
             } else {
               if (kDebugMode) {
                 appLogger.debug(
-                    '   🛡️ Offers_Controller: Offers count is 0, preserving existing data (same module)');
+                    '   🛡️ OffersController: Offers count is 0, preserving existing data (same module)');
               }
               // Don't update - preserve existing offers data on same module
             }
@@ -1185,12 +1185,12 @@ class HomeUnifiedController extends GetxController implements GetxService {
               shouldUpdateUI = true;
               if (kDebugMode) {
                 appLogger.debug(
-                    '   ✓ Offers_Controller: Injected ${data.offers!.length} offers ($offersCount items)');
+                    '   ✓ OffersController: Injected ${data.offers!.length} offers ($offersCount items)');
               }
             } catch (e, stackTrace) {
               appLogger.error('Offers Distribution Failed', e, stackTrace);
               if (kDebugMode) {
-                appLogger.error('   ❌ Offers_Controller: Distribution failed - $e', e);
+                appLogger.error('   ❌ OffersController: Distribution failed - $e', e);
               }
             }
           }
@@ -1199,13 +1199,13 @@ class HomeUnifiedController extends GetxController implements GetxService {
         if (isModuleChange) {
           if (kDebugMode) {
             appLogger.info(
-                '   🗑️ Offers_Controller: Module changed and bootstrap has no offers - clearing stale offers');
+                '   🗑️ OffersController: Module changed and bootstrap has no offers - clearing stale offers');
           }
           offersController.clearOffersFromUnified(notify: true);
           shouldUpdateUI = true;
         } else if (kDebugMode) {
           appLogger.debug(
-              '   ✓ Offers_Controller: Bootstrap has no offers, preserving existing ${offersController.offersMode!.data.length} offers (same module)');
+              '   ✓ OffersController: Bootstrap has no offers, preserving existing ${offersController.offersMode!.data.length} offers (same module)');
         }
       }
     }
@@ -2181,8 +2181,8 @@ class HomeUnifiedController extends GetxController implements GetxService {
       Get.find<BrandsController>().clearBrandList();
     }
 
-    if (Get.isRegistered<Offers_Controller>()) {
-      Get.find<Offers_Controller>().clearAllCache();
+    if (Get.isRegistered<OffersController>()) {
+      Get.find<OffersController>().clearAllCache();
     }
 
     update();

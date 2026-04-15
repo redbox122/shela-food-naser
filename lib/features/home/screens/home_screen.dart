@@ -797,13 +797,13 @@ class _HomeScreenState extends State<HomeScreen> {
         }
       }
       if (!AppConstants.useBffV2Endpoint &&
-          Get.isRegistered<Offers_Controller>()) {
+          Get.isRegistered<OffersController>()) {
         try {
           final stopwatch = Stopwatch()..start();
           appLogger.info(
               '📡 HomeScreen: Calling offers API: ${AppConstants.offersUri}');
           // getOffers() will use current module ID from SplashController
-          await Get.find<Offers_Controller>().getOffers();
+          await Get.find<OffersController>().getOffers();
           stopwatch.stop();
           appLogger.info(
               '✅ HomeScreen: Offers API completed in ${stopwatch.elapsedMilliseconds}ms');
@@ -884,8 +884,8 @@ class _HomeScreenState extends State<HomeScreen> {
           appLogger.error('❌ HomeScreen: Error loading stores', e);
         }));
       }
-      if (Get.isRegistered<Offers_Controller>()) {
-        futures.add(Get.find<Offers_Controller>().getOffers().then((_) {
+      if (Get.isRegistered<OffersController>()) {
+        futures.add(Get.find<OffersController>().getOffers().then((_) {
           appLogger.info('✅ HomeScreen: Offers controller loaded successfully');
         }).catchError((e) {
           appLogger.error('❌ HomeScreen: Error loading offers', e);
@@ -999,8 +999,8 @@ class _HomeScreenState extends State<HomeScreen> {
     if (Get.isRegistered<CategoryController>()) {
       categoryCount = Get.find<CategoryController>().categoryList?.length ?? 0;
     }
-    if (Get.isRegistered<Offers_Controller>()) {
-      offersCount = Get.find<Offers_Controller>().offersMode?.data.length ?? 0;
+    if (Get.isRegistered<OffersController>()) {
+      offersCount = Get.find<OffersController>().offersMode?.data.length ?? 0;
     }
 
     final signature = [

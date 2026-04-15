@@ -1,7 +1,6 @@
-import 'dart:convert';
 import 'dart:io';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:http/http.dart' as http;
+import 'package:dio/dio.dart' as dio_pkg;
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -47,21 +46,26 @@ class AppVersionService {
       final String platform = Platform.isAndroid ? 'android' : 'ios';
 
       // Make API call
-      final response = await http.get(
-        Uri.parse(
-            '${AppConstants.baseUrl}$_versionCheckEndpoint?platform=$platform&current=$currentVersion'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-        },
-      ).timeout(const Duration(seconds: 10));
+      final dio = dio_pkg.Dio();
+      final response = await dio.get<dynamic>(
+        '${AppConstants.baseUrl}$_versionCheckEndpoint',
+        queryParameters: {'platform': platform, 'current': currentVersion},
+        options: dio_pkg.Options(
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+          },
+          receiveTimeout: const Duration(seconds: 10),
+          sendTimeout: const Duration(seconds: 10),
+          validateStatus: (s) => s != null,
+        ),
+      );
 
       if (response.statusCode == 200) {
-        final dynamic decoded = json.decode(response.body);
+        final dynamic decoded = response.data;
         if (decoded is Map<String, dynamic>) {
           return VersionCheckResult.fromJson(decoded);
         }
-        // Fallback if response is not a map
         return VersionCheckResult(
           updateAvailable: false,
           isForceUpdate: false,

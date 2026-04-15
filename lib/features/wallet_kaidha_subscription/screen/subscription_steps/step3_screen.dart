@@ -16,14 +16,14 @@ import 'package:sixam_mart/util/images.dart';
 import 'package:intl/intl.dart';
 import 'package:sixam_mart/util/styles.dart';
 
-class Step_3_Screen extends StatefulWidget {
-  const Step_3_Screen({super.key});
+class Step3Screen extends StatefulWidget {
+  const Step3Screen({super.key});
 
   @override
-  State<Step_3_Screen> createState() => _Step_3_ScreenState();
+  State<Step3Screen> createState() => _Step3ScreenState();
 }
 
-class _Step_3_ScreenState extends State<Step_3_Screen> {
+class _Step3ScreenState extends State<Step3Screen> {
   bool isExpanded = false;
 
   String timeNow = '';
@@ -37,7 +37,7 @@ class _Step_3_ScreenState extends State<Step_3_Screen> {
     _pollStartTime = null;
   }
 
-  void _startPolling(KaidhaSubscription_Controller controller) {
+  void _startPolling(KaidhaSubscriptionController controller) {
     if (_pollTimer != null) return;
     _pollStartTime = controller.nafathRequestCreatedAt ?? DateTime.now();
     _pollTimer = Timer.periodic(const Duration(seconds: 3), (_) async {
@@ -81,7 +81,7 @@ class _Step_3_ScreenState extends State<Step_3_Screen> {
   void initState() {
     super.initState();
     _initS();
-    final controller = Get.find<KaidhaSubscription_Controller>();
+    final controller = Get.find<KaidhaSubscriptionController>();
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (!mounted) return;
       if (controller.identity_card_number.text.trim().isEmpty) {
@@ -149,7 +149,7 @@ class _Step_3_ScreenState extends State<Step_3_Screen> {
 
     //
 
-    return GetBuilder<KaidhaSubscription_Controller>(
+    return GetBuilder<KaidhaSubscriptionController>(
       builder: (KaidhaSubController) {
         final bool canManagePending = KaidhaSubController.canManagePendingRequest;
         WidgetsBinding.instance.addPostFrameCallback((_) {

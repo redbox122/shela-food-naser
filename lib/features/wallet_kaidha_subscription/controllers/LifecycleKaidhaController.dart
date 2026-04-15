@@ -4,9 +4,9 @@ import 'package:get/get.dart';
 import 'package:lifecycle_controller/lifecycle_controller.dart';
 import 'package:sixam_mart/features/wallet_kaidha_subscription/controllers/kaidhaSub_controller.dart';
 
-class Lifecycle_KaidhaController extends LifecycleController {
-  final KaidhaSubscription_Controller kaidhaController =
-      Get.find<KaidhaSubscription_Controller>();
+class LifecycleKaidhaController extends LifecycleController {
+  final KaidhaSubscriptionController kaidhaController =
+      Get.find<KaidhaSubscriptionController>();
   Timer? _pauseTimer;
 
   // -------------------------------------------------------------------------------

@@ -726,9 +726,9 @@ Future<Map<String, Map<String, String>>> init() async {
   Get.lazyPut<kaidhaSub_ServiceInterface>(() => KaidhaSubService(
       kaidhaSubRepositoryinterface: Get.find<KaidhaSubRepositoryInterface>()));
 
-  // وأخيرًا تسجيل KaidhaSubscription_Controller
+  // وأخيرًا تسجيل KaidhaSubscriptionController
   Get.lazyPut(() =>
-      KaidhaSubscription_Controller(kaidhaSubServiceInterface: Get.find()));
+      KaidhaSubscriptionController(kaidhaSubServiceInterface: Get.find()));
 
   // محفظه قديمة
 
@@ -753,7 +753,7 @@ Future<Map<String, Map<String, String>>> init() async {
       () => OffersService(offersRepositoryinterface: Get.find()));
 
   // وأخيرًا تسجيل Offersscription_Controller
-  Get.lazyPut(() => Offers_Controller(
+  Get.lazyPut(() => OffersController(
         offersServiceInterface: Get.find(),
         itemRepository: Get.find(),
       ));

@@ -7,18 +7,18 @@ import 'package:sixam_mart/features/store/controllers/store_controller.dart';
 import 'package:sixam_mart/theme/app_color_tokens.dart';
 import 'package:sixam_mart/util/images.dart';
 
-class Store_Search_Filter_Widget extends StatefulWidget {
+class StoreSearchFilterWidget extends StatefulWidget {
   final String storeID;
 
-  const Store_Search_Filter_Widget({super.key, required this.storeID});
+  const StoreSearchFilterWidget({super.key, required this.storeID});
 
   @override
-  State<Store_Search_Filter_Widget> createState() =>
-      _Store_Search_Filter_WidgetState();
+  State<StoreSearchFilterWidget> createState() =>
+      _StoreSearchFilterWidgetState();
 }
 
-class _Store_Search_Filter_WidgetState
-    extends State<Store_Search_Filter_Widget> {
+class _StoreSearchFilterWidgetState
+    extends State<StoreSearchFilterWidget> {
   final TextEditingController nameController = TextEditingController();
 
   bool hasDiscount = false;
@@ -104,7 +104,7 @@ class _Store_Search_Filter_WidgetState
                         style:
                             TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
                     const SizedBox(height: 10),
-                    Choice_Category_Row<CategoryModel>(
+                    ChoiceCategoryRow<CategoryModel>(
                       options: categoryList,
                       selected: selectedCategory,
                       labelBuilder: (category) => category.name ?? '',
@@ -327,13 +327,13 @@ class CustomTextField extends StatelessWidget {
   }
 }
 
-class Choice_Category_Row<T> extends StatelessWidget {
+class ChoiceCategoryRow<T> extends StatelessWidget {
   final List<T> options;
   final T? selected;
   final ValueChanged<T> onSelected;
   final String Function(T) labelBuilder;
 
-  const Choice_Category_Row({
+  const ChoiceCategoryRow({
     super.key,
     required this.options,
     required this.selected,

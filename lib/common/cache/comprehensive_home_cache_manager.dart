@@ -549,8 +549,8 @@ class ComprehensiveHomeCacheManager {
   static Future<void> _saveOffersData(
       SharedPreferences prefs, int moduleId) async {
     try {
-      if (Get.isRegistered<Offers_Controller>()) {
-        final offersController = Get.find<Offers_Controller>();
+      if (Get.isRegistered<OffersController>()) {
+        final offersController = Get.find<OffersController>();
         final offersCacheKey = _getCacheKey(_offersCacheKeyPattern, moduleId);
 
         final offersData = {
@@ -1116,9 +1116,9 @@ class ComprehensiveHomeCacheManager {
       }
 
       // Restore offers data directly to controller
-      if (Get.isRegistered<Offers_Controller>() &&
+      if (Get.isRegistered<OffersController>() &&
           cachedData.containsKey('offers')) {
-        final offersController = Get.find<Offers_Controller>();
+        final offersController = Get.find<OffersController>();
         final offersData = cachedData['offers'] as Map<String, dynamic>;
 
         if (offersData['data'] != null) {

@@ -1247,7 +1247,7 @@ class StatisticsScreenWithToggleState extends State<StatisticsScreenWithToggle>
   // Qidha Wallet Header using existing wallet data
   // ignore: unused_element
   Widget _buildQidhaWalletHeaderFromExistingData() {
-    return GetBuilder<KaidhaSubscription_Controller>(
+    return GetBuilder<KaidhaSubscriptionController>(
       builder: (kaidhaController) {
         final wallet = kaidhaController.walletKaidhaModel?.wallet;
         if (wallet == null) {
@@ -1360,7 +1360,7 @@ class StatisticsScreenWithToggleState extends State<StatisticsScreenWithToggle>
   // ignore: unused_element
   Widget _buildQidhaSpendingAnalyticsFromExistingData(
       AnalyticsController controller) {
-    return GetBuilder<KaidhaSubscription_Controller>(
+    return GetBuilder<KaidhaSubscriptionController>(
       builder: (kaidhaController) {
         final wallet = kaidhaController.walletKaidhaModel?.wallet;
         if (wallet == null) {
