@@ -51,7 +51,11 @@ class OrderScreenState extends State<OrderScreen>
         }
       }
     });
-    initCall();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        initCall();
+      }
+    });
   }
 
   void _loadOrdersForSelectedTab() {

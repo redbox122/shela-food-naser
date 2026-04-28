@@ -40,6 +40,10 @@ class OrderController extends GetxController implements GetxService {
 
   bool _Order_isLoading = false;
   bool get Order_isLoading => _Order_isLoading;
+  bool _hasLoadedRunningOrders = false;
+  bool get hasLoadedRunningOrders => _hasLoadedRunningOrders;
+  bool _isLoadingHistoryOrders = false;
+  bool get isLoadingHistoryOrders => _isLoadingHistoryOrders;
   bool _hasOrderError = false;
   bool get hasOrderError => _hasOrderError;
 
@@ -102,43 +106,86 @@ class OrderController extends GetxController implements GetxService {
   RxBool orderUpdated = false.obs;
   RxString latestMessage = ''.obs;
 
-  static const List<String> _runningStatuses = <String>[
-    AppConstants.pending,
-    AppConstants.confirmed,
-    AppConstants.processing,
-    AppConstants.accepted,
-    AppConstants.handover,
-    AppConstants.pickedUp,
-    'out_for_delivery',
-    'ongoing',
-  ];
-
   static const List<String> _completedStatuses = <String>[
     AppConstants.delivered,
   ];
 
   static const List<String> _canceledStatuses = <String>[
     'canceled',
+    'cancelled',
+    'expired',
+    'failed',
+    'refund_requested',
+    'refunded',
+    'refund_request_canceled',
   ];
 
-  bool _isRunningStatus(String? status) {
-    if (status == null) return false;
-    if (_runningStatuses.contains(status)) return true;
-    if (_completedStatuses.contains(status) ||
-        _canceledStatuses.contains(status)) {
-      return false;
-    }
-    return true;
-  }
+  final Map<int, List<Map<String, dynamic>>> _alternativeStoresByOrderId =
+      <int, List<Map<String, dynamic>>>{};
+  final Set<int> _alternativeStoresLoading = <int>{};
+  final Set<int> _alternativeStoresExpanded = <int>{};
 
   bool _isCompletedStatus(String? status) {
-    if (status == null) return false;
-    return _completedStatuses.contains(status);
+    final String normalizedStatus = _normalizeStatus(status);
+    return _completedStatuses.contains(normalizedStatus);
   }
 
   bool _isCanceledStatus(String? status) {
-    if (status == null) return false;
-    return _canceledStatuses.contains(status);
+    final String normalizedStatus = _normalizeStatus(status);
+    return _canceledStatuses.contains(normalizedStatus);
+  }
+
+  String _normalizeStatus(String? status) {
+    return (status ?? '').toLowerCase().trim();
+  }
+
+  String getOrderStatusLabel(String? status) {
+    final normalized = (status ?? '').toLowerCase();
+    if (normalized == 'expired') {
+      return 'order_status_expired_clear'.tr;
+    }
+    if (normalized == 'failed') {
+      return 'order_status_failed_clear'.tr;
+    }
+    return (status ?? '').tr;
+  }
+
+  List<Map<String, dynamic>> getAlternativeStoresForOrder(int orderId) {
+    return _alternativeStoresByOrderId[orderId] ?? <Map<String, dynamic>>[];
+  }
+
+  bool isAlternativeStoresLoading(int orderId) {
+    return _alternativeStoresLoading.contains(orderId);
+  }
+
+  bool isAlternativeStoresExpanded(int orderId) {
+    return _alternativeStoresExpanded.contains(orderId);
+  }
+
+  Future<void> toggleAlternativeStores(int orderId) async {
+    if (orderId <= 0) {
+      return;
+    }
+    if (_alternativeStoresExpanded.contains(orderId)) {
+      _alternativeStoresExpanded.remove(orderId);
+      update();
+      return;
+    }
+    _alternativeStoresExpanded.add(orderId);
+    update();
+    if (_alternativeStoresByOrderId.containsKey(orderId)) {
+      return;
+    }
+    _alternativeStoresLoading.add(orderId);
+    update();
+    try {
+      final stores =
+          await orderServiceInterface.getAlternativeStores(orderId: orderId);
+      _alternativeStoresByOrderId[orderId] = stores;
+    } finally {
+      _alternativeStoresLoading.remove(orderId);
+      update();
+    }
   }
 
   Future<void> connect(String userId) async {
@@ -321,15 +368,37 @@ class OrderController extends GetxController implements GetxService {
 
     if (orderModel != null) {
       _hasOrderError = false;
+      final List<String> rawStatuses = (orderModel.orders ?? [])
+          .map((order) =>
+              '${order.id}:${_normalizeStatus(order.orderStatus)}')
+          .toList();
+      debugPrint('[OrderCtrl] getRunningOrders raw ids/statuses=$rawStatuses');
+      const Set<String> activeStatuses = <String>{
+        'pending',
+        'confirmed',
+        'accepted',
+        'processing',
+        'handover',
+        'picked_up',
+      };
       if (offset == 1) {
         _runningOrderModel = PaginatedOrderModel();
-
-        // التأكد من أن orders ليست null وتصفية الطلبات غير المدفوعة
-        final List<OrderModel> orders = (orderModel.orders ?? [])
-            .where((order) =>
-                order.paymentStatus != 'unpaid' &&
-                _isRunningStatus(order.orderStatus))
+        final List<OrderModel> orders = (orderModel.orders ?? []).where((order) {
+          final String status = _normalizeStatus(order.orderStatus);
+          final bool allowed = activeStatuses.contains(status);
+          debugPrint(
+              '[RunningFilter] id=${order.id} raw=${order.orderStatus} normalized=$status allowed=$allowed');
+          if (!allowed) {
+            debugPrint('[RunningFilter] activeStatuses=$activeStatuses');
+          }
+          return allowed;
+        }).toList();
+        final List<String> filteredStatuses = orders
+            .map((order) =>
+                '${order.id}:${_normalizeStatus(order.orderStatus)}')
             .toList();
+        debugPrint(
+            '[OrderCtrl] getRunningOrders filtered ids/statuses=$filteredStatuses');
         debugPrint(
             '[OrderCtrl] getRunningOrders filtered running statuses count=${orders.length}');
 
@@ -342,12 +411,23 @@ class OrderController extends GetxController implements GetxService {
         _runningOrderModel!.limit = orderModel.limit;
         _runningOrderModel!.totalSize = orderModel.totalSize;
       } else {
-        // Filter out orders with unpaid payment status for pagination
-        final List<OrderModel> filteredOrders = (orderModel.orders ?? [])
-            .where((order) =>
-                order.paymentStatus != 'unpaid' &&
-                _isRunningStatus(order.orderStatus))
+        final List<OrderModel> filteredOrders =
+            (orderModel.orders ?? []).where((order) {
+          final String status = _normalizeStatus(order.orderStatus);
+          final bool allowed = activeStatuses.contains(status);
+          debugPrint(
+              '[RunningFilter] id=${order.id} raw=${order.orderStatus} normalized=$status allowed=$allowed');
+          if (!allowed) {
+            debugPrint('[RunningFilter] activeStatuses=$activeStatuses');
+          }
+          return allowed;
+        }).toList();
+        final List<String> filteredStatuses = filteredOrders
+            .map((order) =>
+                '${order.id}:${_normalizeStatus(order.orderStatus)}')
             .toList();
+        debugPrint(
+            '[OrderCtrl] getRunningOrders append filtered ids/statuses=$filteredStatuses');
 
         _runningOrderModel!.orders ??= [];
         _runningOrderModel!.orders!.addAll(filteredOrders);
@@ -363,6 +443,7 @@ class OrderController extends GetxController implements GetxService {
     }
 
     _Order_isLoading = false;
+    _hasLoadedRunningOrders = true;
     debugPrint(
       '[OrderCtrl] getRunningOrders done running=${_runningOrderModel?.orders?.length ?? -1} '
       'canceled=${_canceledOrderModel?.orders?.length ?? -1}',
@@ -373,13 +454,14 @@ class OrderController extends GetxController implements GetxService {
   Future<void> getHistoryOrders(int offset, {bool isUpdate = false}) async {
     debugPrint(
         '[OrderCtrl] getHistoryOrders start offset=$offset isUpdate=$isUpdate');
+    _isLoadingHistoryOrders = true;
     _hasOrderError = false;
     if (offset == 1) {
       _historyOrderModel = null;
       _canceledOrderModel = null;
-      if (isUpdate) {
-        update();
-      }
+    }
+    if (isUpdate || offset == 1) {
+      _updateSafely();
     }
     final PaginatedOrderModel? orderModel =
         await orderServiceInterface.getHistoryOrderList(offset);
@@ -392,13 +474,14 @@ class OrderController extends GetxController implements GetxService {
     }
     if (orderModel != null) {
       _hasOrderError = false;
-      final List<OrderModel> paidOrders = (orderModel.orders ?? [])
+      final List<OrderModel> allOrders = (orderModel.orders ?? []);
+      final List<OrderModel> paidOrders = allOrders
           .where((order) => order.paymentStatus != 'unpaid')
           .toList();
       final List<OrderModel> completedOrders = paidOrders
           .where((order) => _isCompletedStatus(order.orderStatus))
           .toList();
-      final List<OrderModel> canceledOrders = paidOrders
+      final List<OrderModel> canceledOrders = allOrders
           .where((order) => _isCanceledStatus(order.orderStatus))
           .toList();
       debugPrint(
@@ -431,10 +514,12 @@ class OrderController extends GetxController implements GetxService {
     } else {
       _hasOrderError = true;
     }
+    _isLoadingHistoryOrders = false;
     debugPrint(
       '[OrderCtrl] getHistoryOrders done history=${_historyOrderModel?.orders?.length ?? -1} '
       'canceled=${_canceledOrderModel?.orders?.length ?? -1}',
     );
+    _updateSafely();
   }
 
   Future<void> getSupportReasons() async {

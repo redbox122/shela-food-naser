@@ -45,7 +45,7 @@ abstract class StoreRepositoryInterface extends RepositoryInterface {
       int? moduleId,
       CancelToken? cancelToken);
   Future<dynamic> getStoreItemList(
-      int? storeID, int offset, int? categoryID, String type, {int? limit, CancelToken? cancelToken});
+      int? storeID, int offset, int? categoryID, String type, {int? moduleId, int? limit, CancelToken? cancelToken});
   Future<dynamic> getStoreSearchItemList(String searchText, String? storeID,
       int offset, String type, int? categoryID);
   Future<dynamic> getCartStoreSuggestedItemList(
@@ -70,5 +70,5 @@ abstract class StoreRepositoryInterface extends RepositoryInterface {
 
   /// Get slim menu for a store - returns all categories and items in a single bulk response
   /// This replaces multiple getStoreItemList calls to reduce server load
-  Future<SlimMenuResponse?> getSlimMenu(int? storeId, {CancelToken? cancelToken});
+  Future<SlimMenuResponse?> getSlimMenu(int? storeId, {int? moduleId, CancelToken? cancelToken});
 }

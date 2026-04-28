@@ -25,6 +25,7 @@ import 'package:sixam_mart/features/item/domain/models/item_model.dart';
 import 'package:sixam_mart/features/store/domain/models/recommended_product_model.dart';
 import 'package:sixam_mart/features/store/domain/models/store_banner_model.dart';
 import 'package:sixam_mart/features/store/domain/models/store_model.dart';
+import 'package:sixam_mart/common/models/module_model.dart';
 import 'package:sixam_mart/features/review/domain/models/review_model.dart';
 import 'package:sixam_mart/features/location/domain/models/zone_response_model.dart';
 import 'package:sixam_mart/features/checkout/controllers/checkout_controller.dart';
@@ -225,7 +226,10 @@ class StoreController extends GetxController implements GetxService {
   // ⚡ CONTENT POP: Prevent duplicate getStoreDetails calls
   int? _loadingStoreDetailsId;
   bool _isLoadingStoreDetails = false;
+  bool get isLoadingStoreDetails => _isLoadingStoreDetails;
   Completer<Store?>? _storeDetailsCompleter;
+  int? _activeStoreModuleId;
+  int? get activeStoreModuleId => _activeStoreModuleId;
 
   // 🔧 FIX: Request cancellation and debouncing for category switching
   CancelToken? _itemsRequestCancelToken;
@@ -2459,6 +2463,8 @@ class StoreController extends GetxController implements GetxService {
 
     // 🔧 FIX: Clear categories if store ID is changing
     final newStoreId = store.id;
+    _activeStoreModuleId =
+        store.moduleId ?? Get.find<SplashController>().module?.id;
     if (_lastStoreIdForCategories != null &&
         _lastStoreIdForCategories != newStoreId) {
       if (kDebugMode) {
@@ -2541,14 +2547,28 @@ class StoreController extends GetxController implements GetxService {
       // Loading state will be shown by loadAllStoreDetails if needed
 
       try {
+        final SplashController splashController = Get.find<SplashController>();
+        final int? targetModuleId =
+            _activeStoreModuleId ?? splashController.module?.id;
+        ModuleModel? targetModule;
+        if (targetModuleId != null) {
+          final List<ModuleModel> modules =
+              splashController.moduleList ?? <ModuleModel>[];
+          for (final ModuleModel moduleItem in modules) {
+            if (moduleItem.id == targetModuleId) {
+              targetModule = moduleItem;
+              break;
+            }
+          }
+        }
         final Store? storeDetails = await storeServiceInterface.getStoreDetails(
             store.id.toString(),
             fromCart,
             slug,
             Get.find<LocalizationController>().locale.languageCode,
-            ModuleHelper.getModule(),
-            ModuleHelper.getCacheModule()?.id,
-            ModuleHelper.getModule()?.id,
+            targetModule ?? ModuleHelper.getModule(),
+            targetModuleId ?? ModuleHelper.getCacheModule()?.id,
+            targetModuleId ?? ModuleHelper.getModule()?.id,
             cancelToken);
 
         // 🛑 PHASE 1: Check cancellation immediately after response
@@ -3248,8 +3268,11 @@ class StoreController extends GetxController implements GetxService {
         debugPrint(
             '📡 [API REQUEST] getSlimMenu - calling API for store $storeId');
       }
-      final slimMenuResponse = await storeServiceInterface.getSlimMenu(storeId,
-          cancelToken: cancelToken);
+      final slimMenuResponse = await storeServiceInterface.getSlimMenu(
+        storeId,
+        moduleId: _activeStoreModuleId,
+        cancelToken: cancelToken,
+      );
 
       // 🛑 PHASE 1: Check cancellation immediately after response
       if (cancelToken?.isCancelled ?? false) {
@@ -3559,8 +3582,8 @@ class StoreController extends GetxController implements GetxService {
     // STEP 3: Silently update UI only if data has changed
 
     // Build cache key (same as repository)
-    final splashController = Get.find<SplashController>();
-    final moduleId = splashController.module?.id;
+    final int? moduleId =
+        _activeStoreModuleId ?? Get.find<SplashController>().module?.id;
     if (moduleId == null) {
       if (kDebugMode) {
         debugPrint('⚠️ [StoreController] Cannot load items - module not set');
@@ -3710,6 +3733,7 @@ class StoreController extends GetxController implements GetxService {
             offset,
             _subCategoryList![_subCategoryIndex].id!,
             type,
+            moduleId: moduleId,
             limit: effectivePageSize,
             cancelToken: cancelToken,
           );
@@ -3733,6 +3757,7 @@ class StoreController extends GetxController implements GetxService {
             offset,
             effectiveCategoryId,
             type,
+            moduleId: moduleId,
             limit: effectivePageSize,
             cancelToken: cancelToken,
           );
@@ -3747,6 +3772,7 @@ class StoreController extends GetxController implements GetxService {
             offset,
             0, // Use 0 instead of null to prevent 403 errors
             type,
+            moduleId: moduleId,
             limit: effectivePageSize,
             cancelToken: cancelToken,
           );
@@ -3959,6 +3985,7 @@ class StoreController extends GetxController implements GetxService {
       offset,
       categoryId,
       'all',
+      moduleId: _activeStoreModuleId,
       limit: limit,
       cancelToken: cancelToken,
     );

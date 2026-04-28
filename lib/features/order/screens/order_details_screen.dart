@@ -29,6 +29,8 @@ import 'package:sixam_mart/features/checkout/widgets/offline_success_dialog.dart
 import 'package:sixam_mart/features/order/widgets/cancellation_dialogue_widget.dart';
 import 'package:sixam_mart/features/order/widgets/order_info_widget.dart';
 import 'package:sixam_mart/features/review/screens/rate_review_screen.dart';
+import 'package:sixam_mart/features/store/domain/models/store_model.dart';
+import 'package:sixam_mart/features/store/screens/store_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
@@ -60,6 +62,24 @@ class OrderDetailsScreenState extends State<OrderDetailsScreen> {
   final ScrollController scrollController = ScrollController();
   bool _isInitialLoading = true;
   bool _showRetryAction = false;
+
+  bool _isFailedOrExpiredStatus(String? status) {
+    final normalized = (status ?? '').toLowerCase();
+    return _isTerminalOrderStatus(normalized);
+  }
+
+  bool _isTerminalOrderStatus(String? status) {
+    const Set<String> terminalStatuses = <String>{
+      'expired',
+      'failed',
+      'canceled',
+      'cancelled',
+      'refunded',
+      'refund_requested',
+      'refund_request_canceled',
+    };
+    return terminalStatuses.contains((status ?? '').toLowerCase());
+  }
 
   Future<void> _loadData(BuildContext context, bool reload) async {
     if (mounted) {
@@ -144,7 +164,10 @@ class OrderDetailsScreenState extends State<OrderDetailsScreen> {
       'canceled',
       'cancelled',
       'failed',
+      'expired',
       'refunded',
+      'refund_requested',
+      'refund_request_canceled',
     };
     const Set<String> terminalPaymentStatuses = <String>{
       'paid',
@@ -477,6 +500,7 @@ class OrderDetailsScreenState extends State<OrderDetailsScreen> {
 
           ongoing = (order.orderStatus != 'delivered' &&
               order.orderStatus != 'failed' &&
+              order.orderStatus != 'expired' &&
               order.orderStatus != 'canceled' &&
               order.orderStatus != 'refund_requested' &&
               order.orderStatus != 'refunded' &&
@@ -604,6 +628,8 @@ class OrderDetailsScreenState extends State<OrderDetailsScreen> {
                                   timerCancel: () => _timer?.cancel(),
                                   startApiCall: () => _startApiCall(),
                                 ),
+                          if (_isFailedOrExpiredStatus(order.orderStatus))
+                            _buildFailedOrderRecoverySection(orderController, order),
                         ],
                       ))),
             )),
@@ -674,6 +700,9 @@ class OrderDetailsScreenState extends State<OrderDetailsScreen> {
 
   Widget _bottomView(OrderController orderController, OrderModel order,
       bool parcel, double totalPrice) {
+    if (_isTerminalOrderStatus(order.orderStatus)) {
+      return const SizedBox();
+    }
     return Column(children: [
       !orderController.showCancelled
           ? Center(
@@ -875,6 +904,85 @@ class OrderDetailsScreenState extends State<OrderDetailsScreen> {
             )
           : const SizedBox(),
     ]);
+  }
+
+  Widget _buildFailedOrderRecoverySection(
+      OrderController orderController, OrderModel order) {
+    final int orderId = order.id ?? 0;
+    final bool loading = orderController.isAlternativeStoresLoading(orderId);
+    final bool expanded = orderController.isAlternativeStoresExpanded(orderId);
+    final stores = orderController.getAlternativeStoresForOrder(orderId);
+    return Container(
+      width: Dimensions.webMaxWidth,
+      margin: const EdgeInsets.all(Dimensions.paddingSizeSmall),
+      padding: const EdgeInsets.all(Dimensions.paddingSizeDefault),
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardColor,
+        borderRadius: BorderRadius.circular(Dimensions.radiusDefault),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('تعذر إكمال الطلب', style: robotoBold),
+          const SizedBox(height: Dimensions.paddingSizeExtraSmall),
+          Text('تم إرجاع المبلغ إلى محفظتك', style: robotoRegular),
+          const SizedBox(height: Dimensions.paddingSizeDefault),
+          OutlinedButton(
+            onPressed: () {
+              orderController.toggleAlternativeStores(orderId);
+            },
+            child: Text('مطاعم بديلة'),
+          ),
+          if (expanded && loading)
+            const Padding(
+              padding: EdgeInsets.only(top: Dimensions.paddingSizeSmall),
+              child: LoadingWidget(),
+            ),
+          if (expanded && !loading && stores.isEmpty)
+            Padding(
+              padding: const EdgeInsets.only(top: Dimensions.paddingSizeSmall),
+              child: Text('لا توجد مطاعم بديلة متاحة حالياً',
+                  style: robotoRegular),
+            ),
+          if (expanded && !loading && stores.isNotEmpty)
+            ListView.separated(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemBuilder: (context, index) {
+                final store = stores[index];
+                final int? storeId = int.tryParse('${store['id'] ?? store['store_id'] ?? ''}');
+                final String name = '${store['name'] ?? store['store_name'] ?? ''}';
+                final String address = '${store['address'] ?? ''}';
+                return ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: Text(name.isEmpty ? '#$storeId' : name),
+                  subtitle: address.isEmpty ? null : Text(address),
+                  trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+                  onTap: storeId == null
+                      ? null
+                      : () {
+                          final int? targetModuleId = int.tryParse(
+                            '${store['module_id'] ?? store['moduleId'] ?? ''}',
+                          );
+                          Get.toNamed(
+                            RouteHelper.getStoreRoute(id: storeId, page: 'store'),
+                            arguments: StoreScreen(
+                              store: Store(
+                                id: storeId,
+                                moduleId: targetModuleId,
+                              ),
+                              fromModule: false,
+                            ),
+                          );
+                        },
+                );
+              },
+              separatorBuilder: (_, __) => const Divider(height: 1),
+              itemCount: stores.length,
+            ),
+        ],
+      ),
+    );
   }
 
   /// Calculate tax based on original prices

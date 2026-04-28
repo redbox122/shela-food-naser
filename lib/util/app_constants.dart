@@ -166,6 +166,8 @@ class AppConstants {
   static const String codSwitchUri = '/api/v1/customer/order/payment-method';
   static const String orderDetailsUri =
       '/api/v1/customer/order/details?order_id=';
+  static const String alternativeStoresUri =
+      '/api/v1/customer/order/alternative-stores';
   static const String wishListGetUri = '/api/v1/customer/wish-list';
   static const String addWishListUri = '/api/v1/customer/wish-list/add?';
   static const String removeWishListUri = '/api/v1/customer/wish-list/remove?';

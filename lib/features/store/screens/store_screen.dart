@@ -8,6 +8,7 @@ import 'package:sixam_mart/features/language/controllers/language_controller.dar
 import 'package:sixam_mart/features/store/controllers/store_controller.dart';
 import 'package:sixam_mart/features/splash/controllers/splash_controller.dart';
 import 'package:sixam_mart/features/favourite/controllers/favourite_controller.dart';
+import 'package:sixam_mart/common/models/module_model.dart';
 import 'package:sixam_mart/features/category/domain/models/category_model.dart';
 import 'package:sixam_mart/features/item/domain/models/item_model.dart';
 import 'package:sixam_mart/features/store/domain/models/store_model.dart';
@@ -69,6 +70,26 @@ class _StoreScreenState extends State<StoreScreen> {
   final ScrollController scrollController2 = ScrollController();
   final TextEditingController _searchController = TextEditingController();
   bool _requestedStoreBootstrap = false;
+  int? _resolveTargetModuleId() {
+    return widget.store?.moduleId ?? Get.find<SplashController>().module?.id;
+  }
+  String? _resolveTargetModuleType() {
+    final SplashController splashController = Get.find<SplashController>();
+    final int? targetModuleId = _resolveTargetModuleId();
+    if (targetModuleId != null) {
+      final ModuleModel? targetModule = splashController.moduleList
+          ?.cast<ModuleModel?>()
+          .firstWhere(
+            (ModuleModel? module) => module?.id == targetModuleId,
+            orElse: () => null,
+          );
+      if (targetModule?.moduleType != null &&
+          targetModule!.moduleType!.isNotEmpty) {
+        return targetModule.moduleType;
+      }
+    }
+    return splashController.module?.moduleType?.toString();
+  }
 
   @override
   void initState() {
@@ -97,11 +118,10 @@ class _StoreScreenState extends State<StoreScreen> {
   }
 
   void _bootstrapStoreIfNeeded() {
-    final splashController = Get.find<SplashController>();
-    final moduleType = splashController.module?.moduleType?.toString();
+    final String? moduleType = _resolveTargetModuleType();
+    final int? targetModuleId = _resolveTargetModuleId();
     final bool isFood = moduleType == AppConstants.food;
-    final bool isGrocery =
-        moduleType == AppConstants.grocery || splashController.module?.id == 7;
+    final bool isGrocery = moduleType == AppConstants.grocery || targetModuleId == 7;
 
     // Food/Grocery have dedicated screens that handle their own loading.
     if (isFood || isGrocery) return;
@@ -117,7 +137,7 @@ class _StoreScreenState extends State<StoreScreen> {
       Get.find<StoreController>()
           .getStoreDetails(
             context,
-            Store(id: storeId),
+            Store(id: storeId, moduleId: targetModuleId),
             widget.fromModule,
             slug: widget.slug,
           )
@@ -150,12 +170,11 @@ class _StoreScreenState extends State<StoreScreen> {
     // ⚡ TASK 4: Removed appLogger from build loop for 120Hz performance
 
     // Check module type and redirect to specialized screens
-    final splashController = Get.find<SplashController>();
-    final isFood =
-        splashController.module?.moduleType.toString() == AppConstants.food;
-    final isGrocery = splashController.module?.moduleType.toString() ==
-            AppConstants.grocery ||
-        splashController.module?.id == 7;
+    final String? moduleType = _resolveTargetModuleType();
+    final int? targetModuleId = _resolveTargetModuleId();
+    final bool isFood = moduleType == AppConstants.food;
+    final bool isGrocery =
+        moduleType == AppConstants.grocery || targetModuleId == 7;
 
     // For food module, use the redesigned FoodRestaurantDetailScreen
     if (isFood) {
@@ -221,21 +240,28 @@ class _StoreScreenState extends State<StoreScreen> {
 
           // Only show error if both storeController.store AND widget.store are null
           if (displayStore == null || displayStore.name == null) {
-            final bool isBootstrapLoading = storeController.isLoading &&
-                widget.store?.id != null &&
-                widget.store!.id! > 0;
+            final bool isBootstrapLoading =
+                (storeController.isLoading || storeController.isLoadingStoreDetails) &&
+                    widget.store?.id != null &&
+                    widget.store!.id! > 0;
             if (isBootstrapLoading) {
               return const Center(
                 child: LoadingWidget(messageKey: 'loading', showMessage: true),
               );
             }
+            final bool isNetworkError =
+                storeController.storeErrorStatusCode == 1;
             return ErrorStateView(
+              titleKey: 'something_went_wrong',
+              subtitleKey: isNetworkError
+                  ? 'no_internet_connection'
+                  : 'unable_to_load_store_data',
               onRetry: () {
                 final int? storeId = widget.store?.id;
                 if (storeId != null && storeId > 0) {
                   storeController.getStoreDetails(
                     context,
-                    Store(id: storeId),
+                    Store(id: storeId, moduleId: targetModuleId),
                     widget.fromModule,
                     slug: widget.slug,
                   );

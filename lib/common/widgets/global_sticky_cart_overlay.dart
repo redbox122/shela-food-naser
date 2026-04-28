@@ -423,7 +423,14 @@ class _GlobalStickyCartOverlayState extends State<GlobalStickyCartOverlay> {
   // ------------------------------------------------------------------
 
   void _scheduleRebuild() {
-    if (mounted) setState(() {});
+    if (!mounted) {
+      return;
+    }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        setState(() {});
+      }
+    });
   }
 
   void _bindControllers() {

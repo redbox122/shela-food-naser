@@ -260,7 +260,7 @@ class OrderInfoWidget extends StatelessWidget {
                     order.orderStatus == 'delivered' &&
                             (order.delivered?.isNotEmpty ?? false)
                         ? '${'delivered_at'.tr} \n${DateConverter.dateTimeStringToDateTime(order.delivered!)}'
-                        : (order.orderStatus ?? '').tr,
+                        : orderController.getOrderStatusLabel(order.orderStatus),
                     style: robotoRegular.copyWith(
                         fontSize: Dimensions.fontSizeSmall),
                   ),
@@ -341,7 +341,7 @@ class OrderInfoWidget extends StatelessWidget {
                   height: order.deliveryInstruction != null
                       ? Dimensions.paddingSizeSmall
                       : 0),
-              order.orderStatus == 'canceled'
+              (order.orderStatus == 'canceled' || order.orderStatus == 'expired')
                   ? Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [

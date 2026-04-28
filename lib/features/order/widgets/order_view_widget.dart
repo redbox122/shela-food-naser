@@ -43,12 +43,19 @@ class OrderViewWidget extends StatelessWidget {
         debugPrint(
           '[OrderView] tab=$isRunning '
           'loading=${orderController.Order_isLoading} '
+          'historyLoading=${orderController.isLoadingHistoryOrders} '
           'modelNull=${paginatedOrderModel == null} '
           'ordersCount=${paginatedOrderModel?.orders?.length ?? -1}',
         );
 
-        if (orderController.Order_isLoading == true) {
+        final bool isHistoryTab = isRunning == 1 || isRunning == 2;
+        if (orderController.Order_isLoading == true ||
+            (isHistoryTab && orderController.isLoadingHistoryOrders)) {
           debugPrint('[OrderView] tab=$isRunning showing loader');
+          return const Center(child: LoadingWidget());
+        }
+        if (isRunning == 0 && !orderController.hasLoadedRunningOrders) {
+          debugPrint('[OrderView] tab=0 waiting first running load');
           return const Center(child: LoadingWidget());
         }
 
@@ -67,6 +74,12 @@ class OrderViewWidget extends StatelessWidget {
               }
             },
           );
+        }
+
+        if (isHistoryTab &&
+            paginatedOrderModel == null &&
+            !orderController.hasOrderError) {
+          return const Center(child: LoadingWidget());
         }
 
         if (paginatedOrderModel == null ||
@@ -119,10 +132,11 @@ class OrderViewWidget extends StatelessWidget {
           );
         }
 
-        // Filter out orders with unpaid payment status
-        final List<OrderModel> filteredOrders = paginatedOrderModel.orders!
-            .where((order) => order.paymentStatus != 'unpaid')
-            .toList();
+        final List<OrderModel> filteredOrders = isRunning == 0
+            ? List<OrderModel>.from(paginatedOrderModel.orders!)
+            : paginatedOrderModel.orders!
+                .where((order) => order.paymentStatus != 'unpaid')
+                .toList();
         debugPrint(
           '[OrderView] tab=$isRunning raw=${paginatedOrderModel.orders!.length} '
           'filtered=${filteredOrders.length}',
@@ -215,6 +229,7 @@ class OrderViewWidget extends StatelessWidget {
                     'date': DateConverter.dateTimeStringToDateTime(
                         (order.createdAt ?? '')),
                     'status': order.orderStatus?.tr ?? '',
+                    'raw_status': order.orderStatus ?? '',
                     'itemsCount': order.detailsCount ?? 0,
                     'isParcel': isParcel,
                     'contact_number':
@@ -237,9 +252,9 @@ class OrderViewWidget extends StatelessWidget {
       child: Padding(
         padding: const EdgeInsets.all(10),
         child: SizedBox(
-          height: 66,
           width: MediaQuery.of(context).size.width,
           child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               ClipRRect(
                 borderRadius: BorderRadius.circular(12),
@@ -254,13 +269,17 @@ class OrderViewWidget extends StatelessWidget {
                   padding: const EdgeInsets.symmetric(horizontal: 8),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisAlignment: MainAxisAlignment.center,
+                    mainAxisSize: MainAxisSize.min,
                     children: [
                       Row(
                         children: [
-                          Text(
-                            order['name'] as String? ?? '',
-                            style: Theme.of(context).textTheme.bodyMedium,
+                          Expanded(
+                            child: Text(
+                              order['name'] as String? ?? '',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: Theme.of(context).textTheme.bodyMedium,
+                            ),
                           ),
                           const SizedBox(width: 8),
                           Text(
@@ -272,6 +291,8 @@ class OrderViewWidget extends StatelessWidget {
                       const SizedBox(height: 4),
                       Text(
                         order['date'] as String? ?? '',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                         style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                               color: Theme.of(context).disabledColor,
                             ),
@@ -282,7 +303,8 @@ class OrderViewWidget extends StatelessWidget {
               ),
               Padding(
                 padding: const EdgeInsets.only(right: 8),
-                child: buildOrderButtons(context, order, isRunning: isRunning),
+                child: buildOrderButtons(context, order,
+                    isRunning: isRunning, orderController: Get.find<OrderController>()),
               ),
             ],
           ),
@@ -292,7 +314,7 @@ class OrderViewWidget extends StatelessWidget {
   }
 
   Widget buildOrderButtons(BuildContext context, Map<String, dynamic> order,
-      {required int isRunning}) {
+      {required int isRunning, required OrderController orderController}) {
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
@@ -303,7 +325,7 @@ class OrderViewWidget extends StatelessWidget {
             color: Theme.of(context).primaryColor.withValues(alpha: 0.1),
           ),
           child: Text(
-            order['status'] as String? ?? '',
+            orderController.getOrderStatusLabel(order['raw_status'] as String?),
             style: Theme.of(context).textTheme.bodySmall,
           ),
         ),

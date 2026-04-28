@@ -21,6 +21,8 @@ abstract class OrderRepositoryInterface extends RepositoryInterface {
   Future<Response> trackOrder(String? orderID, String? guestId, {String? contactNumber});
   Future<bool> cancelOrder(String orderID, String? reason, {String? guestId});
   Future<Response> switchToCOD(String? orderID, {String? guestId});
+  Future<List<Map<String, dynamic>>> getAlternativeStores(
+      {required int orderId, int limit = 5});
 
   // ✅ WebSocket: إضافة الدوال المطلوبة
 

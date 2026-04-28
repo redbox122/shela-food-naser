@@ -24,6 +24,8 @@ abstract class OrderServiceInterface {
   Future<bool> cancelOrder(String orderID, String? reason, {String? guestId});
   OrderModel? prepareOrderModel(PaginatedOrderModel? runningOrderModel, int? orderID);
   Future<bool> switchToCOD(String? orderID, {String? guestId});
+  Future<List<Map<String, dynamic>>> getAlternativeStores(
+      {required int orderId, int limit = 5});
 
   void paymentRedirect({
     required String url,

@@ -106,15 +106,15 @@ class StoreService implements StoreServiceInterface {
 
   @override
   Future<ItemModel?> getStoreItemList(
-      int? storeID, int offset, int? categoryID, String type, {int? limit, CancelToken? cancelToken}) async {
+      int? storeID, int offset, int? categoryID, String type, {int? moduleId, int? limit, CancelToken? cancelToken}) async {
     final result = await storeRepositoryInterface.getStoreItemList(
-        storeID, offset, categoryID, type, limit: limit, cancelToken: cancelToken);
+        storeID, offset, categoryID, type, moduleId: moduleId, limit: limit, cancelToken: cancelToken);
     return result is ItemModel? ? result : null;
   }
 
   @override
-  Future<SlimMenuResponse?> getSlimMenu(int? storeId, {CancelToken? cancelToken}) async {
-    return await storeRepositoryInterface.getSlimMenu(storeId, cancelToken: cancelToken);
+  Future<SlimMenuResponse?> getSlimMenu(int? storeId, {int? moduleId, CancelToken? cancelToken}) async {
+    return await storeRepositoryInterface.getSlimMenu(storeId, moduleId: moduleId, cancelToken: cancelToken);
   }
 
   @override

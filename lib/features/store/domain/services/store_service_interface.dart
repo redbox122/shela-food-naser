@@ -41,8 +41,8 @@ abstract class StoreServiceInterface {
       int? moduleId,
       CancelToken? cancelToken);
   Future<ItemModel?> getStoreItemList(
-      int? storeID, int offset, int? categoryID, String type, {int? limit, CancelToken? cancelToken});
-  Future<SlimMenuResponse?> getSlimMenu(int? storeId, {CancelToken? cancelToken});
+      int? storeID, int offset, int? categoryID, String type, {int? moduleId, int? limit, CancelToken? cancelToken});
+  Future<SlimMenuResponse?> getSlimMenu(int? storeId, {int? moduleId, CancelToken? cancelToken});
   Future<ItemModel?> getStoreSearchItemList(String searchText, String? storeID,
       int offset, String type, int? categoryID);
   Future<RecommendedItemModel?> getStoreRecommendedItemList(int? storeId, {CancelToken? cancelToken});

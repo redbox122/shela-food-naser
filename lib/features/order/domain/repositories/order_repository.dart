@@ -217,6 +217,33 @@ class OrderRepository implements OrderRepositoryInterface {
     return historyOrderModel;
   }
 
+  @override
+  Future<List<Map<String, dynamic>>> getAlternativeStores(
+      {required int orderId, int limit = 5}) async {
+    final String uri =
+        '${AppConstants.alternativeStoresUri}?order_id=$orderId&limit=$limit';
+    final Response response = await apiClient.getData(uri, useEtag: false);
+    if (response.statusCode != 200) {
+      return <Map<String, dynamic>>[];
+    }
+    final dynamic body = response.body;
+    if (body is Map<String, dynamic>) {
+      final dynamic stores = body['stores'] ?? body['data'];
+      if (stores is List) {
+        return stores
+            .whereType<Map>()
+            .map((e) => Map<String, dynamic>.from(e))
+            .toList();
+      }
+    } else if (body is List) {
+      return body
+          .whereType<Map>()
+          .map((e) => Map<String, dynamic>.from(e))
+          .toList();
+    }
+    return <Map<String, dynamic>>[];
+  }
+
   Future<List<CancellationData>?> _getCancelReasons() async {
     List<CancellationData>? orderCancelReasons;
     const String uri =

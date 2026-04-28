@@ -1130,14 +1130,14 @@ class StoreRepository implements StoreRepositoryInterface {
   @override
   Future<ItemModel?> getStoreItemList(
       int? storeID, int offset, int? categoryID, String type,
-      {int? limit, CancelToken? cancelToken}) async {
+      {int? moduleId, int? limit, CancelToken? cancelToken}) async {
     ItemModel? storeItemModel;
 
     // Safely get module ID for cache key
-    final splashController = Get.find<SplashController>();
-    final moduleId = splashController.module?.id;
+    final int? effectiveModuleId =
+        moduleId ?? Get.find<SplashController>().module?.id;
 
-    if (moduleId == null) {
+    if (effectiveModuleId == null) {
       if (kDebugMode) {
         debugPrint(
             '⚠️ StoreRepository: Cannot load store items - module not set');
@@ -1154,13 +1154,13 @@ class StoreRepository implements StoreRepositoryInterface {
 
     // 🔍 REQUEST ID for cross-layer tracing (backend + Flutter)
     final String requestId =
-        'items_latest_${DateTime.now().millisecondsSinceEpoch}_store_${storeID}_cat_${categoryID}_off_${offset}_lim_${effectiveLimit}_mod_$moduleId';
+        'items_latest_${DateTime.now().millisecondsSinceEpoch}_store_${storeID}_cat_${categoryID}_off_${offset}_lim_${effectiveLimit}_mod_$effectiveModuleId';
 
     // Create cache key for this specific request (include limit to avoid cache conflicts).
     // Cache version bumped to v3 to invalidate old entries created before backend
     // merge/total_size fixes on store+category endpoints.
     final String cacheKey =
-        'store_items_v3_${storeID}_${categoryID}_${offset}_${effectiveLimit}_${type}_$moduleId';
+        'store_items_v3_${storeID}_${categoryID}_${offset}_${effectiveLimit}_${type}_$effectiveModuleId';
 
     // 🔍 DEBUG: Log cache check
     if (kDebugMode) {
@@ -1252,7 +1252,7 @@ class StoreRepository implements StoreRepositoryInterface {
       debugPrint('   🏷️ Type: $type');
       debugPrint(
           '   🔢 Limit: $limitParam${effectiveLimit == 0 ? ' (ALL ITEMS)' : ''}');
-      debugPrint('   🆔 Module ID (from headers): $moduleId');
+      debugPrint('   🆔 Module ID (from headers): $effectiveModuleId');
       debugPrint('🌐 ============================================');
       debugPrint('');
     }
@@ -1614,7 +1614,7 @@ class StoreRepository implements StoreRepositoryInterface {
 
   @override
   Future<SlimMenuResponse?> getSlimMenu(int? storeId,
-      {CancelToken? cancelToken}) async {
+      {int? moduleId, CancelToken? cancelToken}) async {
     if (storeId == null) {
       if (kDebugMode) {
         debugPrint('⚠️ StoreRepository: getSlimMenu() - Store ID is null');
@@ -1622,10 +1622,10 @@ class StoreRepository implements StoreRepositoryInterface {
       return null;
     }
 
-    final splashController = Get.find<SplashController>();
-    final moduleId = splashController.module?.id;
+    final int? effectiveModuleId =
+        moduleId ?? Get.find<SplashController>().module?.id;
 
-    if (moduleId == null) {
+    if (effectiveModuleId == null) {
       if (kDebugMode) {
         debugPrint(
             '⚠️ StoreRepository: Cannot load slim menu - module not set');
@@ -1679,7 +1679,7 @@ class StoreRepository implements StoreRepositoryInterface {
       debugPrint('🌐 [API CALL] Fetching slim menu from API');
       debugPrint('   📍 URL: $apiUrl');
       debugPrint('   🏪 Store ID: $storeId');
-      debugPrint('   🆔 Module ID: $moduleId');
+      debugPrint('   🆔 Module ID: $effectiveModuleId');
       debugPrint('🌐 ============================================');
       debugPrint('');
     }

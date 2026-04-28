@@ -113,6 +113,13 @@ class OrderService implements OrderServiceInterface {
   }
 
   @override
+  Future<List<Map<String, dynamic>>> getAlternativeStores(
+      {required int orderId, int limit = 5}) async {
+    return await orderRepositoryInterface.getAlternativeStores(
+        orderId: orderId, limit: limit);
+  }
+
+  @override
   void paymentRedirect({
     required String url,
     required bool canRedirect,
