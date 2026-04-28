@@ -22,7 +22,13 @@ class EtagScopeKeyBuilder {
     for (final key in relevantKeys) {
       final value = headers[key] ?? headers[key.toLowerCase()];
       if (value != null && value.isNotEmpty) {
-        parts.add('$key=$value');
+        final normalizedKey = key.toLowerCase();
+        if (normalizedKey == 'authorization') {
+          final valueHash = value.toString().hashCode.toRadixString(16);
+          parts.add('$key=hash_$valueHash');
+        } else {
+          parts.add('$key=$value');
+        }
       }
     }
 

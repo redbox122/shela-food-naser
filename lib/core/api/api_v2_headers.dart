@@ -1,5 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
+import 'package:get/get.dart';
+import 'package:sixam_mart/api/api_client.dart';
 import 'package:sixam_mart/features/address/domain/models/address_model.dart';
 import 'package:sixam_mart/helper/address_helper.dart';
 import 'package:sixam_mart/helper/module_helper.dart';
@@ -37,8 +39,12 @@ class ApiV2Headers {
     // Get user address for zone and location data
     final AddressModel? addressModel = AddressHelper.getUserAddressFromSharedPref();
     
-    // Resolve zone IDs
-    List<int> resolvedZoneIds = zoneIds ?? addressModel?.zoneIds ?? <int>[];
+    // Resolve zone IDs: explicit param → SharedPrefs address → ApiClient headers (Hive fallback)
+    List<int> resolvedZoneIds = zoneIds?.isNotEmpty == true
+        ? zoneIds!
+        : (addressModel?.zoneIds?.isNotEmpty == true
+            ? addressModel!.zoneIds!
+            : _getZoneIdsFromApiClientHeaders());
     if (resolvedZoneIds.isEmpty && kDebugMode) {
       appLogger.warning('⚠️ ApiV2Headers: No zone IDs found - backend will reject');
     }
@@ -120,6 +126,22 @@ class ApiV2Headers {
       storeVersionHash: storeVersionHash,
       languageCode: languageCode,
     );
+  }
+
+  /// Fallback: read zone IDs from ApiClient headers (injected from Hive cache)
+  static List<int> _getZoneIdsFromApiClientHeaders() {
+    try {
+      if (Get.isRegistered<ApiClient>()) {
+        final zoneHeader = Get.find<ApiClient>().getHeader()[AppConstants.zoneId];
+        if (zoneHeader != null && zoneHeader.isNotEmpty) {
+          final decoded = jsonDecode(zoneHeader);
+          if (decoded is List && decoded.isNotEmpty) {
+            return decoded.map((e) => e as int).toList();
+          }
+        }
+      }
+    } catch (_) {}
+    return <int>[];
   }
 
   /// Validate if headers are complete for v2 endpoints

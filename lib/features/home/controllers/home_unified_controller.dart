@@ -2063,6 +2063,20 @@ class HomeUnifiedController extends GetxController implements GetxService {
   /// Called when a module is selected/ready
   /// Loads home data for the specified module
   Future<void> onModuleReady(int moduleId) async {
+    // If an API request for this module is already in-flight, await it instead
+    // of resetting — forceResetLoadingState() would clear _activeApiRequests and
+    // then loadHomeData() would increment _homeGeneration, causing the in-flight
+    // request to be discarded as stale and HomeController to see success=false.
+    final existingRequest = _activeApiRequests[moduleId];
+    if (existingRequest != null) {
+      if (kDebugMode) {
+        appLogger.debug(
+            '⏭️ HomeUnifiedController.onModuleReady: In-flight request for module $moduleId — awaiting instead of resetting');
+      }
+      await existingRequest;
+      _restartSmartFoodPollingIfNeeded(moduleId);
+      return;
+    }
     forceResetLoadingState();
     await loadHomeData(moduleId: moduleId, forceRefresh: false);
     _restartSmartFoodPollingIfNeeded(moduleId);

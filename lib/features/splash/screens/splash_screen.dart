@@ -41,16 +41,35 @@ class SplashScreenState extends State<SplashScreen> {
   void initState() {
     super.initState();
 
-    // 🔧 SAFETY NET: Force navigation after 8 seconds maximum
-    // This prevents the splash screen from getting stuck forever
-    _safetyNetTimer = Timer(const Duration(seconds: 8), () {
+    // Safety net: keep as a last-resort fallback only.
+    // Do not force fallback navigation aggressively while startup is progressing.
+    _safetyNetTimer = Timer(const Duration(seconds: 14), () {
       if (!_hasNavigatedAway && mounted) {
-        debugPrint(
-            '🚨 SplashScreen SAFETY NET: Splash stuck for 8s - forcing navigation');
-        _hasNavigatedAway = true;
         final splashController = Get.find<SplashController>();
+        if (splashController.isSplashCacheReady) {
+          debugPrint('🛟 SplashScreen SAFETY NET: Safety net skipped because cacheReady=true');
+          debugPrint('🚀 SplashScreen: First navigation released');
+          _hasNavigatedAway = true;
+          splashController.markFirstNavigationReleased();
+          splashController.markSplashFlowStopped();
+          route(context, body: widget.body);
+          return;
+        }
+        _hasNavigatedAway = true;
+        final bool hasMinimumStartupData = splashController.moduleList != null &&
+            splashController.moduleList!.isNotEmpty &&
+            splashController.configModel != null;
+        if (hasMinimumStartupData) {
+          debugPrint(
+              '🛟 SplashScreen SAFETY NET: startup data ready after extended wait - routing without fallback');
+        } else {
+          debugPrint(
+              '🚨 SplashScreen SAFETY NET: startup still not ready after 14s - forcing fallback navigation');
+          splashController.applyFallbackConfig(reason: 'safety-net timer (14s)');
+        }
+        debugPrint('🚀 SplashScreen: First navigation released');
+        splashController.markFirstNavigationReleased();
         splashController.markSplashFlowStopped();
-        splashController.applyFallbackConfig(reason: 'safety-net timer (8s)');
         route(context, body: widget.body);
       }
     });
@@ -219,7 +238,13 @@ class SplashScreenState extends State<SplashScreen> {
         if (kDebugMode) {
           debugPrint('⏳ SplashScreen: Waiting for module list to be ready...');
         }
-        await splashController.waitUntilReady();
+        await splashController.waitUntilReady().timeout(
+          const Duration(seconds: 3),
+          onTimeout: () {
+            debugPrint(
+                '⏱️ SplashScreen: Module list wait timed out - proceeding with available data');
+          },
+        );
 
         // احسب الوقت
         final elapsed = DateTime.now().difference(startTime);
@@ -244,6 +269,8 @@ class SplashScreenState extends State<SplashScreen> {
 
         // Route directly to multi-module screen - it's the main entry point
         splashController.markSplashFlowStopped();
+        splashController.markFirstNavigationReleased();
+        debugPrint('🚀 SplashScreen: First navigation released');
         _hasNavigatedAway = true;
         _safetyNetTimer?.cancel();
         // ignore: use_build_context_synchronously
@@ -340,6 +367,8 @@ class SplashScreenState extends State<SplashScreen> {
       // Now perform the routing
       debugPrint('🚀 SplashScreen: Routing to home screen...');
       splashController.markSplashFlowStopped();
+      splashController.markFirstNavigationReleased();
+      debugPrint('🚀 SplashScreen: First navigation released');
       _hasNavigatedAway = true;
       _safetyNetTimer?.cancel();
       // ignore: use_build_context_synchronously

@@ -74,6 +74,7 @@ class CachedSplashLoader {
       }
 
       if (useCache) {
+        Get.find<SplashController>().markSplashReadyFromCache();
         debugPrint('📦 CachedSplashLoader: Loading from cache - INSTANT STARTUP!');
         await _loadFromCache(context, loadModuleData, loadLandingData);
 

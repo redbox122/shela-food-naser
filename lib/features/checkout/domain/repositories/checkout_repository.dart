@@ -25,6 +25,16 @@ class CheckoutRepository implements CheckoutRepositoryInterface {
     required this.authRepositoryInterface,
   });
 
+  Map<String, String> _maskedHeaders(Map<String, String> headers) {
+    final Map<String, String> sanitized = Map<String, String>.from(headers);
+    for (final entry in sanitized.entries.toList()) {
+      if (entry.key.toLowerCase() == 'authorization') {
+        sanitized[entry.key] = 'Bearer ***masked***';
+      }
+    }
+    return sanitized;
+  }
+
   @override
   Future<int> getDmTipMostTapped() async {
     int mostDmTipAmount = 0;
@@ -334,7 +344,8 @@ class CheckoutRepository implements CheckoutRepositoryInterface {
           '\x1B[33m - placeOrderUri: ${AppConstants.placeOrderUri}\x1B[0m');
       debugPrint(
           '\x1B[33m - placePrescriptionOrderUri: ${AppConstants.placePrescriptionOrderUri}\x1B[0m');
-      debugPrint('\x1B[33m - Headers BEFORE removal: $headers\x1B[0m');
+      debugPrint(
+          '\x1B[33m - Headers BEFORE removal: ${_maskedHeaders(headers)}\x1B[0m');
 
       // 🔥 طباعة تفصيلية لـ FormData
       debugPrint(
@@ -364,7 +375,7 @@ class CheckoutRepository implements CheckoutRepositoryInterface {
       }
 
       debugPrint(
-          '\x1B[33m - Headers AFTER Content-Type removal: $headers\x1B[0m');
+          '\x1B[33m - Headers AFTER Content-Type removal: ${_maskedHeaders(headers)}\x1B[0m');
 
       debugPrint('\x1B[32m🔥 CALLING apiClient.postFormData() NOW...\x1B[0m');
 
@@ -530,7 +541,7 @@ class CheckoutRepository implements CheckoutRepositoryInterface {
       debugPrint('\x1B[33m - Base URL: ${apiClient.appBaseUrl}\x1B[0m');
       debugPrint(
           '\x1B[33m - Full URL: ${apiClient.appBaseUrl}${AppConstants.placeOrderUri}\x1B[0m');
-      debugPrint('\x1B[33m - Headers: $headers\x1B[0m');
+      debugPrint('\x1B[33m - Headers: ${_maskedHeaders(headers)}\x1B[0m');
       debugPrint('\x1B[33m - Body: $jsonBody\x1B[0m');
 
       final Response response = await apiClient.postData(

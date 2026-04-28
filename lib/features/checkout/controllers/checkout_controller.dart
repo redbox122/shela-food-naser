@@ -23,7 +23,6 @@ import 'package:sixam_mart/features/payment/domain/models/offline_method_model.d
 import 'package:sixam_mart/features/checkout/domain/models/place_order_body_model.dart';
 import 'package:sixam_mart/features/checkout/domain/models/timeslote_model.dart';
 import 'package:sixam_mart/features/checkout/domain/models/payment_flow_state.dart';
-import 'package:sixam_mart/features/checkout/domain/models/checkout_error_response.dart';
 import 'package:sixam_mart/features/checkout/domain/services/checkout_service_interface.dart';
 import 'package:sixam_mart/features/checkout/widgets/order_successfull_dialog.dart';
 import 'package:sixam_mart/features/checkout/widgets/partial_pay_dialog_widget.dart';
@@ -40,6 +39,13 @@ import 'package:sixam_mart/features/payment/domain/repositories/myfatoorah_repos
 import 'package:sixam_mart/features/payment/domain/utils/myfatoorah_mapper.dart';
 import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 import '../../my_coupon/controllers/my_coupon_controller.dart';
+
+class _CheckoutReadableError {
+  final String? code;
+  final String message;
+
+  const _CheckoutReadableError({required this.code, required this.message});
+}
 
 class CheckoutController extends GetxController implements GetxService {
   final CheckoutServiceInterface checkoutServiceInterface;
@@ -1740,38 +1746,10 @@ class CheckoutController extends GetxController implements GetxService {
         debugPrint('📦 Response Body Type: ${response.body.runtimeType}');
         debugPrint('📦 Response Body: ${response.body}');
 
-        // Extract error message from response
-        String errorMessage = response.statusText ?? 'Unknown error';
-        String? errorCode;
-
-        if (response.body is Map<String, dynamic>) {
-          final errorBody = response.body as Map<String, dynamic>;
-          debugPrint('🔍 Error Body Keys: ${errorBody.keys.toList()}');
-
-          // Try to extract error message from common fields
-          if (errorBody.containsKey('message')) {
-            errorMessage = errorBody['message'].toString();
-            debugPrint('📨 Error Message (from body): $errorMessage');
-          }
-          if (errorBody.containsKey('error')) {
-            errorMessage = errorBody['error'].toString();
-            debugPrint('📨 Error (from body): $errorMessage');
-          }
-          if (errorBody.containsKey('errors')) {
-            debugPrint('📨 Errors (from body): ${errorBody['errors']}');
-            if (errorBody['errors'] is Map) {
-              final errors = errorBody['errors'] as Map;
-              errorMessage = errors.values.first.toString();
-            }
-          }
-          if (errorBody.containsKey('code')) {
-            errorCode = errorBody['code'].toString();
-            debugPrint('🔢 Error Code: $errorCode');
-          }
-        } else if (response.body is String) {
-          debugPrint('📨 Error Response (String): ${response.body}');
-          errorMessage = response.body as String;
-        }
+        final _CheckoutReadableError extracted =
+            _extractOrderReadableError(response);
+        final String errorMessage = extracted.message;
+        final String? errorCode = extracted.code;
 
         debugPrint(
             '═══════════════════════════════════════════════════════════');
@@ -1782,83 +1760,21 @@ class CheckoutController extends GetxController implements GetxService {
         debugPrint(
             '═══════════════════════════════════════════════════════════');
 
-        // 🥇 Extract error using CheckoutErrorResponse
-        final CheckoutErrorResponse? errorResponse =
-            extractCheckoutError(response.body);
-        String finalErrorMessage;
-
-        // ✅ Error Mapping الصحيح - لا نستخدم "المتجر مغلق" إلا للخطأ الحقيقي
-        if (errorCode != null) {
-          switch (errorCode) {
-            case 'STORE_CLOSED':
-            case 'STORE_NOT_OPEN':
-              finalErrorMessage = Get.find<SplashController>()
-                      .configModel!
-                      .moduleConfig!
-                      .module!
-                      .showRestaurantText!
-                  ? 'restaurant_is_closed'.tr
-                  : 'store_is_closed'.tr;
-              break;
-            case 'VALIDATION_ERROR':
-            case 'CONTACT_NAME_REQUIRED':
-            case 'CONTACT_NUMBER_REQUIRED':
-              finalErrorMessage = errorMessage != 'Unknown error'
-                  ? errorMessage
-                  : (errorResponse?.userFriendlyMessage ??
-                      'يرجى التحقق من البيانات المدخلة');
-              break;
-            case 'PAYMENT_FAILED':
-            case 'PAYMENT_METHOD_REQUIRED':
-              finalErrorMessage = errorMessage != 'Unknown error'
-                  ? errorMessage
-                  : (errorResponse?.userFriendlyMessage ??
-                      'فشل في معالجة الدفع');
-              break;
-            case 'INSUFFICIENT_BALANCE':
-              finalErrorMessage = errorMessage != 'Unknown error'
-                  ? errorMessage
-                  : (errorResponse?.userFriendlyMessage ?? 'الرصيد غير كافي');
-              break;
-            default:
-              finalErrorMessage = errorMessage != 'Unknown error'
-                  ? errorMessage
-                  : (errorResponse?.userFriendlyMessage ??
-                      'فشل في إنشاء الطلب');
-          }
-        } else {
-          // إذا لم يكن هناك error code، استخدم الرسالة الحقيقية
-          // ✅ تمييز فشل الدفع عن فشل المتجر (حتى بدون code)
-          // إذا كان هناك محاولة دفع سابقة، قد يكون الخطأ متعلق بالدفع
-          if (_paymentFlowState == PaymentFlowState.preparingPayment ||
-              _paymentFlowState == PaymentFlowState.processingPayment) {
-            // محاولة دفع فشلت
-            finalErrorMessage = errorMessage != 'Unknown error'
-                ? errorMessage
-                : (errorResponse?.userFriendlyMessage ??
-                    'فشل في عملية الدفع، يرجى المحاولة لاحقًا');
-          } else {
-            // خطأ في إنشاء الطلب
-            finalErrorMessage = errorMessage != 'Unknown error'
-                ? errorMessage
-                : (errorResponse?.userFriendlyMessage ??
-                    response.statusText ??
-                    'فشل في إنشاء الطلب');
-          }
-        }
+        final String finalErrorMessage =
+            _mapOrderErrorToFriendlyMessage(errorCode, errorMessage);
 
         // 🧪 DEBUG: عرض الرسالة النهائية (مؤقت)
         debugPrint('🔍 DEBUG → Final Message: $finalErrorMessage');
 
-        // ❌ لا Navigation - فقط عرض الرسالة
+        // Keep loader locked until after message is shown.
         showCustomSnackBar(finalErrorMessage);
+        _isLoading = false;
+        update(['payment']);
         return '';
       }
     } catch (e) {
       // 🥇 Update flow state - فشل
       _paymentFlowState = PaymentFlowState.failed;
-      _isLoading = false;
-      update(['payment']); // ✅ استخدام ID لتحديث جزئي
       debugPrint('خطأ أثناء إنشاء الطلب: $e');
 
       // ❌ لا Navigation - فقط عرض الرسالة
@@ -1867,8 +1783,64 @@ class CheckoutController extends GetxController implements GetxService {
           ? 'انتهت مهلة الاتصال - يرجى المحاولة مرة أخرى'
           : 'حدث خطأ أثناء إنشاء الطلب: ${e.toString()}';
       showCustomSnackBar(errorMessage);
+      _isLoading = false;
+      update(['payment']);
       return '';
     }
+  }
+
+  _CheckoutReadableError _extractOrderReadableError(Response<dynamic> response) {
+    String message = response.statusText?.toString().trim() ?? '';
+    String? code;
+    final dynamic body = response.body;
+    if (body is Map<String, dynamic>) {
+      final dynamic errors = body['errors'];
+      if (errors is List && errors.isNotEmpty && errors.first is Map) {
+        final Map firstError = errors.first as Map;
+        final dynamic codeValue = firstError['code'];
+        final dynamic messageValue = firstError['message'];
+        if (codeValue != null && codeValue.toString().trim().isNotEmpty) {
+          code = codeValue.toString().trim();
+        }
+        if (messageValue != null &&
+            messageValue.toString().trim().isNotEmpty) {
+          message = messageValue.toString().trim();
+        }
+      }
+      final dynamic bodyCode = body['code'];
+      if ((code == null || code.isEmpty) &&
+          bodyCode != null &&
+          bodyCode.toString().trim().isNotEmpty) {
+        code = bodyCode.toString().trim();
+      }
+      final dynamic bodyMessage = body['message'];
+      if (message.isEmpty &&
+          bodyMessage != null &&
+          bodyMessage.toString().trim().isNotEmpty) {
+        message = bodyMessage.toString().trim();
+      }
+    } else if (body is String && body.trim().isNotEmpty) {
+      message = body.trim();
+    }
+    if (message.isEmpty) {
+      message = 'Order could not be placed';
+    }
+    return _CheckoutReadableError(code: code?.toLowerCase(), message: message);
+  }
+
+  String _mapOrderErrorToFriendlyMessage(String? code, String backendMessage) {
+    final String normalizedCode = (code ?? '').toLowerCase();
+    final bool isArabic = Get.locale?.languageCode.toLowerCase() == 'ar';
+    if (normalizedCode == 'order_time') {
+      return isArabic
+          ? 'المتجر مغلق الآن ولا يمكن إنشاء الطلب في هذا الوقت. برجاء المحاولة خلال ساعات العمل أو اختيار متجر آخر.'
+          : 'The store is closed now, so the order cannot be placed at this time. Please try during working hours or choose another store.';
+    }
+    if (backendMessage.trim().isNotEmpty &&
+        backendMessage.trim().toLowerCase() != 'unknown error') {
+      return backendMessage.trim();
+    }
+    return isArabic ? 'تعذر إنشاء الطلب' : 'Order could not be placed';
   }
 
   String _extractReadableApiMessage(dynamic body, {required String fallback}) {

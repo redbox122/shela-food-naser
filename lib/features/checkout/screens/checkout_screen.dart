@@ -1778,7 +1778,6 @@ class CheckoutScreenState extends State<CheckoutScreen> {
                             }
 
                             if (orderID.isEmpty) {
-                              showCustomSnackBar('فشل في إنشاء الطلب');
                               return;
                             }
 

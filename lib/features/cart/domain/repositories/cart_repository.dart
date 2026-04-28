@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get_connect.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sixam_mart/api/api_client.dart';
+import 'package:sixam_mart/features/cart/domain/models/cart_operation_exception.dart';
 import 'package:sixam_mart/features/cart/domain/models/cart_model.dart';
 import 'package:sixam_mart/features/cart/domain/models/online_cart_model.dart';
 import 'package:sixam_mart/features/cart/domain/repositories/cart_repository_interface.dart';
@@ -104,6 +105,23 @@ class CartRepository implements CartRepositoryInterface<OnlineCart> {
       debugPrint('❌ addToCartOnline failed: status=${response.statusCode}');
       debugPrint('   - requestBody: $requestBody');
       debugPrint('   - responseBody: ${response.body}');
+      final dynamic errors = response.body is Map<String, dynamic>
+          ? (response.body as Map<String, dynamic>)['errors']
+          : null;
+      String? errorCode;
+      String? errorMessage;
+      if (errors is List && errors.isNotEmpty && errors.first is Map) {
+        final firstError = errors.first as Map;
+        final dynamic codeValue = firstError['code'];
+        final dynamic messageValue = firstError['message'];
+        errorCode = codeValue?.toString();
+        errorMessage = messageValue?.toString();
+      }
+      throw CartOperationException(
+        statusCode: response.statusCode,
+        errorCode: errorCode,
+        message: errorMessage,
+      );
     }
     return onlineCartList;
   }

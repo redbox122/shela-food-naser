@@ -87,6 +87,8 @@ class SplashController extends GetxController implements GetxService {
   bool _hasAttemptedPromotionalLoad = false;
   bool get hasAttemptedPromotionalLoad => _hasAttemptedPromotionalLoad;
   final Map<int, bool> _promotionalBannerLoadInProgress = {};
+  final Map<int, DateTime> _promotionalContentLastLoadedAt = {};
+  static const Duration _promotionalReloadCooldown = Duration(seconds: 12);
   bool _firstInstallCheckDone = false;
   static const String _firstLaunchMarkerKey = 'app_first_launch_marker_v2';
   static const String _legacyFirstLaunchMarkerKey =
@@ -215,6 +217,8 @@ class SplashController extends GetxController implements GetxService {
   bool _isStartupModulePreloadRunning = false;
   final Set<int> _startupPreloadedModuleIds = <int>{};
   bool _isSplashFlowActive = false;
+  bool _isSplashCacheReady = false;
+  bool _isFirstNavigationReleased = false;
 
   // 🏗️ MODULE-FIRST ARCHITECTURE: Single Source of Truth
   // This is the ONLY source of module selection state in the application
@@ -227,9 +231,13 @@ class SplashController extends GetxController implements GetxService {
   DateTime get currentTime => DateTime.now();
 
   bool get isSplashFlowActive => _isSplashFlowActive;
+  bool get isSplashCacheReady => _isSplashCacheReady;
+  bool get isFirstNavigationReleased => _isFirstNavigationReleased;
 
   void markSplashFlowActive() {
     _isSplashFlowActive = true;
+    _isSplashCacheReady = false;
+    _isFirstNavigationReleased = false;
     if (kDebugMode) {
       debugPrint('🧭 SplashController: splash flow marked ACTIVE');
     }
@@ -239,6 +247,20 @@ class SplashController extends GetxController implements GetxService {
     _isSplashFlowActive = false;
     if (kDebugMode) {
       debugPrint('🧭 SplashController: splash flow marked STOPPED');
+    }
+  }
+
+  void markSplashReadyFromCache() {
+    _isSplashCacheReady = true;
+    if (kDebugMode) {
+      debugPrint('✅ SplashController: Splash ready from cache');
+    }
+  }
+
+  void markFirstNavigationReleased() {
+    _isFirstNavigationReleased = true;
+    if (kDebugMode) {
+      debugPrint('✅ SplashController: First navigation released');
     }
   }
 
@@ -672,9 +694,10 @@ class SplashController extends GetxController implements GetxService {
       }
 
       // ⚡ Ensure zone/module headers are updated before any new API calls
-      await _injectLastKnownZoneFromHive();
+      // resetHeaders() clears everything, so inject zone AFTER rebuilding headers
       Get.find<ApiClient>().resetHeaders();
       await setModuleHeaderOnly(module);
+      await _injectLastKnownZoneFromHive(); // fallback if addressModel has no zoneIds
       if (Get.isRegistered<StoreController>()) {
         await Get.find<StoreController>().clearStoreData();
       }
@@ -2063,6 +2086,12 @@ class SplashController extends GetxController implements GetxService {
               '📦 SplashController.getModules: local cache count=${moduleList.length}');
         }
         _prepareModuleList(moduleList);
+        // During active splash, do not block routing on client refresh if we
+        // already have local modules. Refresh in background instead.
+        if (_isSplashFlowActive) {
+          unawaited(getModules(headers: headers, dataSource: DataSourceEnum.client));
+          return;
+        }
       }
       // CRITICAL: Await client data to ensure all modules are loaded
       // This prevents showing partial/cached modules before all modules arrive
@@ -2612,6 +2641,7 @@ class SplashController extends GetxController implements GetxService {
       }
       // Promotional content preloading is intentionally deferred out of splash.
       // Keep cache restore focused on config/module readiness only.
+      _isSplashCacheReady = true;
 
       debugPrint(
           '✅ SplashController: Data restored from cache - instant startup ready');
@@ -2643,6 +2673,17 @@ class SplashController extends GetxController implements GetxService {
         }
         debugPrint(
             '🚀 PromotionalContent: Loading for Module $finalModuleId (splashActive=$_isSplashFlowActive)');
+      }
+      final DateTime? lastLoadedAt =
+          _promotionalContentLastLoadedAt[finalModuleId];
+      final bool isWithinCooldown = lastLoadedAt != null &&
+          DateTime.now().difference(lastLoadedAt) < _promotionalReloadCooldown;
+      if (isWithinCooldown && _hasLoadedPromotionalContent) {
+        if (kDebugMode) {
+          debugPrint(
+              '⏭️ SplashController: Promotional content recently loaded for module $finalModuleId - skipping duplicate trigger');
+        }
+        return;
       }
 
       if (_promotionalBannerLoadInProgress[finalModuleId] == true) {
@@ -2764,6 +2805,7 @@ class SplashController extends GetxController implements GetxService {
           debugPrint('💾 SplashController: Saved promotional content to cache');
         }
         _hasLoadedPromotionalContent = true;
+        _promotionalContentLastLoadedAt[finalModuleId] = DateTime.now();
         update(['promotional_content']);
       }
 
@@ -2792,7 +2834,7 @@ class SplashController extends GetxController implements GetxService {
           _module?.id ??
           getCacheModule();
       final int finalModuleId = targetModuleId == 0 ? 3 : targetModuleId;
-      Future.delayed(const Duration(milliseconds: 500), () {
+      Future.delayed(const Duration(seconds: 2), () {
         _promotionalBannerLoadInProgress.remove(finalModuleId);
       });
     }
@@ -2802,6 +2844,7 @@ class SplashController extends GetxController implements GetxService {
   void onClose() {
     _isSplashFlowActive = false;
     _promotionalBannerLoadInProgress.clear();
+    _promotionalContentLastLoadedAt.clear();
     super.onClose();
   }
 }

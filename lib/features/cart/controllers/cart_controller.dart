@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sixam_mart/features/item/domain/models/item_model.dart';
 import 'package:sixam_mart/common/models/module_model.dart';
 import 'package:sixam_mart/features/cart/domain/models/cart_model.dart';
+import 'package:sixam_mart/features/cart/domain/models/cart_operation_exception.dart';
 import 'package:sixam_mart/features/cart/domain/models/online_cart_model.dart'
     hide Variation;
 import 'package:sixam_mart/features/cart/domain/services/cart_service_interface.dart';
@@ -410,6 +411,16 @@ class CartController extends GetxController implements GetxService {
   /// [_isCartDataLoading], so the sticky cart used to vanish for one frame.
   bool _serverCartListReplaceInProgress = false;
   bool get serverCartListReplaceInProgress => _serverCartListReplaceInProgress;
+  String? _lastAddToCartErrorCode;
+  String? _lastAddToCartErrorMessage;
+  bool _forceServerTruthOnNextCartSync = false;
+  static const Set<String> _finalBusinessRejectionCodes = <String>{
+    'store_busy',
+    'order_time',
+    'store_closed',
+    'store_temporarily_closed',
+    'cart_item_limit',
+  };
 
   /// Last non-empty cart totals for sticky bar (survives overlay dispose + list replace).
   int _stickyCartBarSnapshotQty = 0;
@@ -1545,6 +1556,9 @@ class CartController extends GetxController implements GetxService {
         _findExistingCartItem(cartModel.item?.id, onlineCart.variant);
 
     // 🚀 STEP 1: Update UI IMMEDIATELY (no waiting for API)
+    final int? previousQuantity =
+        existingIndex != -1 ? _cartList[existingIndex].quantity : null;
+    bool didAddNewLocalItem = false;
     if (existingIndex != -1) {
       // Item exists, update quantity locally instantly
       final int currentQuantity = _cartList[existingIndex].quantity ?? 0;
@@ -1562,6 +1576,7 @@ class CartController extends GetxController implements GetxService {
     } else {
       // New item, add locally first (instant UI)
       await _addToCartInternal(cartModel, null);
+      didAddNewLocalItem = true;
       debugPrint('✅ OPTIMISTIC UI: Added new item to local cart');
     }
 
@@ -1586,6 +1601,54 @@ class CartController extends GetxController implements GetxService {
 
         return true;
       } else {
+        final String normalizedCode =
+            (_lastAddToCartErrorCode ?? '').trim().toLowerCase();
+        final bool isFinalBusinessRejection =
+            _finalBusinessRejectionCodes.contains(normalizedCode);
+        if (isFinalBusinessRejection) {
+          _forceServerTruthOnNextCartSync = true;
+          if (existingIndex != -1 && previousQuantity != null) {
+            _cartList[existingIndex].quantity = previousQuantity;
+          } else if (didAddNewLocalItem) {
+            final int optimisticIndex =
+                _findExistingCartItem(cartModel.item?.id, onlineCart.variant);
+            if (optimisticIndex != -1) {
+              _cartList.removeAt(optimisticIndex);
+            }
+          }
+          _onCartMutated(reason: 'addToCartWithFallback_businessRejectRollback');
+          await cartServiceInterface.addSharedPrefCartList(_cartList);
+          try {
+            final moduleId = ModuleHelper.getCacheModule()?.id;
+            final cartListJson = _cartList.map((cart) => cart.toJson()).toList();
+            await HiveHomeCacheService().saveCartData(moduleId, cartListJson);
+          } catch (e) {
+            debugPrint('⚠️ addToCartWithFallback: rollback Hive save failed: $e');
+          }
+          try {
+            await getCartDataOnline(forceRefresh: true);
+          } catch (e) {
+            debugPrint(
+                '⚠️ addToCartWithFallback: business-reject server sync failed: $e');
+          }
+          final bool isArabic = Get.locale?.languageCode.toLowerCase() == 'ar';
+          String message = _lastAddToCartErrorMessage ?? '';
+          if (normalizedCode == 'store_busy') {
+            message = isArabic
+                ? 'المتجر مشغول حاليًا ولا يمكنه استقبال طلبات جديدة الآن. يمكنك المحاولة لاحقًا أو الطلب من متجر آخر.'
+                : 'The store is busy right now and cannot accept new orders. Please try again later or order from another store.';
+          } else if (normalizedCode == 'order_time') {
+            message = isArabic
+                ? 'المتجر مغلق الآن ولا يمكن إنشاء الطلب في هذا الوقت. برجاء المحاولة خلال ساعات العمل أو اختيار متجر آخر.'
+                : 'The store is closed now, so the order cannot be placed at this time. Please try during working hours or choose another store.';
+          } else if (message.isEmpty) {
+            message = isArabic
+                ? 'تعذر إتمام الإضافة بسبب سياسة المتجر الحالية.'
+                : 'Could not add this item due to current store policy.';
+          }
+          showCustomSnackBar(message);
+          return false;
+        }
         // 🔒 FALLBACK: API failed (e.g., store closed, network error)
         // Keep the item in local cart - user can still see it
         // When they go to checkout, they'll see the error message
@@ -1804,6 +1867,8 @@ class CartController extends GetxController implements GetxService {
 
   Future<bool> addToCartOnline(OnlineCart cart) async {
     bool success = false;
+    _lastAddToCartErrorCode = null;
+    _lastAddToCartErrorMessage = null;
 
     // 🔒 REMOVED: Zone validation when adding to cart
     // Zone/location validation is now ONLY checked at checkout time (payment)
@@ -1865,6 +1930,10 @@ class CartController extends GetxController implements GetxService {
             '⚠️ API returned empty cart list - this might indicate an error (e.g., store closed)');
       }
     } catch (e) {
+      if (e is CartOperationException) {
+        _lastAddToCartErrorCode = e.errorCode;
+        _lastAddToCartErrorMessage = e.message;
+      }
       debugPrint('❌ Error adding to cart online: $e');
       // Don't throw - let caller handle fallback
     } finally {
@@ -2127,6 +2196,10 @@ class CartController extends GetxController implements GetxService {
 
       // If we got data but it might be stale, trust local state and skip retries
       if (onlineCartList != null && onlineCartList.isNotEmpty && forceRefresh) {
+        if (_forceServerTruthOnNextCartSync) {
+          debugPrint(
+              '🔒 CartController: Server-truth mode active - skipping stale-local override');
+        }
         // Check if the data looks stale by comparing with current local cart
         bool mightBeStale = false;
         if (_cartList.isNotEmpty && onlineCartList.length == _cartList.length) {
@@ -2165,7 +2238,7 @@ class CartController extends GetxController implements GetxService {
           }
         }
 
-        if (mightBeStale) {
+        if (mightBeStale && !_forceServerTruthOnNextCartSync) {
           debugPrint(
               '🔄 Backend returns stale data, trusting local cart state (no retries)');
           debugPrint(
@@ -2176,6 +2249,7 @@ class CartController extends GetxController implements GetxService {
       }
 
       if (onlineCartList != null && onlineCartList.isNotEmpty) {
+        _forceServerTruthOnNextCartSync = false;
         if (apiReportedStoreId != null) {
           _storeId = apiReportedStoreId;
           debugPrint(
@@ -2261,6 +2335,24 @@ class CartController extends GetxController implements GetxService {
         _onCartMutated(reason: 'getCartDataOnline_fromAPI');
         debugPrint('✅ Cart data loaded from API - ${_cartList.length} items');
       } else {
+        if (_forceServerTruthOnNextCartSync) {
+          debugPrint(
+              '🔒 CartController: Server-truth mode active and server cart is empty - clearing local cart');
+          _cartList = [];
+          _totals = const CartTotals();
+          _storeId = null;
+          await cartServiceInterface.addSharedPrefCartList(_cartList);
+          try {
+            final moduleId = ModuleHelper.getCacheModule()?.id;
+            await HiveHomeCacheService()
+                .saveCartData(moduleId, <Map<String, dynamic>>[]);
+          } catch (e) {
+            debugPrint('⚠️ CartController: Error clearing Hive cart cache: $e');
+          }
+          _forceServerTruthOnNextCartSync = false;
+          _onCartMutated(reason: 'getCartDataOnline_serverTruthEmpty');
+          return;
+        }
         // 🔒 CRITICAL GUARD: API returned empty cart
         // NEVER overwrite local cart with empty API response unless:
         // 1. User explicitly cleared cart (forceRefresh = true + _justClearedCart)
