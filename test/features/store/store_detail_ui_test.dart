@@ -111,6 +111,7 @@ class MockStoreServiceInterface implements StoreServiceInterface {
     int offset,
     int? categoryID,
     String type, {
+    int? moduleId,
     int? limit,
     CancelToken? cancelToken,
   }) async {
@@ -201,10 +202,10 @@ class MockStoreServiceInterface implements StoreServiceInterface {
     return null;
   }
 
-  // 🔴 الميثود اللي كانت ناقصة
   @override
   Future<SlimMenuResponse?> getSlimMenu(
     int? storeId, {
+    int? moduleId,
     CancelToken? cancelToken,
   }) async {
     return null;

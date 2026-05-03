@@ -1,3 +1,4 @@
+import 'package:get/get_connect/http/src/response/response.dart';
 import 'package:sixam_mart/common/models/response_model.dart';
 import 'package:sixam_mart/features/auth/domain/models/signup_body_model.dart';
 import 'package:sixam_mart/features/auth/domain/models/social_log_in_body.dart';
@@ -31,7 +32,7 @@ abstract class AuthServiceInterface {
   Future<ResponseModel> guestLogin();
   //Future<bool> loginWithSocialMedia(SocialLogInBody socialLogInBody, int timeout, bool isCustomerVerificationOn);
   Future<ResponseModel> loginWithSocialMedia(SocialLogInBody socialLogInModel, {bool isCustomerVerificationOn = false});
-  Future<void> updateToken();
+  Future<Response> updateToken({bool forAuth001Recovery = false});
   bool isLoggedIn();
   bool isGuestLoggedIn();
   String getSharedPrefGuestId();
@@ -51,6 +52,6 @@ abstract class AuthServiceInterface {
   String getDmTipIndex();
   Future<bool> saveEarningPoint(String point);
   String getEarningPint();
-  Future<void> setNotificationActive(bool isActive);
+  Future<bool> setNotificationActive(bool isActive);
   Future<String?> saveDeviceToken();
 }

@@ -26,6 +26,37 @@ import 'package:sixam_mart/core/cache/etag_scope_key_builder.dart';
 import 'package:sixam_mart/features/splash/controllers/splash_controller.dart';
 import 'package:sixam_mart/helper/date_converter.dart';
 
+bool _responseIndicatesAuthDeferred(Response<dynamic> response) {
+  final dynamic raw = response.body;
+  if (raw is! Map) {
+    return false;
+  }
+  final Map<String, dynamic> m = Map<String, dynamic>.from(raw);
+  if (m['code']?.toString() == 'auth-001') {
+    return true;
+  }
+  final String message = m['message']?.toString() ?? '';
+  if (message == 'auth_deferred') {
+    return true;
+  }
+  return false;
+}
+
+String _stringifyResponseBodyForLog(Response<dynamic> response) {
+  try {
+    final dynamic b = response.body ?? response.bodyString;
+    if (b == null) {
+      return '';
+    }
+    if (b is String) {
+      return b;
+    }
+    return jsonEncode(b);
+  } catch (_) {
+    return response.bodyString ?? '';
+  }
+}
+
 class ApiClient extends GetxService {
   final String appBaseUrl;
   final SharedPreferences sharedPreferences;
@@ -1019,7 +1050,9 @@ class ApiClient extends GetxService {
       {Map<String, String>? headers,
       int? timeout,
       bool handleError = true,
-      dio_pkg.ValidateStatus? validateStatus}) async {
+      dio_pkg.ValidateStatus? validateStatus,
+      bool alreadyRetriedAuthRefresh = false,
+      bool skipAuthDeferredRetry = false}) async {
     try {
       // ⚠️ CRITICAL: Merge custom headers with default headers to ensure moduleId is always included
       final Map<String, String> finalHeaders = _prepareFinalHeaders(headers);
@@ -1077,7 +1110,19 @@ class ApiClient extends GetxService {
                 'POST', uri, response.statusCode ?? 0, stopwatch.elapsed);
           }
 
-          return _convertDioResponseToGetResponse(response, uri);
+          final Response<dynamic> converted =
+              _convertDioResponseToGetResponse(response, uri);
+          return await _finalizeAuthDeferredRetryForPost(
+            uri: uri,
+            body: body,
+            headers: headers,
+            timeout: timeout,
+            handleError: handleError,
+            validateStatus: validateStatus,
+            alreadyRetriedAuthRefresh: alreadyRetriedAuthRefresh,
+            skipAuthDeferredRetry: skipAuthDeferredRetry,
+            initialResponse: converted,
+          );
         } catch (e) {
           stopwatch.stop();
           if (!uri.contains('registration-activity')) {
@@ -1112,7 +1157,19 @@ class ApiClient extends GetxService {
             (dioPostResp.statusCode as int?) ?? 0, stopwatch.elapsed);
       }
 
-      return _handleDioFallbackResponse(dioPostResp, uri, handleError);
+      final Response<dynamic> handled =
+          _handleDioFallbackResponse(dioPostResp, uri, handleError);
+      return await _finalizeAuthDeferredRetryForPost(
+        uri: uri,
+        body: body,
+        headers: headers,
+        timeout: timeout,
+        handleError: handleError,
+        validateStatus: validateStatus,
+        alreadyRetriedAuthRefresh: alreadyRetriedAuthRefresh,
+        skipAuthDeferredRetry: skipAuthDeferredRetry,
+        initialResponse: handled,
+      );
     } catch (e) {
       if (!uri.contains('registration-activity')) {
         appLogger.logApiCallError('POST', uri, e.toString());
@@ -1791,8 +1848,56 @@ class ApiClient extends GetxService {
     }
   }
 
+  /// When the server returns HTTP 200 with `auth-001` / `auth_deferred`, refresh
+  /// the FCM token once (without nested retry), then replay this POST once.
+  Future<Response<dynamic>> _finalizeAuthDeferredRetryForPost({
+    required String uri,
+    required dynamic body,
+    required Map<String, String>? headers,
+    required int? timeout,
+    required bool handleError,
+    required dio_pkg.ValidateStatus? validateStatus,
+    required bool alreadyRetriedAuthRefresh,
+    required bool skipAuthDeferredRetry,
+    required Response<dynamic> initialResponse,
+  }) async {
+    if (skipAuthDeferredRetry ||
+        !_responseIndicatesAuthDeferred(initialResponse)) {
+      return initialResponse;
+    }
+    if (alreadyRetriedAuthRefresh) {
+      debugPrint(
+        '[AuthRetry][RETRY_RESPONSE] status=${initialResponse.statusCode} body=${_stringifyResponseBodyForLog(initialResponse)}',
+      );
+      await ApiChecker.onAuthDeferredRetryExhausted(uri);
+      return initialResponse;
+    }
+    debugPrint('[AuthRetry][START] path=$uri');
+    await ApiChecker.refreshSessionAfterAuthDeferred(uri);
+    if (!AuthHelper.isLoggedIn()) {
+      debugPrint('[AuthRetry] abort retry — session cleared during refresh');
+      return initialResponse;
+    }
+    debugPrint('[AuthRetry][REFRESH_SUCCESS]');
+    debugPrint('[AuthRetry][RETRY_REQUEST] path=$uri');
+    final Response<dynamic> retryResponse = await postData(
+      uri,
+      body,
+      headers: headers,
+      timeout: timeout,
+      handleError: handleError,
+      validateStatus: validateStatus,
+      alreadyRetriedAuthRefresh: true,
+      skipAuthDeferredRetry: false,
+    );
+    debugPrint(
+      '[AuthRetry][RETRY_RESPONSE] status=${retryResponse.statusCode} body=${_stringifyResponseBodyForLog(retryResponse)}',
+    );
+    return retryResponse;
+  }
+
   /// Convert a Dio fallback response into the GetX Response with full
-  /// error-parsing, auth-001 detection, and handleError logic.
+  /// error-parsing and handleError logic.
   Response<dynamic> _handleDioFallbackResponse(
       dynamic dioResponse, String uri, bool handleError) {
     final int statusCode = (dioResponse.statusCode as int?) ?? 0;
@@ -1898,25 +2003,6 @@ class ApiClient extends GetxService {
       request: response0.request,
       headers: response0.headers,
     );
-
-    // 🔒 AUTH-001 HANDLER
-    if (response0.body is Map) {
-      try {
-        final bodyMap = Map<String, dynamic>.from(response0.body as Map);
-        if (bodyMap['code'] == 'auth-001') {
-          if (kDebugMode) {
-            debugPrint(
-                '🔒 ApiClient: auth-001 error detected, attempting token refresh');
-          }
-          ApiChecker.handleAuth001Error(response0, uri);
-          return response0;
-        }
-      } catch (e) {
-        if (kDebugMode) {
-          debugPrint('⚠️ ApiClient: Error checking for auth-001 code: $e');
-        }
-      }
-    }
 
     if (handleError) {
       if (response0.statusCode == 200 || response0.statusCode == 201) {

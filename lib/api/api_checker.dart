@@ -8,6 +8,7 @@ import 'package:sixam_mart/features/cart/controllers/cart_controller.dart';
 import 'package:sixam_mart/features/favourite/controllers/favourite_controller.dart';
 import 'package:sixam_mart/helper/auth_helper.dart';
 import 'package:sixam_mart/helper/route_helper.dart';
+import 'package:sixam_mart/common/widgets/custom_snackbar.dart';
 
 class ApiChecker {
   /// 🔒 GUARD: Prevent infinite refresh loops
@@ -114,11 +115,17 @@ class ApiChecker {
     return false;
   }
 
-  /// 🔐 Handle auth-001 error with safe token refresh
-  static Future<void> handleAuth001Error(
-    Response<dynamic> response,
-    String? uri,
-  ) async {
+  /// Called for the first leg of auth-deferred handling: sync FCM token with
+  /// [forAuth001Recovery] so nested POSTs do not enter the retry loop.
+  static Future<void> refreshSessionAfterAuthDeferred(String? uri) async {
+    if (AuthHelper.isGuestLoggedIn()) {
+      if (kDebugMode) {
+        debugPrint(
+          '⚠️ ApiChecker: Guest user, skipping auth-deferred refresh',
+        );
+      }
+      return;
+    }
     if (_isRefreshing) {
       if (kDebugMode) {
         debugPrint(
@@ -127,40 +134,17 @@ class ApiChecker {
       }
       return;
     }
-
-    if (AuthHelper.isGuestLoggedIn()) {
-      if (kDebugMode) {
-        debugPrint(
-          '⚠️ ApiChecker: Guest user, skipping token refresh',
-        );
-      }
-      return;
-    }
-
     _isRefreshing = true;
-
     try {
-      final authController = Get.find<AuthController>();
-
-      await authController.updateToken();
-
-      await Future<void>.delayed(
-        const Duration(milliseconds: 100),
-      );
-
-      if (AuthHelper.isLoggedIn()) {
+      final AuthController authController = Get.find<AuthController>();
+      await authController.updateToken(forAuth001Recovery: true);
+      await Future<void>.delayed(const Duration(milliseconds: 100));
+      if (!AuthHelper.isLoggedIn()) {
         if (kDebugMode) {
           debugPrint(
-            '✅ ApiChecker: Token refreshed successfully',
+            '❌ ApiChecker: Session invalid after auth-deferred refresh',
           );
         }
-      } else {
-        if (kDebugMode) {
-          debugPrint(
-            '❌ ApiChecker: Token refresh failed, logging out',
-          );
-        }
-
         await authController.clearSharedData(removeToken: false);
         Get.find<FavouriteController>().removeFavourite();
         Get.offAllNamed<void>(
@@ -169,14 +153,10 @@ class ApiChecker {
       }
     } catch (e) {
       if (kDebugMode) {
-        debugPrint(
-          '❌ ApiChecker: Error during token refresh: $e',
-        );
+        debugPrint('❌ ApiChecker: Error during auth-deferred refresh: $e');
       }
-
       try {
-        await Get.find<AuthController>()
-            .clearSharedData(removeToken: false);
+        await Get.find<AuthController>().clearSharedData(removeToken: false);
         Get.find<FavouriteController>().removeFavourite();
         Get.offAllNamed<void>(
           RouteHelper.getSignInRoute(Get.currentRoute),
@@ -190,6 +170,29 @@ class ApiChecker {
       }
     } finally {
       _isRefreshing = false;
+    }
+  }
+
+  /// Second auth-deferred on the retried request: treat session as expired.
+  static Future<void> onAuthDeferredRetryExhausted(String? uri) async {
+    if (kDebugMode) {
+      debugPrint(
+        '[AuthRetry] Exhausted auth-deferred retries path=$uri',
+      );
+    }
+    try {
+      showCustomSnackBar('session_time_out'.tr);
+    } catch (_) {}
+    try {
+      await Get.find<AuthController>().clearSharedData(removeToken: false);
+      Get.find<FavouriteController>().removeFavourite();
+      Get.offAllNamed<void>(
+        RouteHelper.getSignInRoute(Get.currentRoute),
+      );
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('❌ ApiChecker: onAuthDeferredRetryExhausted failed: $e');
+      }
     }
   }
 }

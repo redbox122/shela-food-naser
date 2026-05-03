@@ -87,6 +87,7 @@ class MockStoreServiceInterface implements StoreServiceInterface {
     int offset,
     int? categoryID,
     String type, {
+    int? moduleId,
     int? limit,
     CancelToken? cancelToken,
   }) async =>
@@ -95,6 +96,7 @@ class MockStoreServiceInterface implements StoreServiceInterface {
   @override
   Future<SlimMenuResponse?> getSlimMenu(
     int? storeId, {
+    int? moduleId,
     CancelToken? cancelToken,
   }) async =>
       null;

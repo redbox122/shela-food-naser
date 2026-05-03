@@ -1,5 +1,6 @@
 // ignore_for_file: non_constant_identifier_names
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:sixam_mart/features/splash/controllers/splash_controller.dart';
@@ -89,11 +90,28 @@ Widget PartialPayView(BuildContext context, {required totalPrice, required isPre
                       ),
                       InkWell(
                         onTap: () {
+                          if (kDebugMode) {
+                            debugPrint(
+                              '[PaymentMethod][WALLET_USE_TAP] before paymentMethodIndex=${checkoutController.paymentMethodIndex} '
+                              'isMyPay=${checkoutController.isMy_Pay}',
+                            );
+                          }
+                          if (!checkoutController.isMy_Pay) {
+                            checkoutController.change_My_Pay();
+                          }
                           if (Get.find<ProfileController>().userInfoModel!.walletBalance! < (totalPrice as num).toDouble()) {
                             checkoutController.changePartialPayment();
                           } else {
                             checkoutController.setPaymentMethod(1);
                           }
+                          if (kDebugMode) {
+                            debugPrint(
+                              '[PaymentMethod][WALLET_SELECTED] after paymentMethodIndex=${checkoutController.paymentMethodIndex}',
+                            );
+                            debugPrint('[PaymentMethod][BOTTOM_CLOSE]');
+                          }
+                          Navigator.of(context).pop();
+                          showCustomSnackBar('تم اختيار المحفظة العادية للدفع', isError: false);
                         },
                         child: Container(
                           decoration: BoxDecoration(
@@ -263,22 +281,27 @@ Widget PartialPayView(BuildContext context, {required totalPrice, required isPre
                                 builder: (KaidhaSubController) {
                                   return InkWell(
                                     onTap: () {
-                                      // Enable regular wallet payment (set to true, don't toggle)
+                                      if (kDebugMode) {
+                                        debugPrint(
+                                          '[PaymentMethod][WALLET_USE_TAP] before paymentMethodIndex=${checkoutController.paymentMethodIndex} '
+                                          'isMyPay=${checkoutController.isMy_Pay}',
+                                        );
+                                      }
                                       if (!checkoutController.isMy_Pay) {
                                         checkoutController.change_My_Pay();
                                       }
-
                                       if (Get.find<ProfileController>().userInfoModel!.walletBalance! < (totalPrice as num).toDouble()) {
                                         checkoutController.changePartialPayment();
                                       } else {
-                                        // Set payment method to regular wallet (index 1)
                                         checkoutController.setPaymentMethod(1);
                                       }
-                                      
-                                      // Close the bottom sheet
+                                      if (kDebugMode) {
+                                        debugPrint(
+                                          '[PaymentMethod][WALLET_SELECTED] after paymentMethodIndex=${checkoutController.paymentMethodIndex}',
+                                        );
+                                        debugPrint('[PaymentMethod][BOTTOM_CLOSE]');
+                                      }
                                       Navigator.of(context).pop();
-                                      
-                                      // Show success message
                                       showCustomSnackBar('تم اختيار المحفظة العادية للدفع', isError: false);
                                     },
                                     child: Container(

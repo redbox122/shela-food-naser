@@ -193,8 +193,7 @@ class CheckoutController extends GetxController implements GetxService {
     isSelected = List<bool>.filled(paymentMethods.length, false);
     isSelected[index] = true;
     select_payment_Methods = paymentMethods[index];
-    update();
-    update(['payment']);
+    update(['payment', 'checkout']);
   }
 
   AddressModel? _guestAddress;
@@ -1186,6 +1185,12 @@ class CheckoutController extends GetxController implements GetxService {
   }
 
   void setPaymentMethod(int index, {bool isUpdate = true}) {
+    if (kDebugMode) {
+      debugPrint(
+        '[PaymentMethod][SET] before paymentMethodIndex=$_paymentMethodIndex '
+        'selectedButton=$selectedButton indexArg=$index',
+      );
+    }
     _paymentMethodIndex = index;
 
     // Keep payment card UI state in sync with the business payment state.
@@ -1218,9 +1223,19 @@ class CheckoutController extends GetxController implements GetxService {
     }
 
     if (isUpdate) {
-      update();
+      // GetBuilder(id: 'payment' | 'checkout') only listens to update([id]); bare update() skips them.
+      update(['payment', 'checkout']);
     }
-    // ❌ تم إزالة debugPrint(_paymentMethodIndex) - كان يطبع 0 ويسبب confusion في اللوج
+    if (kDebugMode) {
+      debugPrint(
+        '[PaymentMethod][SET] after paymentMethodIndex=$_paymentMethodIndex '
+        'selectedButton=$selectedButton digital=${select_payment_Methods?.paymentMethodEn}',
+      );
+      debugPrint(
+        '[PaymentMethod][CHECKOUT_REBUILD] paymentMethodIndex=$_paymentMethodIndex '
+        'selectedButton=$selectedButton isMyPay=$_isMy_Pay isPartialPay=$_isPartialPay',
+      );
+    }
   }
 
   void changeDigitalPaymentName(String name, {bool willUpdate = true}) {
@@ -1314,21 +1329,21 @@ class CheckoutController extends GetxController implements GetxService {
   void changePartialPayment({bool isUpdate = true}) {
     _isPartialPay = !_isPartialPay;
     if (isUpdate) {
-      update();
+      update(['payment', 'checkout']);
     }
   }
 
   void change_My_Pay({bool isUpdate = true}) {
     _isMy_Pay = !_isMy_Pay;
     if (isUpdate) {
-      update();
+      update(['payment', 'checkout']);
     }
   }
 
   void change_Kaidha_Pay({bool isUpdate = true}) {
     _isKaidhaPay = !_isKaidhaPay;
     if (isUpdate) {
-      update();
+      update(['payment', 'checkout']);
     }
   }
 

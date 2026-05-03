@@ -322,36 +322,43 @@ class AuthController extends GetxController implements GetxService {
   int _firebaseTokenRetryCount = 0;
   static const int _maxFirebaseTokenRetries = 1;
 
-  Future<void> updateToken() async {
+  Future<Response?> updateToken({bool forAuth001Recovery = false}) async {
     try {
-      await authServiceInterface.updateToken();
-      // Reset retry count on success
+      final Response r = await authServiceInterface.updateToken(
+        forAuth001Recovery: forAuth001Recovery,
+      );
       _firebaseTokenRetryCount = 0;
+      return r;
     } catch (e) {
-      // ⚡ TASK 4: Only retry once, then defer
       if (_firebaseTokenRetryCount < _maxFirebaseTokenRetries) {
         _firebaseTokenRetryCount++;
         if (kDebugMode) {
-          debugPrint('🔄 AuthController: Firebase token update failed, retrying (attempt $_firebaseTokenRetryCount/$_maxFirebaseTokenRetries)...');
+          debugPrint(
+            '🔄 AuthController: Firebase token update failed, retrying (attempt $_firebaseTokenRetryCount/$_maxFirebaseTokenRetries)...',
+          );
         }
         try {
-          await authServiceInterface.updateToken();
-          _firebaseTokenRetryCount = 0; // Reset on success
+          final Response r = await authServiceInterface.updateToken(
+            forAuth001Recovery: forAuth001Recovery,
+          );
+          _firebaseTokenRetryCount = 0;
+          return r;
         } catch (retryError) {
-          // Second attempt failed - defer and let user continue
           if (kDebugMode) {
-            debugPrint('⚠️ AuthController: Firebase sync deferred after $_maxFirebaseTokenRetries attempts - user can continue');
+            debugPrint(
+              '⚠️ AuthController: Firebase sync deferred after $_maxFirebaseTokenRetries attempts - user can continue',
+            );
           }
-          // Don't throw - let the app continue without blocking UI
         }
       } else {
-        // Already retried once - defer
         if (kDebugMode) {
-          debugPrint('⚠️ AuthController: Firebase sync deferred (already retried) - user can continue');
+          debugPrint(
+            '⚠️ AuthController: Firebase sync deferred (already retried) - user can continue',
+          );
         }
-        // Don't throw - let the app continue without blocking UI
       }
     }
+    return null;
   }
 
   bool isLoggedIn() {
@@ -471,11 +478,22 @@ class AuthController extends GetxController implements GetxService {
   Future<bool> setNotificationActive(bool isActive) async {
     _notificationLoading = true;
     update();
-    _notification = isActive;
-    await authServiceInterface.setNotificationActive(isActive);
+    final bool previous = _notification;
+    final bool ok = await authServiceInterface.setNotificationActive(isActive);
+    if (ok) {
+      _notification = isActive;
+    } else {
+      _notification = previous;
+      if (kDebugMode) {
+        debugPrint('[ProfileNotification][ROLLBACK] previousValue=$previous');
+      }
+      if (AuthHelper.isLoggedIn()) {
+        showCustomSnackBar('something_went_wrong'.tr);
+      }
+    }
     _notificationLoading = false;
     update();
-    return _notification;
+    return ok;
   }
 
   Future<String?> saveDeviceToken() async {

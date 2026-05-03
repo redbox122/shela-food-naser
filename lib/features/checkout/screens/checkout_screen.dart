@@ -1731,6 +1731,11 @@ class CheckoutScreenState extends State<CheckoutScreen> {
 
                             debugPrint(
                                 '🔍 Final Payment Method: $finalPaymentMethod (Index: $selectedPaymentIndex)');
+                            debugPrint(
+                              '[PaymentMethod][PLACE_ORDER] final paymentMethod=$finalPaymentMethod '
+                              'selectedPaymentIndex=$selectedPaymentIndex '
+                              'checkout.paymentMethodIndex=${controller.paymentMethodIndex}',
+                            );
 
                             final String determinedOrderType =
                                 checkoutController.orderType ?? 'delivery';

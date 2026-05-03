@@ -1,5 +1,6 @@
 // ignore_for_file: unnecessary_null_comparison, deprecated_member_use, non_constant_identifier_names
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:sixam_mart/common/widgets/custom_snackbar.dart';
@@ -124,6 +125,11 @@ class _PaymentSectionState extends State<PaymentSection> {
                               }
 
                               if (widget.partialPayView != null) {
+                                if (kDebugMode) {
+                                  debugPrint(
+                                    '[PaymentMethod][BOTTOM_OPEN] partialWallet sheet',
+                                  );
+                                }
                                 Get.bottomSheet(
                                   backgroundColor: Colors.transparent,
                                   isScrollControlled: true,

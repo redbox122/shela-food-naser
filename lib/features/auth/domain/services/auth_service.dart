@@ -385,8 +385,10 @@ class AuthService implements AuthServiceInterface {
   }
 
   @override
-  Future<void> updateToken() async {
-    await authRepositoryInterface.updateToken();
+  Future<Response> updateToken({bool forAuth001Recovery = false}) async {
+    return authRepositoryInterface.updateToken(
+      forAuth001Recovery: forAuth001Recovery,
+    );
   }
 
   @override
@@ -486,8 +488,8 @@ class AuthService implements AuthServiceInterface {
   }
 
   @override
-  Future<void> setNotificationActive(bool isActive) async {
-    await authRepositoryInterface.setNotificationActive(isActive);
+  Future<bool> setNotificationActive(bool isActive) async {
+    return authRepositoryInterface.setNotificationActive(isActive);
   }
 
   @override

@@ -21,7 +21,12 @@ abstract class AuthRepositoryInterface extends RepositoryInterface {
       {required String name, required String? phone, required String loginType, required String? email, required String? referCode});
   //Future<bool> saveUserToken(String token);
   Future<bool> saveUserToken(String token, {bool alreadyInApp = false});
-  Future<Response> updateToken({String notificationDeviceToken = ''});
+  Future<Response> updateToken({
+    String notificationDeviceToken = '',
+    bool profileNotificationToggleTrace = false,
+    bool? profileNotificationRequestedActive,
+    bool forAuth001Recovery = false,
+  });
   Future<bool> saveSharedPrefGuestId(String id);
   String getSharedPrefGuestId();
   Future<bool> clearSharedPrefGuestId();
@@ -47,6 +52,6 @@ abstract class AuthRepositoryInterface extends RepositoryInterface {
   String getDmTipIndex();
   Future<bool> saveEarningPoint(String point);
   String getEarningPint();
-  Future<void> setNotificationActive(bool isActive);
+  Future<bool> setNotificationActive(bool isActive);
   Future<String?> saveDeviceToken();
 }

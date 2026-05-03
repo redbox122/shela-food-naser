@@ -464,7 +464,7 @@ class _CartScreenState extends State<CartScreen> with RouteAware {
           }
         },
         child: Scaffold(
-        backgroundColor: Colors.white,
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
         appBar: _buildModernHeader(),
         endDrawerEnableOpenDragGesture: false,
         body: SafeArea(
@@ -743,6 +743,7 @@ class _CartScreenState extends State<CartScreen> with RouteAware {
                                     _ModernSummaryRow(
                                       label: 'total'.tr,
                                       value: _calculateCartTotal(
+                                        context,
                                         subTotal: cartController.subTotal,
                                         taxPercent: effectiveTaxPercent,
                                         taxIncluded: taxIncluded,
@@ -1343,7 +1344,8 @@ class _CartScreenState extends State<CartScreen> with RouteAware {
   }
 
   /// Calculate total for cart display using same logic as checkout
-  Widget _calculateCartTotal({
+  Widget _calculateCartTotal(
+    BuildContext context, {
     required double subTotal,
     required double? taxPercent,
     required bool taxIncluded,
@@ -1391,10 +1393,11 @@ class _CartScreenState extends State<CartScreen> with RouteAware {
         'B');
     // #endregion
 
+    final Color totalColor = Theme.of(context).colorScheme.onSurface;
     return PriceConverter.convertPrice2(
       total,
-      textStyle: const TextStyle(
-        color: CartColors.dark,
+      textStyle: TextStyle(
+        color: totalColor,
         fontSize: 18,
         fontWeight: FontWeight.w700,
       ),
@@ -1816,9 +1819,12 @@ class _DividerLine extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Padding(
-      padding: EdgeInsets.symmetric(horizontal: 16),
-      child: Divider(color: CartColors.divider, height: 24, thickness: 1),
+    final Color lineColor = Theme.of(context).brightness == Brightness.dark
+        ? Theme.of(context).colorScheme.outline.withValues(alpha: 0.5)
+        : CartColors.divider;
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Divider(color: lineColor, height: 24, thickness: 1),
     );
   }
 }
@@ -1837,13 +1843,14 @@ class _ModernSummaryRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final Color textColor = Theme.of(context).colorScheme.onSurface;
     final labelStyle = TextStyle(
-      color: CartColors.dark,
+      color: textColor,
       fontSize: isTotal ? 18 : 17,
       fontWeight: isTotal ? FontWeight.w700 : FontWeight.w600,
     );
     final valueStyle = TextStyle(
-      color: CartColors.dark,
+      color: textColor,
       fontSize: isTotal ? 18 : 17,
       fontWeight: isTotal ? FontWeight.w700 : FontWeight.w600,
     );
@@ -2001,8 +2008,10 @@ class _ModernPaymentButton extends StatelessWidget {
               width: double.infinity,
               child: OutlinedButton(
                 style: OutlinedButton.styleFrom(
-                  foregroundColor: CartColors.dark,
-                  side: BorderSide(color: Theme.of(context).dividerColor),
+                  foregroundColor: Theme.of(context).colorScheme.onSurface,
+                  side: BorderSide(
+                    color: Theme.of(context).colorScheme.outline,
+                  ),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
@@ -2010,9 +2019,10 @@ class _ModernPaymentButton extends StatelessWidget {
                 onPressed: _popCartScreen,
                 child: Text(
                   'complete_shopping'.tr,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontWeight: FontWeight.w600,
                     fontSize: 14,
+                    color: Theme.of(context).colorScheme.onSurface,
                   ),
                 ),
               ),
@@ -2204,8 +2214,10 @@ class CheckoutButton extends StatelessWidget {
               width: double.infinity,
               child: OutlinedButton(
                 style: OutlinedButton.styleFrom(
-                  foregroundColor: CartColors.dark,
-                  side: BorderSide(color: Theme.of(context).dividerColor),
+                  foregroundColor: Theme.of(context).colorScheme.onSurface,
+                  side: BorderSide(
+                    color: Theme.of(context).colorScheme.outline,
+                  ),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
@@ -2213,9 +2225,10 @@ class CheckoutButton extends StatelessWidget {
                 onPressed: _popCartScreen,
                 child: Text(
                   'complete_shopping'.tr,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontWeight: FontWeight.w600,
                     fontSize: 14,
+                    color: Theme.of(context).colorScheme.onSurface,
                   ),
                 ),
               ),

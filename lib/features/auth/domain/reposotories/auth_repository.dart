@@ -1,6 +1,7 @@
 // ignore_for_file: override_on_non_overriding_member, non_constant_identifier_names
 
 import 'dart:convert';
+import 'package:dio/dio.dart' as dio_pkg;
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:get/get_connect/connect.dart';
@@ -21,6 +22,109 @@ class AuthRepository implements AuthRepositoryInterface {
   final ApiClient apiClient;
   final SharedPreferences sharedPreferences;
   AuthRepository({required this.sharedPreferences, required this.apiClient});
+
+  static bool _isCmFirebaseTokenApiSuccess(Response response) {
+    if (response.statusCode != 200 && response.statusCode != 201) {
+      return false;
+    }
+    if (response.body is! Map) {
+      return false;
+    }
+    final Map<dynamic, dynamic> m = response.body! as Map<dynamic, dynamic>;
+    if (m.containsKey('success')) {
+      return m['success'] == true;
+    }
+    return true;
+  }
+
+  Future<void> _rollbackFirebaseSubscriptionsAfterFailedEnable() async {
+    if (GetPlatform.isWeb) {
+      return;
+    }
+    try {
+      await FirebaseMessaging.instance.unsubscribeFromTopic(AppConstants.topic);
+      if (isLoggedIn()) {
+        final int? zoneId =
+            AddressHelper.getUserAddressFromSharedPref()?.zoneId;
+        if (zoneId != null) {
+          await FirebaseMessaging.instance
+              .unsubscribeFromTopic('zone_${zoneId}_customer');
+        }
+      }
+    } catch (_) {}
+  }
+
+  static String _profileNotificationRawBody(dynamic body) {
+    if (body == null) {
+      return '';
+    }
+    if (body is String) {
+      return body;
+    }
+    try {
+      return jsonEncode(body);
+    } catch (_) {
+      return body.toString();
+    }
+  }
+
+  static void _logProfileNotificationRequest({
+    required String method,
+    required String path,
+    required String fullUrl,
+    required Map<String, dynamic> body,
+    Map<String, dynamic>? queryParameters,
+    required bool? requestedNotificationActive,
+    required bool? previousNotificationPref,
+  }) {
+    debugPrint('[ProfileNotification][REQUEST]');
+    debugPrint('- method: $method');
+    debugPrint('- url/path: $fullUrl (path: $path)');
+    debugPrint('- body: ${_profileNotificationRawBody(body)}');
+    debugPrint(
+        '- query params: ${queryParameters == null || queryParameters.isEmpty ? '(none)' : _profileNotificationRawBody(queryParameters)}');
+    debugPrint(
+        '- toggle: requestedNotificationActive=$requestedNotificationActive, previousSharedPrefNotification=$previousNotificationPref');
+  }
+
+  static void _logProfileNotificationResponse(Response response) {
+    debugPrint('[ProfileNotification][RESPONSE]');
+    debugPrint('- status code: ${response.statusCode}');
+    debugPrint(
+        '- raw response body: ${_profileNotificationRawBody(response.body ?? response.bodyString)}');
+  }
+
+  static void _logProfileNotificationErrorFromResponse({
+    required Response response,
+    required String path,
+    required Map<String, dynamic> requestBody,
+  }) {
+    debugPrint('[ProfileNotification][ERROR]');
+    debugPrint('- status code: ${response.statusCode}');
+    debugPrint(
+        '- raw error response body: ${_profileNotificationRawBody(response.body ?? response.bodyString)}');
+    debugPrint('- endpoint path: $path');
+    debugPrint('- request body: ${_profileNotificationRawBody(requestBody)}');
+  }
+
+  static void _logProfileNotificationDioError({
+    required Object error,
+    required String path,
+    required Map<String, dynamic> requestBody,
+  }) {
+    debugPrint('[ProfileNotification][ERROR]');
+    if (error is dio_pkg.DioException) {
+      debugPrint('- status code: ${error.response?.statusCode}');
+      debugPrint(
+          '- raw error response body: ${_profileNotificationRawBody(error.response?.data)}');
+    } else {
+      debugPrint('- status code: (no response)');
+      debugPrint('- raw error response body: (none)');
+    }
+    debugPrint('- endpoint path: $path');
+    debugPrint('- request body: ${_profileNotificationRawBody(requestBody)}');
+    debugPrint('- exception: $error');
+  }
 
   @override
   bool isSharedPrefNotificationActive() {
@@ -255,7 +359,16 @@ class AuthRepository implements AuthRepositoryInterface {
   }
 
   @override
-  Future<Response> updateToken({String notificationDeviceToken = ''}) async {
+  Future<Response> updateToken({
+    String notificationDeviceToken = '',
+    bool profileNotificationToggleTrace = false,
+    bool? profileNotificationRequestedActive,
+    bool forAuth001Recovery = false,
+  }) async {
+    final bool? previousNotificationPref =
+        sharedPreferences.containsKey(AppConstants.notification)
+            ? sharedPreferences.getBool(AppConstants.notification)
+            : null;
     String? deviceToken;
     if (notificationDeviceToken.isEmpty) {
       if (GetPlatform.isIOS && !GetPlatform.isWeb) {
@@ -277,15 +390,54 @@ class AuthRepository implements AuthRepositoryInterface {
         FirebaseMessaging.instance.subscribeToTopic('zone_${zoneId}_customer');
       }
     }
-    return await apiClient.postData(
-        AppConstants.tokenUri,
-        {
-          '_method': 'put',
-          'cm_firebase_token': notificationDeviceToken.isNotEmpty
-              ? notificationDeviceToken
-              : deviceToken
-        },
-        handleError: false);
+    final Map<String, dynamic> requestBody = {
+      '_method': 'put',
+      'cm_firebase_token': notificationDeviceToken.isNotEmpty
+          ? notificationDeviceToken
+          : deviceToken
+    };
+    const String path = AppConstants.tokenUri;
+    final String fullUrl = '${apiClient.appBaseUrl}$path';
+    if (profileNotificationToggleTrace) {
+      _logProfileNotificationRequest(
+        method: 'POST',
+        path: path,
+        fullUrl: fullUrl,
+        body: requestBody,
+        queryParameters: const <String, dynamic>{},
+        requestedNotificationActive: profileNotificationRequestedActive,
+        previousNotificationPref: previousNotificationPref,
+      );
+    }
+    try {
+      final Response response = await apiClient.postData(
+        path,
+        requestBody,
+        handleError: false,
+        skipAuthDeferredRetry: forAuth001Recovery,
+      );
+      if (profileNotificationToggleTrace) {
+        _logProfileNotificationResponse(response);
+        final int? code = response.statusCode;
+        if (code == null || code < 200 || code >= 300) {
+          _logProfileNotificationErrorFromResponse(
+            response: response,
+            path: path,
+            requestBody: requestBody,
+          );
+        }
+      }
+      return response;
+    } catch (e) {
+      if (profileNotificationToggleTrace) {
+        _logProfileNotificationDioError(
+          error: e,
+          path: path,
+          requestBody: requestBody,
+        );
+      }
+      rethrow;
+    }
   }
 
   @override
@@ -593,20 +745,56 @@ class AuthRepository implements AuthRepositoryInterface {
   }
 
   @override
-  Future<void> setNotificationActive(bool isActive) async {
+  Future<bool> setNotificationActive(bool isActive) async {
     if (isActive) {
-      await updateToken();
-    } else {
-      if (!GetPlatform.isWeb) {
-        await updateToken(notificationDeviceToken: '@');
-        FirebaseMessaging.instance.unsubscribeFromTopic(AppConstants.topic);
-        if (isLoggedIn()) {
-          FirebaseMessaging.instance.unsubscribeFromTopic(
-              'zone_${AddressHelper.getUserAddressFromSharedPref()!.zoneId}_customer');
+      final Response response = await updateToken(
+        profileNotificationToggleTrace: true,
+        profileNotificationRequestedActive: isActive,
+        forAuth001Recovery: false,
+      );
+      final bool ok = _isCmFirebaseTokenApiSuccess(response);
+      if (ok) {
+        await sharedPreferences.setBool(AppConstants.notification, true);
+      } else {
+        await _rollbackFirebaseSubscriptionsAfterFailedEnable();
+      }
+      if (kDebugMode) {
+        debugPrint('[ProfileNotification][FINAL] saved=$ok toggle=$isActive');
+      }
+      return ok;
+    }
+    if (GetPlatform.isWeb) {
+      await sharedPreferences.setBool(AppConstants.notification, false);
+      if (kDebugMode) {
+        debugPrint(
+          '[ProfileNotification][FINAL] saved=true toggle=$isActive (web, local only)',
+        );
+      }
+      return true;
+    }
+    final Response response = await updateToken(
+      notificationDeviceToken: '@',
+      profileNotificationToggleTrace: true,
+      profileNotificationRequestedActive: isActive,
+      forAuth001Recovery: false,
+    );
+    final bool ok = _isCmFirebaseTokenApiSuccess(response);
+    if (ok) {
+      await FirebaseMessaging.instance.unsubscribeFromTopic(AppConstants.topic);
+      if (isLoggedIn()) {
+        final int? zoneId =
+            AddressHelper.getUserAddressFromSharedPref()?.zoneId;
+        if (zoneId != null) {
+          await FirebaseMessaging.instance
+              .unsubscribeFromTopic('zone_${zoneId}_customer');
         }
       }
+      await sharedPreferences.setBool(AppConstants.notification, false);
     }
-    sharedPreferences.setBool(AppConstants.notification, isActive);
+    if (kDebugMode) {
+      debugPrint('[ProfileNotification][FINAL] saved=$ok toggle=$isActive');
+    }
+    return ok;
   }
 
   @override
