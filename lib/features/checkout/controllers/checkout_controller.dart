@@ -189,6 +189,7 @@ class CheckoutController extends GetxController implements GetxService {
     }
     // Mark digital payment as selected
     _paymentMethodIndex = 2;
+    selectedButton = 1;
     isSelected = List<bool>.filled(paymentMethods.length, false);
     isSelected[index] = true;
     select_payment_Methods = paymentMethods[index];
@@ -1187,6 +1188,29 @@ class CheckoutController extends GetxController implements GetxService {
   void setPaymentMethod(int index, {bool isUpdate = true}) {
     _paymentMethodIndex = index;
 
+    // Keep payment card UI state in sync with the business payment state.
+    if (index == 0) {
+      selectedButton = 0;
+      select_payment_Methods = null;
+      if (isSelected.isNotEmpty) {
+        isSelected = List<bool>.filled(isSelected.length, false);
+      }
+    } else if (index == 1) {
+      selectedButton = 2;
+      select_payment_Methods = null;
+      if (isSelected.isNotEmpty) {
+        isSelected = List<bool>.filled(isSelected.length, false);
+      }
+    } else if (index == 2) {
+      selectedButton = 1;
+    } else {
+      selectedButton = -1;
+      select_payment_Methods = null;
+      if (isSelected.isNotEmpty) {
+        isSelected = List<bool>.filled(isSelected.length, false);
+      }
+    }
+
     // ✅ Fix: إعادة تعيين paymentFlowState عند تغيير طريقة الدفع
     // هذا يسمح للمستخدم بالمحاولة مرة أخرى بعد فشل سابق
     if (_paymentFlowState == PaymentFlowState.failed) {
@@ -1369,6 +1393,11 @@ class CheckoutController extends GetxController implements GetxService {
     _addressIndex = 0;
     _acceptTerms = true;
     _paymentMethodIndex = -1;
+    selectedButton = -1;
+    select_payment_Methods = null;
+    if (isSelected.isNotEmpty) {
+      isSelected = List<bool>.filled(isSelected.length, false);
+    }
     _selectedDateSlot = 0;
     _selectedTimeSlot = 0;
     // ✅ PRESERVE pre-calculated delivery data from cart page:
@@ -1692,9 +1721,14 @@ class CheckoutController extends GetxController implements GetxService {
       // ✅ FIX: قبول 200 أو 201 كـ success (لا نعتمد على success field)
       // لأن prescription endpoint قد لا يرجع success: true
       if (response.statusCode == 200 || response.statusCode == 201) {
-        // 🔧 FIX: Use 'id' instead of 'order_id' (backend returns 'id' field)
-        orderID =
-            (response.body['id'] ?? response.body['order_id'] ?? '').toString();
+        // 🔧 FIX: Check all possible order ID field names (order_id, orderId, id)
+        orderID = (response.body['order_id'] ??
+                response.body['orderId'] ??
+                response.body['id'] ??
+                '')
+            .toString();
+        debugPrint(
+            '[CreateOrder][RAW] order_id=${response.body['order_id']} orderId=${response.body['orderId']} id=${response.body['id']} success=${response.body['success']} message=${response.body['message']} signatureStatus=${response.body['signatureStatus'] ?? response.body['signature_status']}');
         debugPrint(
             '\x1B[32m✅ Order created successfully: $orderID (unpaid)\x1B[0m');
         debugPrint(
@@ -1789,7 +1823,8 @@ class CheckoutController extends GetxController implements GetxService {
     }
   }
 
-  _CheckoutReadableError _extractOrderReadableError(Response<dynamic> response) {
+  _CheckoutReadableError _extractOrderReadableError(
+      Response<dynamic> response) {
     String message = response.statusText?.toString().trim() ?? '';
     String? code;
     final dynamic body = response.body;
@@ -1802,8 +1837,7 @@ class CheckoutController extends GetxController implements GetxService {
         if (codeValue != null && codeValue.toString().trim().isNotEmpty) {
           code = codeValue.toString().trim();
         }
-        if (messageValue != null &&
-            messageValue.toString().trim().isNotEmpty) {
+        if (messageValue != null && messageValue.toString().trim().isNotEmpty) {
           message = messageValue.toString().trim();
         }
       }
@@ -1900,21 +1934,6 @@ class CheckoutController extends GetxController implements GetxService {
     return input;
   }
 
-  bool _isQidhaSignatureVerified(dynamic rawStatus) {
-    if (rawStatus is bool) {
-      return rawStatus;
-    }
-    if (rawStatus is num) {
-      return rawStatus == 1;
-    }
-    final String normalized = rawStatus?.toString().trim().toLowerCase() ?? '';
-    return normalized == '1' ||
-        normalized == 'true' ||
-        normalized == 'verified' ||
-        normalized == 'signed' ||
-        normalized == 'active';
-  }
-
   // Step 2: Process Payment - Called after user chooses payment method
   // 🥇 Anti-loop Guard: يستخدم PaymentFlowState لمنع أي navigation تلقائي
   Future<String> processPayment(
@@ -2009,32 +2028,14 @@ class CheckoutController extends GetxController implements GetxService {
           return '';
         }
 
-        // Check wallet status
-        if (kaidhaSubController.walletKaidhaModel!.wallet!.status
-                ?.toLowerCase() !=
-            'active') {
-          _isLoading = false;
-          update();
-          debugPrint(
-              '[Payment][Qidha] blocked: wallet status=${kaidhaSubController.walletKaidhaModel!.wallet!.status}');
-          showCustomSnackBar('Qidha wallet is not active.');
-          return '';
-        }
-
-        // Check signature status (supports bool/int/string variants)
-        final dynamic signatureStatusRaw =
-            kaidhaSubController.walletKaidhaModel!.wallet!.signatureStatus;
-        final bool isSignatureVerified =
-            _isQidhaSignatureVerified(signatureStatusRaw);
-        if (!isSignatureVerified) {
-          _isLoading = false;
-          update();
-          debugPrint(
-              '[Payment][Qidha] blocked: signatureStatus=$signatureStatusRaw');
-          showCustomSnackBar(
-              'Qidha wallet is not verified. Complete identity verification first.');
-          return '';
-        }
+        // NOTE: wallet.status / signatureStatus are validated at the UI layer
+        // (payment_section.dart + submit button) BEFORE createOrder is called.
+        // At this point the order is already created – only balance/limit checks remain.
+        debugPrint(
+            '[Payment][Qidha] ▶ orderId=$_currentOrderId amount=$parsedOrderAmount'
+            ' status=${kaidhaSubController.walletKaidhaModel?.wallet?.status}'
+            ' sig=${kaidhaSubController.walletKaidhaModel?.wallet?.signatureStatus}'
+            ' balance=${kaidhaSubController.walletKaidhaModel?.wallet?.availableBalance}');
 
         // Check balance first
         final double availableBalance = double.tryParse(kaidhaSubController

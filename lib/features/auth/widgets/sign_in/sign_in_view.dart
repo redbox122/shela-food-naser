@@ -310,6 +310,24 @@ class _SignInViewState extends State<SignInView> {
                 final Uri? currentUri = Uri.tryParse(Get.currentRoute);
                 nextPage = currentUri?.queryParameters['page'];
               }
+              // Do NOT pass flow/auth routes as redirect targets — they would
+              // send the user back to reset-password / sign-in after OTP success.
+              final String? normalizedNext = nextPage?.toLowerCase();
+              final bool nextIsFlowRoute = normalizedNext != null &&
+                  (normalizedNext.contains(RouteHelper.resetPassword) ||
+                      normalizedNext.contains('reset-password') ||
+                      normalizedNext.contains('from-reset-password') ||
+                      normalizedNext.contains(RouteHelper.forgotPassword) ||
+                      normalizedNext.contains(RouteHelper.signIn) ||
+                      normalizedNext.contains(RouteHelper.verification));
+              debugPrint('[Login][NAV] previousRoute=${Get.previousRoute}');
+              debugPrint('[Login][NAV] currentRoute=${Get.currentRoute}');
+              debugPrint('[Login][NAV] savedRedirect=$nextPage');
+              if (nextIsFlowRoute) {
+                debugPrint(
+                    '[Login][NAV] clearedForgotPasswordRoute=true (was: $nextPage)');
+                nextPage = null;
+              }
               Get.toNamed(RouteHelper.getLoginOtpRoute(
                   otpPhone, CentralizeLoginType.manual.name,
                   nextPage: nextPage));
@@ -399,6 +417,10 @@ class _SignInViewState extends State<SignInView> {
           RouteHelper.signUp, data, CentralizeLoginType.manual.name));
     } else {
       debugPrint('\x1B[32m  88888888  \x1B[0m');
+      debugPrint('[Login][SUCCESS] response ok');
+      debugPrint('[Login][NAV] previousRoute=${Get.previousRoute}');
+      debugPrint('[Login][NAV] currentRoute=${Get.currentRoute}');
+      debugPrint('[Login][NAV] fromResetPassword=${widget.fromResetPassword}');
       debugPrint(
           '🚀 SignInView: Login successful - starting optimistic navigation...');
 

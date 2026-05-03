@@ -679,7 +679,8 @@ Future<Map<String, Map<String, String>>> init() async {
   Get.lazyPut(() => ReviewController(reviewServiceInterface: Get.find()));
   Get.lazyPut(() => LoyaltyController(loyaltyServiceInterface: Get.find()));
   Get.lazyPut(
-      () => VerificationController(verificationServiceInterface: Get.find()));
+      () => VerificationController(verificationServiceInterface: Get.find()),
+      fenix: true);
   Get.lazyPut(() => BrandsController(
         brandsServiceInterface: Get.find(),
         itemRepository: Get.find(),

@@ -3,7 +3,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:lifecycle_controller/lifecycle_controller.dart';
-import 'package:sixam_mart/common/widgets/custom_snackbar.dart';
 import 'package:sixam_mart/features/auth/controllers/auth_controller.dart';
 import 'package:sixam_mart/features/profile/controllers/profile_controller.dart';
 import 'package:sixam_mart/features/wallet_kaidha_subscription/controllers/LifecycleKaidhaController.dart';
@@ -33,6 +32,7 @@ class _KiadaWalletSubscriptionScreenState
   @override
   void initState() {
     super.initState();
+    debugPrint('[QidhaSub][OPEN] screen opened');
     getDate();
   }
 
@@ -50,15 +50,22 @@ class _KiadaWalletSubscriptionScreenState
       final authPhone = Get.isRegistered<AuthController>()
           ? Get.find<AuthController>().getUserNumber().trim()
           : '';
-      final phone =
-          (profilePhone != null && profilePhone.isNotEmpty) ? profilePhone : authPhone;
+      final phone = (profilePhone != null && profilePhone.isNotEmpty)
+          ? profilePhone
+          : authPhone;
+
+      // Do NOT show validation errors on screen open.
+      // Phone validation only runs when user presses a submit/next button.
       if (userInfo == null || userInfo.id == null || phone.isEmpty) {
-        showCustomSnackBar('enter_phone_number'.tr);
+        debugPrint('[QidhaSub][OPEN] user/phone not ready yet: '
+            'userInfo=${userInfo != null} userId=${userInfo?.id} phoneEmpty=${phone.isEmpty}. '
+            'Skipping wallet fetch - form will validate on Next press.');
         return;
       }
 
       if (KaidhaSubController.hasNoWallet) {
-        debugPrint('ℹ️ No wallet already detected - skipping wallet fetch in subscription screen');
+        debugPrint(
+            'ℹ️ No wallet already detected - skipping wallet fetch in subscription screen');
         return;
       }
 
@@ -75,15 +82,15 @@ class _KiadaWalletSubscriptionScreenState
         final status = wallet.status?.toString().toLowerCase();
         final signatureStatus = wallet.signatureStatus;
         final isSigned = signatureStatus == 1 || signatureStatus == true;
-        final isPendingOrApproved =
-            status == 'pending' || status == 'approved';
+        final isPendingOrApproved = status == 'pending' || status == 'approved';
         if (isSigned && isPendingOrApproved) {
           await KaidhaSubController.get_Pdf();
         }
       } else {
         debugPrint('ℹ️ No wallet found, starting new application');
         try {
-          await KaidhaSubController.SendState_kaidha('started'); //  ارسال الحاله
+          await KaidhaSubController.SendState_kaidha(
+              'started'); //  ارسال الحاله
         } catch (e) {
           debugPrint('SendState_kaidha failed: $e');
         }
@@ -169,7 +176,8 @@ class _KiadaWalletSubscriptionScreenState
                                                         height: height_media(
                                                                 context) /
                                                             1.5,
-                                                        child: const Step3Screen(),
+                                                        child:
+                                                            const Step3Screen(),
                                                       )
                                                     : const SizedBox(),
                                       ],

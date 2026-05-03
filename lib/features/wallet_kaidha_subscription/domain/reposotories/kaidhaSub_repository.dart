@@ -1,4 +1,3 @@
-
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -51,7 +50,9 @@ class KaidhaSubRepository implements KaidhaSubRepositoryInterface {
         try {
           await profileController.getUserInfo();
           userId = profileController.userInfoModel?.id;
-        } catch (e) { if (kDebugMode) debugPrint('$e'); }
+        } catch (e) {
+          if (kDebugMode) debugPrint('$e');
+        }
       }
     }
 
@@ -250,8 +251,10 @@ class KaidhaSubRepository implements KaidhaSubRepositoryInterface {
     }
 
     try {
-      final Response<dynamic> response =
-          await apiClient.getData(AppConstants.get_walletUri);
+      final Response<dynamic> response = await apiClient.getData(
+        AppConstants.get_walletUri,
+        useEtag: !forceRefresh, // forceRefresh=true bypasses ETag cache
+      );
 
       // 🔧 DEBUG: Log raw response body if size < 100 bytes
       String rawResponseBody = '';
@@ -406,6 +409,17 @@ class KaidhaSubRepository implements KaidhaSubRepositoryInterface {
           walletData = responseData;
         }
 
+        // Always log critical fields so signatureStatus issues can be debugged.
+        debugPrint(
+            '[Qidha][WALLET-RAW] statusCode=${responseToProcess.statusCode}'
+            ' hasWallet=${walletData['has_wallet']}'
+            ' userId=${walletData['user_id']}'
+            ' walletStatus=${walletData['status']}'
+            ' signatureStatus=${walletData['signature_status']}'
+            ' signaturePath=${walletData['signature_path']}'
+            ' availableBalance=${walletData['available_balance']}'
+            ' creditLimit=${walletData['credit_limit']}');
+
         final dynamic hasWalletValue = walletData['has_wallet'];
         if (hasWalletValue == false) {
           if (kDebugMode) {
@@ -502,7 +516,8 @@ class KaidhaSubRepository implements KaidhaSubRepositoryInterface {
       if (walletData?.wallet != null) {
         // Debug: Print wallet signature details
         debugPrint('🔍 Wallet Debug Info:');
-        debugPrint('   - signatureStatus: ${walletData!.wallet!.signatureStatus}');
+        debugPrint(
+            '   - signatureStatus: ${walletData!.wallet!.signatureStatus}');
         debugPrint('   - signaturePath: ${walletData.wallet!.signaturePath}');
         debugPrint(
             '   - signaturePath type: ${walletData.wallet!.signaturePath.runtimeType}');
@@ -522,7 +537,8 @@ class KaidhaSubRepository implements KaidhaSubRepositoryInterface {
               '   - Reason: signatureStatus=${walletData.wallet!.signatureStatus}, signaturePath=${walletData.wallet!.signaturePath}');
         }
       } else {
-        debugPrint('⚠️ لم يتم العثور على بيانات المحفظة - سيتم جلب العقد العادي');
+        debugPrint(
+            '⚠️ لم يتم العثور على بيانات المحفظة - سيتم جلب العقد العادي');
       }
 
       debugPrint('📤 جاري جلب عقد PDF من الخادم... ($pdfEndpoint)');
@@ -554,7 +570,8 @@ class KaidhaSubRepository implements KaidhaSubRepositoryInterface {
         debugPrint('✅ تم تنزيل العقد (${bytes.length} بايت)');
         debugPrint('📁 المسار: $filePath');
         debugPrint('🔗 النقطة المستخدمة: $pdfEndpoint');
-        Pdf_Model = ContractPdfModel(filePath: filePath, fileSize: bytes.length);
+        Pdf_Model =
+            ContractPdfModel(filePath: filePath, fileSize: bytes.length);
 
         return Pdf_Model;
       } else {

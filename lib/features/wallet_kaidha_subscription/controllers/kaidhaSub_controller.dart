@@ -1,4 +1,3 @@
-
 import 'dart:async';
 import 'dart:convert';
 import 'package:file_picker/file_picker.dart';
@@ -76,6 +75,14 @@ class KaidhaSubscriptionController extends GetxController
   TextEditingController grandfathername = TextEditingController();
   TextEditingController last_name = TextEditingController();
   TextEditingController phoneController = TextEditingController();
+
+  /// Dial code selected in the country picker, e.g. "+966".
+  String selectedCountryDialCode = '+966';
+
+  void setCountryDialCode(String code) {
+    selectedCountryDialCode = code;
+    update();
+  }
 
   String birthDate = '';
   String nationality = '';
@@ -392,7 +399,7 @@ class KaidhaSubscriptionController extends GetxController
         0.0;
 
     // Get full due amount
-        0.0;
+    0.0;
 
     // Parse the entered amount
     final double enteredAmount = double.tryParse(another_amount.text) ?? 0.0;
@@ -884,7 +891,7 @@ class KaidhaSubscriptionController extends GetxController
       hasNoWallet = false; // Wallet exists, just not active
       isLoading_wallet = false;
     }
-    update();
+    _scheduleUpdate();
     debugPrint(
         '✅ KaidhaSubscriptionController: Wallet state updated - UI notified');
   }
@@ -892,8 +899,7 @@ class KaidhaSubscriptionController extends GetxController
   Future get_Wallet_Kaidh({bool forceRefresh = false}) async {
     if (kDebugMode) {
       debugPrint('═══════════════════════════════════════════════════════════');
-      debugPrint(
-          '💳 [KaidhaSubscriptionController] get_Wallet_Kaidh() called');
+      debugPrint('💳 [KaidhaSubscriptionController] get_Wallet_Kaidh() called');
       debugPrint('   🔄 forceRefresh: $forceRefresh');
       debugPrint('   ⏰ Timestamp: ${DateTime.now().toIso8601String()}');
       debugPrint('═══════════════════════════════════════════════════════════');
@@ -971,7 +977,7 @@ class KaidhaSubscriptionController extends GetxController
       hasWalletError = false; // Reset error state
       hasNoWallet = false; // Reset no wallet state
       walletErrorMessage = null;
-      update();
+      _scheduleUpdate();
     } else {
       // We have partial data - update silently in background without showing loader
       if (kDebugMode) {
@@ -1090,8 +1096,7 @@ class KaidhaSubscriptionController extends GetxController
       }
     } catch (e, stackTrace) {
       if (kDebugMode) {
-        debugPrint(
-            '💳 [KaidhaSubscriptionController] ❌ Error fetching wallet');
+        debugPrint('💳 [KaidhaSubscriptionController] ❌ Error fetching wallet');
         debugPrint('   📋 Error: $e');
         debugPrint('   📋 Stack trace: $stackTrace');
       }
@@ -1138,7 +1143,7 @@ class KaidhaSubscriptionController extends GetxController
       }
     }
     isLoading_wallet = false;
-    update();
+    _scheduleUpdate();
 
     if (kDebugMode) {
       debugPrint(
@@ -1215,6 +1220,7 @@ class KaidhaSubscriptionController extends GetxController
   // ---------------------------------------------------------------------------
 
   Future Submit_Store_Info(context) async {
+    debugPrint('[QidhaSub][SUBMIT] Submit_Store_Info called');
     _isLoading_Status = true;
     update();
 
@@ -1223,6 +1229,20 @@ class KaidhaSubscriptionController extends GetxController
       update();
       return false;
     }
+
+    // Log phone details before sending to API.
+    final String rawPhone = phoneController.text.trim();
+    final String finalMobile = _getUserPhoneForForm();
+    final String codeDigits =
+        selectedCountryDialCode.replaceAll(RegExp(r'\D'), '');
+    final String localNormalized = finalMobile.startsWith(codeDigits)
+        ? finalMobile.substring(codeDigits.length)
+        : finalMobile;
+    debugPrint(
+        '[QidhaSub][PHONE] selectedCountryCode=$selectedCountryDialCode');
+    debugPrint('[QidhaSub][PHONE] rawLocalInput=$rawPhone');
+    debugPrint('[QidhaSub][PHONE] normalizedLocal=$localNormalized');
+    debugPrint('[QidhaSub][PHONE] finalPayloadMobile=$finalMobile');
 
     final existingWallet =
         await kaidhaSubServiceInterface.getWalletKaidh(forceRefresh: true);
@@ -1233,7 +1253,6 @@ class KaidhaSubscriptionController extends GetxController
       update();
       return true;
     }
-
 
     final KaidhaSubModel kaidhaSub = KaidhaSubModel(
       first_name: firstname.text,
@@ -1368,11 +1387,33 @@ class KaidhaSubscriptionController extends GetxController
   }
 
   String _getUserPhoneForForm() {
-    final phone = phoneController.text.trim();
-    if (phone.isNotEmpty) {
-      return phone;
+    final localInput = phoneController.text.trim();
+    if (localInput.isNotEmpty) {
+      return _buildFinalMobile(localInput, selectedCountryDialCode);
     }
-    return _getUserPhone();
+    final fallback = _getUserPhone();
+    if (fallback.isNotEmpty) {
+      return _buildFinalMobile(fallback, selectedCountryDialCode);
+    }
+    return '';
+  }
+
+  /// Combines a (possibly full or local) phone input with a dial code.
+  /// Rules:
+  ///   +966 + 0599966674  → 966599966674
+  ///   +966 + 599966674   → 966599966674
+  ///   +966 + 966599966674 → 966599966674  (no double-prefix)
+  static String _buildFinalMobile(String input, String dialCode) {
+    final codeDigits = dialCode.replaceAll(RegExp(r'\D'), ''); // e.g. "966"
+    final digitsOnly = input.replaceAll(RegExp(r'\D'), '');
+    // Already has the country code prefix
+    if (digitsOnly.startsWith(codeDigits)) {
+      return digitsOnly;
+    }
+    // Strip leading zero (local format like 0599…)
+    final local =
+        digitsOnly.startsWith('0') ? digitsOnly.substring(1) : digitsOnly;
+    return codeDigits + local;
   }
 
   Future<bool> _ensureMobileReady() async {
@@ -1803,6 +1844,7 @@ class KaidhaSubscriptionController extends GetxController
   // -------------------------------
 
   void validate_Fields_Screen_1(BuildContext context) {
+    debugPrint('[QidhaSub][VALIDATE] reason=next_button_pressed');
     isFirstNameEmpty = firstname.text.isEmpty;
     isFatherNameEmpty = fathername.text.isEmpty;
     isGrandFatherNameEmpty = grandfathername.text.isEmpty;
@@ -2926,6 +2968,7 @@ class KaidhaSubscriptionController extends GetxController
     number_of_family_members.clear();
     identity_card_number.clear();
     phoneController.clear();
+    selectedCountryDialCode = '+966'; // reset to Saudi default
     neighborhood.clear();
     name_of_employer.clear();
     total_salary.clear();

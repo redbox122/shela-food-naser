@@ -47,6 +47,7 @@ class _Step_1_ScreenState extends State<Step_1_Screen> {
                             child: CustomButton(
                               buttonText: 'next'.tr,
                               onPressed: () async {
+                                debugPrint('[QidhaSub][NEXT] pressed');
                                 KaidhaSubController.validate_Fields_Screen_1(
                                     context);
 

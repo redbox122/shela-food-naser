@@ -700,7 +700,8 @@ class RouteHelper {
                 backFromThis: Get.parameters['page'] != splash &&
                     Get.parameters['page'] != onBoarding,
                 fromNotification: Get.parameters['page'] == notification,
-                fromResetPassword: Get.parameters['page'] == resetPassword,
+                fromResetPassword: Get.parameters['page'] == resetPassword ||
+                    Get.parameters['page'] == 'from-reset-password',
               ),
             )),
 

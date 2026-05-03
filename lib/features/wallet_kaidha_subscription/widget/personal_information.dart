@@ -1,5 +1,6 @@
 // ignore_for_file: non_constant_identifier_names, unnecessary_null_comparison
 
+import 'package:country_code_picker/country_code_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
@@ -50,8 +51,17 @@ class _PersonalInformationState extends State<PersonalInformation> {
           (profilePhone != null && profilePhone.isNotEmpty) ? profilePhone : authPhone;
       if (kaidhaController.phoneController.text.trim().isEmpty &&
           phone.isNotEmpty) {
-        kaidhaController.phoneController.text =
-            phone.replaceAll(RegExp(r'\\D'), '');
+        // Store only local digits (strip country-code prefix so the input
+        // field shows just the local number, e.g. 599966674 for Saudi).
+        final digitsOnly = phone.replaceAll(RegExp(r'\D'), '');
+        final codeDigits = kaidhaController.selectedCountryDialCode
+            .replaceAll(RegExp(r'\D'), ''); // e.g. "966"
+        final local = digitsOnly.startsWith(codeDigits)
+            ? digitsOnly.substring(codeDigits.length)
+            : digitsOnly.startsWith('0')
+                ? digitsOnly.substring(1)
+                : digitsOnly;
+        kaidhaController.phoneController.text = local;
       }
 
     });
@@ -422,19 +432,7 @@ class _PersonalInformationState extends State<PersonalInformation> {
 
             const SizedBox(height: 25),
 
-            _custom_number(
-              KaidhaSub_Controller,
-              hintText: '05XXXXXXXX',
-              obscureText: false,
-              mycontroller: KaidhaSub_Controller.phoneController,
-              text: 'phone_number'.tr,
-              context: context,
-              focusNode: KaidhaSub_Controller.phoneFocus,
-              containerKey: KaidhaSubscriptionController.phoneKey,
-              isEmpty: KaidhaSub_Controller.isPhoneEmpty,
-              errorKey: 'mobile',
-              errorText: KaidhaSub_Controller.fieldErrors['mobile'],
-            ),
+            _buildPhoneField(context, KaidhaSub_Controller),
 
             const SizedBox(height: 20),
 
@@ -865,6 +863,7 @@ class _PersonalInformationState extends State<PersonalInformation> {
     bool disallowZero = false,
     String? errorKey,
     String? errorText,
+    int maxLength = 10,
     required String text,
     required BuildContext context,
     required FocusNode focusNode,
@@ -887,7 +886,7 @@ class _PersonalInformationState extends State<PersonalInformation> {
               keyboardType: TextInputType.number,
               inputFormatters: [
                 FilteringTextInputFormatter.digitsOnly,
-                LengthLimitingTextInputFormatter(10),
+                LengthLimitingTextInputFormatter(maxLength),
               ],
               cursorColor: AppColors.bgColor,
               controller: mycontroller,
@@ -1088,29 +1087,147 @@ class _PersonalInformationState extends State<PersonalInformation> {
     );
   }
 
+  /// Phone field with a country-code picker prefix + local number input.
+  Widget _buildPhoneField(
+      BuildContext context, KaidhaSubscriptionController ctrl) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Custom_Text(
+          context,
+          text: 'phone_number'.tr,
+          style: font11Black500W(context, size: size_14(context)),
+        ),
+        const SizedBox(height: 10),
+        Focus(
+          focusNode: ctrl.phoneFocus,
+          child: Container(
+            key: KaidhaSubscriptionController.phoneKey,
+            margin: const EdgeInsets.only(bottom: 4),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(
+                color: ctrl.isPhoneEmpty ? Colors.red : AppColors.gryColor_3,
+                width: ctrl.isPhoneEmpty ? 1.5 : 1.0,
+              ),
+            ),
+            child: Row(
+              children: [
+                // ── Country code picker ──────────────────────────────────────
+                CountryCodePicker(
+                  initialSelection: 'SA',
+                  favorite: const ['+966'],
+                  showCountryOnly: false,
+                  showOnlyCountryWhenClosed: false,
+                  alignLeft: false,
+                  textStyle: font11Black500W(context, size: size_13(context)),
+                  onChanged: (code) {
+                    ctrl.setCountryDialCode(code.dialCode ?? '+966');
+                  },
+                  onInit: (code) {
+                    // Defer so we don't call update() during a build phase.
+                    WidgetsBinding.instance.addPostFrameCallback((_) {
+                      if (code != null && code.dialCode != null) {
+                        ctrl.setCountryDialCode(code.dialCode!);
+                      }
+                    });
+                  },
+                ),
+                // ── Divider ──────────────────────────────────────────────────
+                Container(
+                  height: 28,
+                  width: 1,
+                  color: AppColors.gryColor_3,
+                ),
+                const SizedBox(width: 8),
+                // ── Local number input ───────────────────────────────────────
+                Expanded(
+                  child: TextFormField(
+                    controller: ctrl.phoneController,
+                    keyboardType: TextInputType.phone,
+                    inputFormatters: [
+                      FilteringTextInputFormatter.digitsOnly,
+                      // 9 local digits (SA) + a bit of slack for other regions
+                      LengthLimitingTextInputFormatter(12),
+                    ],
+                    cursorColor: AppColors.bgColor,
+                    decoration: InputDecoration(
+                      hintText: '5XXXXXXXX',
+                      hintStyle: font10Grey500W(context, size: size_14(context)),
+                      border: InputBorder.none,
+                      contentPadding:
+                          const EdgeInsets.symmetric(vertical: 5, horizontal: 4),
+                    ),
+                    onChanged: (value) {
+                      ctrl.clearFieldError('mobile');
+                      ctrl.debouncedSaveState();
+                    },
+                    validator: (value) {
+                      if (value == null || value.isEmpty) {
+                        return 'هذا الحقل مطلوب';
+                      }
+                      return null;
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        if ((ctrl.fieldErrors['mobile'] ?? '').isNotEmpty) ...[
+          const SizedBox(height: 6),
+          Text(
+            ctrl.fieldErrors['mobile']!,
+            style: robotoRegular.copyWith(
+              color: Colors.red,
+              fontSize: Dimensions.fontSizeSmall,
+            ),
+          ),
+        ],
+        const SizedBox(height: 16),
+      ],
+    );
+  }
+
   Future<void> _selectDate_Old_10(
       BuildContext context, KaidhaSubscriptionController controller) async {
-    final DateTime today = DateTime.now();
-    final DateTime maxAllowedDate = DateTime(
-        today.year - 10, today.month, today.day); // الحد الأقصى (العمر >= 10)
-    final DateTime firstDate =
-        DateTime(today.year - 100); // الحد الأدنى (العمر <= 100)
-    final DateTime initialDate = controller.birthDate != null
-        ? DateTime.tryParse(controller.birthDate) ?? maxAllowedDate
-        : maxAllowedDate;
+    final DateTime now = DateTime.now();
+    // Dynamic range: 100 years ago → today. No hard minimum-age guard unless
+    // a real backend business rule requires it.
+    final DateTime firstAllowedBirthDate =
+        DateTime(now.year - 100, now.month, now.day);
+    final DateTime lastAllowedBirthDate = now;
+    // Default view: open at 25 years ago so the calendar starts at a sensible year.
+    final DateTime defaultInitialDate =
+        DateTime(now.year - 25, now.month, now.day);
+
+    final DateTime? parsedSaved = controller.birthDate.isNotEmpty
+        ? DateTime.tryParse(controller.birthDate)
+        : null;
+    // Clamp: if saved date is outside the allowed range, use the default.
+    final DateTime initialDate = parsedSaved == null
+        ? defaultInitialDate
+        : (parsedSaved.isBefore(firstAllowedBirthDate) ||
+                parsedSaved.isAfter(lastAllowedBirthDate))
+            ? defaultInitialDate
+            : parsedSaved;
+
+    debugPrint('[QidhaSub][DATE] firstAllowedBirthDate=$firstAllowedBirthDate');
+    debugPrint('[QidhaSub][DATE] lastAllowedBirthDate=$lastAllowedBirthDate');
+    debugPrint('[QidhaSub][DATE] initialDate=$initialDate');
 
     final DateTime? picked = await showDatePicker(
       context: context,
       initialDate: initialDate,
-      firstDate: firstDate,
-      lastDate: maxAllowedDate,
-      locale:
-          const Locale('en', 'US'), // يمكن تغييره إلى Locale("ar", "SA") مثلاً
+      firstDate: firstAllowedBirthDate,
+      lastDate: lastAllowedBirthDate,
+      locale: const Locale('en', 'US'),
     );
 
     if (picked != null) {
       final String formattedDate =
-          "${picked.year}-${picked.month.toString().padLeft(2, '0')}-${picked.day.toString().padLeft(2, '0')}";
+          '${picked.year}-${picked.month.toString().padLeft(2, '0')}-${picked.day.toString().padLeft(2, '0')}';
+      debugPrint('[QidhaSub][DATE] selectedBirthDate=$formattedDate');
       controller.updateBirthDate(formattedDate);
     }
   }

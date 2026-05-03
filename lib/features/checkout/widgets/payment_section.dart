@@ -8,6 +8,7 @@ import 'package:sixam_mart/features/checkout/controllers/checkout_controller.dar
 import 'package:sixam_mart/features/profile/controllers/profile_controller.dart';
 import 'package:sixam_mart/features/wallet_kaidha_subscription/controllers/kaidhaSub_controller.dart';
 import 'package:sixam_mart/helper/responsive_helper.dart';
+import 'package:sixam_mart/helper/route_helper.dart';
 import 'package:sixam_mart/util/dimensions.dart';
 import 'package:sixam_mart/util/images.dart';
 import 'package:sixam_mart/util/styles.dart';
@@ -167,6 +168,16 @@ class _PaymentSectionState extends State<PaymentSection> {
                                   return;
                                 }
 
+                                // Log raw wallet data before any eligibility check.
+                                final kw = KaidhaSub_Controller
+                                    .walletKaidhaModel?.wallet;
+                                debugPrint(
+                                    '[Qidha][SELECT] userId=${kw?.userId}'
+                                    ' status=${kw?.status}'
+                                    ' sig=${kw?.signatureStatus}'
+                                    ' balance=${kw?.availableBalance}'
+                                    ' creditLimit=${kw?.creditLimit}');
+
                                 // Check if wallet has sufficient balance
                                 final availableBalance = KaidhaSub_Controller
                                     .walletKaidhaModel!
@@ -178,6 +189,50 @@ class _PaymentSectionState extends State<PaymentSection> {
                                             availableBalance.toString()) ==
                                         0.0) {
                                   showCustomSnackBar('المحفظه فارغة من الرصيد');
+                                  return;
+                                }
+
+                                // Block selection if wallet is not active
+                                final String? kaidhaStatus =
+                                    KaidhaSub_Controller
+                                        .walletKaidhaModel!.wallet!.status
+                                        ?.toLowerCase();
+                                if (kaidhaStatus != 'active') {
+                                  debugPrint(
+                                      '[Qidha][SELECT-BLOCK] wallet status=$kaidhaStatus (not active)');
+                                  showCustomSnackBar('محفظة قيدها غير مفعّلة');
+                                  return;
+                                }
+
+                                // Block selection if wallet is not signed/verified
+                                final dynamic sigRaw = KaidhaSub_Controller
+                                    .walletKaidhaModel!.wallet!.signatureStatus;
+                                final bool isSigned =
+                                    sigRaw == 1 || sigRaw == true;
+                                if (!isSigned) {
+                                  debugPrint(
+                                      '[Qidha][SELECT-BLOCK] signatureStatus=$sigRaw (not signed)');
+                                  Get.dialog(
+                                    AlertDialog(
+                                      title: const Text('محفظة قيدها'),
+                                      content: const Text(
+                                          'لم يتم توقيع عقد محفظة قيدها بعد. يجب إكمال خطوة توقيع العقد لتفعيل الدفع.'),
+                                      actions: [
+                                        TextButton(
+                                          onPressed: () => Get.back(),
+                                          child: const Text('إغلاق'),
+                                        ),
+                                        ElevatedButton(
+                                          onPressed: () {
+                                            Get.back();
+                                            Get.toNamed(RouteHelper
+                                                .getKiadaWalletSubscription());
+                                          },
+                                          child: const Text('إكمال التحقق'),
+                                        ),
+                                      ],
+                                    ),
+                                  );
                                   return;
                                 }
 
@@ -287,7 +342,7 @@ class _PaymentSectionState extends State<PaymentSection> {
                     //
 
                     checkoutController.select_payment_Methods != null &&
-                            checkoutController.selectedButton == 1
+                            checkoutController.paymentMethodIndex == 2
                         ? ListTile(
                             leading: SmartImage(
                               url: checkoutController
@@ -304,13 +359,13 @@ class _PaymentSectionState extends State<PaymentSection> {
                                     .select_payment_Methods!.paymentMethodEn ??
                                 ''),
                           )
-                        : checkoutController.selectedButton == 2
+                        : checkoutController.paymentMethodIndex == 1
                             ? ListTile(
                                 leading: Image.asset(Images.partialWallet,
                                     height: 35, width: 35),
                                 title: Text('wallet'.tr),
                               )
-                            : checkoutController.selectedButton == 0
+                            : checkoutController.paymentMethodIndex == 0
                                 ? ListTile(
                                     leading: Image.asset(Images.walletIcon,
                                         height: 30, width: 30),
@@ -386,7 +441,11 @@ class _PaymentSectionState extends State<PaymentSection> {
     required int index,
     required VoidCallback onTap,
   }) {
-    final bool isSelected = checkoutController.selectedButton == index;
+    final bool isSelected = index == 0
+        ? checkoutController.paymentMethodIndex == 0
+        : index == 1
+            ? checkoutController.paymentMethodIndex == 2
+            : checkoutController.paymentMethodIndex == 1;
 
     // Special handling for electronic payment (index 1) - make it green
     Color borderColor;

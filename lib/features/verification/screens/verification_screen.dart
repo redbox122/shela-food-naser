@@ -106,19 +106,35 @@ class VerificationScreenState extends State<VerificationScreen> {
       }
     }
 
+    debugPrint('[Login][SUCCESS] OTP verified');
+    debugPrint('[Login][NAV] previousRoute=${Get.previousRoute}');
+    debugPrint('[Login][NAV] currentRoute=${Get.currentRoute}');
+    debugPrint('[Login][NAV] targetRoute=$next');
+
     if (next != null && next.isNotEmpty) {
       final String normalized = next.toLowerCase();
-      final bool isLoopRoute =
-          normalized.contains(RouteHelper.succsessflycreated) ||
-              normalized.contains(RouteHelper.signIn) ||
-              normalized.contains(RouteHelper.verification) ||
-              normalized.contains(RouteHelper.loginOtp);
+      final bool isLoopRoute = normalized
+              .contains(RouteHelper.succsessflycreated) ||
+          normalized.contains(RouteHelper.signIn) ||
+          normalized.contains(RouteHelper.verification) ||
+          normalized.contains(RouteHelper.loginOtp) ||
+          // Block stale forgot/reset-password routes — after login success
+          // the user must always go to home, never back to password-reset flow.
+          normalized.contains(RouteHelper.resetPassword) ||
+          normalized.contains('reset-password') ||
+          normalized.contains('from-reset-password') ||
+          normalized.contains(RouteHelper.forgotPassword);
       if (!isLoopRoute) {
+        debugPrint('[Login][NAV] navigating to saved redirect: $next');
         Get.offAllNamed(next);
         return;
+      } else {
+        debugPrint(
+            '[Login][NAV] clearedForgotPasswordRoute=true (blocked loop route: $next)');
       }
     }
 
+    debugPrint('[Login][NAV] navigating to home (default)');
     Get.offAllNamed(RouteHelper.getMainRoute('home'));
   }
 

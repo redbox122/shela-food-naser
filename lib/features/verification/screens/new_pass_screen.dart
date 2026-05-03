@@ -15,13 +15,17 @@ import 'package:get/get.dart';
 import 'package:sixam_mart/helper/responsive_helper.dart';
 import 'package:sixam_mart/helper/route_helper.dart';
 
-
 class NewPassScreen extends StatefulWidget {
   final String? resetToken;
   final String? number;
   final bool fromPasswordChange;
   final bool fromDialog;
-  const NewPassScreen({super.key, required this.resetToken, required this.number, required this.fromPasswordChange, this.fromDialog = false});
+  const NewPassScreen(
+      {super.key,
+      required this.resetToken,
+      required this.number,
+      required this.fromPasswordChange,
+      this.fromDialog = false});
 
   @override
   State<NewPassScreen> createState() => _NewPassScreenState();
@@ -29,7 +33,8 @@ class NewPassScreen extends StatefulWidget {
 
 class _NewPassScreenState extends State<NewPassScreen> {
   final TextEditingController _newPasswordController = TextEditingController();
-  final TextEditingController _confirmPasswordController = TextEditingController();
+  final TextEditingController _confirmPasswordController =
+      TextEditingController();
   final FocusNode _newPasswordFocus = FocusNode();
   final FocusNode _confirmPasswordFocus = FocusNode();
   final ScrollController _scrollController = ScrollController();
@@ -37,42 +42,72 @@ class _NewPassScreenState extends State<NewPassScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: ResponsiveHelper.isDesktop(context) ? Colors.transparent : Theme.of(context).cardColor,
-      appBar:  widget.fromDialog ? null : CustomAppBar(title: widget.fromPasswordChange ? 'change_password'.tr : 'reset_password'.tr),
-      body:  SafeArea(child: Center(child: SingleChildScrollView(
+      backgroundColor: ResponsiveHelper.isDesktop(context)
+          ? Colors.transparent
+          : Theme.of(context).cardColor,
+      appBar: widget.fromDialog
+          ? null
+          : CustomAppBar(
+              title: widget.fromPasswordChange
+                  ? 'change_password'.tr
+                  : 'reset_password'.tr),
+      body: SafeArea(
+          child: Center(
+              child: SingleChildScrollView(
         controller: _scrollController,
         physics: const BouncingScrollPhysics(),
         padding: const EdgeInsets.all(Dimensions.paddingSizeSmall),
-        child: Center(child: Container(
+        child: Center(
+            child: Container(
           height: widget.fromDialog ? 516 : null,
-          width: widget.fromDialog ? 475 : context.width > 700 ? 700 : context.width,
+          width: widget.fromDialog
+              ? 475
+              : context.width > 700
+                  ? 700
+                  : context.width,
           //padding: widget.fromDialog ? const EdgeInsets.all(Dimensions.paddingSizeExtremeLarge) : context.width > 700 ? const EdgeInsets.all(Dimensions.paddingSizeDefault) : null,
           margin: const EdgeInsets.all(Dimensions.paddingSizeDefault),
-          decoration: context.width > 700 ? BoxDecoration(
-            color: Theme.of(context).cardColor, borderRadius: BorderRadius.circular(Dimensions.radiusSmall),
-            boxShadow: widget.fromDialog ? null : [BoxShadow(color: Colors.grey[Get.isDarkMode ? 700 : 300]!, blurRadius: 5, spreadRadius: 1)],
-          ) : null,
+          decoration: context.width > 700
+              ? BoxDecoration(
+                  color: Theme.of(context).cardColor,
+                  borderRadius: BorderRadius.circular(Dimensions.radiusSmall),
+                  boxShadow: widget.fromDialog
+                      ? null
+                      : [
+                          BoxShadow(
+                              color: Colors.grey[Get.isDarkMode ? 700 : 300]!,
+                              blurRadius: 5,
+                              spreadRadius: 1)
+                        ],
+                )
+              : null,
           child: Column(
             children: [
-              ResponsiveHelper.isDesktop(context) ? Align(
-                alignment: Alignment.topRight,
-                child: IconButton(
-                  onPressed: () => Get.back(),
-                  icon: const Icon(Icons.clear),
-                ),
-              ) : const SizedBox(),
-
+              ResponsiveHelper.isDesktop(context)
+                  ? Align(
+                      alignment: Alignment.topRight,
+                      child: IconButton(
+                        onPressed: () => Get.back(),
+                        icon: const Icon(Icons.clear),
+                      ),
+                    )
+                  : const SizedBox(),
               Padding(
-                padding: widget.fromDialog ? const EdgeInsets.all(Dimensions.paddingSizeExtremeLarge) : context.width > 700 ? const EdgeInsets.all(Dimensions.paddingSizeDefault) : const EdgeInsets.all(Dimensions.paddingSizeExtraSmall),
+                padding: widget.fromDialog
+                    ? const EdgeInsets.all(Dimensions.paddingSizeExtremeLarge)
+                    : context.width > 700
+                        ? const EdgeInsets.all(Dimensions.paddingSizeDefault)
+                        : const EdgeInsets.all(
+                            Dimensions.paddingSizeExtraSmall),
                 child: Column(children: [
                   Image.asset(Images.forgetIcon, height: 100),
                   const SizedBox(height: Dimensions.paddingSizeLarge),
-
-                  Text('enter_new_password'.tr, style: robotoRegular.copyWith(color: Theme.of(context).disabledColor), textAlign: TextAlign.center),
+                  Text('enter_new_password'.tr,
+                      style: robotoRegular.copyWith(
+                          color: Theme.of(context).disabledColor),
+                      textAlign: TextAlign.center),
                   const SizedBox(height: Dimensions.paddingSizeExtremeLarge),
-
                   Column(children: [
-
                     CustomTextField(
                       titleText: '8+characters'.tr,
                       controller: _newPasswordController,
@@ -82,10 +117,10 @@ class _NewPassScreenState extends State<NewPassScreen> {
                       prefixIcon: Icons.lock,
                       isPassword: true,
                       labelText: 'new_password'.tr,
-                      validator: (value) => ValidateCheck.validateEmptyText(value, 'please_enter_new_password'.tr),
+                      validator: (value) => ValidateCheck.validateEmptyText(
+                          value, 'please_enter_new_password'.tr),
                     ),
                     const SizedBox(height: Dimensions.paddingSizeLarge),
-
                     CustomTextField(
                       titleText: '8+characters'.tr,
                       controller: _confirmPasswordController,
@@ -94,16 +129,17 @@ class _NewPassScreenState extends State<NewPassScreen> {
                       inputType: TextInputType.visiblePassword,
                       prefixIcon: Icons.lock,
                       isPassword: true,
-                      onSubmit: (text) => GetPlatform.isWeb ? _onPressedPasswordChange() : null,
+                      onSubmit: (text) =>
+                          GetPlatform.isWeb ? _onPressedPasswordChange() : null,
                       labelText: 'confirm_password'.tr,
-                      validator: (value) => ValidateCheck.validateEmptyText(value, 'please_enter_confirm_password'.tr),
+                      validator: (value) => ValidateCheck.validateEmptyText(
+                          value, 'please_enter_confirm_password'.tr),
                     ),
-
                   ]),
                   const SizedBox(height: 50),
-
                   GetBuilder<ProfileController>(builder: (profileController) {
-                    return GetBuilder<VerificationController>(builder: (verificationController) {
+                    return GetBuilder<VerificationController>(
+                        builder: (verificationController) {
                       final bool isLoading = widget.fromPasswordChange
                           ? profileController.isLoading
                           : verificationController.isLoading;
@@ -119,7 +155,6 @@ class _NewPassScreenState extends State<NewPassScreen> {
                       );
                     });
                   }),
-
                 ]),
               )
             ],
@@ -134,14 +169,14 @@ class _NewPassScreenState extends State<NewPassScreen> {
     final String confirmPassword = _confirmPasswordController.text.trim();
     if (password.isEmpty) {
       showCustomSnackBar('enter_password'.tr);
-    }else if (password.length < 6) {
+    } else if (password.length < 6) {
       showCustomSnackBar('password_should_be'.tr);
-    }else if(password != confirmPassword) {
+    } else if (password != confirmPassword) {
       showCustomSnackBar('confirm_password_does_not_matched'.tr);
-    }else {
-      if(widget.fromPasswordChange) {
+    } else {
+      if (widget.fromPasswordChange) {
         _changeUserPassword(password);
-      }else {
+      } else {
         _resetUserPassword(password, confirmPassword);
       }
     }
@@ -151,23 +186,36 @@ class _NewPassScreenState extends State<NewPassScreen> {
     final UserInfoModel user = Get.find<ProfileController>().userInfoModel!;
     user.password = password;
     Get.find<ProfileController>().changePassword(user).then((response) {
-      if(response.isSuccess) {
+      if (response.isSuccess) {
         Get.back();
         showCustomSnackBar('password_updated_successfully'.tr, isError: false);
-      }else {
+      } else {
         showCustomSnackBar(response.message);
       }
     });
   }
 
   void _resetUserPassword(String password, String confirmPassword) {
-    Get.find<VerificationController>().resetPassword(widget.resetToken, '${GetPlatform.isWeb ? '' : '+'}${widget.number!.trim()}', password, confirmPassword).then((value) {
+    Get.find<VerificationController>()
+        .resetPassword(
+            widget.resetToken,
+            '${GetPlatform.isWeb ? '' : '+'}${widget.number!.trim()}',
+            password,
+            confirmPassword)
+        .then((value) {
       if (value.isSuccess) {
-        if(Get.context == null || !ResponsiveHelper.isDesktop(Get.context!)) {
-          Get.offAllNamed(RouteHelper.getSignInRoute(RouteHelper.resetPassword));
-        }else{
+        debugPrint('[ResetPassword][SUCCESS] navigating to login');
+        debugPrint('[ResetPassword][CLEAR] cleared reset flow state');
+        if (Get.context == null || !ResponsiveHelper.isDesktop(Get.context!)) {
+          // Use fromResetPassword=true marker so SignInScreen knows to offAllNamed on success.
+          // Do NOT pass resetPassword as the page param — that would be read as a redirect
+          // target after OTP 2FA login and send the user back to /reset-password.
+          Get.offAllNamed(RouteHelper.getSignInRoute('from-reset-password'));
+        } else {
           Get.offAllNamed(RouteHelper.getInitialRoute())?.then((value) {
-            Get.dialog(const Center(child: AuthDialogWidget(exitFromApp: true, backFromThis: false)));
+            Get.dialog(const Center(
+                child:
+                    AuthDialogWidget(exitFromApp: true, backFromThis: false)));
           });
         }
         showCustomSnackBar('password_reset_successfully'.tr, isError: false);

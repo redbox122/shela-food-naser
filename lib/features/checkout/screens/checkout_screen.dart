@@ -27,6 +27,7 @@ import 'package:sixam_mart/helper/auth_helper.dart';
 import 'package:sixam_mart/helper/date_converter.dart';
 import 'package:sixam_mart/helper/price_converter.dart';
 import 'package:sixam_mart/helper/responsive_helper.dart';
+import 'package:sixam_mart/helper/route_helper.dart';
 import 'package:sixam_mart/util/app_constants.dart';
 import 'package:sixam_mart/util/dimensions.dart';
 import 'package:sixam_mart/util/styles.dart';
@@ -253,9 +254,18 @@ class CheckoutScreenState extends State<CheckoutScreen> {
       return;
     }
 
-    // Ensure no default payment method is selected for cart checkout
+    // For cart checkout, do not auto-select a default method.
+    // If user already selected a method before leaving checkout, preserve it.
     if (Get.parameters['page'] == 'cart' || widget.fromCart == true) {
-      Get.find<CheckoutController>().setPaymentMethod(-1, isUpdate: false);
+      final CheckoutController checkoutController =
+          Get.find<CheckoutController>();
+      final bool hasExistingSelection =
+          checkoutController.paymentMethodIndex != -1 ||
+              checkoutController.select_payment_Methods != null;
+
+      if (!hasExistingSelection) {
+        checkoutController.setPaymentMethod(-1, isUpdate: false);
+      }
     }
 
     // Defer MyFatoorah initialization to avoid memory pressure during screen load
@@ -340,9 +350,10 @@ class CheckoutScreenState extends State<CheckoutScreen> {
         await Get.find<AddressController>().getAddressList();
       }
 
-      // Load Qidha wallet data immediately and wait for completion
-      debugPrint('🔄 Loading Qidha wallet data immediately...');
-      await Get.find<KaidhaSubscriptionController>().get_Wallet_Kaidh();
+      // Load Qidha wallet data with force-refresh to bypass stale ETag/304 cache.
+      debugPrint('🔄 Loading Qidha wallet data (forceRefresh=true)...');
+      await Get.find<KaidhaSubscriptionController>()
+          .get_Wallet_Kaidh(forceRefresh: true);
       debugPrint('✅ Qidha wallet data loaded successfully');
     }
 
@@ -508,761 +519,773 @@ class CheckoutScreenState extends State<CheckoutScreen> {
         right: false,
         minimum: EdgeInsets.zero,
         child: currentAddress == null
-          ? Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.location_off,
-                      size: 64, color: theme.colorScheme.onSurfaceVariant),
-                  const SizedBox(height: 16),
-                  Text(
-                    'no_address_selected'.tr,
-                    style: const TextStyle(
-                        fontSize: 18, fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'please_select_delivery_address'.tr,
-                    style: TextStyle(color: theme.colorScheme.onSurfaceVariant),
-                  ),
-                  const SizedBox(height: 24),
-                  ElevatedButton(
-                    onPressed: () => Get.back<void>(),
-                    child: Text('go_back'.tr),
-                  ),
-                ],
-              ),
-            )
-          : (guestCheckoutPermission || AuthHelper.isLoggedIn())
-              ? GetBuilder<CheckoutController>(
-                  id: 'checkout', // Use targeted ID for partial rebuild.
-                  builder: (checkoutController) {
-                    if (checkoutController.hasCheckoutError &&
-                        !checkoutController.isCheckoutReady &&
-                        checkoutController.store == null) {
-                      return ErrorStateView(
-                        onRetry: () {
-                          if (effectiveStoreId != null && effectiveStoreId! > 0) {
-                            checkoutController.initCheckoutData(
-                              context,
-                              effectiveStoreId!,
-                              preloadedCartList: _cartList?.whereType<CartModel>().toList(),
-                              preCalculatedDistance: checkoutController.distance,
-                            );
-                          } else {
-                            initCall();
-                          }
-                        },
-                      );
-                    }
-                    // 🔒 CRITICAL GUARD: Prevent calculations if cart is empty or null
-                    // ✅ FIX: Show error UI instead of throwing exception
-                    if (_cartList == null || _cartList!.isEmpty) {
-                      if (!_initCallCompleted) {
-                        return const Center(child: LoadingWidget());
+            ? Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.location_off,
+                        size: 64, color: theme.colorScheme.onSurfaceVariant),
+                    const SizedBox(height: 16),
+                    Text(
+                      'no_address_selected'.tr,
+                      style: const TextStyle(
+                          fontSize: 18, fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'please_select_delivery_address'.tr,
+                      style:
+                          TextStyle(color: theme.colorScheme.onSurfaceVariant),
+                    ),
+                    const SizedBox(height: 24),
+                    ElevatedButton(
+                      onPressed: () => Get.back<void>(),
+                      child: Text('go_back'.tr),
+                    ),
+                  ],
+                ),
+              )
+            : (guestCheckoutPermission || AuthHelper.isLoggedIn())
+                ? GetBuilder<CheckoutController>(
+                    id: 'checkout', // Use targeted ID for partial rebuild.
+                    builder: (checkoutController) {
+                      if (checkoutController.hasCheckoutError &&
+                          !checkoutController.isCheckoutReady &&
+                          checkoutController.store == null) {
+                        return ErrorStateView(
+                          onRetry: () {
+                            if (effectiveStoreId != null &&
+                                effectiveStoreId! > 0) {
+                              checkoutController.initCheckoutData(
+                                context,
+                                effectiveStoreId!,
+                                preloadedCartList:
+                                    _cartList?.whereType<CartModel>().toList(),
+                                preCalculatedDistance:
+                                    checkoutController.distance,
+                              );
+                            } else {
+                              initCall();
+                            }
+                          },
+                        );
                       }
-                      return Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(Icons.shopping_cart_outlined,
-                                size: 64, color: theme.colorScheme.onSurfaceVariant),
-                            const SizedBox(height: 16),
-                            Text('cart_is_empty'.tr,
-                                style: const TextStyle(fontSize: 18)),
-                            const SizedBox(height: 24),
-                            ElevatedButton(
-                              onPressed: () => Get.back<void>(),
-                              child: Text('go_back'.tr),
-                            ),
-                          ],
-                        ),
-                      );
-                    }
+                      // 🔒 CRITICAL GUARD: Prevent calculations if cart is empty or null
+                      // ✅ FIX: Show error UI instead of throwing exception
+                      if (_cartList == null || _cartList!.isEmpty) {
+                        if (!_initCallCompleted) {
+                          return const Center(child: LoadingWidget());
+                        }
+                        return Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.shopping_cart_outlined,
+                                  size: 64,
+                                  color: theme.colorScheme.onSurfaceVariant),
+                              const SizedBox(height: 16),
+                              Text('cart_is_empty'.tr,
+                                  style: const TextStyle(fontSize: 18)),
+                              const SizedBox(height: 24),
+                              ElevatedButton(
+                                onPressed: () => Get.back<void>(),
+                                child: Text('go_back'.tr),
+                              ),
+                            ],
+                          ),
+                        );
+                      }
 
-                    final List<DropdownItem<int>> addressList =
-                        _getDropdownAddressList(
-                      context: context,
-                      addressList: Get.find<AddressController>().addressList,
-                      store: checkoutController.store,
-                    );
-
-                    //
-                    address = _getAddressList(
+                      final List<DropdownItem<int>> addressList =
+                          _getDropdownAddressList(
+                        context: context,
                         addressList: Get.find<AddressController>().addressList,
-                        store: checkoutController.store);
+                        store: checkoutController.store,
+                      );
 
-                    bool todayClosed = false;
-                    bool tomorrowClosed = false;
-                    final Pivot? moduleData =
-                        _getModuleData(store: checkoutController.store);
-                    _isCashOnDeliveryActive =
-                        _checkCODActive(store: checkoutController.store);
-                    _isDigitalPaymentActive = _checkDigitalPaymentActive(
-                        store: checkoutController.store);
-                    _isOfflinePaymentActive = Get.find<SplashController>()
-                            .configModel!
-                            .offlinePaymentStatus! &&
-                        _checkZoneOfflinePaymentOnOff(
-                            addressModel: currentAddress,
-                            checkoutController: checkoutController);
-                    if (checkoutController.store != null) {
-                      // ✅ FRONTEND ONLY: Use store.isOpen from API only
-                      // Backend already calculated isOpen based on schedules/time
-                      // Flutter just displays what backend says
-                      final bool isStoreOpen =
-                          checkoutController.store!.isOpen == true;
-                      todayClosed =
-                          !isStoreOpen; // If isOpen == false, it's closed
-                      tomorrowClosed =
-                          !isStoreOpen; // Use same status for tomorrow (backend decides)
-                      _taxPercent =
-                          _resolveTaxPercent(checkoutController.store?.tax);
-                    }
-                    return GetBuilder<CouponController>(
-                        builder: (couponController) {
-                      double? maxCodOrderAmount;
+                      //
+                      address = _getAddressList(
+                          addressList:
+                              Get.find<AddressController>().addressList,
+                          store: checkoutController.store);
 
-                      if (moduleData != null) {
-                        maxCodOrderAmount = moduleData.maximumCodOrderAmount;
+                      bool todayClosed = false;
+                      bool tomorrowClosed = false;
+                      final Pivot? moduleData =
+                          _getModuleData(store: checkoutController.store);
+                      _isCashOnDeliveryActive =
+                          _checkCODActive(store: checkoutController.store);
+                      _isDigitalPaymentActive = _checkDigitalPaymentActive(
+                          store: checkoutController.store);
+                      _isOfflinePaymentActive = Get.find<SplashController>()
+                              .configModel!
+                              .offlinePaymentStatus! &&
+                          _checkZoneOfflinePaymentOnOff(
+                              addressModel: currentAddress,
+                              checkoutController: checkoutController);
+                      if (checkoutController.store != null) {
+                        // ✅ FRONTEND ONLY: Use store.isOpen from API only
+                        // Backend already calculated isOpen based on schedules/time
+                        // Flutter just displays what backend says
+                        final bool isStoreOpen =
+                            checkoutController.store!.isOpen == true;
+                        todayClosed =
+                            !isStoreOpen; // If isOpen == false, it's closed
+                        tomorrowClosed =
+                            !isStoreOpen; // Use same status for tomorrow (backend decides)
+                        _taxPercent =
+                            _resolveTaxPercent(checkoutController.store?.tax);
                       }
-                      final double price = _calculatePrice(
-                          store: checkoutController.store, cartList: _cartList);
-                      final double addOns = _calculateAddonsPrice(
-                          store: checkoutController.store, cartList: _cartList);
-                      final double variations = _calculateVariationPrice(
+                      return GetBuilder<CouponController>(
+                          builder: (couponController) {
+                        double? maxCodOrderAmount;
+
+                        if (moduleData != null) {
+                          maxCodOrderAmount = moduleData.maximumCodOrderAmount;
+                        }
+                        final double price = _calculatePrice(
+                            store: checkoutController.store,
+                            cartList: _cartList);
+                        final double addOns = _calculateAddonsPrice(
+                            store: checkoutController.store,
+                            cartList: _cartList);
+                        final double variations = _calculateVariationPrice(
+                            store: checkoutController.store,
+                            cartList: _cartList,
+                            calculateWithoutDiscount: true);
+                        final double discount = _calculateDiscount(
                           store: checkoutController.store,
                           cartList: _cartList,
-                          calculateWithoutDiscount: true);
-                      final double discount = _calculateDiscount(
-                        store: checkoutController.store,
-                        cartList: _cartList,
-                        price: price,
-                        addOns: addOns,
-                      );
-                      // 🔒 SAFE NULL HANDLING: Use null-coalescing instead of null check operator
-                      final double couponDiscount = PriceConverter.toFixed(
-                          couponController.discount ?? 0.0);
-                      final bool taxIncluded = Get.find<SplashController>()
-                              .configModel!
-                              .taxIncluded ==
-                          1;
+                          price: price,
+                          addOns: addOns,
+                        );
+                        // 🔒 SAFE NULL HANDLING: Use null-coalescing instead of null check operator
+                        final double couponDiscount = PriceConverter.toFixed(
+                            couponController.discount ?? 0.0);
+                        final bool taxIncluded = Get.find<SplashController>()
+                                .configModel!
+                                .taxIncluded ==
+                            1;
 
-                      // Calculate subtotal as items prices only (without tax) - same as cart screen
-                      final double subTotal =
-                          _calculateItemsSubtotal(cartList: _cartList);
+                        // Calculate subtotal as items prices only (without tax) - same as cart screen
+                        final double subTotal =
+                            _calculateItemsSubtotal(cartList: _cartList);
 
-                      final double referralDiscount =
-                          _calculateReferralDiscount(
-                              subTotal, discount, couponDiscount);
+                        final double referralDiscount =
+                            _calculateReferralDiscount(
+                                subTotal, discount, couponDiscount);
 
-                      final double orderAmount = _calculateOrderAmount(
-                        price: price,
-                        variations: variations,
-                        discount: discount,
-                        addOns: addOns,
-                        couponDiscount: couponDiscount,
-                        cartList: _cartList,
-                        referralDiscount: referralDiscount,
-                      );
+                        final double orderAmount = _calculateOrderAmount(
+                          price: price,
+                          variations: variations,
+                          discount: discount,
+                          addOns: addOns,
+                          couponDiscount: couponDiscount,
+                          cartList: _cartList,
+                          referralDiscount: referralDiscount,
+                        );
 
-                      // Calculate tax on discounted prices (subTotal) - same as cart screen
-                      final double tax = _calculateTax(
-                        taxIncluded: taxIncluded,
-                        orderAmount: subTotal,
-                        taxPercent: _taxPercent,
-                      );
+                        // Calculate tax on discounted prices (subTotal) - same as cart screen
+                        final double tax = _calculateTax(
+                          taxIncluded: taxIncluded,
+                          orderAmount: subTotal,
+                          taxPercent: _taxPercent,
+                        );
 
-                      final double additionalCharge =
-                          Get.find<SplashController>()
-                                  .configModel!
-                                  .additionalChargeStatus!
-                              ? Get.find<SplashController>()
-                                  .configModel!
-                                  .additionCharge!
-                              : 0;
+                        final double additionalCharge =
+                            Get.find<SplashController>()
+                                    .configModel!
+                                    .additionalChargeStatus!
+                                ? Get.find<SplashController>()
+                                    .configModel!
+                                    .additionCharge!
+                                : 0;
 
-                      // Debug logging for additional charge
-                      debugPrint('💰 Checkout additionalCharge calculation:');
-                      debugPrint(
-                          '   - additionalChargeStatus: ${Get.find<SplashController>().configModel!.additionalChargeStatus}');
-                      debugPrint(
-                          '   - additionalChargeName: ${Get.find<SplashController>().configModel!.additionalChargeName}');
-                      debugPrint(
-                          '   - additionCharge (raw): ${Get.find<SplashController>().configModel!.additionCharge}');
-                      debugPrint(
-                          '   - Calculated additionalCharge: $additionalCharge');
-                      final AddressModel? effectiveAddress =
-                          _resolveChargeAddress(currentAddress, address);
+                        // Debug logging for additional charge
+                        debugPrint('💰 Checkout additionalCharge calculation:');
+                        debugPrint(
+                            '   - additionalChargeStatus: ${Get.find<SplashController>().configModel!.additionalChargeStatus}');
+                        debugPrint(
+                            '   - additionalChargeName: ${Get.find<SplashController>().configModel!.additionalChargeName}');
+                        debugPrint(
+                            '   - additionCharge (raw): ${Get.find<SplashController>().configModel!.additionCharge}');
+                        debugPrint(
+                            '   - Calculated additionalCharge: $additionalCharge');
+                        final AddressModel? effectiveAddress =
+                            _resolveChargeAddress(currentAddress, address);
 
-                      final bool isDeliveryChargePending =
-                          checkoutController.orderType != 'take_away' &&
-                              (effectiveAddress == null ||
-                                  checkoutController.distance == null ||
-                                  checkoutController.distance == -1 ||
-                                  checkoutController.store == null);
+                        final bool isDeliveryChargePending =
+                            checkoutController.orderType != 'take_away' &&
+                                (effectiveAddress == null ||
+                                    checkoutController.distance == null ||
+                                    checkoutController.distance == -1 ||
+                                    checkoutController.store == null);
 
-                      final double originalCharge = effectiveAddress == null
-                          ? 0.0
-                          : _calculateOriginalDeliveryCharge(
-                              store: checkoutController.store,
-                              address: effectiveAddress,
-                              distance: checkoutController.distance,
-                              extraCharge: checkoutController.extraCharge,
-                            );
+                        final double originalCharge = effectiveAddress == null
+                            ? 0.0
+                            : _calculateOriginalDeliveryCharge(
+                                store: checkoutController.store,
+                                address: effectiveAddress,
+                                distance: checkoutController.distance,
+                                extraCharge: checkoutController.extraCharge,
+                              );
 
-                      final double? deliveryCharge = isDeliveryChargePending
-                          ? null
-                          : _calculateDeliveryCharge(
-                              store: checkoutController.store,
-                              address: effectiveAddress!,
-                              distance: checkoutController.distance,
-                              extraCharge: checkoutController.extraCharge,
-                              orderType: checkoutController.orderType!,
-                              orderAmount: 10,
-                            );
+                        final double? deliveryCharge = isDeliveryChargePending
+                            ? null
+                            : _calculateDeliveryCharge(
+                                store: checkoutController.store,
+                                address: effectiveAddress!,
+                                distance: checkoutController.distance,
+                                extraCharge: checkoutController.extraCharge,
+                                orderType: checkoutController.orderType!,
+                                orderAmount: 10,
+                              );
 
-                      // ✅ Update controller's delivery charge for reactive UI
-                      if (deliveryCharge != null) {
-                        final double displayDeliveryCharge =
+                        // ✅ Update controller's delivery charge for reactive UI
+                        if (deliveryCharge != null) {
+                          final double displayDeliveryCharge =
+                              checkoutController.orderType == 'take_away'
+                                  ? 0.0
+                                  : (originalCharge > 0
+                                      ? originalCharge
+                                      : (deliveryCharge < 0
+                                          ? 0.0
+                                          : deliveryCharge));
+                          SchedulerBinding.instance.addPostFrameCallback((_) {
+                            checkoutController.setCalculatedDeliveryCharge(
+                                displayDeliveryCharge);
+                          });
+                        }
+
+                        if (checkoutController.orderType != 'take_away' &&
+                            checkoutController.store != null) {
+                          // Debug logging for UI display logic
+                          debugPrint(
+                              '🎨 [UI Display Logic] Delivery Charge Display:');
+                          debugPrint(
+                              '   - store loaded: ${checkoutController.store != null}');
+                          debugPrint(
+                              '   - store.freeDelivery: ${checkoutController.store!.freeDelivery}');
+                          debugPrint(
+                              '   - distance: ${checkoutController.distance}');
+                          debugPrint('   - originalCharge: $originalCharge');
+                          debugPrint('   - deliveryCharge: $deliveryCharge');
+
+                          // FIXED: Check conditions in correct order (as per backend team feedback)
+                          // 1. First check if distance is still being calculated
+                          if (isDeliveryChargePending) {
+                            _deliveryChargeForView = 'calculating'.tr;
+                            debugPrint(
+                                '   ✅ Set to: calculating (distance is null or -1)');
+                          }
+                          // 2. Then check if we have a valid calculated charge (prioritize showing the fee)
+                          else if (originalCharge != -1 && originalCharge > 0) {
+                            // Show calculated delivery charge - this is the actual fee
+                            // Backend confirmed: store.freeDelivery = false, so we should show the fee
+                            _deliveryChargeForView =
+                                PriceConverter.convertPrice(originalCharge)
+                                    .toString();
+                            debugPrint(
+                                '   ✅ Set to: $_deliveryChargeForView (calculated charge)');
+                          }
+                          // 3. Only show "free" if deliveryCharge is actually 0 AND freeDelivery is true
+                          // Backend confirmed: store.freeDelivery = false, so this should rarely execute
+                          else if (deliveryCharge == 0 &&
+                              checkoutController.orderType == 'delivery' &&
+                              checkoutController.store!.freeDelivery == true) {
+                            _deliveryChargeForView = 'free'.tr;
+                            debugPrint(
+                                '   ✅ Set to: free (charge is 0 AND freeDelivery is true)');
+                          }
+                          // 4. ✅ BACKEND CONTRACT: If calculation fails, show calculating - backend must provide correct data
+                          else {
+                            _deliveryChargeForView = 'calculating'.tr;
+                            debugPrint(
+                                '   ⚠️ Set to: calculating (charge calculation issue - backend must provide correct store/zone data)');
+                          }
+                        } else if (checkoutController.orderType !=
+                                'take_away' &&
+                            checkoutController.store == null) {
+                          // ✅ BACKEND CONTRACT: Store must be provided - no fallbacks
+                          _deliveryChargeForView = 'calculating'.tr;
+                          debugPrint(
+                              '   ⚠️ Set to: calculating (store is null - backend must provide store data)');
+                        }
+
+                        final double extraPackagingCharge =
+                            _calculateExtraPackagingCharge(checkoutController);
+
+                        // Ensure delivery charge is not negative for total calculation
+                        // Prefer originalCharge (actual calculated fee) when available
+                        final double validDeliveryCharge =
                             checkoutController.orderType == 'take_away'
                                 ? 0.0
                                 : (originalCharge > 0
                                     ? originalCharge
-                                    : (deliveryCharge < 0
+                                    : (deliveryCharge == null
                                         ? 0.0
-                                        : deliveryCharge));
-                        SchedulerBinding.instance.addPostFrameCallback((_) {
-                          checkoutController.setCalculatedDeliveryCharge(
-                              displayDeliveryCharge);
-                        });
-                      }
+                                        : (deliveryCharge < 0
+                                            ? 0.0
+                                            : deliveryCharge)));
 
-                      if (checkoutController.orderType != 'take_away' &&
-                          checkoutController.store != null) {
-                        // Debug logging for UI display logic
-                        debugPrint(
-                            '🎨 [UI Display Logic] Delivery Charge Display:');
-                        debugPrint(
-                            '   - store loaded: ${checkoutController.store != null}');
-                        debugPrint(
-                            '   - store.freeDelivery: ${checkoutController.store!.freeDelivery}');
-                        debugPrint(
-                            '   - distance: ${checkoutController.distance}');
-                        debugPrint('   - originalCharge: $originalCharge');
-                        debugPrint('   - deliveryCharge: $deliveryCharge');
+                        // If checkout is opened from cart page, use simplified total formula
+                        // total = subtotal + delivery + service fee
+                        final bool useSimpleCartTotal =
+                            Get.parameters['page'] == 'cart' ||
+                                widget.fromCart == true;
 
-                        // FIXED: Check conditions in correct order (as per backend team feedback)
-                        // 1. First check if distance is still being calculated
-                        if (isDeliveryChargePending) {
-                          _deliveryChargeForView = 'calculating'.tr;
-                          debugPrint(
-                              '   ✅ Set to: calculating (distance is null or -1)');
-                        }
-                        // 2. Then check if we have a valid calculated charge (prioritize showing the fee)
-                        else if (originalCharge != -1 && originalCharge > 0) {
-                          // Show calculated delivery charge - this is the actual fee
-                          // Backend confirmed: store.freeDelivery = false, so we should show the fee
-                          _deliveryChargeForView =
-                              PriceConverter.convertPrice(originalCharge)
-                                  .toString();
-                          debugPrint(
-                              '   ✅ Set to: $_deliveryChargeForView (calculated charge)');
-                        }
-                        // 3. Only show "free" if deliveryCharge is actually 0 AND freeDelivery is true
-                        // Backend confirmed: store.freeDelivery = false, so this should rarely execute
-                        else if (deliveryCharge == 0 &&
-                            checkoutController.orderType == 'delivery' &&
-                            checkoutController.store!.freeDelivery == true) {
-                          _deliveryChargeForView = 'free'.tr;
-                          debugPrint(
-                              '   ✅ Set to: free (charge is 0 AND freeDelivery is true)');
-                        }
-                        // 4. ✅ BACKEND CONTRACT: If calculation fails, show calculating - backend must provide correct data
-                        else {
-                          _deliveryChargeForView = 'calculating'.tr;
-                          debugPrint(
-                              '   ⚠️ Set to: calculating (charge calculation issue - backend must provide correct store/zone data)');
-                        }
-                      } else if (checkoutController.orderType != 'take_away' &&
-                          checkoutController.store == null) {
-                        // ✅ BACKEND CONTRACT: Store must be provided - no fallbacks
-                        _deliveryChargeForView = 'calculating'.tr;
-                        debugPrint(
-                            '   ⚠️ Set to: calculating (store is null - backend must provide store data)');
-                      }
+                        double total = useSimpleCartTotal
+                            ? PriceConverter.toFixed(
+                                subTotal +
+                                    validDeliveryCharge +
+                                    additionalCharge +
+                                    (taxIncluded ? 0 : tax),
+                              )
+                            : _calculateTotal(
+                                subTotal: subTotal,
+                                deliveryCharge: validDeliveryCharge,
+                                discount: discount,
+                                couponDiscount: couponDiscount,
+                                taxIncluded: taxIncluded,
+                                tax: tax,
+                                orderType: checkoutController.orderType!,
+                                tips: checkoutController.tips,
+                                additionalCharge: additionalCharge,
+                                extraPackagingCharge: extraPackagingCharge,
+                              );
 
-                      final double extraPackagingCharge =
-                          _calculateExtraPackagingCharge(checkoutController);
+                        final bool isPrescriptionRequired =
+                            checkoutController.hasPrescriptionRequiredItems;
 
-                      // Ensure delivery charge is not negative for total calculation
-                      // Prefer originalCharge (actual calculated fee) when available
-                      final double validDeliveryCharge =
-                          checkoutController.orderType == 'take_away'
-                              ? 0.0
-                              : (originalCharge > 0
-                                  ? originalCharge
-                                  : (deliveryCharge == null
-                                      ? 0.0
-                                      : (deliveryCharge < 0
-                                          ? 0.0
-                                          : deliveryCharge)));
+                        total = total - referralDiscount;
 
-                      // If checkout is opened from cart page, use simplified total formula
-                      // total = subtotal + delivery + service fee
-                      final bool useSimpleCartTotal =
-                          Get.parameters['page'] == 'cart' ||
-                              widget.fromCart == true;
-
-                      double total = useSimpleCartTotal
-                          ? PriceConverter.toFixed(
-                              subTotal +
-                                  validDeliveryCharge +
-                                  additionalCharge +
-                                  (taxIncluded ? 0 : tax),
-                            )
-                          : _calculateTotal(
-                              subTotal: subTotal,
-                              deliveryCharge: validDeliveryCharge,
-                              discount: discount,
-                              couponDiscount: couponDiscount,
-                              taxIncluded: taxIncluded,
-                              tax: tax,
-                              orderType: checkoutController.orderType!,
-                              tips: checkoutController.tips,
-                              additionalCharge: additionalCharge,
-                              extraPackagingCharge: extraPackagingCharge,
-                            );
-
-                      final bool isPrescriptionRequired =
-                          checkoutController.hasPrescriptionRequiredItems;
-
-                      total = total - referralDiscount;
-
-                      // ✅ FIX: Only set payment method ONCE on first build
-                      if (effectiveStoreId != null &&
-                          !_paymentMethodInitialized) {
-                        _paymentMethodInitialized = true;
-                        // Do not auto-select payment method for cart checkout
-                        if (!(Get.parameters['page'] == 'cart' ||
-                            widget.fromCart == true)) {
-                          checkoutController.setPaymentMethod(0,
-                              isUpdate: false);
-                        }
-                      }
-
-                      // ✅ FIX: Only update total if value actually changed (prevents rebuild loop)
-                      final double newTotal = total -
-                          (checkoutController.isPartialPay
-                              ? Get.find<ProfileController>()
-                                  .userInfoModel!
-                                  .walletBalance!
-                              : 0);
-                      if (_lastSetTotalAmount != newTotal) {
-                        _lastSetTotalAmount = newTotal;
-                        Future.microtask(() {
-                          if (mounted) {
-                            checkoutController.setTotalAmount(newTotal);
+                        // ✅ FIX: Only set payment method ONCE on first build
+                        if (effectiveStoreId != null &&
+                            !_paymentMethodInitialized) {
+                          _paymentMethodInitialized = true;
+                          // Do not auto-select payment method for cart checkout
+                          if (!(Get.parameters['page'] == 'cart' ||
+                              widget.fromCart == true)) {
+                            checkoutController.setPaymentMethod(0,
+                                isUpdate: false);
                           }
-                        });
-                      }
+                        }
 
-                      // ✅ FIX: Only trigger preload ONCE (prevents repeated calls on rebuild)
-                      if (total > 0 &&
-                          checkoutController.paymentMethods.isEmpty &&
-                          !_paymentMethodsPreloadTriggered) {
-                        _paymentMethodsPreloadTriggered = true;
-                        _preloadPaymentMethods();
-                      }
+                        // ✅ FIX: Only update total if value actually changed (prevents rebuild loop)
+                        final double newTotal = total -
+                            (checkoutController.isPartialPay
+                                ? Get.find<ProfileController>()
+                                    .userInfoModel!
+                                    .walletBalance!
+                                : 0);
+                        if (_lastSetTotalAmount != newTotal) {
+                          _lastSetTotalAmount = newTotal;
+                          Future.microtask(() {
+                            if (mounted) {
+                              checkoutController.setTotalAmount(newTotal);
+                            }
+                          });
+                        }
 
-                      if (_payableAmount != checkoutController.viewTotalPrice &&
-                          checkoutController.distance != null &&
-                          isLoggedIn) {
-                        _payableAmount = checkoutController.viewTotalPrice;
-                        WidgetsBinding.instance.addPostFrameCallback((_) {
-                          showCashBackSnackBar();
-                        });
-                      }
+                        // ✅ FIX: Only trigger preload ONCE (prevents repeated calls on rebuild)
+                        if (total > 0 &&
+                            checkoutController.paymentMethods.isEmpty &&
+                            !_paymentMethodsPreloadTriggered) {
+                          _paymentMethodsPreloadTriggered = true;
+                          _preloadPaymentMethods();
+                        }
 
-                      _setSinglePaymentActive();
+                        if (_payableAmount !=
+                                checkoutController.viewTotalPrice &&
+                            checkoutController.distance != null &&
+                            isLoggedIn) {
+                          _payableAmount = checkoutController.viewTotalPrice;
+                          WidgetsBinding.instance.addPostFrameCallback((_) {
+                            showCashBackSnackBar();
+                          });
+                        }
 
-                      // ✅ BACKEND CONTRACT: Store must be provided by backend - no fallbacks
-                      return (checkoutController.store != null &&
-                              checkoutController.isCheckoutReady &&
-                              allIsLogged == false)
-                          ? Column(
-                              mainAxisSize: MainAxisSize
-                                  .min, // Keep compact column size to avoid overflow.
-                              children: [
-                                //
+                        _setSinglePaymentActive();
 
-                                ResponsiveHelper.isDesktop(context)
-                                    ? Container(
-                                        height: 64,
-                                        color: Theme.of(context)
-                                            .primaryColor
-                                            .withValues(alpha: 0.10),
-                                        child: Center(
-                                            child: Text('checkout'.tr,
-                                                style: robotoMedium)),
-                                      )
-                                    : const SizedBox(),
-                                Expanded(
-                                    child: SingleChildScrollView(
-                                  controller: _scrollController,
-                                  physics: const BouncingScrollPhysics(),
-                                  child: FooterView(
-                                      child: SizedBox(
-                                    width: Dimensions.webMaxWidth,
-                                    child: ResponsiveHelper.isDesktop(context)
-                                        ? Padding(
-                                            padding: const EdgeInsets.only(
-                                                top: Dimensions
-                                                    .paddingSizeLarge),
-                                            child: Row(
-                                                crossAxisAlignment:
-                                                    CrossAxisAlignment.start,
-                                                children: [
-                                                  Expanded(
-                                                      flex: 6,
-                                                      child: TopSection(
-                                                        checkoutController:
+                        // ✅ BACKEND CONTRACT: Store must be provided by backend - no fallbacks
+                        return (checkoutController.store != null &&
+                                checkoutController.isCheckoutReady &&
+                                allIsLogged == false)
+                            ? Column(
+                                mainAxisSize: MainAxisSize
+                                    .min, // Keep compact column size to avoid overflow.
+                                children: [
+                                  //
+
+                                  ResponsiveHelper.isDesktop(context)
+                                      ? Container(
+                                          height: 64,
+                                          color: Theme.of(context)
+                                              .primaryColor
+                                              .withValues(alpha: 0.10),
+                                          child: Center(
+                                              child: Text('checkout'.tr,
+                                                  style: robotoMedium)),
+                                        )
+                                      : const SizedBox(),
+                                  Expanded(
+                                      child: SingleChildScrollView(
+                                    controller: _scrollController,
+                                    physics: const BouncingScrollPhysics(),
+                                    child: FooterView(
+                                        child: SizedBox(
+                                      width: Dimensions.webMaxWidth,
+                                      child: ResponsiveHelper.isDesktop(context)
+                                          ? Padding(
+                                              padding: const EdgeInsets.only(
+                                                  top: Dimensions
+                                                      .paddingSizeLarge),
+                                              child: Row(
+                                                  crossAxisAlignment:
+                                                      CrossAxisAlignment.start,
+                                                  children: [
+                                                    Expanded(
+                                                        flex: 6,
+                                                        child: TopSection(
+                                                          checkoutController:
+                                                              checkoutController,
+                                                          charge:
+                                                              originalCharge,
+                                                          deliveryCharge:
+                                                              validDeliveryCharge,
+                                                          addressList:
+                                                              addressList,
+                                                          tomorrowClosed:
+                                                              tomorrowClosed,
+                                                          todayClosed:
+                                                              todayClosed,
+                                                          module: module,
+                                                          price: price,
+                                                          discount: discount,
+                                                          addOns: addOns,
+                                                          isPrescriptionRequired:
+                                                              isPrescriptionRequired,
+                                                          address: address,
+                                                          cartList: _cartList,
+                                                          isCashOnDeliveryActive:
+                                                              _isCashOnDeliveryActive!,
+                                                          isDigitalPaymentActive:
+                                                              _isDigitalPaymentActive!,
+                                                          isWalletActive:
+                                                              _isWalletActive,
+                                                          storeId:
+                                                              effectiveStoreId ??
+                                                                  0,
+                                                          total: total,
+                                                          isOfflinePaymentActive:
+                                                              _isOfflinePaymentActive,
+                                                          guestNameTextEditingController:
+                                                              guestContactPersonNameController,
+                                                          guestNumberTextEditingController:
+                                                              guestContactPersonNumberController,
+                                                          guestNumberNode:
+                                                              guestNumberNode,
+                                                          guestEmailController:
+                                                              guestEmailController,
+                                                          guestEmailNode:
+                                                              guestEmailNode,
+                                                          tooltipController1:
+                                                              tooltipController1,
+                                                          tooltipController2:
+                                                              tooltipController2,
+                                                          dmTipsTooltipController:
+                                                              tooltipController3,
+                                                          guestPasswordController:
+                                                              guestPasswordController,
+                                                          guestConfirmPasswordController:
+                                                              guestConfirmPasswordController,
+                                                          guestPasswordNode:
+                                                              guestPasswordNode,
+                                                          guestConfirmPasswordNode:
+                                                              guestConfirmPasswordNode,
+                                                          variationPrice:
+                                                              isPassedVariationPrice
+                                                                  ? variations
+                                                                  : 0,
+                                                          deliveryChargeForView:
+                                                              _deliveryChargeForView,
+                                                          badWeatherCharge:
+                                                              badWeatherChargeForToolTip,
+                                                          extraChargeForToolTip:
+                                                              extraChargeForToolTip,
+                                                        )),
+                                                    const SizedBox(
+                                                        width: Dimensions
+                                                            .paddingSizeLarge),
+                                                    Expanded(
+                                                        flex: 4,
+                                                        child: BottomSection(
+                                                          checkoutController:
+                                                              checkoutController,
+                                                          total: total,
+                                                          module: module!,
+                                                          subTotal: subTotal,
+                                                          discount: discount,
+                                                          couponController:
+                                                              couponController,
+                                                          taxIncluded:
+                                                              taxIncluded,
+                                                          tax: tax,
+                                                          deliveryCharge:
+                                                              validDeliveryCharge,
+                                                          todayClosed:
+                                                              todayClosed,
+                                                          tomorrowClosed:
+                                                              tomorrowClosed,
+                                                          orderAmount:
+                                                              orderAmount,
+                                                          maxCodOrderAmount:
+                                                              maxCodOrderAmount,
+                                                          storeId:
+                                                              effectiveStoreId ??
+                                                                  0,
+                                                          taxPercent:
+                                                              _taxPercent,
+                                                          price: price,
+                                                          addOns: addOns,
+                                                          isPrescriptionRequired:
+                                                              isPrescriptionRequired,
+                                                          checkoutButton:
+                                                              _orderPlaceButton(
+                                                            kaidhaSubController,
                                                             checkoutController,
-                                                        charge: originalCharge,
-                                                        deliveryCharge:
-                                                            validDeliveryCharge,
-                                                        addressList:
-                                                            addressList,
-                                                        tomorrowClosed:
-                                                            tomorrowClosed,
-                                                        todayClosed:
                                                             todayClosed,
-                                                        module: module,
-                                                        price: price,
-                                                        discount: discount,
-                                                        addOns: addOns,
-                                                        isPrescriptionRequired:
-                                                            isPrescriptionRequired,
-                                                        address: address,
-                                                        cartList: _cartList,
-                                                        isCashOnDeliveryActive:
-                                                            _isCashOnDeliveryActive!,
-                                                        isDigitalPaymentActive:
-                                                            _isDigitalPaymentActive!,
-                                                        isWalletActive:
-                                                            _isWalletActive,
-                                                        storeId:
-                                                            effectiveStoreId ??
-                                                                0,
-                                                        total: total,
-                                                        isOfflinePaymentActive:
-                                                            _isOfflinePaymentActive,
-                                                        guestNameTextEditingController:
-                                                            guestContactPersonNameController,
-                                                        guestNumberTextEditingController:
-                                                            guestContactPersonNumberController,
-                                                        guestNumberNode:
-                                                            guestNumberNode,
-                                                        guestEmailController:
-                                                            guestEmailController,
-                                                        guestEmailNode:
-                                                            guestEmailNode,
-                                                        tooltipController1:
-                                                            tooltipController1,
-                                                        tooltipController2:
-                                                            tooltipController2,
-                                                        dmTipsTooltipController:
-                                                            tooltipController3,
-                                                        guestPasswordController:
-                                                            guestPasswordController,
-                                                        guestConfirmPasswordController:
-                                                            guestConfirmPasswordController,
-                                                        guestPasswordNode:
-                                                            guestPasswordNode,
-                                                        guestConfirmPasswordNode:
-                                                            guestConfirmPasswordNode,
-                                                        variationPrice:
-                                                            isPassedVariationPrice
-                                                                ? variations
-                                                                : 0,
-                                                        deliveryChargeForView:
-                                                            _deliveryChargeForView,
-                                                        badWeatherCharge:
-                                                            badWeatherChargeForToolTip,
-                                                        extraChargeForToolTip:
-                                                            extraChargeForToolTip,
-                                                      )),
-                                                  const SizedBox(
-                                                      width: Dimensions
-                                                          .paddingSizeLarge),
-                                                  Expanded(
-                                                      flex: 4,
-                                                      child: BottomSection(
-                                                        checkoutController:
-                                                            checkoutController,
-                                                        total: total,
-                                                        module: module!,
-                                                        subTotal: subTotal,
-                                                        discount: discount,
-                                                        couponController:
-                                                            couponController,
-                                                        taxIncluded:
-                                                            taxIncluded,
-                                                        tax: tax,
-                                                        deliveryCharge:
-                                                            validDeliveryCharge,
-                                                        todayClosed:
-                                                            todayClosed,
-                                                        tomorrowClosed:
                                                             tomorrowClosed,
-                                                        orderAmount:
                                                             orderAmount,
-                                                        maxCodOrderAmount:
+                                                            validDeliveryCharge,
+                                                            tax,
+                                                            discount,
+                                                            total,
                                                             maxCodOrderAmount,
-                                                        storeId:
-                                                            effectiveStoreId ??
-                                                                0,
-                                                        taxPercent: _taxPercent,
-                                                        price: price,
-                                                        addOns: addOns,
-                                                        isPrescriptionRequired:
                                                             isPrescriptionRequired,
-                                                        checkoutButton:
-                                                            _orderPlaceButton(
-                                                          kaidhaSubController,
-                                                          checkoutController,
-                                                          todayClosed,
-                                                          tomorrowClosed,
-                                                          orderAmount,
-                                                          validDeliveryCharge,
-                                                          tax,
-                                                          discount,
-                                                          total,
-                                                          maxCodOrderAmount,
-                                                          isPrescriptionRequired,
-                                                        ),
-                                                        referralDiscount:
-                                                            referralDiscount,
-                                                        variationPrice:
-                                                            isPassedVariationPrice
-                                                                ? variations
-                                                                : 0,
-                                                      )),
+                                                          ),
+                                                          referralDiscount:
+                                                              referralDiscount,
+                                                          variationPrice:
+                                                              isPassedVariationPrice
+                                                                  ? variations
+                                                                  : 0,
+                                                        )),
+                                                  ]),
+                                            )
+                                          : Column(
+                                              mainAxisSize: MainAxisSize
+                                                  .min, // Keep compact column size to avoid overflow.
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.start,
+                                              children: [
+                                                  TopSection(
+                                                    checkoutController:
+                                                        checkoutController,
+                                                    charge: originalCharge,
+                                                    deliveryCharge:
+                                                        validDeliveryCharge,
+                                                    addressList: addressList,
+                                                    tomorrowClosed:
+                                                        tomorrowClosed,
+                                                    todayClosed: todayClosed,
+                                                    module: module,
+                                                    price: price,
+                                                    discount: discount,
+                                                    addOns: addOns,
+                                                    isPrescriptionRequired:
+                                                        isPrescriptionRequired,
+                                                    address: address,
+                                                    cartList: _cartList,
+                                                    isCashOnDeliveryActive:
+                                                        _isCashOnDeliveryActive!,
+                                                    isDigitalPaymentActive:
+                                                        _isDigitalPaymentActive!,
+                                                    isWalletActive:
+                                                        _isWalletActive,
+                                                    storeId:
+                                                        effectiveStoreId ?? 0,
+                                                    total: total,
+                                                    isOfflinePaymentActive:
+                                                        _isOfflinePaymentActive,
+                                                    guestNameTextEditingController:
+                                                        guestContactPersonNameController,
+                                                    guestNumberTextEditingController:
+                                                        guestContactPersonNumberController,
+                                                    guestNumberNode:
+                                                        guestNumberNode,
+                                                    guestEmailController:
+                                                        guestEmailController,
+                                                    guestEmailNode:
+                                                        guestEmailNode,
+                                                    tooltipController1:
+                                                        tooltipController1,
+                                                    tooltipController2:
+                                                        tooltipController2,
+                                                    dmTipsTooltipController:
+                                                        tooltipController3,
+                                                    guestPasswordController:
+                                                        guestPasswordController,
+                                                    guestConfirmPasswordController:
+                                                        guestConfirmPasswordController,
+                                                    guestPasswordNode:
+                                                        guestPasswordNode,
+                                                    guestConfirmPasswordNode:
+                                                        guestConfirmPasswordNode,
+                                                    variationPrice:
+                                                        isPassedVariationPrice
+                                                            ? variations
+                                                            : 0,
+                                                    deliveryChargeForView:
+                                                        _deliveryChargeForView,
+                                                    badWeatherCharge:
+                                                        badWeatherChargeForToolTip,
+                                                    extraChargeForToolTip:
+                                                        extraChargeForToolTip,
+                                                  ),
+                                                  BottomSection(
+                                                    checkoutController:
+                                                        checkoutController,
+                                                    total: total,
+                                                    module: module!,
+                                                    subTotal: subTotal,
+                                                    discount: discount,
+                                                    couponController:
+                                                        couponController,
+                                                    taxIncluded: taxIncluded,
+                                                    tax: tax,
+                                                    deliveryCharge:
+                                                        validDeliveryCharge,
+                                                    todayClosed: todayClosed,
+                                                    tomorrowClosed:
+                                                        tomorrowClosed,
+                                                    orderAmount: orderAmount,
+                                                    maxCodOrderAmount:
+                                                        maxCodOrderAmount,
+                                                    storeId:
+                                                        effectiveStoreId ?? 0,
+                                                    taxPercent: _taxPercent,
+                                                    price: price,
+                                                    addOns: addOns,
+                                                    isPrescriptionRequired:
+                                                        isPrescriptionRequired,
+                                                    checkoutButton:
+                                                        _orderPlaceButton(
+                                                      kaidhaSubController,
+                                                      checkoutController,
+                                                      todayClosed,
+                                                      tomorrowClosed,
+                                                      orderAmount,
+                                                      validDeliveryCharge,
+                                                      tax,
+                                                      discount,
+                                                      total,
+                                                      maxCodOrderAmount,
+                                                      isPrescriptionRequired,
+                                                    ),
+                                                    referralDiscount:
+                                                        referralDiscount,
+                                                    variationPrice:
+                                                        isPassedVariationPrice
+                                                            ? variations
+                                                            : 0,
+                                                  )
                                                 ]),
-                                          )
-                                        : Column(
+                                    )),
+                                  )),
+
+                                  ResponsiveHelper.isDesktop(context)
+                                      ? const SizedBox()
+                                      : Container(
+                                          decoration: BoxDecoration(
+                                            color: Theme.of(context).cardColor,
+                                            boxShadow: [
+                                              BoxShadow(
+                                                  color: Theme.of(context)
+                                                      .primaryColor
+                                                      .withValues(alpha: 0.1),
+                                                  blurRadius: 10)
+                                            ],
+                                          ),
+                                          child: Column(
                                             mainAxisSize: MainAxisSize
                                                 .min, // Keep compact column size to avoid overflow.
-                                            crossAxisAlignment:
-                                                CrossAxisAlignment.start,
                                             children: [
-                                                TopSection(
-                                                  checkoutController:
-                                                      checkoutController,
-                                                  charge: originalCharge,
-                                                  deliveryCharge:
-                                                      validDeliveryCharge,
-                                                  addressList: addressList,
-                                                  tomorrowClosed:
-                                                      tomorrowClosed,
-                                                  todayClosed: todayClosed,
-                                                  module: module,
-                                                  price: price,
-                                                  discount: discount,
-                                                  addOns: addOns,
-                                                  isPrescriptionRequired:
-                                                      isPrescriptionRequired,
-                                                  address: address,
-                                                  cartList: _cartList,
-                                                  isCashOnDeliveryActive:
-                                                      _isCashOnDeliveryActive!,
-                                                  isDigitalPaymentActive:
-                                                      _isDigitalPaymentActive!,
-                                                  isWalletActive:
-                                                      _isWalletActive,
-                                                  storeId:
-                                                      effectiveStoreId ?? 0,
-                                                  total: total,
-                                                  isOfflinePaymentActive:
-                                                      _isOfflinePaymentActive,
-                                                  guestNameTextEditingController:
-                                                      guestContactPersonNameController,
-                                                  guestNumberTextEditingController:
-                                                      guestContactPersonNumberController,
-                                                  guestNumberNode:
-                                                      guestNumberNode,
-                                                  guestEmailController:
-                                                      guestEmailController,
-                                                  guestEmailNode:
-                                                      guestEmailNode,
-                                                  tooltipController1:
-                                                      tooltipController1,
-                                                  tooltipController2:
-                                                      tooltipController2,
-                                                  dmTipsTooltipController:
-                                                      tooltipController3,
-                                                  guestPasswordController:
-                                                      guestPasswordController,
-                                                  guestConfirmPasswordController:
-                                                      guestConfirmPasswordController,
-                                                  guestPasswordNode:
-                                                      guestPasswordNode,
-                                                  guestConfirmPasswordNode:
-                                                      guestConfirmPasswordNode,
-                                                  variationPrice:
-                                                      isPassedVariationPrice
-                                                          ? variations
-                                                          : 0,
-                                                  deliveryChargeForView:
-                                                      _deliveryChargeForView,
-                                                  badWeatherCharge:
-                                                      badWeatherChargeForToolTip,
-                                                  extraChargeForToolTip:
-                                                      extraChargeForToolTip,
-                                                ),
-                                                BottomSection(
-                                                  checkoutController:
-                                                      checkoutController,
-                                                  total: total,
-                                                  module: module!,
-                                                  subTotal: subTotal,
-                                                  discount: discount,
-                                                  couponController:
-                                                      couponController,
-                                                  taxIncluded: taxIncluded,
-                                                  tax: tax,
-                                                  deliveryCharge:
-                                                      validDeliveryCharge,
-                                                  todayClosed: todayClosed,
-                                                  tomorrowClosed:
-                                                      tomorrowClosed,
-                                                  orderAmount: orderAmount,
-                                                  maxCodOrderAmount:
-                                                      maxCodOrderAmount,
-                                                  storeId:
-                                                      effectiveStoreId ?? 0,
-                                                  taxPercent: _taxPercent,
-                                                  price: price,
-                                                  addOns: addOns,
-                                                  isPrescriptionRequired:
-                                                      isPrescriptionRequired,
-                                                  checkoutButton:
-                                                      _orderPlaceButton(
-                                                    kaidhaSubController,
-                                                    checkoutController,
-                                                    todayClosed,
-                                                    tomorrowClosed,
-                                                    orderAmount,
-                                                    validDeliveryCharge,
-                                                    tax,
-                                                    discount,
-                                                    total,
-                                                    maxCodOrderAmount,
-                                                    isPrescriptionRequired,
-                                                  ),
-                                                  referralDiscount:
-                                                      referralDiscount,
-                                                  variationPrice:
-                                                      isPassedVariationPrice
-                                                          ? variations
-                                                          : 0,
-                                                )
-                                              ]),
-                                  )),
-                                )),
-
-                                ResponsiveHelper.isDesktop(context)
-                                    ? const SizedBox()
-                                    : Container(
-                                        decoration: BoxDecoration(
-                                          color: Theme.of(context).cardColor,
-                                          boxShadow: [
-                                            BoxShadow(
-                                                color: Theme.of(context)
-                                                    .primaryColor
-                                                    .withValues(alpha: 0.1),
-                                                blurRadius: 10)
-                                          ],
-                                        ),
-                                        child: Column(
-                                          mainAxisSize: MainAxisSize
-                                              .min, // Keep compact column size to avoid overflow.
-                                          children: [
-                                            Padding(
-                                              padding: const EdgeInsets
-                                                  .symmetric(
-                                                  horizontal: Dimensions
-                                                      .paddingSizeLarge,
-                                                  vertical: Dimensions
-                                                      .paddingSizeExtraSmall),
-                                              child: Row(
-                                                  mainAxisAlignment:
-                                                      MainAxisAlignment
-                                                          .spaceBetween,
-                                                  children: [
-                                                    Text(
-                                                      checkoutController
-                                                              .isPartialPay
-                                                          ? 'due_payment'.tr
-                                                          : 'total_amount'.tr,
-                                                      style: robotoMedium.copyWith(
-                                                          fontSize: Dimensions
-                                                              .fontSizeLarge,
-                                                          color: Theme.of(
-                                                                  context)
-                                                              .primaryColor),
-                                                    ),
-                                                    GetBuilder<
-                                                        CheckoutController>(
-                                                      id: 'total',
-                                                      builder: (controller) {
-                                                        return PriceConverter
-                                                            .convertPrice2(
-                                                          controller
-                                                                  .viewTotalPrice ??
-                                                              0.0,
-                                                          textStyle:
-                                                              robotoMedium
-                                                                  .copyWith(
-                                                            color: Theme.of(
-                                                                    context)
-                                                                .primaryColor,
+                                              Padding(
+                                                padding: const EdgeInsets
+                                                    .symmetric(
+                                                    horizontal: Dimensions
+                                                        .paddingSizeLarge,
+                                                    vertical: Dimensions
+                                                        .paddingSizeExtraSmall),
+                                                child: Row(
+                                                    mainAxisAlignment:
+                                                        MainAxisAlignment
+                                                            .spaceBetween,
+                                                    children: [
+                                                      Text(
+                                                        checkoutController
+                                                                .isPartialPay
+                                                            ? 'due_payment'.tr
+                                                            : 'total_amount'.tr,
+                                                        style: robotoMedium.copyWith(
                                                             fontSize: Dimensions
                                                                 .fontSizeLarge,
-                                                          ),
-                                                        );
-                                                      },
-                                                    ),
-                                                  ]),
-                                            ),
-                                            _orderPlaceButton(
-                                              kaidhaSubController,
-                                              checkoutController,
-                                              todayClosed,
-                                              tomorrowClosed,
-                                              orderAmount,
-                                              validDeliveryCharge,
-                                              tax,
-                                              discount,
-                                              total,
-                                              maxCodOrderAmount,
-                                              isPrescriptionRequired,
-                                            ),
-                                          ],
+                                                            color: Theme.of(
+                                                                    context)
+                                                                .primaryColor),
+                                                      ),
+                                                      GetBuilder<
+                                                          CheckoutController>(
+                                                        id: 'total',
+                                                        builder: (controller) {
+                                                          return PriceConverter
+                                                              .convertPrice2(
+                                                            controller
+                                                                    .viewTotalPrice ??
+                                                                0.0,
+                                                            textStyle:
+                                                                robotoMedium
+                                                                    .copyWith(
+                                                              color: Theme.of(
+                                                                      context)
+                                                                  .primaryColor,
+                                                              fontSize: Dimensions
+                                                                  .fontSizeLarge,
+                                                            ),
+                                                          );
+                                                        },
+                                                      ),
+                                                    ]),
+                                              ),
+                                              _orderPlaceButton(
+                                                kaidhaSubController,
+                                                checkoutController,
+                                                todayClosed,
+                                                tomorrowClosed,
+                                                orderAmount,
+                                                validDeliveryCharge,
+                                                tax,
+                                                discount,
+                                                total,
+                                                maxCodOrderAmount,
+                                                isPrescriptionRequired,
+                                              ),
+                                            ],
+                                          ),
                                         ),
-                                      ),
-                              ],
-                            )
-                          : const Center(
-                              child: SizedBox(
-                                  width: Dimensions.webMaxWidth,
-                                  child: LoadingWidget()));
-                    });
-                  })
-              : NotLoggedInScreen(callBack: (value) {
-                  initCall();
-                  setState(() {});
-                }),
+                                ],
+                              )
+                            : const Center(
+                                child: SizedBox(
+                                    width: Dimensions.webMaxWidth,
+                                    child: LoadingWidget()));
+                      });
+                    })
+                : NotLoggedInScreen(callBack: (value) {
+                    initCall();
+                    setState(() {});
+                  }),
       ),
     );
   }
@@ -1337,15 +1360,94 @@ class CheckoutScreenState extends State<CheckoutScreen> {
                           return;
                         }
 
-                        // 2) Strict balance checks before continuing.
-                        // If Qidha wallet is selected (index 0) and balance is insufficient.
+                        // Force-refresh Qidha wallet to avoid stale ETag/304 cache.
+                        // Done as a separate block so if (!mounted) satisfies
+                        // the linter for all subsequent context usages.
                         if (selectedPaymentIndex == 0) {
+                          await kaidhaSubController.get_Wallet_Kaidh(
+                              forceRefresh: true);
+                          if (!mounted) {
+                            controller.setLoading(false, ids: ['payment']);
+                            return;
+                          }
+                          // Re-read qidhaBalance from freshly-fetched wallet.
+                          qidhaBalance = double.tryParse(kaidhaSubController
+                                      .walletKaidhaModel
+                                      ?.wallet
+                                      ?.availableBalance
+                                      ?.toString() ??
+                                  '0') ??
+                              0.0;
+                        }
+
+                        // 2) Eligibility checks for Qidha before ANY API call.
+                        if (selectedPaymentIndex == 0) {
+                          final kaidhaWallet =
+                              kaidhaSubController.walletKaidhaModel?.wallet;
+
+                          // Print raw wallet data for debugging.
+                          debugPrint(
+                              '[Qidha][SUBMIT-PRE] userId=${kaidhaWallet?.userId}'
+                              ' status=${kaidhaWallet?.status}'
+                              ' sig=${kaidhaWallet?.signatureStatus}'
+                              ' balance=${kaidhaWallet?.availableBalance}'
+                              ' creditLimit=${kaidhaWallet?.creditLimit}');
+
+                          // 2a) Wallet must be active
+                          final String? kaidhaStatus =
+                              kaidhaWallet?.status?.toLowerCase();
+                          if (kaidhaStatus != 'active') {
+                            debugPrint(
+                                '[Qidha][SUBMIT-BLOCK] wallet status=$kaidhaStatus (not active)');
+                            showCustomSnackBar('محفظة قيدها غير مفعّلة',
+                                isError: true);
+                            controller.setLoading(false, ids: ['payment']);
+                            return;
+                          }
+
+                          // 2b) Wallet must be signed/verified
+                          final dynamic sigRaw = kaidhaWallet?.signatureStatus;
+                          final bool kaidhaIsSigned =
+                              sigRaw == 1 || sigRaw == true;
+                          if (!kaidhaIsSigned) {
+                            debugPrint(
+                                '[Qidha][SUBMIT-BLOCK] signatureStatus=$sigRaw (not signed)');
+                            controller.setLoading(false, ids: ['payment']);
+                            Get.dialog(
+                              AlertDialog(
+                                title: const Text('محفظة قيدها'),
+                                content: const Text(
+                                    'لم يتم توقيع عقد محفظة قيدها بعد. يجب إكمال خطوة توقيع العقد لتفعيل الدفع.'),
+                                actions: [
+                                  TextButton(
+                                    onPressed: () => Get.back(),
+                                    child: const Text('إغلاق'),
+                                  ),
+                                  ElevatedButton(
+                                    onPressed: () {
+                                      Get.back();
+                                      Get.toNamed(RouteHelper
+                                          .getKiadaWalletSubscription());
+                                    },
+                                    child: const Text('إكمال التحقق'),
+                                  ),
+                                ],
+                              ),
+                            );
+                            return;
+                          }
+
+                          // 2c) Balance must cover the order total
                           if (qidhaBalance < total) {
                             showCustomSnackBar(
                                 'عفوًا، رصيد "قيدها" (${PriceConverter.convertPrice(qidhaBalance)}) غير كافٍ لإتمام الطلب (${PriceConverter.convertPrice(total)})',
                                 isError: true);
-                            return; // Stop immediately and do not continue.
+                            controller.setLoading(false, ids: ['payment']);
+                            return;
                           }
+
+                          debugPrint(
+                              '[Qidha][PRE-ORDER] ✅ status=$kaidhaStatus sig=${kaidhaWallet?.signatureStatus} balance=$qidhaBalance required=$total');
                         }
                         // If regular wallet is selected (index 1) and balance is insufficient.
                         else if (selectedPaymentIndex == 1) {
@@ -1763,9 +1865,16 @@ class CheckoutScreenState extends State<CheckoutScreen> {
                             );
 
                             // Step 1: Create Order
+                            if (selectedPaymentIndex == 0) {
+                              final w =
+                                  kaidhaSubController.walletKaidhaModel?.wallet;
+                              debugPrint(
+                                  '[Qidha][PRE-CREATE] → calling createOrder: status=${w?.status} sig=${w?.signatureStatus} balance=${w?.availableBalance} total=$total');
+                            }
                             debugPrint(
                                 '\x1B[32m📋 Step 1: Creating Order (Unpaid)...\x1B[0m');
 
+                            if (!mounted) return;
                             final String orderID =
                                 await checkoutController.createOrder(
                               context,
@@ -1781,6 +1890,7 @@ class CheckoutScreenState extends State<CheckoutScreen> {
                               return;
                             }
 
+                            if (!mounted) return;
                             // Step 2: Process Payment
                             final String paymentResult =
                                 await checkoutController.processPayment(
@@ -1795,10 +1905,10 @@ class CheckoutScreenState extends State<CheckoutScreen> {
                             );
                             if (paymentResult.isEmpty) {
                               debugPrint(
-                                  '❌ Payment Process Result: FAILED (empty orderId returned)');
+                                  '[Payment][FINAL] ❌ FAILED – method=$selectedPaymentIndex qidhaBalance=$qidhaBalance total=$total');
                             } else {
                               debugPrint(
-                                  '✅ Payment Process Result: SUCCESS (orderId=$paymentResult)');
+                                  '[Payment][FINAL] ✅ SUCCESS – orderId=$paymentResult method=$selectedPaymentIndex');
                             }
                           } else {
                             // Prescription Logic remains the same
@@ -2229,8 +2339,7 @@ class CheckoutScreenState extends State<CheckoutScreen> {
                 debugPrint('   📊 ModuleData (Pivot) values:');
                 debugPrint(
                     '      - perKmShippingCharge: ${moduleData.perKmShippingCharge}');
-                debugPrint(
-                    '      - firstKmFee: ${moduleData.firstKmFee}');
+                debugPrint('      - firstKmFee: ${moduleData.firstKmFee}');
                 debugPrint(
                     '      - firstKmDistance: ${moduleData.firstKmDistance}');
                 debugPrint(
@@ -2492,4 +2601,3 @@ class CheckoutScreenState extends State<CheckoutScreen> {
     }
   }
 }
-
