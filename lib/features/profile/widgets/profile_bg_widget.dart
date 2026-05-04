@@ -47,13 +47,16 @@ class ProfileBgWidget extends StatelessWidget {
           ),
         ),
 
-        backButton ? Positioned(
-          top: MediaQuery.of(context).padding.top, left: 10,
-          child: IconButton(
-            icon: Icon(Icons.arrow_back_ios, color: Theme.of(context).cardColor, size: 20),
-            onPressed: () => Get.back(),
-          ),
-        ) : const SizedBox(),
+        backButton
+            ? PositionedDirectional(
+                top: MediaQuery.of(context).padding.top,
+                start: 10,
+                child: BackButton(
+                  color: Theme.of(context).cardColor,
+                  onPressed: () => Get.back(),
+                ),
+              )
+            : const SizedBox(),
 
         Positioned(
           top: 150, left: 0, right: 0,

@@ -243,6 +243,9 @@ class _MenuScreenState extends State<MenuScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (kDebugMode) {
+      debugPrint('[ProfileMenu][DISCOUNT_ITEM_HIDDEN]');
+    }
     return Scaffold(
       backgroundColor: Theme.of(context).cardColor,
       body: SafeArea(
@@ -609,29 +612,6 @@ class _MenuScreenState extends State<MenuScreen> {
                                                 : true,
                                           )
                                         : const SizedBox(),
-                                    // (Get.find<SplashController>().configModel!.refEarningStatus == 1)
-                                    (1 == 1)
-                                        ? PortionWidget(
-                                            icon: Images.discount,
-                                            title: 'discount'.tr,
-                                            route: RouteHelper.getDiscount(),
-                                            onTap: () =>
-                                                _runWithLoginRequired(() {
-                                              Get.toNamed(
-                                                  RouteHelper.getDiscount());
-                                            }),
-                                            hideDivider: (toggleDmRegistration &&
-                                                        !ResponsiveHelper
-                                                            .isDesktop(
-                                                                context)) ||
-                                                    (toggleStoreRegistration &&
-                                                        !ResponsiveHelper
-                                                            .isDesktop(context))
-                                                ? false
-                                                : true,
-                                          )
-                                        : const SizedBox(),
-
                                     if (!isLoggedIn)
                                       PortionWidget(
                                         icon: Images.walletCreditIcon,

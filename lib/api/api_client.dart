@@ -656,6 +656,9 @@ class ApiClient extends GetxService {
       String? requestId}) async {
     try {
       final fullUri = changeBaseUrl ? newUri!.toString() : uri;
+      final bool isCouponApplyUri =
+          fullUri.contains('/api/v1/coupon/apply');
+      final bool effectiveUseEtag = useEtag && !isCouponApplyUri;
       final String effectiveRequestId =
           requestId ?? 'req_${DateTime.now().millisecondsSinceEpoch}';
 
@@ -677,9 +680,13 @@ class ApiClient extends GetxService {
       // ⚠️ CRITICAL: Merge custom headers with default headers to ensure moduleId is always included
       // Custom headers override defaults, but defaults provide moduleId, zoneId, etc.
       final Map<String, String> finalHeaders = _prepareFinalHeaders(headers);
-      if (!useEtag) {
+      if (!effectiveUseEtag) {
         // Signal SecureHttpClient to skip ETag for this request
         finalHeaders['X-Disable-ETag'] = 'true';
+      }
+      if (isCouponApplyUri) {
+        finalHeaders['Cache-Control'] = 'no-cache';
+        finalHeaders['Pragma'] = 'no-cache';
       }
 
       // Log API call start with full details (after headers are prepared)
@@ -795,7 +802,7 @@ class ApiClient extends GetxService {
       // ⚡ TASK 4: ETag handling moved to SecureHttpClient interceptor
       // Only add ETag for fallback HTTP client (non-secure requests)
       // SecureHttpClient interceptor handles ETags for secure requests
-      if (useEtag &&
+      if (effectiveUseEtag &&
           !finalHeaders.containsKey('If-None-Match') &&
           !canUseSecureClient) {
         final storedEtag = await _getStoredEtag(uri, headers: finalHeaders);
@@ -836,7 +843,7 @@ class ApiClient extends GetxService {
           // ⚡ TASK 4: ETag storage moved to SecureHttpClient interceptor
           // This code is kept for backward compatibility but interceptor handles it
           // Only store if interceptor didn't (shouldn't happen, but safety check)
-          if (useEtag && response.statusCode == 200) {
+          if (effectiveUseEtag && response.statusCode == 200) {
             final etag = response.headers.value('etag') ??
                 response.headers.value('ETag');
             if (etag != null) {
@@ -976,7 +983,7 @@ class ApiClient extends GetxService {
         });
       } catch (_) {}
 
-      if (useEtag && (dioGetResp.statusCode as int?) == 200) {
+      if (effectiveUseEtag && (dioGetResp.statusCode as int?) == 200) {
         final etag = getFallbackHeaders['etag'] ?? getFallbackHeaders['ETag'];
         if (etag != null) {
           await _storeEtag(uri, etag, headers: finalHeaders);

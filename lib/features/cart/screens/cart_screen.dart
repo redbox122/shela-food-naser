@@ -666,8 +666,8 @@ class _CartScreenState extends State<CartScreen> with RouteAware {
                                       Dimensions.radiusDefault)),
                             ),
                             child: Column(children: [
-                              // Promo code input from touese design - now in fixed section
-                              _ModernPromoInput(),
+                              // Promo / applied coupon (rebuilds with CouponController)
+                              const _CartPromoSection(),
 
                               const SizedBox(height: 12),
 
@@ -688,7 +688,40 @@ class _CartScreenState extends State<CartScreen> with RouteAware {
                                               .configModel!
                                               .taxIncluded ==
                                           1;
-                                  return Column(children: [
+                                  return GetBuilder<CouponController>(
+                                      builder: (CouponController couponCtrl) {
+                                    final double couponDisc =
+                                        couponCtrl.discount ?? 0.0;
+                                    final bool couponFree =
+                                        couponCtrl.freeDelivery;
+                                    if (kDebugMode &&
+                                        (couponDisc > 0 || couponFree)) {
+                                      final double taxPreview =
+                                          _calculateCartTaxAmount(
+                                        cartController.subTotal,
+                                        effectiveTaxPercent,
+                                        taxIncluded,
+                                      );
+                                      final double addCh =
+                                          Get.find<SplashController>()
+                                                  .configModel!
+                                                  .additionalChargeStatus!
+                                              ? Get.find<SplashController>()
+                                                  .configModel!
+                                                  .additionCharge!
+                                              : 0;
+                                      final double totalBefore = cartController
+                                              .subTotal +
+                                          (taxIncluded ? 0 : taxPreview) +
+                                          addCh;
+                                      final double totalAfter = totalBefore -
+                                          couponDisc;
+                                      debugPrint(
+                                        '[Coupon][STATE] appliedCouponCode=${couponCtrl.coupon?.code} '
+                                        'couponDiscount=$couponDisc totalBefore=$totalBefore totalAfter=$totalAfter',
+                                      );
+                                    }
+                                    return Column(children: [
                                     // Modern summary rows with actual app price calculations
                                     _ModernSummaryRow(
                                       label: 'subtotal'.tr,
@@ -737,7 +770,30 @@ class _CartScreenState extends State<CartScreen> with RouteAware {
                                       const _DividerLine(),
                                     ],
 
-                                    // Delivery row removed - calculated at checkout based on actual distance
+                                    if (couponDisc > 0.0001) ...[
+                                      _ModernSummaryRow(
+                                        label: couponCtrl.coupon
+                                                    ?.discountType ==
+                                                'percent'
+                                            ? '${'coupon_discount'.tr} (${_formatPercent(couponCtrl.coupon?.discount)})'
+                                            : 'coupon_discount'.tr,
+                                        value: PriceConverter.convertPrice2(
+                                          couponDisc,
+                                          prefixText: '(-) ',
+                                          textStyle: robotoRegular,
+                                        ),
+                                      ),
+                                      const _DividerLine(),
+                                    ] else if (couponFree) ...[
+                                      _ModernSummaryRow(
+                                        label: 'coupon_discount'.tr,
+                                        value: Text(
+                                          'free_delivery'.tr,
+                                          style: robotoRegular,
+                                        ),
+                                      ),
+                                      const _DividerLine(),
+                                    ],
 
                                     // Total row with item count and actual calculations
                                     _ModernSummaryRow(
@@ -748,6 +804,7 @@ class _CartScreenState extends State<CartScreen> with RouteAware {
                                         taxPercent: effectiveTaxPercent,
                                         taxIncluded: taxIncluded,
                                         cartList: cartController.cartList,
+                                        couponDiscount: couponDisc,
                                       ),
                                       isTotal: true,
                                     ),
@@ -826,6 +883,7 @@ class _CartScreenState extends State<CartScreen> with RouteAware {
                                         height:
                                             Dimensions.paddingSizeExtraLarge),
                                   ]);
+                                  });
                                 },
                               ),
                             ]),
@@ -1350,6 +1408,7 @@ class _CartScreenState extends State<CartScreen> with RouteAware {
     required double? taxPercent,
     required bool taxIncluded,
     required List<CartModel> cartList,
+    double couponDiscount = 0.0,
   }) {
     // #region agent log
     _writeDebugLog(
@@ -1378,8 +1437,10 @@ class _CartScreenState extends State<CartScreen> with RouteAware {
             : 0;
 
     // Calculate total without delivery charge (delivery fee calculated at checkout)
-    // App fee is included in total
-    final double total = subTotal + (taxIncluded ? 0 : tax) + additionalCharge;
+    // App fee is included in total; subtract coupon discount (same base as checkout order line)
+    final double totalBeforeCoupon =
+        subTotal + (taxIncluded ? 0 : tax) + additionalCharge;
+    final double total = totalBeforeCoupon - couponDiscount;
 
     // #region agent log
     _writeDebugLog(
@@ -1389,6 +1450,7 @@ class _CartScreenState extends State<CartScreen> with RouteAware {
           'total': total,
           'tax': tax,
           'taxIncluded': taxIncluded,
+          'couponDiscount': couponDiscount,
         },
         'B');
     // #endregion
@@ -1707,14 +1769,95 @@ class _CloseDot extends StatelessWidget {
   }
 }
 
-/// Modern promo input field from touese design
-class _ModernPromoInput extends StatelessWidget {
+String _formatPercentForCoupon(double? value) {
+  if (value == null) {
+    return '0%';
+  }
+  final bool isWhole = value % 1 == 0;
+  return isWhole
+      ? '${value.toStringAsFixed(0)}%'
+      : '${value.toStringAsFixed(2)}%';
+}
+
+/// Promo input or applied-coupon summary (cart السلة).
+class _CartPromoSection extends StatefulWidget {
+  const _CartPromoSection();
+
+  @override
+  State<_CartPromoSection> createState() => _CartPromoSectionState();
+}
+
+class _CartPromoSectionState extends State<_CartPromoSection> {
+  final TextEditingController _couponInputController = TextEditingController();
+
+  @override
+  void dispose() {
+    _couponInputController.dispose();
+    super.dispose();
+  }
+
+  void _executeClearCoupon(CouponController couponController) {
+    couponController.removeCouponData(true);
+    Get.find<CartController>().update(['cart_summary']);
+    if (kDebugMode) {
+      debugPrint(
+        '[Coupon][UI_REBUILD] inputVisible=true discountRowVisible=false (cart promo cleared)',
+      );
+    }
+  }
+
+  void _applyPromoCode(CouponController couponController) {
+    final String entered = _couponInputController.text.trim();
+    if (kDebugMode) {
+      debugPrint('[Coupon][INPUT] controllerText=$entered');
+    }
+    if (entered.isEmpty) {
+      showCustomSnackBar('enter_a_coupon_code'.tr);
+      return;
+    }
+    final CartController cartController = Get.find<CartController>();
+    final double orderAmount = cartController.subTotal;
+    couponController
+        .applyCoupon(
+      entered,
+      orderAmount,
+      15.0,
+      Get.find<StoreController>().store?.id,
+    )
+        .then((double? _) {
+      if (!mounted) {
+        return;
+      }
+      final CouponController cc = Get.find<CouponController>();
+      if (cc.hasAppliedCoupon) {
+        showCustomSnackBar('coupon_applied_successfully'.tr, isError: false);
+        _couponInputController.clear();
+        cartController.update(['cart_summary']);
+        if (kDebugMode) {
+          debugPrint(
+            '[Coupon][UI_REBUILD] inputVisible=${!cc.hasAppliedCoupon} discountRowVisible=${cc.hasAppliedCoupon}',
+          );
+        }
+      }
+    }).catchError((Object error) {
+      if (!mounted) {
+        return;
+      }
+      showCustomSnackBar('coupon_error_invalid_code'.tr);
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final bool isRTL = Get.locale?.languageCode == 'ar';
-
     return GetBuilder<CouponController>(
-      builder: (couponController) {
+      builder: (CouponController couponController) {
+        if (couponController.hasAppliedCoupon) {
+          return _AppliedCartCouponSummary(
+            controller: couponController,
+            onClear: () => _executeClearCoupon(couponController),
+          );
+        }
         return Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
           child: Container(
@@ -1729,6 +1872,7 @@ class _ModernPromoInput extends StatelessWidget {
                 const SizedBox(width: 16),
                 Expanded(
                   child: TextField(
+                    controller: _couponInputController,
                     textAlign: isRTL ? TextAlign.right : TextAlign.left,
                     textDirection:
                         isRTL ? TextDirection.rtl : TextDirection.ltr,
@@ -1736,7 +1880,9 @@ class _ModernPromoInput extends StatelessWidget {
                       border: InputBorder.none,
                       hintText: isRTL ? 'برومو كود' : 'promo_code'.tr,
                       hintStyle: const TextStyle(
-                          color: CartColors.light, fontSize: 18),
+                        color: CartColors.light,
+                        fontSize: 18,
+                      ),
                     ),
                   ),
                 ),
@@ -1760,8 +1906,9 @@ class _ModernPromoInput extends StatelessWidget {
                               width: 20,
                               height: 20,
                               child: CircularProgressIndicator(
-                                valueColor:
-                                    AlwaysStoppedAnimation<Color>(Colors.white),
+                                valueColor: AlwaysStoppedAnimation<Color>(
+                                  Colors.white,
+                                ),
                                 strokeWidth: 2,
                               ),
                             )
@@ -1783,33 +1930,123 @@ class _ModernPromoInput extends StatelessWidget {
       },
     );
   }
+}
 
-  /// Apply promo code with proper validation
-  void _applyPromoCode(CouponController couponController) {
-    // Get cart total for validation
-    final cartTotal = Get.find<CartController>().cartList.fold<double>(
-        0.0, (sum, cart) => sum + (cart.price ?? 0) * (cart.quantity ?? 1));
+class _AppliedCartCouponSummary extends StatelessWidget {
+  const _AppliedCartCouponSummary({
+    required this.controller,
+    required this.onClear,
+  });
 
-    // Apply coupon through API
-    couponController
-        .applyCoupon(
-      '', // Empty string for now, you can add a controller for the promo code input
-      cartTotal,
-      15.0, // Delivery charge (fixed at 15 ريال)
-      Get.find<StoreController>().store?.id,
-    )
-        .then((discount) {
-      if (discount != null && discount > 0) {
-        showCustomSnackBar(
-          '${'you_got_discount_of'.tr} ${PriceConverter.convertPrice2(discount)}',
-          isError: false,
-        );
-      } else {
-        showCustomSnackBar('invalid_code_or'.tr);
-      }
-    }).catchError((error) {
-      showCustomSnackBar('invalid_code_or'.tr);
-    });
+  final CouponController controller;
+  final VoidCallback onClear;
+
+  @override
+  Widget build(BuildContext context) {
+    final bool isRTL = Get.locale?.languageCode == 'ar';
+    final String code = controller.coupon?.code ?? '';
+    final double discountAmount = controller.discount ?? 0.0;
+    final bool isPercent = controller.coupon?.discountType == 'percent';
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: CartColors.divider),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(
+                  Icons.local_offer_outlined,
+                  color: CartColors.green,
+                  size: 22,
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '${'applied_coupon_code_label'.tr}: $code',
+                        style: robotoMedium.copyWith(
+                          fontSize: 15,
+                          color: CartColors.dark,
+                        ),
+                        textAlign: isRTL ? TextAlign.right : TextAlign.left,
+                      ),
+                      if (isPercent && controller.coupon?.discount != null) ...[
+                        const SizedBox(height: 6),
+                        Text(
+                          '${'coupon_discount_percent_label'.tr}: ${_formatPercentForCoupon(controller.coupon?.discount)}',
+                          style: robotoRegular.copyWith(
+                            fontSize: 14,
+                            color: CartColors.light,
+                          ),
+                          textAlign: isRTL ? TextAlign.right : TextAlign.left,
+                        ),
+                      ],
+                      if (discountAmount > 0.0001) ...[
+                        const SizedBox(height: 6),
+                        Text(
+                          '${'coupon_discount_amount_label'.tr}: (-) ${PriceConverter.convertPrice(discountAmount)}',
+                          style: robotoRegular.copyWith(
+                            fontSize: 14,
+                            color: CartColors.dark,
+                          ),
+                          textAlign: isRTL ? TextAlign.right : TextAlign.left,
+                        ),
+                      ] else if (controller.freeDelivery) ...[
+                        const SizedBox(height: 6),
+                        Text(
+                          'free_delivery'.tr,
+                          style: robotoRegular.copyWith(
+                            fontSize: 14,
+                            color: CartColors.green,
+                          ),
+                          textAlign: isRTL ? TextAlign.right : TextAlign.left,
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                TextButton(
+                  onPressed: onClear,
+                  child: Text(
+                    'change_coupon_code'.tr,
+                    style: robotoMedium.copyWith(
+                      fontSize: 13,
+                      color: CartColors.green,
+                    ),
+                  ),
+                ),
+                TextButton(
+                  onPressed: onClear,
+                  child: Text(
+                    'remove'.tr,
+                    style: robotoMedium.copyWith(
+                      fontSize: 13,
+                      color: CartColors.light,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
 
@@ -1964,8 +2201,6 @@ class _ModernPaymentButton extends StatelessWidget {
                         HomeScreen.loadData(context, true);
                       }
                     }
-                    Get.find<CouponController>().removeCouponData(false);
-
                     final bool isLoggedIn = AuthHelper.isLoggedIn();
 
                     if (!isLoggedIn) {
@@ -2079,8 +2314,6 @@ class CheckoutButton extends StatelessWidget {
         Get.find<SplashController>()
             .setModule(Get.find<SplashController>().moduleList![moduleIndex]);
       }
-
-      Get.find<CouponController>().removeCouponData(false);
 
       bool isLoggedIn = AuthHelper.isLoggedIn();
       if (!isLoggedIn) {

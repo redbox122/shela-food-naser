@@ -1278,6 +1278,15 @@ class HiveHomeCacheService {
       return;
     }
 
+    if (uri.contains('/api/v1/coupon/apply')) {
+      if (kDebugMode) {
+        debugPrint(
+          'HiveHomeCacheService: skipped ETag save for coupon apply ($uri)',
+        );
+      }
+      return;
+    }
+
     try {
       final box = await _getLazyBox(HiveCacheConfig.appConfigBoxName);
       final uriHash = uri.hashCode.toRadixString(36);
@@ -1298,6 +1307,10 @@ class HiveHomeCacheService {
   /// ⚡ TASK 3: Get ETag from app_config Hive box
   Future<String?> getEtag(String uri) async {
     if (!HiveCacheConfig.isHiveEnabled) {
+      return null;
+    }
+
+    if (uri.contains('/api/v1/coupon/apply')) {
       return null;
     }
 

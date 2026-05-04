@@ -157,7 +157,13 @@ class AppConstants {
   static const String cartMergeUri = '/cart/merge';
   static const String setMenuUri = '/api/v1/items/set-menu';
   static const String customerInfoUri = '/api/v1/customer/info';
+  /// Authenticated My Coupons list (user-specific e.g. is_used). Use headers + auth.
   static const String couponUri = '/api/v1/coupon/list';
+  /// Public / unauthenticated catalog; not used for My Coupons screen.
+  static const String couponListAllUri = '/api/v1/coupon/list/all';
+  /// POST JSON body: `{ "code": "<coupon>", "store_id"?: <int> }`
+  static const String couponApplyPostUri = '/api/v1/coupon/apply';
+  /// Legacy GET: `/api/v1/coupon/apply?code=<encoded>&store_id=<id>`
   static const String couponApplyUri = '/api/v1/coupon/apply?code=';
   static const String runningOrderListUri =
       '/api/v1/customer/order/running-orders';

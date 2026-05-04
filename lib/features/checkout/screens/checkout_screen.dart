@@ -321,7 +321,15 @@ class CheckoutScreenState extends State<CheckoutScreen> {
         currentAddress?.house ?? '';
     Get.find<CheckoutController>().floorController.text =
         currentAddress?.floor ?? '';
-    Get.find<CheckoutController>().couponController.text = '';
+    final CouponController couponState = Get.find<CouponController>();
+    if (couponState.hasAppliedCoupon &&
+        couponState.coupon?.code != null &&
+        couponState.coupon!.code!.isNotEmpty) {
+      Get.find<CheckoutController>().couponController.text =
+          couponState.coupon!.code!;
+    } else {
+      Get.find<CheckoutController>().couponController.text = '';
+    }
 
     // Defer non-critical API calls to reduce memory pressure during initialization
     Future.delayed(const Duration(milliseconds: 500), () {
@@ -397,7 +405,6 @@ class CheckoutScreenState extends State<CheckoutScreen> {
       if (!mounted) {
         return;
       }
-      Get.find<CouponController>().removeCouponData(false);
     } else {
       appLogger
           .error('❌ CRITICAL: No storeId available from widget or arguments');
@@ -839,7 +846,8 @@ class CheckoutScreenState extends State<CheckoutScreen> {
                                 subTotal +
                                     validDeliveryCharge +
                                     additionalCharge +
-                                    (taxIncluded ? 0 : tax),
+                                    (taxIncluded ? 0 : tax) -
+                                    couponDiscount,
                               )
                             : _calculateTotal(
                                 subTotal: subTotal,
@@ -1760,11 +1768,33 @@ class CheckoutScreenState extends State<CheckoutScreen> {
                               return;
                             }
 
+                            final CouponController couponForOrder =
+                                Get.find<CouponController>();
+                            final bool hasOrderCoupon =
+                                couponForOrder.hasAppliedCoupon;
+                            final String? orderCouponCode = hasOrderCoupon
+                                ? couponForOrder.coupon?.code
+                                : null;
+                            final double orderCouponDiscountAmount =
+                                hasOrderCoupon
+                                    ? (couponForOrder.discount ?? 0.0)
+                                    : 0.0;
+                            final String? orderCouponTitle = hasOrderCoupon
+                                ? (couponForOrder.coupon?.title != null &&
+                                        couponForOrder
+                                            .coupon!.title!.isNotEmpty
+                                    ? couponForOrder.coupon!.title
+                                    : couponForOrder.coupon?.code)
+                                : null;
+                            final int? orderCouponCreatedBy = hasOrderCoupon
+                                ? couponForOrder.coupon?.id
+                                : null;
                             final PlaceOrderBodyModel placeOrderBody =
                                 PlaceOrderBodyModel(
                               cart: carts,
-                              couponDiscountAmount:
-                                  Get.find<CouponController>().discount,
+                              couponDiscountAmount: hasOrderCoupon
+                                  ? orderCouponDiscountAmount
+                                  : null,
                               distance: checkoutController.distance,
                               scheduleAt: !checkoutController
                                       .store!.scheduleOrder!
@@ -1782,15 +1812,9 @@ class CheckoutScreenState extends State<CheckoutScreen> {
                               // Use the resolved payment method value.
                               paymentMethod: finalPaymentMethod,
 
-                              couponCode: (Get.find<CouponController>()
-                                              .discount! >
-                                          0 ||
-                                      (Get.find<CouponController>().coupon !=
-                                              null &&
-                                          Get.find<CouponController>()
-                                              .freeDelivery))
-                                  ? Get.find<CouponController>().coupon!.code
-                                  : null,
+                              couponCode: orderCouponCode,
+                              couponDiscountTitle: orderCouponTitle,
+                              couponCreatedBy: orderCouponCreatedBy,
                               storeId: _cartList![0]!.item!.storeId,
                               branchId: _cartList![0]!.item!.storeId,
                               address: payloadAddress.address ?? '',

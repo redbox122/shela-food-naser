@@ -44,6 +44,8 @@ class PlaceOrderBodyModel {
   double? _extraPackagingAmount;
   int? _createNewUser;
   String? _password;
+  String? _couponDiscountTitle;
+  int? _couponCreatedBy;
   // Removed _paymentConfirmation and _walletQidhaStatus as they cause 500 errors
 
   PlaceOrderBodyModel({
@@ -84,6 +86,8 @@ class PlaceOrderBodyModel {
     required double? extraPackagingAmount,
     required int? createNewUser,
     required String? password,
+    String? couponDiscountTitle,
+    int? couponCreatedBy,
     // Removed paymentConfirmation and walletQidhaStatus as they cause 500 errors
   }) {
     _cart = cart;
@@ -123,6 +127,8 @@ class PlaceOrderBodyModel {
     _extraPackagingAmount = extraPackagingAmount;
     _createNewUser = createNewUser;
     _password = password;
+    _couponDiscountTitle = couponDiscountTitle;
+    _couponCreatedBy = couponCreatedBy;
     // Removed paymentConfirmation and walletQidhaStatus assignments
   }
 
@@ -162,6 +168,8 @@ class PlaceOrderBodyModel {
   double? get extraPackagingAmount => _extraPackagingAmount;
   int? get createNewUser => _createNewUser;
   String? get password => _password;
+  String? get couponDiscountTitle => _couponDiscountTitle;
+  int? get couponCreatedBy => _couponCreatedBy;
   // Removed paymentConfirmation and walletQidhaStatus getters
 
   PlaceOrderBodyModel.fromJson(Map<String, dynamic> json) {
@@ -242,6 +250,13 @@ class PlaceOrderBodyModel {
     }
     if (_couponCode != null) {
       data['coupon_code'] = _couponCode!;
+    }
+    if (_couponDiscountTitle != null &&
+        _couponDiscountTitle!.trim().isNotEmpty) {
+      data['coupon_discount_title'] = _couponDiscountTitle!;
+    }
+    if (_couponCreatedBy != null) {
+      data['coupon_created_by'] = _couponCreatedBy.toString();
     }
     if (_storeId != null) {
       data['store_id'] = _storeId.toString();
@@ -327,6 +342,13 @@ class PlaceOrderBodyModel {
     }
     if (_couponCode != null) {
       data['coupon_code'] = _couponCode;
+    }
+    if (_couponDiscountTitle != null &&
+        _couponDiscountTitle!.trim().isNotEmpty) {
+      data['coupon_discount_title'] = _couponDiscountTitle;
+    }
+    if (_couponCreatedBy != null) {
+      data['coupon_created_by'] = _couponCreatedBy;
     }
     if (_storeId != null) {
       data['store_id'] = _storeId;

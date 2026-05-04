@@ -48,6 +48,9 @@ class CustomTextField extends StatefulWidget {
   final Function()? suffixOnPressed;
   final bool divider;
   final bool fromUpdateProfile;
+  /// When the field is disabled and shows "(non_changeable)", use a neutral
+  /// color instead of [ColorScheme.error] (e.g. read-only phone on profile).
+  final bool neutralHintForNonChangeable;
 
   const CustomTextField({
     super.key,
@@ -87,6 +90,7 @@ class CustomTextField extends StatefulWidget {
     this.suffixImage,
     this.divider = false,
     this.fromUpdateProfile = false,
+    this.neutralHintForNonChangeable = false,
   });
 
   @override
@@ -263,7 +267,9 @@ class CustomTextFieldState extends State<CustomTextField> {
                                 : '(${'non_changeable'.tr})',
                             style: robotoRegular.copyWith(
                                 fontSize: Dimensions.fontSizeLarge,
-                                color: theme.colorScheme.error)),
+                                color: widget.neutralHintForNonChangeable
+                                    ? theme.hintColor.withValues(alpha: 0.75)
+                                    : theme.colorScheme.error)),
                     ]))
                   : null,
               prefixIcon: widget.prefixImage != null && widget.prefixIcon == null
@@ -317,9 +323,11 @@ class CustomTextFieldState extends State<CustomTextField> {
                               onChanged: widget.onCountryChanged,
                               initialSelection: widget.countryDialCode,
                               favorite: [widget.countryDialCode ?? ''],
-                              enabled: Get.find<SplashController>()
-                                  .configModel
-                                  ?.countryPickerStatus,
+                              enabled: widget.isEnabled &&
+                                  (Get.find<SplashController>()
+                                          .configModel
+                                          ?.countryPickerStatus ??
+                                      true),
                               dialogBackgroundColor: theme.cardColor,
                               textStyle: robotoRegular.copyWith(
                                 fontSize: Dimensions.fontSizeDefault,

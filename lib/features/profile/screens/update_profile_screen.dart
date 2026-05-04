@@ -36,14 +36,11 @@ class UpdateProfileScreen extends StatefulWidget {
 class _UpdateProfileScreenState extends State<UpdateProfileScreen> {
   final FocusNode _nameFocus = FocusNode();
   final FocusNode _emailFocus = FocusNode();
-  final FocusNode _phoneFocus = FocusNode();
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _phoneController = TextEditingController();
   JustTheController toolController = JustTheController();
   final ScrollController scrollController = ScrollController();
-  bool isPhoneVerified = false;
-  bool isEmailVerified = false;
   String? _countryDialCode;
   bool _isPhoneLoading = true;
 
@@ -269,84 +266,35 @@ class _UpdateProfileScreenState extends State<UpdateProfileScreen> {
                                             const SizedBox(
                                                 height: Dimensions
                                                     .paddingSizeExtraOverLarge),
-                                            Stack(children: [
-                                              CustomTextField(
-                                                titleText:
-                                                    'write_phone_number'.tr,
-                                                controller: _phoneController,
-                                                focusNode: _phoneFocus,
-                                                inputType: TextInputType.phone,
-                                                prefixIcon:
-                                                    CupertinoIcons.lock_fill,
-                                                isEnabled: !profileController
-                                                        .userInfoModel!
-                                                        .isPhoneVerified! ||
-                                                    profileController
-                                                            .userInfoModel!
-                                                            .phone ==
-                                                        null,
-                                                fromUpdateProfile: true,
-                                                labelText: 'phone'.tr,
-                                                required: true,
-                                                isPhone: true,
-                                                onCountryChanged:
-                                                    (CountryCode countryCode) =>
-                                                        _countryDialCode =
-                                                            countryCode
-                                                                .dialCode,
-                                                countryDialCode: _countryDialCode ??
-                                                    Get.find<
-                                                            LocalizationController>()
-                                                        .locale
-                                                        .countryCode,
-                                                suffixImage: profileController
-                                                        .userInfoModel!
-                                                        .isPhoneVerified!
-                                                    ? Images.verifiedIcon
-                                                    : null,
-                                              ),
-                                              Positioned(
-                                                right: 15,
-                                                top: 15,
-                                                child: !profileController
-                                                            .userInfoModel!
-                                                            .isPhoneVerified! &&
-                                                        Get.find<
-                                                                SplashController>()
-                                                            .configModel!
-                                                            .centralizeLoginSetup!
-                                                            .phoneVerificationStatus!
-                                                    ? InkWell(
-                                                        onTap: () async {
-                                                          if (!profileController
-                                                                  .userInfoModel!
-                                                                  .isPhoneVerified! &&
-                                                              Get.find<
-                                                                      SplashController>()
-                                                                  .configModel!
-                                                                  .centralizeLoginSetup!
-                                                                  .phoneVerificationStatus!) {
-                                                            Get.dialog(
-                                                                const CustomLoaderWidget());
-                                                            await _updateProfile(
-                                                                profileController:
-                                                                    profileController,
-                                                                fromButton:
-                                                                    false,
-                                                                fromPhone:
-                                                                    true);
-                                                          }
-                                                        },
-                                                        child: Image.asset(
-                                                            Images
-                                                                .unverifiedIcon,
-                                                            height: 20,
-                                                            width: 20,
-                                                            fit: BoxFit.cover),
-                                                      )
-                                                    : const SizedBox(),
-                                              ),
-                                            ]),
+                                            CustomTextField(
+                                              titleText:
+                                                  'write_phone_number'.tr,
+                                              controller: _phoneController,
+                                              inputType: TextInputType.phone,
+                                              prefixIcon:
+                                                  CupertinoIcons.phone_fill,
+                                              isEnabled: false,
+                                              fromUpdateProfile: true,
+                                              neutralHintForNonChangeable:
+                                                  true,
+                                              labelText: 'phone'.tr,
+                                              required: false,
+                                              isPhone: true,
+                                              onCountryChanged:
+                                                  (CountryCode countryCode) =>
+                                                      _countryDialCode =
+                                                          countryCode.dialCode,
+                                              countryDialCode: _countryDialCode ??
+                                                  Get.find<
+                                                          LocalizationController>()
+                                                      .locale
+                                                      .countryCode,
+                                              suffixImage: profileController
+                                                      .userInfoModel!
+                                                      .isPhoneVerified!
+                                                  ? Images.verifiedIcon
+                                                  : null,
+                                            ),
                                           ]))),
                             )),
                             CustomButton(
@@ -545,63 +493,27 @@ class _UpdateProfileScreenState extends State<UpdateProfileScreen> {
                           ),
                           const SizedBox(
                               height: Dimensions.paddingSizeExtraOverLarge),
-                          Stack(children: [
-                            CustomTextField(
-                              titleText: 'phone'.tr,
-                              controller: _phoneController,
-                              focusNode: _phoneFocus,
-                              inputType: TextInputType.phone,
-                              isEnabled: !profileController
-                                      .userInfoModel!.isPhoneVerified! ||
-                                  profileController.userInfoModel!.phone ==
-                                      null,
-                              fromUpdateProfile: true,
-                              labelText: 'phone'.tr,
-                              required: true,
-                              isPhone: true,
-                              onCountryChanged: (CountryCode countryCode) =>
-                                  _countryDialCode = countryCode.dialCode,
-                              countryDialCode: _countryDialCode ??
-                                  Get.find<LocalizationController>()
-                                      .locale
-                                      .countryCode,
-                              suffixImage: profileController
-                                      .userInfoModel!.isPhoneVerified!
-                                  ? Images.verifiedIcon
-                                  : null,
-                            ),
-                            Positioned(
-                              right: 10,
-                              top: 10,
-                              child: !profileController
-                                          .userInfoModel!.isPhoneVerified! &&
-                                      Get.find<SplashController>()
-                                          .configModel!
-                                          .centralizeLoginSetup!
-                                          .phoneVerificationStatus!
-                                  ? InkWell(
-                                      onTap: () {
-                                        if (!profileController.userInfoModel!
-                                                .isPhoneVerified! &&
-                                            Get.find<SplashController>()
-                                                .configModel!
-                                                .centralizeLoginSetup!
-                                                .phoneVerificationStatus!) {
-                                          _updateProfile(
-                                              profileController:
-                                                  profileController,
-                                              fromButton: false,
-                                              fromPhone: true);
-                                        }
-                                      },
-                                      child: Image.asset(Images.unverifiedIcon,
-                                          height: 25,
-                                          width: 25,
-                                          fit: BoxFit.cover),
-                                    )
-                                  : const SizedBox(),
-                            ),
-                          ]),
+                          CustomTextField(
+                            titleText: 'phone'.tr,
+                            controller: _phoneController,
+                            inputType: TextInputType.phone,
+                            isEnabled: false,
+                            fromUpdateProfile: true,
+                            neutralHintForNonChangeable: true,
+                            labelText: 'phone'.tr,
+                            required: false,
+                            isPhone: true,
+                            onCountryChanged: (CountryCode countryCode) =>
+                                _countryDialCode = countryCode.dialCode,
+                            countryDialCode: _countryDialCode ??
+                                Get.find<LocalizationController>()
+                                    .locale
+                                    .countryCode,
+                            suffixImage: profileController
+                                    .userInfoModel!.isPhoneVerified!
+                                ? Images.verifiedIcon
+                                : null,
+                          ),
                           const SizedBox(
                               height: Dimensions.paddingSizeExtraOverLarge),
                           CustomButton(
@@ -695,29 +607,22 @@ class _UpdateProfileScreenState extends State<UpdateProfileScreen> {
       required bool fromPhone}) async {
     final String name = _nameController.text.trim();
     final String email = _emailController.text.trim();
-    final String phoneNumber = _phoneController.text.trim();
-    String numberWithCountryCode = _countryDialCode! + phoneNumber;
-    final PhoneValid phoneValid =
-        await CustomValidator.isPhoneValid(numberWithCountryCode);
-    numberWithCountryCode = phoneValid.phone;
+    final String? existingPhone =
+        profileController.userInfoModel?.phone?.trim();
 
     if (name.isEmpty) {
       showCustomSnackBar('enter_your_name'.tr);
-    } else if (!phoneValid.isValid) {
-      showCustomSnackBar('invalid_phone_number'.tr);
+    } else if (existingPhone == null || existingPhone.isEmpty) {
+      showCustomSnackBar('enter_phone_number'.tr);
     } else if (email.isEmpty) {
       showCustomSnackBar('enter_email_address'.tr);
     } else if (!GetUtils.isEmail(email)) {
       showCustomSnackBar('enter_a_valid_email_address'.tr);
-    } else if (phoneNumber.isEmpty) {
-      showCustomSnackBar('enter_phone_number'.tr);
-    } else if (phoneNumber.length < 6) {
-      showCustomSnackBar('enter_a_valid_phone_number'.tr);
     } else {
       final UpdateUserModel updatedUser = UpdateUserModel(
           name: name,
           email: email,
-          phone: numberWithCountryCode,
+          phone: existingPhone,
           buttonType: fromButton
               ? ''
               : fromPhone

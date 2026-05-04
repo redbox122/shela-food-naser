@@ -1,7 +1,11 @@
+import 'dart:async';
+
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:visibility_detector/visibility_detector.dart';
+import 'package:sixam_mart/common/models/module_model.dart';
 import 'package:sixam_mart/common/widgets/custom_ink_well.dart';
 import 'package:sixam_mart/common/widgets/hover/text_hover.dart';
 import 'package:sixam_mart/features/language/controllers/language_controller.dart';
@@ -49,48 +53,75 @@ class _StoreCardWithDistanceState extends State<StoreCardWithDistance> {
     return '${widget.heroSection}_${type}_${storeId}_$safeIndex';
   }
 
-  void _handleStoreTap(Store store) {
-    final splashController = Get.find<SplashController>();
-    final int? currentModuleId = splashController.module?.id;
+  Future<void> _handleStoreTap(Store store) async {
+    final SplashController splashController = Get.find<SplashController>();
+    final int? currentModuleId = splashController.selectedModule.value?.id ??
+        splashController.module?.id;
     final int? targetModuleId = store.moduleId;
-    int? moduleIndex;
+    ModuleModel? targetModuleModel;
     if (targetModuleId != null && splashController.moduleList != null) {
       final int foundIndex = splashController.moduleList!
-          .indexWhere((module) => module.id == targetModuleId);
+          .indexWhere((ModuleModel m) => m.id == targetModuleId);
       if (foundIndex >= 0) {
-        moduleIndex = foundIndex;
+        targetModuleModel = splashController.moduleList![foundIndex];
       }
     }
-
-    // Hyper Shella cards should take user to module home, not store details.
-    if (targetModuleId == 3) {
-      if (moduleIndex != null && currentModuleId != targetModuleId) {
-        splashController.switchModule(context, moduleIndex, true);
-      } else {
-        Get.offNamed(
-          RouteHelper.getModuleHomeRoute(targetModuleId!),
-          arguments: {
-            'module_id': targetModuleId,
-            'skip_splash': true,
-          },
-        );
+    final bool logFavoriteNav = kDebugMode && widget.fromAllStore;
+    if (logFavoriteNav) {
+      debugPrint(
+        '[FavoriteStore][TAP] id=${store.id} storeId=${store.id} name=${store.name} '
+        'moduleId=$targetModuleId moduleType=${targetModuleModel?.moduleType} '
+        'currentModuleId=$currentModuleId',
+      );
+    }
+    if (store.id == null) {
+      if (logFavoriteNav) {
+        debugPrint('[FavoriteStore][NAV_BLOCKED] reason=store_id_null');
       }
       return;
     }
-
     if (targetModuleId != null &&
         currentModuleId != null &&
-        currentModuleId != targetModuleId) {
-      if (moduleIndex != null) {
-        splashController.switchModule(context, moduleIndex, true);
-        return;
+        targetModuleId != currentModuleId &&
+        targetModuleModel != null) {
+      if (logFavoriteNav) {
+        debugPrint(
+          '[FavoriteStore][NAV_DECISION] route=setModule_then_store '
+          'reason=cross_module_headers_sync',
+        );
+      }
+      try {
+        await splashController.setModule(targetModuleModel);
+      } catch (e, st) {
+        if (kDebugMode) {
+          debugPrint('[FavoriteStore][NAV_DECISION] setModule_failed error=$e st=$st');
+        }
+      }
+    } else if (targetModuleId != null &&
+        currentModuleId != null &&
+        targetModuleId != currentModuleId &&
+        targetModuleModel == null) {
+      if (logFavoriteNav) {
+        debugPrint(
+          '[FavoriteStore][NAV_DECISION] route=store_only '
+          'reason=cross_module_but_target_not_in_module_list',
+        );
+      }
+    } else {
+      if (logFavoriteNav) {
+        debugPrint(
+          '[FavoriteStore][NAV_DECISION] route=store_only '
+          'reason=same_module_or_missing_module_ids',
+        );
       }
     }
-
-    final String heroBannerTag = _heroTag('store_image_distance', store.id ?? 0);
+    final String heroBannerTag =
+        _heroTag('store_image_distance', store.id ?? 0);
     final String heroLogoTag = _heroTag('store_logo', store.id ?? 0);
+    final String route =
+        RouteHelper.getStoreRoute(id: store.id, page: 'store');
     Get.toNamed(
-      RouteHelper.getStoreRoute(id: store.id, page: 'store'),
+      route,
       arguments: StoreScreen(
         store: store,
         fromModule: false,
@@ -98,6 +129,9 @@ class _StoreCardWithDistanceState extends State<StoreCardWithDistance> {
         heroLogoTag: heroLogoTag,
       ),
     );
+    if (logFavoriteNav) {
+      debugPrint('[FavoriteStore][NAV_SUCCESS] route=$route');
+    }
   }
 
   void _handleVisibilityChanged(VisibilityInfo info) {
@@ -155,7 +189,9 @@ class _StoreCardWithDistanceState extends State<StoreCardWithDistance> {
               ],
             ),
             child: CustomInkWell(
-              onTap: () => _handleStoreTap(store),
+              onTap: () {
+                unawaited(_handleStoreTap(store));
+              },
               radius: Dimensions.radiusDefault,
               child: TextHover(builder: (hovered) {
                 return Column(children: [
@@ -614,8 +650,9 @@ class _StoreCardWithDistanceState extends State<StoreCardWithDistance> {
                                             child: CustomButton(
                                               height: 28,
                                               radius: Dimensions.radiusSmall,
-                                              onPressed: () =>
-                                                  _handleStoreTap(store),
+                                              onPressed: () {
+                                                unawaited(_handleStoreTap(store));
+                                              },
                                               buttonText: 'visit'.tr,
                                               color: Theme.of(context)
                                                   .primaryColor,

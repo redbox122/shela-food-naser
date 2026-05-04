@@ -82,6 +82,9 @@ class OrderDetailsScreenState extends State<OrderDetailsScreen> {
   }
 
   Future<void> _loadData(BuildContext context, bool reload) async {
+    if (widget.orderId != null && widget.orderId! > 0) {
+      Get.find<OrderController>().prepareOrderDetailsSession(widget.orderId);
+    }
     if (mounted) {
       setState(() {
         _isInitialLoading = true;
@@ -99,16 +102,17 @@ class OrderDetailsScreenState extends State<OrderDetailsScreen> {
     });
 
     try {
+      final OrderController orderController = Get.find<OrderController>();
       await Future.wait<void>([
         // Always force fresh track API on entry so fees/delivery details are
         // up-to-date immediately (without waiting for periodic poll).
-        Get.find<OrderController>().trackOrder(
+        orderController.trackOrder(
           widget.orderId.toString(),
           null,
           false,
           contactNumber: widget.contactNumber,
         ),
-        Get.find<OrderController>().getOrderDetails(widget.orderId.toString()),
+        orderController.getOrderDetails(widget.orderId.toString()),
       ]);
 
       if (widget.fromOfflinePayment) {
@@ -190,6 +194,21 @@ class OrderDetailsScreenState extends State<OrderDetailsScreen> {
   }
 
   @override
+  void didUpdateWidget(OrderDetailsScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.orderId != widget.orderId) {
+      if (kDebugMode) {
+        debugPrint(
+          '[OrderDetails][OPEN] requestedOrderId=${widget.orderId} (route changed from ${oldWidget.orderId})',
+        );
+      }
+      _timer?.cancel();
+      _loadData(context, true);
+      _startApiCall();
+    }
+  }
+
+  @override
   void dispose() {
     _timer?.cancel();
     _slowLoadTimer?.cancel();
@@ -224,14 +243,32 @@ class OrderDetailsScreenState extends State<OrderDetailsScreen> {
             child: GetBuilder<OrderController>(builder: (orderController) {
           //
 
-          final bool hasReadyData = orderController.orderDetails != null &&
-              orderController.trackModel != null;
+          final int? routeOrderId = widget.orderId;
+          final OrderModel? track = orderController.trackModel;
+          final List<OrderDetailsModel>? details = orderController.orderDetails;
+          final bool trackMatchesRoute =
+              routeOrderId != null && track != null && track.id == routeOrderId;
+          final bool detailsMatchRoute = details == null ||
+              details.isEmpty ||
+              details.every(
+                (OrderDetailsModel d) =>
+                    d.orderId == null || d.orderId == routeOrderId,
+              );
+          final bool hasReadyData =
+              trackMatchesRoute && detailsMatchRoute && details != null;
           if (!hasReadyData) {
+            if (kDebugMode &&
+                track != null &&
+                routeOrderId != null &&
+                track.id != routeOrderId) {
+              debugPrint(
+                '[OrderDetails][RENDER_BLOCKED_STALE] requestedOrderId=$routeOrderId cachedOrderId=${track.id}',
+              );
+            }
             return _buildLoadingView(orderController);
           }
-          final List<OrderDetailsModel> orderDetailsList =
-              orderController.orderDetails!;
-          final OrderModel order = orderController.trackModel!;
+          final List<OrderDetailsModel> orderDetailsList = details;
+          final OrderModel order = track;
 
           double deliveryCharge = 0;
           double itemsPrice = 0;

@@ -113,7 +113,7 @@ class _AddressScreenState extends State<AddressScreen> {
                                                 crossAxisSpacing: Dimensions.paddingSizeLarge,
                                                 mainAxisSpacing:
                                                     ResponsiveHelper.isDesktop(context) ? Dimensions.paddingSizeLarge : 0.01,
-                                                childAspectRatio: ResponsiveHelper.isDesktop(context) ? 4 : 4.8,
+                                                childAspectRatio: ResponsiveHelper.isDesktop(context) ? 4 : 4.25,
                                                 crossAxisCount: ResponsiveHelper.isMobile(context) ? 1 : 3,
                                               ),
                                               physics: const NeverScrollableScrollPhysics(),

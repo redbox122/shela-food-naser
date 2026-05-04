@@ -602,6 +602,11 @@ class SecureHttpClient {
         return;
       }
 
+      // Coupon apply must never use conditional GET (304 + empty body breaks apply flow).
+      if (_isCouponApplyRequest(options)) {
+        return;
+      }
+
       // Respect per-request ETag disable flag
       if (_isEtagDisabled(options.headers) || _isHtmlCmsPath(options.path)) {
         return;
@@ -642,6 +647,10 @@ class SecureHttpClient {
       // Persist ETags only for GET responses.
       final method = response.requestOptions.method.toUpperCase();
       if (method != 'GET') {
+        return;
+      }
+
+      if (_isCouponApplyRequest(response.requestOptions)) {
         return;
       }
 
@@ -695,5 +704,10 @@ class SecureHttpClient {
         path.contains('/api/v1/shipping-policy') ||
         path.contains('/api/v1/refund-policy') ||
         path.contains('/api/v1/cancellation-policy');
+  }
+
+  bool _isCouponApplyRequest(RequestOptions options) {
+    final String path = options.uri.path;
+    return path.contains('/api/v1/coupon/apply');
   }
 }

@@ -1,12 +1,41 @@
+import 'dart:convert';
+
+import 'package:flutter/foundation.dart';
 import 'package:sixam_mart/common/widgets/custom_ink_well.dart';
 import 'package:sixam_mart/features/address/domain/models/address_model.dart';
-import 'package:sixam_mart/helper/address_helper.dart';
 import 'package:sixam_mart/helper/responsive_helper.dart';
 import 'package:sixam_mart/util/dimensions.dart';
 import 'package:sixam_mart/util/images.dart';
 import 'package:sixam_mart/util/styles.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+
+/// Built-in address types use GetX translations; any other value is shown as
+/// the API/custom label (Arabic, English, or mixed) without `.tr` lookup.
+String _resolveAddressCardTitleText(String? addressType) {
+  if (addressType == null || addressType.isEmpty) {
+    return '';
+  }
+  final String trimmed = addressType.trim();
+  final String lower = trimmed.toLowerCase();
+  if (lower == 'home' || lower == 'office' || lower == 'others') {
+    return lower.tr;
+  }
+  return trimmed;
+}
+
+TextDirection? _resolveAddressCardTitleDirection(String titleText) {
+  if (titleText.isEmpty) {
+    return null;
+  }
+  final bool hasArabic =
+      titleText.runes.any((int r) => r >= 0x0600 && r <= 0x06FF);
+  final bool hasLatin = RegExp(r'[A-Za-z]').hasMatch(titleText);
+  if (hasLatin && !hasArabic) {
+    return TextDirection.ltr;
+  }
+  return null;
+}
 
 class AddressWidget extends StatelessWidget {
   final AddressModel? address;
@@ -38,6 +67,26 @@ class AddressWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final AddressModel? model = address;
+    final String titleText = _resolveAddressCardTitleText(model?.addressType);
+    final String subtitleText = (model?.address ?? '').trim();
+    if (kDebugMode) {
+      debugPrint(
+        '[AddressCard][DATA] id=${model?.id} addressType=${model?.addressType} '
+        'label=${model?.addressType} address=${model?.address} '
+        'contactPerson=${model?.contactPersonName} road=${model?.streetNumber} '
+        'house=${model?.house} floor=${model?.floor}',
+      );
+      debugPrint(
+        '[AddressCard][RENDER] titleText=$titleText subtitleText=$subtitleText',
+      );
+      if (titleText.isEmpty && model != null) {
+        debugPrint(
+          '[AddressCard][INVESTIGATE] Empty title after resolve; '
+          'payload=${jsonEncode(model.toJson())}',
+        );
+      }
+    }
     return Padding(
       padding: EdgeInsets.only(
           bottom: fromCheckout ? 0 : Dimensions.paddingSizeSmall),
@@ -106,34 +155,51 @@ class AddressWidget extends StatelessWidget {
                   child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Row(mainAxisSize: MainAxisSize.min, children: [
-                          Image.asset(
-                            address!.addressType == 'home'
-                                ? Images.homeIcon
-                                : address!.addressType == 'office'
-                                    ? Images.workIcon
-                                    : Images.otherIcon,
-                            color: Theme.of(context).primaryColor,
-                            height:
-                                ResponsiveHelper.isDesktop(context) ? 25 : 20,
-                            width:
-                                ResponsiveHelper.isDesktop(context) ? 25 : 20,
-                          ),
-                          const SizedBox(width: Dimensions.paddingSizeSmall),
-                          Text(
-                            address!.addressType!.tr,
-                            style: robotoMedium.copyWith(
-                                fontSize: Dimensions.fontSizeDefault),
-                          ),
-                        ]),
+                        Row(
+                          children: [
+                            Image.asset(
+                              model?.addressType?.toLowerCase() == 'home'
+                                  ? Images.homeIcon
+                                  : model?.addressType?.toLowerCase() ==
+                                          'office'
+                                      ? Images.workIcon
+                                      : Images.otherIcon,
+                              color: Theme.of(context).primaryColor,
+                              height: ResponsiveHelper.isDesktop(context)
+                                  ? 25
+                                  : 20,
+                              width: ResponsiveHelper.isDesktop(context)
+                                  ? 25
+                                  : 20,
+                            ),
+                            const SizedBox(
+                                width: Dimensions.paddingSizeSmall),
+                            Expanded(
+                              child: Text(
+                                titleText,
+                                textDirection:
+                                    _resolveAddressCardTitleDirection(titleText),
+                                style: robotoMedium.copyWith(
+                                  fontSize: Dimensions.fontSizeDefault,
+                                  color: Theme.of(context)
+                                      .textTheme
+                                      .bodyLarge
+                                      ?.color,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
+                        ),
                         const SizedBox(
                             height: Dimensions.paddingSizeExtraSmall),
                         Text(
-                          AddressHelper()
-                              .removeEnglishAndNumbers(address?.address ?? ''),
+                          subtitleText,
                           style: robotoRegular.copyWith(
-                              fontSize: Dimensions.fontSizeSmall,
-                              color: Theme.of(context).disabledColor),
+                            fontSize: Dimensions.fontSizeSmall,
+                            color: Theme.of(context).disabledColor,
+                          ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),

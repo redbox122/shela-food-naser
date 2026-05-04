@@ -1,8 +1,11 @@
+import 'package:flutter/foundation.dart';
 import 'package:sixam_mart/helper/price_converter.dart';
 import 'package:sixam_mart/common/widgets/custom_snackbar.dart';
 import 'package:get/get.dart';
 
+import '../domain/coupon_list_filters.dart';
 import '../domain/models/my_coupon_models.dart';
+import '../domain/repositories/coupon_repository.dart';
 import '../domain/services/coupon_service_interface.dart';
 
 class CouponController extends GetxController implements GetxService {
@@ -30,6 +33,11 @@ class CouponController extends GetxController implements GetxService {
   bool _freeDelivery = false;
   bool get freeDelivery => _freeDelivery;
 
+  /// True when a coupon is applied from cart/checkout (discount or free delivery).
+  bool get hasAppliedCoupon =>
+      _coupon != null &&
+      (_freeDelivery || (_discount != null && _discount! > 0.0001));
+
   int _currentIndex = 0;
   int get currentIndex => _currentIndex;
 
@@ -47,13 +55,34 @@ class CouponController extends GetxController implements GetxService {
     try {
       final List<CouponModel>? couponList =
           await couponServiceInterface.getCouponList();
-      _couponList = [];
+      _couponList = <CouponModel>[];
       if (couponList != null) {
         _couponList!.addAll(couponList);
       }
-    } catch (_) {
+      if (kDebugMode) {
+        final int total = _couponList?.length ?? 0;
+        debugPrint('[MyCoupons][CONTROLLER_LIST_LEN] $total');
+        if (total > 0) {
+          debugPrint(
+            '[MyCoupons][FILTERED_COUNT] first_tab_not_expired=${countNotExpiredByDateCoupons(_couponList!)} '
+            'usable=${countUsableCoupons(_couponList!)} '
+            'used_not_expired=${countUsedNotExpiredCoupons(_couponList!)} '
+            'expired_by_date=${countExpiredTabCoupons(_couponList!)}',
+          );
+        }
+        if (total == 0) {
+          debugPrint(
+            '[MyCoupons][EMPTY_REASON] ${couponList == null ? 'repository_returned_null' : 'empty_list_after_fetch'}',
+          );
+        }
+      }
+    } catch (e, st) {
       _hasError = true;
       _couponList = <CouponModel>[];
+      if (kDebugMode) {
+        debugPrint('[MyCoupons][EMPTY_REASON] exception_in_controller e=$e');
+        debugPrint('[MyCoupons][STACK] $st');
+      }
     } finally {
       _isLoading = false;
       update();
@@ -72,11 +101,21 @@ class CouponController extends GetxController implements GetxService {
 
   Future<double?> applyCoupon(
       String coupon, double order, double? deliveryCharge, int? storeID) async {
+    final String trimmed = coupon.trim();
+    if (kDebugMode) {
+      debugPrint(
+        '[Coupon][INPUT] controllerText=${coupon.isEmpty ? '<empty>' : coupon} trimmed=$trimmed',
+      );
+    }
+    if (trimmed.isEmpty) {
+      showCustomSnackBar('enter_a_coupon_code'.tr);
+      return null;
+    }
     _isLoading = true;
     _discount = 0;
     update();
     final CouponModel? couponModel =
-        await couponServiceInterface.applyCoupon(coupon, storeID);
+        await couponServiceInterface.applyCoupon(trimmed, storeID);
     if (couponModel != null) {
       _coupon = couponModel;
       if (_coupon!.couponType == 'free_delivery') {
@@ -84,8 +123,32 @@ class CouponController extends GetxController implements GetxService {
       } else {
         _processCoupon(order);
       }
+      if (kDebugMode && hasAppliedCoupon) {
+        debugPrint(
+          '[Coupon][APPLY_SUCCESS] code=${_coupon?.code} discount=$_discount '
+          'type=${_coupon?.discountType} couponType=${_coupon?.couponType}',
+        );
+        debugPrint(
+          '[Coupon][STATE] appliedCouponCode=${_coupon?.code} couponDiscount=$_discount '
+          'freeDelivery=$_freeDelivery',
+        );
+        debugPrint(
+          '[Coupon][UI_REBUILD] inputVisible=${!hasAppliedCoupon} discountRowVisible=$hasAppliedCoupon',
+        );
+      }
     } else {
+      _coupon = null;
       _discount = 0.0;
+      _freeDelivery = false;
+      final String? failReason = CouponRepository.applyCouponLastFailureReason;
+      if (kDebugMode) {
+        debugPrint('[Coupon][APPLY_FAIL] reason=${failReason ?? 'unknown'}');
+      }
+      if (failReason != '304_empty_body_after_retry') {
+        final String snackKey =
+            CouponRepository.applyCouponLastMessageKey ?? 'coupon_error_invalid_code';
+        showCustomSnackBar(snackKey.tr);
+      }
     }
     _isLoading = false;
     update();
@@ -94,42 +157,54 @@ class CouponController extends GetxController implements GetxService {
 
   void _processFreeDeliveryCoupon(double deliveryCharge, double order) {
     if (deliveryCharge > 0) {
-      if (_coupon!.minPurchase! <= order) {
+      final double? minP = _coupon!.minPurchase;
+      final bool passesMin =
+          minP == null || minP <= 0 || order >= minP;
+      if (passesMin) {
         _discount = 0;
         _freeDelivery = true;
       } else {
         showCustomSnackBar(
             '${'the_minimum_item_purchase_amount_for_this_coupon_is'.tr} '
-            '${PriceConverter.convertPrice2(_coupon!.minPurchase)} '
-            '${'but_you_have'.tr} ${PriceConverter.convertPrice2(order)}');
+            '${PriceConverter.convertPrice(minP)} '
+            '${'but_you_have'.tr} ${PriceConverter.convertPrice(order)}');
 
         _coupon = null;
         _discount = 0;
       }
     } else {
-      showCustomSnackBar('invalid_code_or'.tr);
+      showCustomSnackBar('coupon_error_invalid_code'.tr);
     }
   }
 
   void _processCoupon(double order) {
-    if (_coupon!.minPurchase != null && _coupon!.minPurchase! <= order) {
-      if (_coupon!.discountType == 'percent') {
-        if (_coupon!.maxDiscount != null && _coupon!.maxDiscount! > 0) {
-          _discount = (_coupon!.discount! * order / 100) < _coupon!.maxDiscount!
-              ? (_coupon!.discount! * order / 100)
-              : _coupon!.maxDiscount;
-        } else {
-          _discount = _coupon!.discount! * order / 100;
-        }
-      } else {
-        _discount = _coupon!.discount;
-      }
-    } else {
+    final double? minP = _coupon!.minPurchase;
+    final bool passesMin = minP == null || minP <= 0 || order >= minP;
+    if (!passesMin) {
       _discount = 0.0;
       showCustomSnackBar(
           '${'the_minimum_item_purchase_amount_for_this_coupon_is'.tr} '
-          '${PriceConverter.convertPrice2(_coupon!.minPurchase)} '
-          '${'but_you_have'.tr} ${PriceConverter.convertPrice2(order)}');
+          '${PriceConverter.convertPrice(minP)} '
+          '${'but_you_have'.tr} ${PriceConverter.convertPrice(order)}');
+      _coupon = null;
+      return;
+    }
+    if (_coupon!.discountType == 'percent') {
+      if (_coupon!.maxDiscount != null && _coupon!.maxDiscount! > 0) {
+        _discount = (_coupon!.discount! * order / 100) < _coupon!.maxDiscount!
+            ? (_coupon!.discount! * order / 100)
+            : _coupon!.maxDiscount;
+      } else {
+        _discount = _coupon!.discount! * order / 100;
+      }
+    } else {
+      _discount = _coupon!.discount;
+    }
+    if (kDebugMode) {
+      debugPrint(
+        '[Coupon][DISCOUNT_CALC] subtotalOrder=$order discountValue=${_coupon!.discount} '
+        'discountType=${_coupon!.discountType} couponDiscountAmount=$_discount',
+      );
     }
   }
 
@@ -165,6 +240,10 @@ class CouponController extends GetxController implements GetxService {
   }
 
   void removeCouponData(bool notify) {
+    final String? removedCode = _coupon?.code;
+    if (kDebugMode) {
+      debugPrint('[Coupon][REMOVE] code=$removedCode');
+    }
     _coupon = null;
     _isLoading = false;
     _discount = 0.0;

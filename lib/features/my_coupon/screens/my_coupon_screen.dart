@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../../common/widgets/customAppBar.dart';
@@ -30,6 +31,12 @@ class _MyCouponScreenState extends State<MyCouponScreen> {
   }
 
   void initCall() {
+    if (kDebugMode) {
+      debugPrint(
+        '[MyCoupons][OPEN] loggedIn=${AuthHelper.isLoggedIn()}',
+      );
+      debugPrint('[MyCoupons][ADD_BUTTON_REMOVED]');
+    }
     if (AuthHelper.isLoggedIn()) {
       Get.find<CouponController>().getCouponList();
     }
@@ -37,6 +44,9 @@ class _MyCouponScreenState extends State<MyCouponScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (kDebugMode) {
+      debugPrint('[MyCoupons][ADD_BUTTON_REMOVED_CONFIRMED]');
+    }
     final bool isLoggedIn = AuthHelper.isLoggedIn();
     return Scaffold(
       backgroundColor: AppColors.backgroundColor,
@@ -167,7 +177,7 @@ class _MyCouponScreenState extends State<MyCouponScreen> {
                         ),
                       ),
                     )
-                  : NoDataScreen(text: 'no_coupon_found'.tr, showFooter: true);
+                  : NoDataScreen(text: 'no_coupon_found'.tr, showFooter: false);
             })
           : NotLoggedInScreen(callBack: (bool value) {
               initCall();

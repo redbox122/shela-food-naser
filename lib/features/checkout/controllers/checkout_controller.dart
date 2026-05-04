@@ -1724,6 +1724,26 @@ class CheckoutController extends GetxController implements GetxService {
       debugPrint(
           '\x1B[32m[CreateOrder] multiParts=${multiParts.length}\x1B[0m');
 
+      final Map<String, dynamic> orderPayloadForLog =
+          placeOrderBody.toJsonForApi();
+      final double couponAmt = placeOrderBody.couponDiscountAmount ?? 0.0;
+      final double finalAmt = placeOrderBody.orderAmount ?? 0.0;
+      final double approxCartBeforeCoupon = couponAmt + finalAmt;
+      final double cartSubTotal = Get.find<CartController>().subTotal;
+      debugPrint(
+        '[OrderCoupon][CREATE_REQUEST]\n'
+        'couponCode=${placeOrderBody.couponCode}\n'
+        'couponDiscountAmount=${placeOrderBody.couponDiscountAmount}\n'
+        'couponDiscountTitle=${placeOrderBody.couponDiscountTitle}\n'
+        'couponCreatedBy=${placeOrderBody.couponCreatedBy}\n'
+        'cartSubTotal=$cartSubTotal\n'
+        'cartTotalBeforeCoupon≈$approxCartBeforeCoupon\n'
+        'cartTotalAfterCoupon=$finalAmt\n'
+        'checkoutTotal=$finalAmt\n'
+        'finalOrderAmount=$finalAmt\n'
+        'payload=${jsonEncode(orderPayloadForLog)}',
+      );
+
       final Response response =
           await checkoutServiceInterface.placeOrder(placeOrderBody, multiParts);
 
@@ -2512,7 +2532,7 @@ class CheckoutController extends GetxController implements GetxService {
         }
       }
       clearPrevData();
-      Get.find<CouponController>().removeCouponData(false);
+      Get.find<CouponController>().removeCouponData(true);
       updateTips(
         getSharedPrefDmTipIndex().isNotEmpty
             ? int.parse(getSharedPrefDmTipIndex())

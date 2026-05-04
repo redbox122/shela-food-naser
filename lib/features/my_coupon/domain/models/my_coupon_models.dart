@@ -17,6 +17,12 @@ class CouponModel {
   int? storeId;
   String? createdAt;
   String? updatedAt;
+  /// Backend: successful order with this coupon by current user (not canceled/refunded).
+  bool isUsed;
+  int? usedOrderId;
+  String? usedOrderStatus;
+  String? usedPaymentStatus;
+  String? usedAt;
   Store? store;
   JustTheController? toolTip;
 
@@ -36,21 +42,29 @@ class CouponModel {
     this.storeId,
     this.createdAt,
     this.updatedAt,
+    this.isUsed = false,
+    this.usedOrderId,
+    this.usedOrderStatus,
+    this.usedPaymentStatus,
+    this.usedAt,
     this.store,
     this.toolTip,
   });
 
-  CouponModel.fromJson(Map<String, dynamic> json) {
+  CouponModel.fromJson(Map<String, dynamic> json) : isUsed = false {
     id = json.parseInt('id');
     title = json.parseString('title');
     code = json.parseString('code');
-    startDate = json.parseString('start_date');
-    expireDate = json.parseString('expire_date');
+    startDate = json.parseString('start_date') ?? json.parseString('startDate');
+    expireDate =
+        json.parseString('expire_date') ?? json.parseString('expireDate');
     minPurchase = json.parseDouble('min_purchase');
     maxDiscount = json.parseDouble('max_discount');
     discount = json.parseDouble('discount');
-    discountType = json.parseString('discount_type');
-    couponType = json.parseString('coupon_type');
+    discountType =
+        json.parseString('discount_type') ?? json.parseString('discountType');
+    couponType =
+        json.parseString('coupon_type') ?? json.parseString('couponType');
     limit = json.parseInt('limit');
     data = json.parseString('data');
     storeId = json.parseInt('store_id');
@@ -60,6 +74,14 @@ class CouponModel {
     if (storeMap != null) {
       store = Store.fromJson(storeMap);
     }
+    isUsed = _parseJsonBool(json['is_used'] ?? json['isUsed']);
+    usedOrderId =
+        json.parseInt('used_order_id') ?? json.parseInt('usedOrderId');
+    usedOrderStatus = json.parseString('used_order_status') ??
+        json.parseString('usedOrderStatus');
+    usedPaymentStatus = json.parseString('used_payment_status') ??
+        json.parseString('usedPaymentStatus');
+    usedAt = json.parseString('used_at') ?? json.parseString('usedAt');
   }
 
   Map<String, dynamic> toJson() {
@@ -79,8 +101,30 @@ class CouponModel {
     data['store_id'] = storeId;
     data['created_at'] = createdAt;
     data['updated_at'] = updatedAt;
+    data['is_used'] = isUsed;
+    data['used_order_id'] = usedOrderId;
+    data['used_order_status'] = usedOrderStatus;
+    data['used_payment_status'] = usedPaymentStatus;
+    data['used_at'] = usedAt;
     return data;
   }
+}
+
+bool _parseJsonBool(dynamic value) {
+  if (value == null) {
+    return false;
+  }
+  if (value is bool) {
+    return value;
+  }
+  if (value is num) {
+    return value != 0;
+  }
+  if (value is String) {
+    final String s = value.trim().toLowerCase();
+    return s == '1' || s == 'true' || s == 'yes';
+  }
+  return false;
 }
 
 class Store {

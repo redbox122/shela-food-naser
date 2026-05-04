@@ -1,6 +1,7 @@
 
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:get/get.dart';
@@ -554,8 +555,65 @@ class OrderController extends GetxController implements GetxService {
     });
   }
 
+  /// Clears cached track/details when opening order details for a different [requestedOrderId].
+  void prepareOrderDetailsSession(int? requestedOrderId) {
+    if (requestedOrderId == null || requestedOrderId <= 0) {
+      return;
+    }
+    final int? cachedId = _trackModel?.id;
+    if (kDebugMode) {
+      debugPrint('[OrderDetails][OPEN] requestedOrderId=$requestedOrderId');
+    }
+    if (cachedId != null && cachedId != requestedOrderId) {
+      if (kDebugMode) {
+        debugPrint(
+          '[OrderDetails][CLEAR_STALE] previousOrderId=$cachedId requestedOrderId=$requestedOrderId',
+        );
+      }
+    }
+    if (cachedId != requestedOrderId) {
+      _trackModel = null;
+      _orderDetails = null;
+      _hasTrackError = false;
+      _updateSafely();
+    }
+  }
+
+  bool _orderDetailsBelongToOrder(
+    List<OrderDetailsModel>? details,
+    int? requestedId,
+  ) {
+    if (details == null || requestedId == null) {
+      return true;
+    }
+    if (details.isEmpty) {
+      return true;
+    }
+    return details.every(
+      (OrderDetailsModel d) =>
+          d.orderId == null || d.orderId == requestedId,
+    );
+  }
+
+  List<OrderDetailsModel> _reuseDetailsOnlyIfSameOrder(
+    List<OrderDetailsModel>? previous,
+    String orderID,
+  ) {
+    final int? rid = int.tryParse(orderID);
+    if (previous != null &&
+        rid != null &&
+        previous.isNotEmpty &&
+        _orderDetailsBelongToOrder(previous, rid)) {
+      return List<OrderDetailsModel>.from(previous);
+    }
+    return <OrderDetailsModel>[];
+  }
+
   Future<List<OrderDetailsModel>?> getOrderDetails(String orderID) async {
-    final previousDetails = _orderDetails;
+    if (kDebugMode) {
+      debugPrint('[OrderDetails][FETCH_START] orderId=$orderID');
+    }
+    final List<OrderDetailsModel>? previousDetails = _orderDetails;
     _isLoading = true;
     _showCancelled = false;
 
@@ -566,15 +624,33 @@ class OrderController extends GetxController implements GetxService {
           await orderServiceInterface.getOrderDetails(orderID,
               AuthHelper.isLoggedIn() ? null : AuthHelper.getGuestId());
       _isLoading = false;
+      final int? requestedId = int.tryParse(orderID);
       if (detailsList != null) {
-        _orderDetails = [];
-        _orderDetails!.addAll(detailsList);
+        if (!_orderDetailsBelongToOrder(detailsList, requestedId)) {
+          if (kDebugMode) {
+            debugPrint(
+              '[OrderDetails][RENDER_BLOCKED_STALE] requestedOrderId=$requestedId '
+              'detailsOrderIds=${detailsList.map((OrderDetailsModel e) => e.orderId).toList()}',
+            );
+          }
+          _orderDetails = <OrderDetailsModel>[];
+        } else {
+          _orderDetails = <OrderDetailsModel>[...detailsList];
+          if (kDebugMode) {
+            final int? loadedOid = detailsList.isNotEmpty
+                ? detailsList.first.orderId
+                : requestedId;
+            debugPrint(
+              '[OrderDetails][FETCH_SUCCESS] requestedOrderId=$requestedId loadedOrderId=$loadedOid',
+            );
+          }
+        }
       } else {
-        _orderDetails = previousDetails ?? [];
+        _orderDetails = _reuseDetailsOnlyIfSameOrder(previousDetails, orderID);
       }
     } else {
       _isLoading = false;
-      _orderDetails = previousDetails ?? [];
+      _orderDetails = _reuseDetailsOnlyIfSameOrder(previousDetails, orderID);
     }
     update();
     return _orderDetails;
@@ -598,8 +674,25 @@ class OrderController extends GetxController implements GetxService {
       _orderDetails = null;
     }
     _showCancelled = false;
+    final int? requestedTrackId =
+        orderID != null && orderID.isNotEmpty ? int.tryParse(orderID) : null;
+    if (orderModel == null &&
+        requestedTrackId != null &&
+        _trackModel?.id != null &&
+        _trackModel!.id != requestedTrackId) {
+      if (kDebugMode) {
+        debugPrint(
+          '[OrderDetails][CLEAR_STALE] previousOrderId=${_trackModel!.id} requestedOrderId=$requestedTrackId',
+        );
+      }
+      _trackModel = null;
+      _updateSafely();
+    }
     if (orderModel == null) {
       _isLoading = true;
+      if (kDebugMode) {
+        debugPrint('[OrderDetails][FETCH_START] orderId=$orderID');
+      }
 
       //
 
@@ -612,8 +705,24 @@ class OrderController extends GetxController implements GetxService {
 
       if (response.statusCode == 200 || response.statusCode == 304) {
         if (response.body is Map<String, dynamic>) {
-          _trackModel =
+          final OrderModel parsed =
               OrderModel.fromJson(response.body as Map<String, dynamic>);
+          if (requestedTrackId != null &&
+              parsed.id != null &&
+              parsed.id != requestedTrackId) {
+            if (kDebugMode) {
+              debugPrint(
+                '[OrderDetails][RENDER_BLOCKED_STALE] requestedOrderId=$requestedTrackId cachedOrderId=${parsed.id}',
+              );
+            }
+          } else {
+            _trackModel = parsed;
+            if (kDebugMode) {
+              debugPrint(
+                '[OrderDetails][FETCH_SUCCESS] requestedOrderId=$requestedTrackId loadedOrderId=${parsed.id}',
+              );
+            }
+          }
         } else if (!preserveTrackModel) {
           // Keep existing track model when body is empty (304 with cache hit)
           _trackModel = _trackModel;
@@ -644,6 +753,7 @@ class OrderController extends GetxController implements GetxService {
     }
     _isTimerTrackOrderInProgress = true;
     _showCancelled = false;
+    final int? requestedId = int.tryParse(orderID);
 
     debugPrint('\x1B[32m     timerTrackOrder      \x1B[0m');
     try {
@@ -652,8 +762,19 @@ class OrderController extends GetxController implements GetxService {
           contactNumber: contactNumber);
       if (response.statusCode == 200 || response.statusCode == 304) {
         if (response.body is Map<String, dynamic>) {
-          _trackModel =
+          final OrderModel parsed =
               OrderModel.fromJson(response.body as Map<String, dynamic>);
+          if (requestedId != null &&
+              parsed.id != null &&
+              parsed.id != requestedId) {
+            if (kDebugMode) {
+              debugPrint(
+                '[OrderDetails][RENDER_BLOCKED_STALE] requestedOrderId=$requestedId cachedOrderId=${parsed.id} (timer)',
+              );
+            }
+          } else {
+            _trackModel = parsed;
+          }
         }
         _responseModel = ResponseModel(true, response.body.toString());
       } else {

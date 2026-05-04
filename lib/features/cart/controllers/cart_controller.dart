@@ -13,6 +13,7 @@ import 'package:sixam_mart/features/cart/domain/services/cart_service_interface.
 import 'package:sixam_mart/features/checkout/domain/models/place_order_body_model.dart';
 import 'package:sixam_mart/features/home/screens/home_screen.dart';
 import 'package:sixam_mart/features/item/controllers/item_controller.dart';
+import 'package:sixam_mart/features/my_coupon/controllers/my_coupon_controller.dart';
 import 'package:sixam_mart/features/splash/controllers/splash_controller.dart';
 import 'package:sixam_mart/features/auth/controllers/auth_controller.dart';
 import 'package:sixam_mart/features/store/controllers/store_controller.dart';
@@ -1307,6 +1308,9 @@ class CartController extends GetxController implements GetxService {
     _cartList = [];
     _storeId = null;
     _justClearedCart = true;
+    if (Get.isRegistered<CouponController>()) {
+      Get.find<CouponController>().removeCouponData(true);
+    }
 
     // Clear local SharedPreferences cart data
     await _clearLocalCartItems();
@@ -2249,6 +2253,7 @@ class CartController extends GetxController implements GetxService {
       }
 
       if (onlineCartList != null && onlineCartList.isNotEmpty) {
+        final int? previousStoreIdForCoupon = _storeId;
         _forceServerTruthOnNextCartSync = false;
         if (apiReportedStoreId != null) {
           _storeId = apiReportedStoreId;
@@ -2332,6 +2337,22 @@ class CartController extends GetxController implements GetxService {
 
         // 🔥 BUG FIX: Reset cleared flag when cart has items (cart is active again)
         _isCartCleared = false;
+        final int? newStoreIdForCoupon =
+            _storeId ?? (_cartList.isNotEmpty ? _cartList.first.item?.storeId : null);
+        if (Get.isRegistered<CouponController>()) {
+          final CouponController couponController = Get.find<CouponController>();
+          if (couponController.hasAppliedCoupon &&
+              previousStoreIdForCoupon != null &&
+              newStoreIdForCoupon != null &&
+              previousStoreIdForCoupon != newStoreIdForCoupon) {
+            if (kDebugMode) {
+              debugPrint(
+                '[Coupon] cleared: store changed $previousStoreIdForCoupon -> $newStoreIdForCoupon',
+              );
+            }
+            couponController.removeCouponData(true);
+          }
+        }
         _onCartMutated(reason: 'getCartDataOnline_fromAPI');
         debugPrint('✅ Cart data loaded from API - ${_cartList.length} items');
       } else {

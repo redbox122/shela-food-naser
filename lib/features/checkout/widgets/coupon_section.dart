@@ -3,7 +3,6 @@ import 'package:get/get.dart';
 import 'package:sixam_mart/features/language/controllers/language_controller.dart';
 import 'package:sixam_mart/features/store/controllers/store_controller.dart';
 import 'package:sixam_mart/features/checkout/controllers/checkout_controller.dart';
-import 'package:sixam_mart/helper/price_converter.dart';
 import 'package:sixam_mart/helper/responsive_helper.dart';
 import 'package:sixam_mart/util/dimensions.dart';
 import 'package:sixam_mart/util/images.dart';
@@ -121,7 +120,7 @@ class CouponSection extends StatelessWidget {
                               hintStyle: robotoRegular.copyWith(color: Theme.of(context).hintColor),
                               isDense: true,
                               filled: true,
-                              enabled: couponController.discount == 0,
+                              enabled: !couponController.hasAppliedCoupon,
                               fillColor: Theme.of(context).cardColor,
                               border: OutlineInputBorder(
                                 borderRadius: BorderRadius.horizontal(
@@ -145,7 +144,7 @@ class CouponSection extends StatelessWidget {
                             return;
                           }
                           if (checkoutController.couponController.text.isNotEmpty) {
-                            if (Get.find<CouponController>().discount! < 1 && !Get.find<CouponController>().freeDelivery) {
+                            if (!Get.find<CouponController>().hasAppliedCoupon) {
                               if (checkoutController.couponController.text.isNotEmpty && !Get.find<CouponController>().isLoading) {
                                 Get.find<CouponController>()
                                     .applyCoupon(
@@ -153,17 +152,16 @@ class CouponSection extends StatelessWidget {
                                         (price - discount) + addOns + variationPrice,
                                         deliveryCharge ?? 0.0,
                                         Get.find<StoreController>().store!.id)
-                                    .then((discount) {
-                                  //checkoutController.couponController.text = 'coupon_applied'.tr;
-                                  if (discount! > 0) {
+                                    .then((double? appliedDiscount) {
+                                  if (appliedDiscount != null && appliedDiscount > 0) {
                                     showCustomSnackBar(
-                                      '${'you_got_discount_of'.tr} ${PriceConverter.convertPrice2(discount)}',
+                                      'coupon_applied_successfully'.tr,
                                       isError: false,
                                     );
 
                                     if (checkoutController.isPartialPay || checkoutController.paymentMethodIndex == 1) {
-                                      totalPrice = totalPrice - discount;
-                                      checkoutController.checkBalanceStatus(totalPrice, discount);
+                                      totalPrice = totalPrice - appliedDiscount;
+                                      checkoutController.checkBalanceStatus(totalPrice, appliedDiscount);
                                     }
                                   }
                                 });
@@ -171,7 +169,7 @@ class CouponSection extends StatelessWidget {
                                 showCustomSnackBar('enter_a_coupon_code'.tr);
                               }
                             } else {
-                              totalPrice = totalPrice + couponController.discount!;
+                              totalPrice = totalPrice + (couponController.discount ?? 0.0);
                               Get.find<CouponController>().removeCouponData(true);
                               checkoutController.couponController.text = '';
                               if (checkoutController.isPartialPay || checkoutController.paymentMethodIndex == 1) {
@@ -184,16 +182,16 @@ class CouponSection extends StatelessWidget {
                         },
                         child: Container(
                           height: 45,
-                          width: (couponController.discount! <= 0 && !couponController.freeDelivery) ? 100 : 50,
+                          width: !couponController.hasAppliedCoupon ? 100 : 50,
                           alignment: Alignment.center,
                           margin: const EdgeInsets.all(Dimensions.paddingSizeExtraSmall),
                           decoration: BoxDecoration(
-                            color: (couponController.discount! <= 0 && !couponController.freeDelivery)
+                            color: !couponController.hasAppliedCoupon
                                 ? Theme.of(context).primaryColor
                                 : Colors.transparent,
                             borderRadius: BorderRadius.circular(Dimensions.radiusDefault),
                           ),
-                          child: (couponController.discount! <= 0 && !couponController.freeDelivery)
+                          child: !couponController.hasAppliedCoupon
                               ? !couponController.isLoading
                                   ? Text(
                                       'apply'.tr,
