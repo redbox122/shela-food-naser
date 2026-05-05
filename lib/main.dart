@@ -38,7 +38,7 @@ import 'helper/get_di.dart';
 final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
     FlutterLocalNotificationsPlugin();
 
-/// Override debugPrint to filter EGL logs and use our logger
+/// Override debugPrint to filter EGL logs and use our loggerrrr
 void _setupLogging() {
   final originalDebugPrint = debugPrint;
   debugPrint = (String? message, {int? wrapWidth}) {
