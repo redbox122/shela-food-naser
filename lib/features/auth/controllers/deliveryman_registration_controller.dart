@@ -451,8 +451,6 @@ class DeliverymanRegistrationController extends GetxController
   ) async {
     debugPrint('$_tag registerDeliveryMan() START');
     debugPrint('$_tag  fName=${deliveryManBody.fName}');
-    debugPrint('$_tag  email=${deliveryManBody.email}');
-    debugPrint('$_tag  phone=${deliveryManBody.phone}');
     debugPrint('$_tag  zoneId=${deliveryManBody.zoneId}');
     debugPrint('$_tag  vehicleId=${deliveryManBody.vehicleId}');
     debugPrint('$_tag  identityType=${deliveryManBody.identityType}');

@@ -2188,15 +2188,6 @@ class _DeliveryManRegistrationScreenState
         } else {
           debugPrint('[DM-REG-SCREEN] VALIDATION PASSED => calling registerDeliveryMan()');
 
-          debugPrint('\x1B[32m  /$fName  \x1B[0m');
-          debugPrint('\x1B[32m  /$lName  \x1B[0m');
-          debugPrint('\x1B[32m  /$password   \x1B[0m');
-          debugPrint('\x1B[32m  /$numberWithCountryCode  \x1B[0m');
-          debugPrint('\x1B[32m  /$email  \x1B[0m');
-          debugPrint('\x1B[32m  /$identityNumber  \x1B[0m');
-          debugPrint(
-              '\x1B[32m  /${deliverymanRegiController.identityTypeList[deliverymanRegiController.identityTypeIndex]}  \x1B[0m');
-
           debugPrint(
               "\x1B[32m  /${deliverymanRegiController.dmTypeIndex == 1 ? '1' : '0'}  \x1B[0m");
 

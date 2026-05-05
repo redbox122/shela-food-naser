@@ -23,7 +23,10 @@
       "Bash(grep -v \"^$\")",
       "Bash(flutter pub:*)",
       "Bash(find lib:*)",
-      "Bash(xargs sed:*)"
+      "Bash(xargs sed:*)",
+      "Bash(Get-ChildItem -Path \"d:\\\\projects\\\\shellafood-user-app\" -Directory)",
+      "Bash(Select-Object Name)",
+      "PowerShell(ls -Path \"d:\\\\projects\\\\shellafood-user-app\" | Where-Object { $_.PSIsContainer } | Select-Object Name -ExpandProperty Name)"
     ]
   }
 }

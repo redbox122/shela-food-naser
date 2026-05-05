@@ -1,5 +1,3 @@
-
-import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:sixam_mart/common/models/response_model.dart';
 import 'package:sixam_mart/features/profile/controllers/profile_controller.dart';
@@ -49,8 +47,6 @@ class VerificationController extends GetxController implements GetxService {
   Future<ResponseModel> verifyPhone(String phone, String otp) async {
     _isLoading = true;
     update();
-
-    debugPrint('\x1B[32m  /$otp   $phone  \x1B[0m');
 
     final ResponseModel responseModel = await verificationServiceInterface.verifyPhone(phone, otp);
     if (responseModel.isSuccess &&
