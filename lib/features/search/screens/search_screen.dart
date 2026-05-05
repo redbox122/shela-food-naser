@@ -21,6 +21,9 @@ import 'package:sixam_mart/common/widgets/smart_image.dart';
 import 'package:sixam_mart/util/images.dart';
 import 'package:sixam_mart/features/item/controllers/item_controller.dart';
 import 'package:sixam_mart/features/item/domain/models/item_model.dart';
+import 'package:sixam_mart/features/category/controllers/category_controller.dart';
+import 'package:sixam_mart/features/category/domain/models/category_model.dart';
+import 'package:sixam_mart/common/enums/data_source_enum.dart';
 import 'package:sixam_mart/features/store/domain/models/store_model.dart';
 import 'package:sixam_mart/common/widgets/loading/loading.dart';
 import 'package:sixam_mart/common/widgets/error_state_view.dart';
@@ -48,6 +51,11 @@ class SearchScreenState extends State<SearchScreen>
   final Map<int, int> _storeVisibleItemCount = <int, int>{};
   String? _lastSearchResultsQuery;
   bool _isSyncingSearchText = false;
+  int? _selectedSearchModuleId;
+  String _selectedSearchModuleName = '';
+  String _selectedSearchModuleType = '';
+  bool _isHandlingQueryClear = false;
+  final Set<int> _loggedComingSoonModules = <int>{};
 
   late AnimationController _focusAnimationController;
   late Animation<double> _focusScaleAnimation;
@@ -96,6 +104,11 @@ class SearchScreenState extends State<SearchScreen>
     // For other modules: default to Stores (true)
     final isEcommerce = splashController.module?.moduleType == 'ecommerce';
     Get.find<search.SearchController>().setStore(!isEcommerce);
+    Get.find<search.SearchController>()
+        .setActiveModuleId(splashController.module?.id);
+    _selectedSearchModuleId = splashController.module?.id;
+    _selectedSearchModuleName = splashController.module?.moduleName ?? '';
+    _selectedSearchModuleType = splashController.module?.moduleType ?? '';
 
     Get.find<search.SearchController>().getPopularCategories();
     Get.find<search.SearchController>().getTrendingCategories();
@@ -103,8 +116,12 @@ class SearchScreenState extends State<SearchScreen>
       Get.find<search.SearchController>().getSuggestedItems();
     }
     Get.find<search.SearchController>().getHistoryList();
+    debugPrint('[Search][INIT] query=${widget.queryText ?? ''}');
     if (widget.queryText!.isNotEmpty) {
+      debugPrint('[Search][FETCH_START] type=initial_query_search');
       _actionSearch(true, widget.queryText, true);
+    } else {
+      debugPrint('[Search][EMPTY_QUERY] handled=true');
     }
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -128,11 +145,16 @@ class SearchScreenState extends State<SearchScreen>
     });
 
     _debounceTimer = Timer(_debounceDelay, () async {
-      await Get.find<search.SearchController>().getSearchSuggestions(query);
-      if (mounted) {
-        setState(() {
-          _isLoadingSuggestions = false;
-        });
+      try {
+        await Get.find<search.SearchController>().getSearchSuggestions(query);
+      } catch (e) {
+        debugPrint('[Search][ERROR] suggestions $e');
+      } finally {
+        if (mounted) {
+          setState(() {
+            _isLoadingSuggestions = false;
+          });
+        }
       }
     });
   }
@@ -165,20 +187,105 @@ class SearchScreenState extends State<SearchScreen>
     }
   }
 
-  void _resetSearchStateForModuleSwitch(
-      search.SearchController searchController, ModuleModel module) {
-    _debounceTimer?.cancel();
-    _SearchController.clear();
-    _showSuggestion = false;
-    _isLoadingSuggestions = false;
-    _storeVisibleItemCount.clear();
-    _lastSearchResultsQuery = null;
-
-    // Clear all controller search/result state to avoid carrying stale ids
-    // across module contexts.
-    searchController.setSearchMode(true);
-    searchController.setSearchText('');
+  Future<void> _handleModuleSwitch(ModuleModel module) async {
+    final searchController = Get.find<search.SearchController>();
+    final splashController = Get.find<SplashController>();
+    final int? fromModuleId = splashController.module?.id;
+    final String currentQuery = (searchController.searchText ?? '').trim();
+    final bool hasQuery = currentQuery.isNotEmpty;
+    _selectedSearchModuleId = module.id;
+    _selectedSearchModuleName = module.moduleName ?? '';
+    _selectedSearchModuleType = module.moduleType ?? '';
+    debugPrint(
+        '[Search][TAB_SWITCH] fromModuleId=${fromModuleId ?? 'null'} toModuleId=${module.id ?? 'null'} query=$currentQuery');
+    await splashController.setModule(module);
+    searchController.resetForModuleSwitch(hasQuery: hasQuery);
+    searchController.setActiveModuleId(module.id);
     searchController.setStore(module.moduleType != 'ecommerce');
+    if (hasQuery) {
+      searchController.setSearchMode(false);
+      searchController.setSearchText(currentQuery);
+      searchController.searchData(query: currentQuery, fromHome: false);
+    } else {
+      searchController.setSearchMode(true);
+      searchController.getHistoryList();
+      await searchController.getPopularCategories();
+      await searchController.getTrendingCategories();
+      if (_isLoggedIn) {
+        searchController.getSuggestedItems();
+      }
+      final List<CategoryModel> fallbackCategories =
+          await _resolveDiscoveryFallbackCategories(module.id);
+      searchController.setDiscoveryFallbackCategories(
+        fallbackCategories,
+        moduleId: module.id,
+      );
+    }
+    debugPrint(
+        '[Search][TAB_DONE] moduleId=${module.id ?? 'null'} query=$currentQuery hasQuery=$hasQuery loading=false moduleName=$_selectedSearchModuleName moduleType=$_selectedSearchModuleType');
+    if (mounted) {
+      setState(() {});
+    }
+  }
+
+  Future<List<CategoryModel>> _resolveDiscoveryFallbackCategories(
+      int? moduleId) async {
+    if (!Get.isRegistered<CategoryController>()) {
+      debugPrint(
+          '[Search][DISCOVERY_FALLBACK_CATEGORIES] moduleId=${moduleId ?? 'null'} count=0');
+      return <CategoryModel>[];
+    }
+    final CategoryController categoryController = Get.find<CategoryController>();
+    if (moduleId != null) {
+      await categoryController.getCategoryList(
+        true,
+        expectedModuleId: moduleId,
+        dataSource: DataSourceEnum.client,
+      );
+    }
+    final List<CategoryModel> sourceCategories =
+        List<CategoryModel>.from(categoryController.categoryList ?? <CategoryModel>[]);
+    final List<CategoryModel> filtered = sourceCategories
+        .where((category) =>
+            category.id != null &&
+            (moduleId == null || category.moduleId == null || category.moduleId == moduleId))
+        .toList();
+    debugPrint(
+        '[Search][FALLBACK_SOURCE] activeModuleId=${_selectedSearchModuleId ?? 'null'} fallbackModuleId=${moduleId ?? 'null'} count=${filtered.length}');
+    return filtered;
+  }
+
+  Future<void> _handleQueryClear() async {
+    if (_isHandlingQueryClear) {
+      return;
+    }
+    _isHandlingQueryClear = true;
+    try {
+      final searchController = Get.find<search.SearchController>();
+      final int? activeModuleId =
+          _selectedSearchModuleId ?? Get.find<SplashController>().module?.id;
+      debugPrint('[Search][QUERY_CLEAR] activeModuleId=${activeModuleId ?? 'null'}');
+      searchController.setSearchText('');
+      searchController.resetForModuleSwitch(hasQuery: false);
+      searchController.setActiveModuleId(activeModuleId);
+      searchController.getHistoryList();
+      await searchController.getPopularCategories();
+      await searchController.getTrendingCategories();
+      if (_isLoggedIn) {
+        searchController.getSuggestedItems();
+      }
+      final List<CategoryModel> fallbackCategories =
+          await _resolveDiscoveryFallbackCategories(activeModuleId);
+      searchController.setDiscoveryFallbackCategories(
+        fallbackCategories,
+        moduleId: activeModuleId,
+      );
+      if (mounted) {
+        setState(() {});
+      }
+    } finally {
+      _isHandlingQueryClear = false;
+    }
   }
 
   bool _isComingSoonModule(ModuleModel module) {
@@ -228,6 +335,8 @@ class SearchScreenState extends State<SearchScreen>
 
     // Only switch if different from current mode
     if (searchController.isStore != isStore) {
+      debugPrint(
+          '[Search][TAB] selected=${isStore ? 'stores' : 'items'}');
       searchController.setStore(isStore);
       // No need to re-search, data is already loaded
       setState(() {});
@@ -308,6 +417,7 @@ class SearchScreenState extends State<SearchScreen>
 
                         // Most Searched Section
                         _MostSearchedSection(searchController),
+                        _DiscoveryEmptyState(searchController),
                       ],
 
                       // Search Results Section - show when we have search text
@@ -368,6 +478,13 @@ class SearchScreenState extends State<SearchScreen>
                   final isActive =
                       currentModule != null && module.id == currentModule.id;
                   final bool isComingSoon = _isComingSoonModule(module);
+                  if (isComingSoon &&
+                      module.id != null &&
+                      !_loggedComingSoonModules.contains(module.id!)) {
+                    _loggedComingSoonModules.add(module.id!);
+                    debugPrint(
+                        '[Search][COMING_SOON_MODULE_SHOWN] moduleId=${module.id} name=${module.moduleName ?? ''}');
+                  }
 
                   return _ModuleChip(
                     module: module,
@@ -375,27 +492,13 @@ class SearchScreenState extends State<SearchScreen>
                     isComingSoon: isComingSoon,
                     onTap: () async {
                       if (isComingSoon) {
+                        debugPrint(
+                            '[Search][COMING_SOON_MODULE_TAP_BLOCKED] moduleId=${module.id ?? 'null'} name=${module.moduleName ?? ''}');
+                        Get.rawSnackbar(message: 'قريبًا');
                         return;
                       }
                       if (!isActive) {
-                        // In search screen, switch module context only
-                        // without navigating away to module dashboard.
-                        await splashController.setModule(module);
-
-                        final searchController =
-                            Get.find<search.SearchController>();
-
-                        // Reset search first so no stale results are shown.
-                        _resetSearchStateForModuleSwitch(
-                            searchController, module);
-
-                        // Reload discovery sections for selected module.
-                        await searchController.getPopularCategories();
-                        await searchController.getTrendingCategories();
-
-                        if (mounted) {
-                          setState(() {});
-                        }
+                        await _handleModuleSwitch(module);
                       }
                     },
                   );
@@ -600,6 +703,9 @@ class SearchScreenState extends State<SearchScreen>
                             if (_isSyncingSearchText) return;
                             _searchSuggestions(text);
                             searchController.setSearchText(text);
+                            if (text.trim().isEmpty) {
+                              _handleQueryClear();
+                            }
                             setState(() {});
                           },
                           onSubmitted: (text) {
@@ -627,7 +733,7 @@ class SearchScreenState extends State<SearchScreen>
                                       _SearchController.clear();
                                       _showSuggestion = false;
                                       if (_isSyncingSearchText) return;
-                                      searchController.setSearchText('');
+                                      _handleQueryClear();
                                       setState(() {});
                                     },
                                     icon: const Icon(
@@ -754,6 +860,9 @@ class SearchScreenState extends State<SearchScreen>
                             if (_isSyncingSearchText) return;
                             _searchSuggestions(text);
                             searchController.setSearchText(text);
+                            if (text.trim().isEmpty) {
+                              _handleQueryClear();
+                            }
                             setState(() {});
                           },
                           onSubmitted: (text) {
@@ -781,7 +890,7 @@ class SearchScreenState extends State<SearchScreen>
                                       _SearchController.clear();
                                       _showSuggestion = false;
                                       if (_isSyncingSearchText) return;
-                                      searchController.setSearchText('');
+                                      _handleQueryClear();
                                       setState(() {});
                                     },
                                     icon: const Icon(
@@ -1032,7 +1141,16 @@ class SearchScreenState extends State<SearchScreen>
         const SizedBox(height: DesignTokens.spaceSmall),
 
         // Recent search items
-        if (searchController.historyList.isNotEmpty) ...[
+        if (searchController.isLoadingHistory) ...[
+          const Center(
+            child: Padding(
+              padding: EdgeInsets.all(DesignTokens.spaceDefault),
+              child: CircularProgressIndicator(
+                color: DesignTokens.primaryGreen,
+              ),
+            ),
+          ),
+        ] else if (searchController.historyList.isNotEmpty) ...[
           for (int i = 0;
               i < searchController.historyList.length && i < 3;
               i++) ...[
@@ -1137,11 +1255,50 @@ class SearchScreenState extends State<SearchScreen>
 
   /// Most searched section with product grid
   Widget _MostSearchedSection(search.SearchController searchController) {
+    final bool hasTrendingData =
+        (searchController.trendingCategoryList?.isNotEmpty ?? false);
+    final bool hasPopularData =
+        (searchController.popularCategoryList?.isNotEmpty ?? false);
+    final bool isFallbackStale =
+        searchController.fallbackCategoriesModuleId != null &&
+            _selectedSearchModuleId != null &&
+            searchController.fallbackCategoriesModuleId !=
+                _selectedSearchModuleId;
+    if (isFallbackStale) {
+      debugPrint(
+          '[Search][FALLBACK_BLOCKED_STALE] activeModuleId=${_selectedSearchModuleId ?? 'null'} fallbackModuleId=${searchController.fallbackCategoriesModuleId ?? 'null'}');
+    }
+    final bool hasFallbackData =
+        !isFallbackStale &&
+            searchController.discoveryFallbackCategories.isNotEmpty;
+    final bool hasAnyLoading = searchController.isLoadingTrendingCategories ||
+        searchController.isLoadingPopularCategories;
+    final bool hasAnyError = searchController.hasTrendingCategoriesError ||
+        searchController.hasPopularCategoriesError;
+    if (!hasAnyLoading &&
+        !hasAnyError &&
+        !hasTrendingData &&
+        !hasPopularData &&
+        !hasFallbackData) {
+      debugPrint(
+          '[Search][SECTION_EMPTY] type=most_searched moduleId=${searchController.activeModuleId ?? 'null'}');
+      return const SizedBox.shrink();
+    }
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         // Trending Categories (Last 24 Hours)
-        if (searchController.trendingCategoryList != null &&
+        if (searchController.isLoadingTrendingCategories) ...[
+          const Center(
+            child: Padding(
+              padding: EdgeInsets.all(DesignTokens.spaceDefault),
+              child: CircularProgressIndicator(
+                color: DesignTokens.secondaryOrange,
+              ),
+            ),
+          ),
+          const SizedBox(height: DesignTokens.spaceLarge),
+        ] else if (searchController.trendingCategoryList != null &&
             searchController.trendingCategoryList!.isNotEmpty) ...[
           Row(
             children: [
@@ -1187,16 +1344,6 @@ class SearchScreenState extends State<SearchScreen>
             ),
           ),
           const SizedBox(height: DesignTokens.spaceLarge),
-        ] else if (searchController.trendingCategoryList == null) ...[
-          const Center(
-            child: Padding(
-              padding: EdgeInsets.all(DesignTokens.spaceDefault),
-              child: CircularProgressIndicator(
-                color: DesignTokens.secondaryOrange,
-              ),
-            ),
-          ),
-          const SizedBox(height: DesignTokens.spaceLarge),
         ] else if (searchController.hasTrendingCategoriesError) ...[
           ErrorStateView(
             onRetry: () {
@@ -1204,22 +1351,34 @@ class SearchScreenState extends State<SearchScreen>
             },
           ),
           const SizedBox(height: DesignTokens.spaceLarge),
+        ] else ...[
+          const SizedBox.shrink(),
         ],
 
-        // Most Searched Categories
-        Text(
-          'most_searched'.tr,
-          style: const TextStyle(
-            color: DesignTokens.textDark,
-            fontSize: 18,
-            fontWeight: FontWeight.w600,
-            letterSpacing: -0.3,
+        if (hasPopularData || hasFallbackData) ...[
+          Text(
+            'most_searched'.tr,
+            style: const TextStyle(
+              color: DesignTokens.textDark,
+              fontSize: 18,
+              fontWeight: FontWeight.w600,
+              letterSpacing: -0.3,
+            ),
           ),
-        ),
-        const SizedBox(height: DesignTokens.spaceDefault),
+          const SizedBox(height: DesignTokens.spaceDefault),
+        ],
 
         // Product tiles - only show if API returns data
-        if (searchController.popularCategoryList != null &&
+        if (searchController.isLoadingPopularCategories) ...[
+          const Center(
+            child: Padding(
+              padding: EdgeInsets.all(DesignTokens.spaceDefault),
+              child: CircularProgressIndicator(
+                color: DesignTokens.primaryGreen,
+              ),
+            ),
+          ),
+        ] else if (searchController.popularCategoryList != null &&
             searchController.popularCategoryList!.isNotEmpty) ...[
           for (int i = 0;
               i < searchController.popularCategoryList!.length && i < 5;
@@ -1236,22 +1395,38 @@ class SearchScreenState extends State<SearchScreen>
             ),
             const SizedBox(height: DesignTokens.spaceMedium),
           ],
-        ] else if (searchController.popularCategoryList == null) ...[
-          // Show loading state while fetching
-          const Center(
-            child: Padding(
-              padding: EdgeInsets.all(DesignTokens.spaceDefault),
-              child: CircularProgressIndicator(
-                color: DesignTokens.primaryGreen,
-              ),
-            ),
-          ),
         ] else if (searchController.hasPopularCategoriesError) ...[
           ErrorStateView(
             onRetry: () {
               searchController.getPopularCategories();
             },
           ),
+        ] else if (hasFallbackData) ...[
+          for (int i = 0;
+              i < searchController.discoveryFallbackCategories.length && i < 5;
+              i++) ...[
+            _MostSearchedTile(
+              category: _CategoryTile(
+                title:
+                    searchController.discoveryFallbackCategories[i].name ?? '',
+                image: searchController
+                        .discoveryFallbackCategories[i].imageFullUrl ??
+                    AppConstants.placeholderImageUrl,
+                banner: false,
+              ),
+              onTap: () {
+                final CategoryModel category =
+                    searchController.discoveryFallbackCategories[i];
+                if (category.id != null) {
+                  Get.toNamed(RouteHelper.getCategoryItemRoute(
+                      category.id, category.name ?? 'Category'));
+                }
+              },
+            ),
+            const SizedBox(height: DesignTokens.spaceMedium),
+          ],
+        ] else ...[
+          const SizedBox.shrink(),
         ],
         // If empty, just don't show anything (no hardcoded defaults)
       ],
@@ -1928,6 +2103,38 @@ class SearchScreenState extends State<SearchScreen>
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _DiscoveryEmptyState(search.SearchController searchController) {
+    final bool hasQuery = (searchController.searchText ?? '').trim().isNotEmpty;
+    if (hasQuery) {
+      return const SizedBox.shrink();
+    }
+    final bool anyLoading = searchController.isLoadingHistory ||
+        searchController.isLoadingSuggestedItems ||
+        searchController.isLoadingPopularCategories ||
+        searchController.isLoadingTrendingCategories ||
+        searchController.isLoading;
+    final bool hasDiscoveryData = searchController.historyList.isNotEmpty ||
+        (searchController.popularCategoryList?.isNotEmpty ?? false) ||
+        (searchController.trendingCategoryList?.isNotEmpty ?? false) ||
+        (searchController.suggestedItemList?.isNotEmpty ?? false) ||
+        searchController.discoveryFallbackCategories.isNotEmpty;
+    if (anyLoading || hasDiscoveryData) {
+      return const SizedBox.shrink();
+    }
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: DesignTokens.spaceLarge),
+      child: Text(
+        'لا توجد بيانات حالياً',
+        textAlign: TextAlign.center,
+        style: const TextStyle(
+          color: DesignTokens.textLight,
+          fontSize: 14,
+          fontWeight: FontWeight.w500,
         ),
       ),
     );

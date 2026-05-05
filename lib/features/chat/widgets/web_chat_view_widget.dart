@@ -128,6 +128,9 @@ class _WebChatViewWidgetState extends State<WebChatViewWidget> with TickerProvid
                                 showCustomSnackBar('write_something'.tr);
                               }
                             },
+                            onChanged: (String text) {
+                              widget.chatController.searchConversation(text);
+                            },
                             iconPressed: () {
                               if(widget.chatController.searchConversationModel != null) {
                                 widget.searchController.text = '';

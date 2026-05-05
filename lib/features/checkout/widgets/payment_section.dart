@@ -163,82 +163,56 @@ class _PaymentSectionState extends State<PaymentSection> {
                               icon: Icons.credit_card_outlined,
                               index: 0,
                               onTap: () {
-                                // Check if wallet data is loaded
+                                debugPrint('[QIDHA_CHECKOUT][SELECTED]');
+                                final userInfo = profileController.userInfoModel;
+                                final bool hasWallet =
+                                    userInfo?.hasQidhaWallet == true;
+                                final bool isSigned =
+                                    userInfo?.qidhaWalletSigned == true;
+                                final bool isActive =
+                                    userInfo?.qidhaWalletActive == true;
+                                final double profileBalance =
+                                    userInfo?.qidhaWalletBalance ?? 0.0;
+                                final double walletBalance = double.tryParse(
+                                        '${KaidhaSub_Controller.walletKaidhaModel?.wallet?.availableBalance ?? profileBalance}') ??
+                                    profileBalance;
+                                debugPrint(
+                                    '[QIDHA_CHECKOUT][STATUS] hasWallet=$hasWallet signed=$isSigned active=$isActive balance=$walletBalance');
+
+                                if (!hasWallet) {
+                                  debugPrint(
+                                      '[QIDHA_CHECKOUT][BLOCKED] reason=not_subscribed');
+                                  _showQidhaSubscriptionRequiredDialog();
+                                  return;
+                                }
+                                if (!isSigned) {
+                                  debugPrint(
+                                      '[QIDHA_CHECKOUT][BLOCKED] reason=signature_required');
+                                  _showQidhaSignatureRequiredDialog();
+                                  return;
+                                }
+                                if (!isActive) {
+                                  debugPrint(
+                                      '[QIDHA_CHECKOUT][BLOCKED] reason=inactive');
+                                  showCustomSnackBar(
+                                      'محفظة قيدها قيد التفعيل، يرجى المحاولة لاحقًا');
+                                  return;
+                                }
+                                if (walletBalance < widget.total) {
+                                  debugPrint(
+                                      '[QIDHA_CHECKOUT][BLOCKED] reason=insufficient_balance');
+                                  showCustomSnackBar('رصيد قيدها غير كافٍ');
+                                  return;
+                                }
                                 if (KaidhaSub_Controller.walletKaidhaModel ==
                                         null ||
                                     KaidhaSub_Controller
                                             .walletKaidhaModel!.wallet ==
                                         null) {
+                                  debugPrint(
+                                      '[QIDHA_CHECKOUT][ERROR] reason=api_unavailable');
                                   showCustomSnackBar(
-                                      'محفظة قيدها غير متاحة - يرجى المحاولة لاحقاً');
-                                  return;
-                                }
-
-                                // Log raw wallet data before any eligibility check.
-                                final kw = KaidhaSub_Controller
-                                    .walletKaidhaModel?.wallet;
-                                debugPrint(
-                                    '[Qidha][SELECT] userId=${kw?.userId}'
-                                    ' status=${kw?.status}'
-                                    ' sig=${kw?.signatureStatus}'
-                                    ' balance=${kw?.availableBalance}'
-                                    ' creditLimit=${kw?.creditLimit}');
-
-                                // Check if wallet has sufficient balance
-                                final availableBalance = KaidhaSub_Controller
-                                    .walletKaidhaModel!
-                                    .wallet!
-                                    .availableBalance;
-                                if (availableBalance == null ||
-                                    availableBalance.toString() == '0.00' ||
-                                    double.tryParse(
-                                            availableBalance.toString()) ==
-                                        0.0) {
-                                  showCustomSnackBar('المحفظه فارغة من الرصيد');
-                                  return;
-                                }
-
-                                // Block selection if wallet is not active
-                                final String? kaidhaStatus =
-                                    KaidhaSub_Controller
-                                        .walletKaidhaModel!.wallet!.status
-                                        ?.toLowerCase();
-                                if (kaidhaStatus != 'active') {
-                                  debugPrint(
-                                      '[Qidha][SELECT-BLOCK] wallet status=$kaidhaStatus (not active)');
-                                  showCustomSnackBar('محفظة قيدها غير مفعّلة');
-                                  return;
-                                }
-
-                                // Block selection if wallet is not signed/verified
-                                final dynamic sigRaw = KaidhaSub_Controller
-                                    .walletKaidhaModel!.wallet!.signatureStatus;
-                                final bool isSigned =
-                                    sigRaw == 1 || sigRaw == true;
-                                if (!isSigned) {
-                                  debugPrint(
-                                      '[Qidha][SELECT-BLOCK] signatureStatus=$sigRaw (not signed)');
-                                  Get.dialog(
-                                    AlertDialog(
-                                      title: const Text('محفظة قيدها'),
-                                      content: const Text(
-                                          'لم يتم توقيع عقد محفظة قيدها بعد. يجب إكمال خطوة توقيع العقد لتفعيل الدفع.'),
-                                      actions: [
-                                        TextButton(
-                                          onPressed: () => Get.back(),
-                                          child: const Text('إغلاق'),
-                                        ),
-                                        ElevatedButton(
-                                          onPressed: () {
-                                            Get.back();
-                                            Get.toNamed(RouteHelper
-                                                .getKiadaWalletSubscription());
-                                          },
-                                          child: const Text('إكمال التحقق'),
-                                        ),
-                                      ],
-                                    ),
-                                  );
+                                      'محفظة قيدها غير متاحة - يرجى المحاولة لاحقًا');
                                   return;
                                 }
 
@@ -551,5 +525,53 @@ class _PaymentSectionState extends State<PaymentSection> {
       default:
         return '';
     }
+  }
+
+  Future<void> _showQidhaSubscriptionRequiredDialog() async {
+    await Get.dialog<void>(
+      AlertDialog(
+        title: const Text('الاشتراك في قيدها مطلوب'),
+        content: const Text(
+          'لاستخدام محفظة قيدها، يجب الاشتراك وتفعيل المحفظة أولًا.',
+        ),
+        actions: <Widget>[
+          TextButton(
+            onPressed: () => Get.back(),
+            child: const Text('لاحقًا'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Get.back();
+              debugPrint('[QIDHA_CHECKOUT][ROUTE] qidha_subscription');
+              Get.toNamed(RouteHelper.getKiadaWalletSubscription());
+            },
+            child: const Text('اشترك الآن'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _showQidhaSignatureRequiredDialog() async {
+    await Get.dialog<void>(
+      AlertDialog(
+        title: const Text('توقيع قيدها مطلوب'),
+        content: const Text('يرجى إكمال توقيع اتفاقية قيدها أولًا'),
+        actions: <Widget>[
+          TextButton(
+            onPressed: () => Get.back(),
+            child: const Text('لاحقًا'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Get.back();
+              debugPrint('[QIDHA_CHECKOUT][ROUTE] qidha_subscription');
+              Get.toNamed(RouteHelper.getKiadaWalletSubscription());
+            },
+            child: const Text('اشترك الآن'),
+          ),
+        ],
+      ),
+    );
   }
 }

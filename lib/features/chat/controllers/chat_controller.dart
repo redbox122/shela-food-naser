@@ -8,7 +8,6 @@ import 'package:sixam_mart/features/profile/controllers/profile_controller.dart'
 import 'package:sixam_mart/api/api_client.dart';
 import 'package:sixam_mart/features/notification/domain/models/notification_body_model.dart';
 import 'package:sixam_mart/features/chat/domain/models/chat_model.dart';
-import 'package:sixam_mart/helper/date_converter.dart';
 import 'package:sixam_mart/helper/responsive_helper.dart';
 import 'package:sixam_mart/common/widgets/custom_snackbar.dart';
 import 'package:sixam_mart/features/chat/domain/services/chat_service_interface.dart';
@@ -131,81 +130,63 @@ class ChatController extends GetxController implements GetxService {
   }
 
   Future<void> searchConversation(String name) async {
-    _searchConversationModel = ConversationsModel(
-      conversations: [],
-    );
-    update();
-
-    if (name.contains('admin') ||
-        name.contains('Admin') ||
-        name.contains('a') ||
-        name.contains('A')) {
-      _searchConversationModel!.conversations = [];
-      _searchConversationModel!.conversations!.add(Conversation(
-        id: 0,
-        senderId: 0,
-        senderType: UserType.admin.name,
-        receiverId: 0,
-        receiverType: UserType.admin.name,
-        unreadMessageCount: 0,
-        lastMessageId: 0,
-        lastMessageTime: '2024-07-14 11:05:20',
-        createdAt: '2024-07-14T05:05:20.000000Z',
-        updatedAt: '2024-07-14T05:05:20.000000Z',
-        sender: User(
-          id: 0,
-          fName: Get.find<SplashController>().configModel!.businessName,
-          lName: '',
-          phone: Get.find<SplashController>().configModel!.phone,
-          email: Get.find<SplashController>().configModel!.email,
-          imageFullUrl: Get.find<SplashController>().configModel!.logoFullUrl,
-        ),
-        receiver: User(
-          id: 0,
-          fName: Get.find<SplashController>().configModel!.businessName,
-          lName: '',
-          phone: Get.find<SplashController>().configModel!.phone,
-          email: Get.find<SplashController>().configModel!.email,
-          imageFullUrl: Get.find<SplashController>().configModel!.logoFullUrl,
-        ),
-        lastMessage: Message(
-          id: 0,
-          conversationId: 0,
-          senderId: 0,
-          message: 'Welcome to Sixam Mart',
-          createdAt: '2024-07-14T05:05:20.000000Z',
-          updatedAt: '2024-07-14T05:05:20.000000Z',
-        ),
-      ));
+    final String normalizedQuery = name.trim().toLowerCase();
+    debugPrint('[CONV_SEARCH][QUERY_CHANGED] query=$normalizedQuery');
+    final List<Conversation?> source =
+        _conversationModel?.conversations ?? <Conversation?>[];
+    debugPrint('[CONV_SEARCH][SOURCE_COUNT] count=${source.length}');
+    if (normalizedQuery.isEmpty) {
+      _searchConversationModel = null;
+      update();
+      return;
     }
-
-    final ConversationsModel? searchConversationModel =
-        await chatServiceInterface.searchConversationList(name);
-    if (searchConversationModel != null) {
-      for (final element in searchConversationModel.conversations!) {
-        _searchConversationModel!.conversations!.add(element);
+    final List<Conversation?> filteredConversations = <Conversation?>[];
+    for (final Conversation? conversation in source) {
+      if (conversation == null) {
+        continue;
       }
-      // _searchConversationModel = searchConversationModel;
-      // int index0 = chatServiceInterface.setIndex(_searchConversationModel!.conversations);
-      // bool sender = chatServiceInterface.checkSender(_searchConversationModel!.conversations);
-      //
-      // debugPrint('searchConversationModel: ${index0}');
-      //
-      // if(index0 != -1) {
-      //   if(sender) {
-      //     _searchConversationModel!.conversations![index0]!.sender = User(
-      //       id: 0, fName: Get.find<SplashController>().configModel!.businessName, lName: '',
-      //       phone: Get.find<SplashController>().configModel!.phone, email: Get.find<SplashController>().configModel!.email,
-      //       imageFullUrl: Get.find<SplashController>().configModel!.logoFullUrl,
-      //     );
-      //   }else {
-      //     _searchConversationModel!.conversations![index0]!.receiver = User(
-      //       id: 0, fName: Get.find<SplashController>().configModel!.businessName, lName: '',
-      //       phone: Get.find<SplashController>().configModel!.phone, email: Get.find<SplashController>().configModel!.email,
-      //       imageFullUrl: Get.find<SplashController>().configModel!.logoFullUrl,
-      //     );
-      //   }
-      // }
+      final User? primaryUser = (conversation.senderType == UserType.user.name ||
+              conversation.senderType == UserType.customer.name)
+          ? conversation.receiver
+          : conversation.sender;
+      final String displayName = _normalizeSearchableText(
+          '${primaryUser?.fName ?? ''} ${primaryUser?.lName ?? ''}');
+      final String roleRaw = _normalizeSearchableText(
+          conversation.senderType == UserType.user.name ||
+                  conversation.senderType == UserType.customer.name
+              ? (conversation.receiverType ?? '')
+              : (conversation.senderType ?? ''));
+      final String roleSearchTokens = _buildRoleSearchTokens(roleRaw);
+      final String lastMessage = _normalizeSearchableText(
+          conversation.lastMessage?.message ?? '');
+      debugPrint(
+          '[CONV_SEARCH][ITEM] id=${conversation.id} name=$displayName role=$roleRaw');
+      bool isMatched = false;
+      String matchedReason = 'none';
+      if (displayName.contains(normalizedQuery)) {
+        isMatched = true;
+        matchedReason = 'name';
+      } else if (roleSearchTokens.contains(normalizedQuery)) {
+        isMatched = true;
+        matchedReason = 'role';
+      } else if (lastMessage.contains(normalizedQuery)) {
+        isMatched = true;
+        matchedReason = 'last_message';
+      }
+      debugPrint(
+          '[CONV_SEARCH][MATCH] query=$normalizedQuery item=${conversation.id} matched=$isMatched reason=$matchedReason');
+      if (isMatched) {
+        filteredConversations.add(conversation);
+      }
+    }
+    _searchConversationModel = ConversationsModel(
+      totalSize: filteredConversations.length,
+      offset: 1,
+      conversations: filteredConversations,
+    );
+    debugPrint('[CONV_SEARCH][RESULT_COUNT] count=${filteredConversations.length}');
+    if (filteredConversations.isEmpty) {
+      debugPrint('[CONV_SEARCH][EMPTY_SHOWN] query=$normalizedQuery');
     }
     update();
   }
@@ -213,6 +194,22 @@ class ChatController extends GetxController implements GetxService {
   void removeSearchMode() {
     _searchConversationModel = null;
     update();
+  }
+
+  String _normalizeSearchableText(String value) {
+    return value.trim().toLowerCase();
+  }
+
+  String _buildRoleSearchTokens(String roleRaw) {
+    final Set<String> tokens = <String>{roleRaw};
+    if (roleRaw == UserType.admin.name) {
+      tokens.addAll(<String>['admin', 'administrator', 'مسؤول']);
+    } else if (roleRaw == UserType.vendor.name) {
+      tokens.addAll(<String>['vendor', 'store', 'متجر']);
+    } else if (roleRaw == UserType.delivery_man.name) {
+      tokens.addAll(<String>['delivery', 'driver', 'مندوب']);
+    }
+    return tokens.join(' ');
   }
 
   Future<void> getMessages(int offset, NotificationBodyModel? notificationBody,
@@ -270,6 +267,7 @@ class ChatController extends GetxController implements GetxService {
     final dynamic responseBody = response?.body;
     debugPrint('$logPrefixOrange RESPONSE status=${response?.statusCode} bodyType=${responseBody.runtimeType} '
         'bodyIsMap=${responseBody is Map<String, dynamic>}$logReset');
+    debugPrint('[CHAT:getMessages][STATUS] ${response?.statusCode}');
 
     final bool isSuccess = response != null &&
         response.statusCode != null &&
@@ -338,6 +336,40 @@ class ChatController extends GetxController implements GetxService {
         _messageModel!.messages!.addAll(chatModel.messages!);
         debugPrint('$logPrefixOrange PAGINATE loaded ${chatModel.messages?.length ?? 0} more messages$logReset');
       }
+    } else if (response?.statusCode == 304) {
+      final bool hasMemoryModel = _messageModel != null;
+      debugPrint(
+          '[CHAT:getMessages][CACHE_304] firstLoad=$firstLoad hasMemoryModel=$hasMemoryModel hasCache=false');
+      debugPrint('[CHAT:getMessages][NO_ERROR_FOR_304]');
+      _isGetMessageError = false;
+      // Keep existing _messageModel as-is on 304 polling/re-entry.
+      if (_messageModel == null && firstLoad) {
+        debugPrint(
+            '[CHAT:getMessages][RETRY_NO_CACHE] conversation_id=${effectiveConversationId ?? 'null'}');
+        final Response retryResponse = await chatServiceInterface.getMessages(
+          offset,
+          notificationBody?.restaurantId ??
+              notificationBody?.deliverymanId ??
+              notificationBody?.adminId ??
+              user?.id ??
+              0,
+          notificationBody?.adminId != null
+              ? UserType.admin.name
+              : notificationBody?.deliverymanId != null
+                  ? UserType.delivery_man.name
+                  : UserType.vendor.name,
+          effectiveConversationId,
+        );
+        if (retryResponse.statusCode == 200 &&
+            retryResponse.body is Map<String, dynamic>) {
+          _messageModel =
+              ChatModel.fromJson(retryResponse.body as Map<String, dynamic>);
+          _messageModel!.messages ??= [];
+          debugPrint(
+              '[CHAT:getMessages][CACHE_USED] messageCount=${_messageModel!.messages!.length}');
+        }
+      }
+      debugPrint('[CHAT:getMessages][LOADING_DONE] error=false');
     } else if (firstLoad) {
       // 404 means no conversation exists yet (new chat) — treat as empty, not error
       if (response == null || response.statusCode == 404) {
@@ -372,6 +404,8 @@ class ChatController extends GetxController implements GetxService {
       } else {
         debugPrint('$logPrefixOrange ERROR status=${response.statusCode} → setting isGetMessageError=true$logReset');
         _isGetMessageError = true;
+        debugPrint(
+            '[CHAT:getMessages][ERROR_UI_SHOWN] reason=status_${response.statusCode}');
       }
     }
     update();
@@ -496,14 +530,17 @@ class ChatController extends GetxController implements GetxService {
             'hasConversation=${_messageModel!.conversation != null} '
             'convId=${_messageModel!.conversation?.id}$sr');
         if (index != null && _messageModel!.messages!.isNotEmpty) {
+          final String? latestCreatedAt = _messageModel!.messages![0].createdAt;
           if (_searchConversationModel != null) {
             _searchConversationModel!.conversations![index]!.lastMessageTime =
-                DateConverter.isoStringToLocalString(
-                    _messageModel!.messages![0].createdAt!);
+                latestCreatedAt;
+            debugPrint(
+                '[CHAT:DATE_PARSE_UNSAFE_REPLACED] function=sendMessage_updateSearchConversation lastMessageTimeRaw=$latestCreatedAt');
           } else if (_conversationModel != null) {
             _conversationModel!.conversations![index]!.lastMessageTime =
-                DateConverter.isoStringToLocalString(
-                    _messageModel!.messages![0].createdAt!);
+                latestCreatedAt;
+            debugPrint(
+                '[CHAT:DATE_PARSE_UNSAFE_REPLACED] function=sendMessage_updateConversation lastMessageTimeRaw=$latestCreatedAt');
           }
         }
         if (_messageModel?.conversation != null &&

@@ -1950,8 +1950,18 @@ class SplashController extends GetxController implements GetxService {
           _data != null &&
           _data!['module_config'] != null) {
         final moduleConfig = _data!['module_config'] as Map<String, dynamic>?;
-        final moduleTypeConfig =
+        dynamic moduleTypeConfig =
             moduleConfig != null ? moduleConfig[module.moduleType] : null;
+        if (moduleTypeConfig == null &&
+            module.moduleType == AppConstants.ecommerce &&
+            moduleConfig != null &&
+            moduleConfig['grocery'] != null) {
+          moduleTypeConfig = moduleConfig['grocery'];
+          if (kDebugMode) {
+            debugPrint(
+                '[MODULE_CONFIG][FALLBACK] type=ecommerce fallback=grocery');
+          }
+        }
         if (moduleTypeConfig != null &&
             moduleTypeConfig is Map<String, dynamic>) {
           try {
@@ -1973,20 +1983,8 @@ class SplashController extends GetxController implements GetxService {
           }
         } else {
           if (kDebugMode) {
-            // 🔧 FIX: Log as ERROR if module_config is missing (not just INFO)
-            if (moduleTypeConfig == null) {
-              debugPrint(
-                  '❌ setModule: module_config["${module.moduleType}"] is null - using default config');
-              appLogger.error(
-                  'module_config missing for ${module.moduleType}', null, null);
-            } else {
-              debugPrint(
-                  '❌ setModule: module_config["${module.moduleType}"] is not a Map (type: ${moduleTypeConfig.runtimeType}) - using default config');
-              appLogger.error(
-                  'module_config invalid type for ${module.moduleType}',
-                  null,
-                  null);
-            }
+            debugPrint(
+                '[MODULE_CONFIG][FALLBACK] type=${module.moduleType} fallback=default');
           }
           _configModel!.moduleConfig!.module =
               _buildDefaultModuleConfig(module.moduleType);
@@ -1994,7 +1992,7 @@ class SplashController extends GetxController implements GetxService {
       } else {
         if (kDebugMode) {
           debugPrint(
-              '⚠️ setModule: Skipping module config update - missing data');
+              '[MODULE_CONFIG][FALLBACK] type=${module.moduleType} fallback=default reason=missing_config');
         }
         if (_configModel != null && _configModel!.moduleConfig != null) {
           _configModel!.moduleConfig!.module =
@@ -2617,7 +2615,17 @@ class SplashController extends GetxController implements GetxService {
         // 🔧 FIX: Handle null module_config gracefully (prevent cast error)
         final moduleConfig = _data!['module_config'];
         if (moduleConfig != null && moduleConfig is Map) {
-          final moduleTypeConfig = moduleConfig[_module!.moduleType];
+          dynamic moduleTypeConfig = moduleConfig[_module!.moduleType];
+          // [MODULE_CONFIG][FALLBACK] – ecommerce → grocery → default
+          if (moduleTypeConfig == null &&
+              _module!.moduleType == AppConstants.ecommerce &&
+              moduleConfig['grocery'] != null) {
+            moduleTypeConfig = moduleConfig['grocery'];
+            if (kDebugMode) {
+              debugPrint(
+                  '[MODULE_CONFIG][FALLBACK] type=${_module!.moduleType} fallback=grocery');
+            }
+          }
           if (moduleTypeConfig != null &&
               moduleTypeConfig is Map<String, dynamic>) {
             _configModel!.moduleConfig!.module =
@@ -2625,7 +2633,7 @@ class SplashController extends GetxController implements GetxService {
           } else {
             if (kDebugMode) {
               debugPrint(
-                  '⚠️ SplashController: module_config[${_module!.moduleType}] is null or not a Map');
+                  '[MODULE_CONFIG][FALLBACK] type=${_module!.moduleType} fallback=default');
             }
             _configModel!.moduleConfig!.module =
                 _buildDefaultModuleConfig(_module!.moduleType);
@@ -2633,7 +2641,7 @@ class SplashController extends GetxController implements GetxService {
         } else {
           if (kDebugMode) {
             debugPrint(
-                '⚠️ SplashController: module_config is null or not a Map');
+                '[MODULE_CONFIG][FALLBACK] type=${_module!.moduleType} fallback=default reason=missing_config');
           }
           _configModel!.moduleConfig!.module =
               _buildDefaultModuleConfig(_module!.moduleType);

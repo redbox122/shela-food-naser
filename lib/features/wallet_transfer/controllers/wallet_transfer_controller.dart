@@ -37,14 +37,17 @@ class WalletTransferController extends GetxController implements GetxService {
 
   /// Validates recipient phone number
   Future<bool> validateRecipient(String phone) async {
+    debugPrint('[WALLET_TRANSFER][RECIPIENT_INPUT] raw=$phone');
     _isValidating = true;
     _validatedRecipient = null;
     _lastError = null;
     update();
 
     try {
-      // Normalize phone number - ensure it starts with +966
       final String normalizedPhone = _normalizePhoneNumber(phone);
+      debugPrint(
+          '[WALLET_TRANSFER][PHONE_NORMALIZED] raw=$phone normalized=$normalizedPhone');
+      debugPrint('[WALLET_TRANSFER][VALIDATE_START] phone=$normalizedPhone');
 
       final ValidateRecipientResponseModel? response =
           await walletTransferServiceInterface
@@ -54,11 +57,16 @@ class WalletTransferController extends GetxController implements GetxService {
           response.success == true &&
           response.user != null) {
         _validatedRecipient = response.user;
+        debugPrint(
+            '[WALLET_TRANSFER][VALIDATE_RESPONSE] success=true recipientId=${response.user?.id} name=${response.user?.name} phone=${response.user?.phone}');
         _isValidating = false;
         update();
         return true;
       } else {
-        _lastError = response?.errorCode ?? 'USER_NOT_FOUND';
+        _lastError = response?.errorCode ??
+            _inferValidationErrorCode(response?.message);
+        debugPrint(
+            '[WALLET_TRANSFER][VALIDATE_ERROR] status=failed code=${_lastError ?? 'UNKNOWN'} message=${response?.message ?? ''}');
         showCustomSnackBar(getErrorMessage(_lastError!));
         _isValidating = false;
         update();
@@ -67,6 +75,8 @@ class WalletTransferController extends GetxController implements GetxService {
     } catch (e) {
       debugPrint('❌ Error validating recipient: $e');
       _lastError = 'VALIDATION_FAILED';
+      debugPrint(
+          '[WALLET_TRANSFER][VALIDATE_ERROR] status=exception code=$_lastError message=$e');
       showCustomSnackBar(getErrorMessage(_lastError!));
       _isValidating = false;
       update();
@@ -117,7 +127,6 @@ class WalletTransferController extends GetxController implements GetxService {
     update();
 
     try {
-      // Normalize phone number before transfer
       final normalizedRequest = TransferRequestModel(
         recipientPhone: _normalizePhoneNumber(request.recipientPhone),
         amount: request.amount,
@@ -126,6 +135,8 @@ class WalletTransferController extends GetxController implements GetxService {
         recipientNickname: request.recipientNickname,
         message: request.message,
       );
+      debugPrint(
+          '[WALLET_TRANSFER][TRANSFER_START] recipientPhone=${normalizedRequest.recipientPhone} amount=${normalizedRequest.amount}');
 
       final TransferResponseModel? response =
           await walletTransferServiceInterface
@@ -135,6 +146,7 @@ class WalletTransferController extends GetxController implements GetxService {
       update();
 
       if (response != null && response.success == true) {
+        debugPrint('[WALLET_TRANSFER][TRANSFER_RESPONSE] success=true');
         // Update user's wallet balance
         await _updateWalletBalance(
             request.paymentSource, response.data?.senderNewBalance);
@@ -146,12 +158,14 @@ class WalletTransferController extends GetxController implements GetxService {
 
         return response;
       } else {
+        debugPrint('[WALLET_TRANSFER][TRANSFER_RESPONSE] success=false');
         _lastError = response?.errorCode ?? 'TRANSFER_FAILED';
         _showTransferErrorDialog(response);
         return null;
       }
     } catch (e) {
       debugPrint('❌ Error executing transfer: $e');
+      debugPrint('[WALLET_TRANSFER][TRANSFER_RESPONSE] success=false');
       _lastError = 'TRANSFER_FAILED';
       showCustomSnackBar(getErrorMessage(_lastError!));
       _isTransferring = false;
@@ -310,11 +324,11 @@ class WalletTransferController extends GetxController implements GetxService {
   String getErrorMessage(String errorCode) {
     switch (errorCode) {
       case 'USER_NOT_FOUND':
-        return 'user_not_found'.tr;
+        return 'لا يوجد مستخدم بهذا الرقم';
       case 'USER_INACTIVE':
-        return 'user_inactive'.tr;
+        return 'هذا المستخدم غير متاح للتحويل';
       case 'CANNOT_TRANSFER_TO_SELF':
-        return 'cannot_transfer_to_self'.tr;
+        return 'لا يمكنك التحويل لنفسك';
       case 'INSUFFICIENT_BALANCE':
         return 'insufficient_balance'.tr;
       case 'INSUFFICIENT_QIDHA_BALANCE':
@@ -338,6 +352,20 @@ class WalletTransferController extends GetxController implements GetxService {
       default:
         return 'something_went_wrong'.tr;
     }
+  }
+
+  String _inferValidationErrorCode(String? message) {
+    final String normalizedMessage = (message ?? '').toLowerCase();
+    if (normalizedMessage.contains('self')) {
+      return 'CANNOT_TRANSFER_TO_SELF';
+    }
+    if (normalizedMessage.contains('inactive')) {
+      return 'USER_INACTIVE';
+    }
+    if (normalizedMessage.contains('not found')) {
+      return 'USER_NOT_FOUND';
+    }
+    return 'USER_NOT_FOUND';
   }
 
   /// Clears validated recipient

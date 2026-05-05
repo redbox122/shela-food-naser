@@ -47,7 +47,8 @@ class SplashScreenState extends State<SplashScreen> {
       if (!_hasNavigatedAway && mounted) {
         final splashController = Get.find<SplashController>();
         if (splashController.isSplashCacheReady) {
-          debugPrint('🛟 SplashScreen SAFETY NET: Safety net skipped because cacheReady=true');
+          debugPrint(
+              '🛟 SplashScreen SAFETY NET: Safety net skipped because cacheReady=true');
           debugPrint('🚀 SplashScreen: First navigation released');
           _hasNavigatedAway = true;
           splashController.markFirstNavigationReleased();
@@ -56,16 +57,18 @@ class SplashScreenState extends State<SplashScreen> {
           return;
         }
         _hasNavigatedAway = true;
-        final bool hasMinimumStartupData = splashController.moduleList != null &&
-            splashController.moduleList!.isNotEmpty &&
-            splashController.configModel != null;
+        final bool hasMinimumStartupData =
+            splashController.moduleList != null &&
+                splashController.moduleList!.isNotEmpty &&
+                splashController.configModel != null;
         if (hasMinimumStartupData) {
           debugPrint(
               '🛟 SplashScreen SAFETY NET: startup data ready after extended wait - routing without fallback');
         } else {
           debugPrint(
               '🚨 SplashScreen SAFETY NET: startup still not ready after 14s - forcing fallback navigation');
-          splashController.applyFallbackConfig(reason: 'safety-net timer (14s)');
+          splashController.applyFallbackConfig(
+              reason: 'safety-net timer (14s)');
         }
         debugPrint('🚀 SplashScreen: First navigation released');
         splashController.markFirstNavigationReleased();

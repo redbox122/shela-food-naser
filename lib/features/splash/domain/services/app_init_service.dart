@@ -5,6 +5,7 @@ import 'package:sixam_mart/common/models/app_init_model.dart';
 import 'package:sixam_mart/util/app_constants.dart';
 import 'package:sixam_mart/core/isolate/json_isolate_helper.dart';
 import 'package:get/get.dart';
+import 'package:sixam_mart/common/utils/secure_log.dart';
 
 /// Service for calling the app-init endpoint introduced by the backend team
 /// This consolidates multiple startup API calls into a single request
@@ -24,7 +25,10 @@ class AppInitService {
     try {
       if (kDebugMode) {
         debugPrint('🚀 AppInitService: Calling /api/v1/app-init endpoint');
-        debugPrint('   - Headers: $headers');
+        if (headers != null && headers.isNotEmpty) {
+          debugPrint(
+              '   - Headers (masked): ${SecureLog.maskHeaders(headers)}');
+        }
         debugPrint(
             '   - Startup owner: ${headers?['X-Startup-Owner'] ?? 'unknown'} | no-retry: ${headers?['X-No-Retry'] ?? 'false'}');
         debugPrint(

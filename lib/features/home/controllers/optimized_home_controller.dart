@@ -57,7 +57,7 @@ class OptimizedHomeDataLoader {
 
     // Prevent rapid successive calls
     if (instance._isLoading) {
-      if (kDebugMode) {
+      if (kDebugMode && AppConstants.enableVerboseLogs) {
         debugPrint('🚫 Home data loading already in progress, skipping');
       }
       return;
@@ -67,7 +67,7 @@ class OptimizedHomeDataLoader {
     // Allow if called from ComprehensiveHomeLoader (comprehensive loading is expected)
     if (!allowDuringComprehensiveLoading) {
       if (loadingManager.isAnyLoading) {
-        if (kDebugMode) {
+        if (kDebugMode && AppConstants.enableVerboseLogs) {
           debugPrint(
               '🚫 Cannot start home data loading - another operation in progress');
         }
@@ -76,7 +76,7 @@ class OptimizedHomeDataLoader {
     } else {
       // When called from ComprehensiveHomeLoader, only block if other operations (not comprehensive) are in progress
       if (loadingManager.isSplashLoading || loadingManager.isHomeLoading || loadingManager.isBackgroundRefreshing) {
-        if (kDebugMode) {
+        if (kDebugMode && AppConstants.enableVerboseLogs) {
           debugPrint(
               '🚫 Cannot start home data loading - another operation in progress (splash/home/background)');
         }
@@ -89,7 +89,7 @@ class OptimizedHomeDataLoader {
         instance._lastLoadTime != null &&
         DateTime.now().difference(instance._lastLoadTime!) <
             OptimizedHomeDataLoader._minLoadInterval) {
-      if (kDebugMode) {
+      if (kDebugMode && AppConstants.enableVerboseLogs) {
         debugPrint('🚫 Too soon since last load, skipping');
       }
       return;

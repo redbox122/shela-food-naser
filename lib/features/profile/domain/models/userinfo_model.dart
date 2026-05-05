@@ -1,5 +1,3 @@
-import 'dart:convert';
-
 import 'package:flutter/foundation.dart';
 import 'package:sixam_mart/features/chat/domain/models/conversation_model.dart';
 import 'package:sixam_mart/common/utils/json_parser.dart';
@@ -63,10 +61,6 @@ class UserInfoModel {
   });
 
   UserInfoModel.fromJson(Map<String, dynamic> json) {
-    if (kDebugMode) {
-      debugPrint('DEBUG: Full User JSON from API => ${jsonEncode(json)}');
-    }
-
     final Map<String, dynamic>? nestedUserMap =
         json['userinfo'] is Map<String, dynamic>
             ? json['userinfo'] as Map<String, dynamic>
@@ -142,6 +136,11 @@ class UserInfoModel {
     qidhaWalletActive = json.parseBool('qidha_wallet_active');
     // ⚡ FIX: Safe parsing - handle both String and numeric values
     qidhaWalletBalance = json.parseDouble('qidha_wallet_balance');
+
+    if (kDebugMode) {
+      debugPrint(
+          '[PROFILE][USER_INFO_RESPONSE] status=200 userId=$id hasQidha=$hasQidhaWallet walletBalancePresent=${walletBalance != null}');
+    }
   }
 
   Map<String, dynamic> toJson() {

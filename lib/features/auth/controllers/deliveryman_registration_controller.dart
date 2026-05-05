@@ -1,5 +1,6 @@
 // ignore_for_file: non_constant_identifier_names
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
@@ -15,6 +16,7 @@ import 'package:sixam_mart/features/location/domain/models/zone_response_model.d
 import 'package:sixam_mart/features/auth/domain/models/delivery_man_body.dart';
 import 'package:sixam_mart/features/auth/domain/models/delivery_man_vehicles_model.dart';
 import 'package:sixam_mart/features/auth/domain/services/deliveryman_registration_service_interface.dart';
+import 'package:sixam_mart/features/auth/domain/reposotories/deliveryman_registration_repository.dart';
 
 class DeliverymanRegistrationController extends GetxController
     implements GetxService {
@@ -496,32 +498,61 @@ class DeliverymanRegistrationController extends GetxController
 
   // get  Status   =================================================================
 
+  /// Single endpoint: POST /api/v1/customer/delivery-man/check-registration
+  Future<Map<String, dynamic>?> fetchDeliveryRegistrationForProfile({
+    String? phone,
+    String? email,
+  }) async {
+    if (kDebugMode) {
+      debugPrint('[PROFILE_STATUS][DELIVERY_SINGLE_ENDPOINT]');
+    }
+    try {
+      final Map<String, dynamic>? raw =
+          await deliverymanRegistrationServiceInterface
+              .checkDeliveryManRegistration(phone: phone, email: email);
+      _status_model = statusModelFromCheckRegistration(raw, phone);
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        update();
+      });
+      return raw;
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('$_tag fetchDeliveryRegistrationForProfile ERROR: $e');
+      }
+      return null;
+    }
+  }
+
   Future<void> getStatus() async {
-    debugPrint('$_tag getStatus() START');
-    final profileController = Get.find<ProfileController>();
+    if (kDebugMode) {
+      debugPrint('$_tag getStatus() START');
+    }
+    final ProfileController profileController = Get.find<ProfileController>();
     String? phone = profileController.userInfoModel?.phone?.trim();
-    debugPrint('$_tag getStatus => initial phone=$phone');
+    String? email = profileController.userInfoModel?.email?.trim();
 
     if (phone == null || phone.isEmpty || phone.toLowerCase() == 'null') {
-      debugPrint('$_tag getStatus => phone is null, fetching user info...');
+      if (kDebugMode) {
+        debugPrint('$_tag getStatus => phone is null, fetching user info...');
+      }
       await profileController.getUserInfo();
       phone = profileController.userInfoModel?.phone?.trim();
-      debugPrint('$_tag getStatus => after getUserInfo phone=$phone');
+      email = profileController.userInfoModel?.email?.trim();
     }
 
     if (phone == null || phone.isEmpty || phone.toLowerCase() == 'null') {
-      debugPrint('$_tag getStatus => phone is still null, aborting');
+      if (kDebugMode) {
+        debugPrint('$_tag getStatus => phone is still null, aborting');
+      }
       return;
     }
 
-    _status_model =
-        await deliverymanRegistrationServiceInterface.getStatus(phone);
+    await fetchDeliveryRegistrationForProfile(phone: phone, email: email);
 
-    debugPrint('$_tag getStatus => status_model phone=${_status_model?.phone ?? 'null'}');
-
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      update();
-    });
+    if (kDebugMode) {
+      debugPrint(
+          '$_tag getStatus => status_model phone=${_status_model?.phone ?? 'null'}');
+    }
   }
 
   Future<Map<String, dynamic>?> checkDeliveryManRegistration({

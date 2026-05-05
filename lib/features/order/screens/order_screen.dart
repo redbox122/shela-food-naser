@@ -161,7 +161,7 @@ class OrderScreenState extends State<OrderScreen>
           ),
           Padding(
             padding: const EdgeInsets.all(12),
-            child: Text('الملغاة', style: robotoBold),
+            child: Text('order_tab_cancelled'.tr, style: robotoBold),
           ),
           Padding(
             padding: const EdgeInsets.all(12),

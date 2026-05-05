@@ -329,8 +329,13 @@ class HomeUnifiedService {
           return null;
         }
         
-        // Check for success flag
-        if (data['success'] != true) {
+        // Check for success flag (bool, int, or string from some gateways)
+        final dynamic rawSuccess = data['success'];
+        final bool apiSuccess = rawSuccess == true ||
+            rawSuccess == 1 ||
+            rawSuccess == '1' ||
+            (rawSuccess is String && rawSuccess.toLowerCase() == 'true');
+        if (!apiSuccess) {
           _lastRequestErrorCode = 'api_success_false';
           if (kDebugMode) {
             debugPrint('❌ HomeUnifiedService: API returned success=false');
@@ -384,32 +389,41 @@ class HomeUnifiedService {
         // ⚡ BFF API v2: Parse the data section (or use data directly if nested)
         // HomeUnifiedModel.fromJson handles both structures automatically
         final model = HomeUnifiedModel.fromJson(data);
-        
+
+        final int categoriesLen = model.categories?.length ?? 0;
+        final int bannersLen = model.banners?.length ?? 0;
+        final int offersLen = model.offers?.length ?? 0;
+        final int brandsLen = model.brands?.length ?? 0;
+        final bool hasUsefulData = categoriesLen > 0 ||
+            bannersLen > 0 ||
+            offersLen > 0 ||
+            brandsLen > 0;
+
         if (kDebugMode) {
           debugPrint('✅ HomeUnifiedService: Data fetched successfully');
           debugPrint('   Duration: ${stopwatch.elapsedMilliseconds}ms');
-          debugPrint('   Banners: ${model.banners?.length ?? 0}');
+          debugPrint('   Banners: $bannersLen');
           debugPrint('   Campaigns: ${model.campaigns?.length ?? 0}');
-          debugPrint('   Categories: ${model.categories?.length ?? 0}');
+          debugPrint('   Categories: $categoriesLen');
           debugPrint('   Popular Stores: ${model.popularStores?.length ?? 0}');
-          debugPrint('   Brands: ${model.brands?.length ?? 0}');
-          debugPrint('   Offers: ${model.offers?.length ?? 0}');
+          debugPrint('   Brands: $brandsLen');
+          debugPrint('   Offers: $offersLen');
           if (model.meta != null) {
             debugPrint('   Server Execution Time: ${model.meta!.executionTimeMs}ms');
             debugPrint('   Cache Hit: ${model.meta!.cacheHit}');
           }
-          final isEffectivelyEmpty = (model.banners?.isEmpty ?? true) &&
+          debugPrint(
+              '[HOME_UNIFIED][SERVICE_RETURN] success=$hasUsefulData hasModel=true '
+              'categories=$categoriesLen offers=$offersLen banners=$bannersLen brands=$brandsLen');
+          final isEffectivelyEmpty = !hasUsefulData &&
               (model.campaigns?.isEmpty ?? true) &&
-              (model.categories?.isEmpty ?? true) &&
-              (model.popularStores?.isEmpty ?? true) &&
-              (model.brands?.isEmpty ?? true) &&
-              (model.offers?.isEmpty ?? true);
+              (model.popularStores?.isEmpty ?? true);
           if (isEffectivelyEmpty) {
             debugPrint(
                 '[Diag] HomeUnifiedService: Parsed model is effectively empty for module=${headers[AppConstants.moduleId]}');
           }
         }
-        
+
         return model;
       } else {
         _lastRequestErrorCode = 'api_http_${response.statusCode ?? 0}';

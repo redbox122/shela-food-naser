@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:sixam_mart/common/enums/data_source_enum.dart';
 import 'package:sixam_mart/features/auth/controllers/auth_controller.dart';
 import 'package:sixam_mart/features/location/controllers/location_controller.dart';
 import 'package:sixam_mart/features/notification/domain/models/notification_body_model.dart';
@@ -22,6 +23,15 @@ import 'package:sixam_mart/features/home/controllers/home_unified_controller.dar
 bool _hasRoutedFromSplash = false;
 bool _isRoutingToHome = false;
 DateTime? _lastHomeRouteAt;
+
+/// Once we have committed to a final post-splash destination (cached module
+/// or resolved module), this is set to true. Any later async splash callbacks
+/// that try to route to MultiModuleHomeScreen or to '/' are ignored.
+bool _splashRouteFinalized = false;
+
+/// Public read-only accessor used by SplashScreen to skip late navigation
+/// fallbacks once the cached-module direct route has fired.
+bool get splashRouteFinalized => _splashRouteFinalized;
 
 Future<void> _routeToDashboardOnce({bool force = false}) async {
   if (_isRoutingToHome) {
@@ -51,6 +61,106 @@ Future<void> _routeToDashboardOnce({bool force = false}) async {
   }
 }
 
+/// 🎯 SPLASH_ROUTE: Direct route to a specific module (skips MultiModule detour).
+///
+/// Used when a cached module exists at startup so we can avoid the chain
+/// `Splash -> MultiModule -> Dashboard -> MultiModule -> /module/N`.
+Future<void> _routeDirectlyToModule(int moduleId) async {
+  if (_isRoutingToHome) {
+    if (kDebugMode) {
+      debugPrint(
+          '[SPLASH_ROUTE][BLOCK_DUPLICATE_NAV] current=${Get.currentRoute} target=${RouteHelper.getModuleHomeRoute(moduleId)}');
+    }
+    return;
+  }
+  final String targetRoute = RouteHelper.getModuleHomeRoute(moduleId);
+  if (Get.currentRoute == targetRoute) {
+    if (kDebugMode) {
+      debugPrint(
+          '[SPLASH_ROUTE][BLOCK_DUPLICATE_NAV] current=${Get.currentRoute} target=$targetRoute');
+    }
+    // Even if we're already on the target route, mark routing finalized so
+    // late splash callbacks cannot push MultiModule on top.
+    _hasRoutedFromSplash = true;
+    _splashRouteFinalized = true;
+    return;
+  }
+  _isRoutingToHome = true;
+  _lastHomeRouteAt = DateTime.now();
+  // Mark splash routing as committed BEFORE the navigation completes so any
+  // late `route()` / `_navigateToMultiModuleHomeScreen()` callbacks that fire
+  // during the navigation transition see the finalized flag and bail out.
+  _hasRoutedFromSplash = true;
+  _splashRouteFinalized = true;
+  if (kDebugMode) {
+    debugPrint('[SPLASH_ROUTE][DIRECT_TO_MODULE] id=$moduleId');
+  }
+  try {
+    await Get.offAllNamed<void>(
+      targetRoute,
+      arguments: <String, dynamic>{
+        'module_id': moduleId,
+        'skip_splash': true,
+        'from_splash_cached': true,
+      },
+    );
+  } finally {
+    Future.delayed(const Duration(milliseconds: 300), () {
+      _isRoutingToHome = false;
+    });
+  }
+}
+
+/// Resolves the cached module ID into a `ModuleModel`. If the in-memory list
+/// is empty, this method first tries the local cache and finally builds a
+/// minimal stub `ModuleModel` so that we can still route directly to
+/// `/module/<id>` instead of falling back to `MultiModuleHomeScreen`.
+Future<ModuleModel?> _resolveCachedModuleForRouting({
+  required SplashController splashController,
+  required int cachedModuleId,
+}) async {
+  ModuleModel? findIn(List<ModuleModel>? list) {
+    if (list == null || list.isEmpty) {
+      return null;
+    }
+    for (final m in list) {
+      if (m.id == cachedModuleId) {
+        return m;
+      }
+    }
+    return null;
+  }
+
+  ModuleModel? resolved = findIn(splashController.moduleList);
+  if (resolved != null) {
+    return resolved;
+  }
+
+  // 🔧 Fallback A: ask SplashController to load modules from local cache.
+  try {
+    await splashController
+        .getModules(dataSource: DataSourceEnum.local)
+        .timeout(const Duration(milliseconds: 600), onTimeout: () {});
+  } catch (_) {
+    // ignore — we'll handle nulls below.
+  }
+  resolved = findIn(splashController.moduleList);
+  if (resolved != null) {
+    return resolved;
+  }
+
+  // 🔧 Fallback B: build a minimal stub so direct module routing can still
+  // proceed. SplashController.setModule will keep moduleType empty in this
+  // case but routing to /module/<id> is enough to skip the MultiModule
+  // detour. The full module model will arrive later through the regular
+  // app-init refresh path.
+  if (kDebugMode) {
+    debugPrint(
+        '[SPLASH_ROUTE][CACHED_MODULE_STUB] id=$cachedModuleId reason=module_list_unavailable');
+  }
+  return ModuleModel(id: cachedModuleId);
+}
+
 Future<void> routeToDashboardOnce({bool force = false}) async {
   await _routeToDashboardOnce(force: force);
 }
@@ -59,6 +169,15 @@ Future<void> routeToDashboardOnce({bool force = false}) async {
 /// After splash screen, always show MultiModuleHomeScreen first for module selection
 /// 🚫 FIX: Simplified - directly navigate using Get.offAllNamed to prevent loops
 void _navigateToMultiModuleHomeScreen() {
+  // 🚫 GUARD (Bug 2): If a direct module route already finalized splash, do
+  // not let any late callback push MultiModuleHomeScreen on top of it.
+  if (_splashRouteFinalized) {
+    if (kDebugMode) {
+      debugPrint(
+          '[SPLASH_ROUTE][BLOCK_DUPLICATE_NAV] current=${Get.currentRoute} target=multi_module reason=route_finalized');
+    }
+    return;
+  }
   // 🚫 FIX: Prevent double navigation - only route once
   if (_hasRoutedFromSplash) {
     if (kDebugMode) {
@@ -93,6 +212,16 @@ void _navigateToMultiModuleHomeScreen() {
 
 void route(BuildContext context,
     {NotificationBodyModel? body, bool forceDashboard = false}) {
+  // 🚫 GUARD (Bug 2): If splash already routed directly to a cached module,
+  // ignore any late `route()` call from SplashScreen safety nets / async
+  // callbacks. They must not override the cached-module destination.
+  if (_splashRouteFinalized && !forceDashboard) {
+    if (kDebugMode) {
+      debugPrint(
+          '[SPLASH_ROUTE][BLOCK_DUPLICATE_NAV] current=${Get.currentRoute} target=route() reason=route_finalized');
+    }
+    return;
+  }
   // Check if configModel is loaded first
   final splashController = Get.find<SplashController>();
   if (Get.isRegistered<HomeUnifiedController>()) {
@@ -203,32 +332,27 @@ Future<void> _forLoggedInUserRouteProcess(
     // If cached module exists, use it and go directly to Home WITHOUT MultiModuleHomeScreen
     final cachedModuleId = await HiveHomeCacheService.getLastSelectedModuleId();
 
-    // 🎯 CRITICAL FIX: If cached module exists, set it immediately and go to Dashboard
-    // This prevents the unnecessary detour to MultiModuleHomeScreen
-    if (cachedModuleId != null && moduleList != null && moduleList.isNotEmpty) {
-      // Find cached module in module list
-      ModuleModel? cachedModule;
-      for (final module in moduleList) {
-        if (module.id == cachedModuleId) {
-          cachedModule = module;
-          break;
-        }
+    // 🎯 CRITICAL FIX (Bug 2): If cached module ID is known, route directly to
+    // /module/<id> EVEN IF moduleList is not yet populated. We resolve the
+    // ModuleModel via local-cache fallback or build a stub if absolutely
+    // required. The detour through MultiModuleHomeScreen used to fire here
+    // only because moduleList was momentarily null.
+    if (cachedModuleId != null) {
+      if (kDebugMode) {
+        debugPrint('[SPLASH_ROUTE][CACHED_MODULE_FOUND] id=$cachedModuleId');
       }
-
-      if (cachedModule != null) {
-        // Set module immediately from cache using setModule (which updates both selectedModule and _module)
-        await splashController.setModule(
-          cachedModule,
-          notify: forceDashboard,
-        );
-
-        if (kDebugMode) {
-          debugPrint(
-              '🚀 [Module-First] Route Guard: Cached module found (id=$cachedModuleId) - routing directly to Dashboard');
-        }
-        // Go directly to Dashboard - skip MultiModuleHomeScreen entirely
-        await _routeToDashboardOnce(force: forceDashboard);
-        return; // Exit early - no need to check anything else
+      final ModuleModel? cachedModule = await _resolveCachedModuleForRouting(
+        splashController: splashController,
+        cachedModuleId: cachedModuleId,
+      );
+      if (cachedModule != null && cachedModule.id != null) {
+        // Set module synchronously BEFORE the route guard decides anything.
+        // This ensures DashboardScreen._buildHomeRoot reads a non-null
+        // selectedModule on its very first frame and never falls back to
+        // MultiModuleHomeScreen.
+        await splashController.setModule(cachedModule, notify: false);
+        await _routeDirectlyToModule(cachedModule.id!);
+        return; // Exit early – do NOT touch MultiModule or '/' route.
       }
     }
 
@@ -240,18 +364,16 @@ Future<void> _forLoggedInUserRouteProcess(
     // 🏗️ MODULE-FIRST: Route Guard - only navigate to MultiModuleHomeScreen if no module selected
     // This handles cases where resolveInitialModule selected a module (single module scenario)
     final finalSelectedModule = splashController.selectedModule.value;
-    if (finalSelectedModule != null) {
-      // Module resolved (single module or auto-selected) - navigate directly to Dashboard
+    if (finalSelectedModule != null && finalSelectedModule.id != null) {
       if (kDebugMode) {
         debugPrint(
-            '🏗️ [Module-First] Route Guard: Module resolved (id=${finalSelectedModule.id}) - routing to Dashboard');
+            '[SPLASH_ROUTE][DIRECT_TO_MODULE] id=${finalSelectedModule.id} (resolved=auto)');
       }
-      await _routeToDashboardOnce(force: forceDashboard);
+      await _routeDirectlyToModule(finalSelectedModule.id!);
     } else {
-      // No module selected - show MultiModuleHomeScreen for selection
       if (kDebugMode) {
         debugPrint(
-            '🏗️ [Module-First] Route Guard: No module selected - routing to MultiModuleHomeScreen');
+            '[SPLASH_ROUTE][MULTI_MODULE_REQUIRED] reason=no_cached_module_and_no_resolved_module');
       }
       _navigateToMultiModuleHomeScreen();
     }
@@ -260,8 +382,6 @@ Future<void> _forLoggedInUserRouteProcess(
     if (!hasAddress && hasValidCache) {
       appLogger.info(
           'Updating location in background for logged-in user (cache available, GPS can fix later)');
-      // Location will be updated in background when GPS is fixed
-      // Home screen can render from cache immediately
     }
   } else {
     // No address and no cache - need location before proceeding
@@ -309,32 +429,20 @@ Future<void> _forGuestUserRouteProcess(
     // If cached module exists, use it and go directly to Home WITHOUT MultiModuleHomeScreen
     final cachedModuleId = await HiveHomeCacheService.getLastSelectedModuleId();
 
-    // 🎯 CRITICAL FIX: If cached module exists, set it immediately and go to Dashboard
-    // This prevents the unnecessary detour to MultiModuleHomeScreen
-    if (cachedModuleId != null && moduleList != null && moduleList.isNotEmpty) {
-      // Find cached module in module list
-      ModuleModel? cachedModule;
-      for (final module in moduleList) {
-        if (module.id == cachedModuleId) {
-          cachedModule = module;
-          break;
-        }
+    // 🎯 CRITICAL FIX (Bug 2): cached module path resolved via fallback even
+    // if moduleList isn't ready yet. Same logic as the logged-in path.
+    if (cachedModuleId != null) {
+      if (kDebugMode) {
+        debugPrint('[SPLASH_ROUTE][CACHED_MODULE_FOUND] id=$cachedModuleId');
       }
-
-      if (cachedModule != null) {
-        // Set module immediately from cache using setModule (which updates both selectedModule and _module)
-        await splashController.setModule(
-          cachedModule,
-          notify: forceDashboard,
-        );
-
-        if (kDebugMode) {
-          debugPrint(
-              '🚀 [Module-First] Route Guard: Cached module found (id=$cachedModuleId) - routing directly to Dashboard');
-        }
-        // Go directly to Dashboard - skip MultiModuleHomeScreen entirely
-        await _routeToDashboardOnce(force: forceDashboard);
-        return; // Exit early - no need to check anything else
+      final ModuleModel? cachedModule = await _resolveCachedModuleForRouting(
+        splashController: splashController,
+        cachedModuleId: cachedModuleId,
+      );
+      if (cachedModule != null && cachedModule.id != null) {
+        await splashController.setModule(cachedModule, notify: false);
+        await _routeDirectlyToModule(cachedModule.id!);
+        return;
       }
     }
 
@@ -344,30 +452,24 @@ Future<void> _forGuestUserRouteProcess(
     }
 
     // 🏗️ MODULE-FIRST: Route Guard - only navigate to MultiModuleHomeScreen if no module selected
-    // This handles cases where resolveInitialModule selected a module (single module scenario)
     final finalSelectedModule = splashController.selectedModule.value;
-    if (finalSelectedModule != null) {
-      // Module resolved (single module or auto-selected) - navigate directly to Dashboard
+    if (finalSelectedModule != null && finalSelectedModule.id != null) {
       if (kDebugMode) {
         debugPrint(
-            '🏗️ [Module-First] Route Guard: Module resolved (id=${finalSelectedModule.id}) - routing to Dashboard');
+            '[SPLASH_ROUTE][DIRECT_TO_MODULE] id=${finalSelectedModule.id} (resolved=auto)');
       }
-      await _routeToDashboardOnce(force: forceDashboard);
+      await _routeDirectlyToModule(finalSelectedModule.id!);
     } else {
-      // No module selected - show MultiModuleHomeScreen for selection
       if (kDebugMode) {
         debugPrint(
-            '🏗️ [Module-First] Route Guard: No module selected - routing to MultiModuleHomeScreen');
+            '[SPLASH_ROUTE][MULTI_MODULE_REQUIRED] reason=no_cached_module_and_no_resolved_module');
       }
       _navigateToMultiModuleHomeScreen();
     }
 
-    // ⚡ OPTIMIZATION: Update location in background if no address but cache exists
     if (!hasAddress && hasValidCache) {
       appLogger.info(
           'Updating location in background for guest user (cache available, GPS can fix later)');
-      // Location will be updated in background when GPS is fixed
-      // Home screen can render from cache immediately
     }
   } else {
     // No address and no cache - need location before proceeding

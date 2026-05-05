@@ -34,22 +34,49 @@ class ProfileController extends GetxController implements GetxService {
   bool _hasProfileError = false;
   bool get hasProfileError => _hasProfileError;
 
+  // Guard against duplicate concurrent getUserInfo calls
+  bool _isFetchingUserInfo = false;
+  Future<void>? _inFlightGetUserInfo;
+
   Future<void> getUserInfo() async {
+    final Future<void>? existing = _inFlightGetUserInfo;
+    if (_isFetchingUserInfo && existing != null) {
+      if (kDebugMode) {
+        debugPrint('[PROFILE][GET_USER_INFO_SKIP_IN_PROGRESS]');
+      }
+      return existing;
+    }
+    _isFetchingUserInfo = true;
+    final Future<void> fetchFuture = _runGetUserInfo();
+    _inFlightGetUserInfo = fetchFuture;
+    try {
+      await fetchFuture;
+    } finally {
+      _isFetchingUserInfo = false;
+      _inFlightGetUserInfo = null;
+    }
+  }
+
+  Future<void> _runGetUserInfo() async {
     _hasProfileError = false;
     _pickedFile = null;
     final bool hadExistingData = _userInfoModel != null;
     if (AuthHelper.isLoggedIn() && _userInfoModel == null) {
-      debugPrint(
-          '❌ ProfileController: Invalid state (logged in but userInfoModel is null) - forcing refresh');
+      if (kDebugMode) {
+        debugPrint('[PROFILE][USER_INFO_MISSING_ON_STARTUP] loading=true');
+      }
     }
     if (kDebugMode && hadExistingData) {
-      debugPrint('🔍 ProfileController: getUserInfo() called (existing data: ${_userInfoModel?.fName} ${_userInfoModel?.lName})');
+      debugPrint('[PROFILE][CACHE_USED] hasUser=true');
+    }
+    if (kDebugMode) {
+      debugPrint('[PROFILE][GET_USER_INFO_START]');
     }
     final UserInfoModel? userInfoModel = await profileServiceInterface.getUserInfo();
     if (userInfoModel != null) {
       _userInfoModel = userInfoModel;
       if (kDebugMode) {
-        debugPrint('✅ ProfileController: getUserInfo() - userInfoModel updated from API (200 response)');
+        debugPrint('[PROFILE][GET_USER_INFO_DONE] status=200');
         // Extract wallet flags from user info response (NEW - from /api/v1/customer/info)
         // ⚡ TASK 2: If qidha_wallet_balance exists, default creditLimit to 5000.0
         if (userInfoModel.hasQidhaWallet == true && Get.isRegistered<KaidhaSubscriptionController>()) {

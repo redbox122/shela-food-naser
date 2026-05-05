@@ -198,16 +198,16 @@ class ItemWidget extends StatelessWidget {
                 ? Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      _buildImageSection(
-                          context, hovered, discount, discountType, isAvailable),
+                      _buildImageSection(context, hovered, discount,
+                          discountType, isAvailable),
                       _buildTextInfo(context, hovered),
                     ],
                   )
                 : Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      _buildImageSection(
-                          context, hovered, discount, discountType, isAvailable),
+                      _buildImageSection(context, hovered, discount,
+                          discountType, isAvailable),
                       Expanded(child: _buildTextInfo(context, hovered)),
                     ],
                   ),
@@ -251,14 +251,15 @@ class ItemWidget extends StatelessWidget {
           final moduleId = ModuleHelper.getModule() != null
               ? ModuleHelper.getModule()?.id
               : ModuleHelper.getCacheModule()?.id;
-          
+
           int? effectiveStoreId;
           if (inStore && Get.isRegistered<StoreController>()) {
             effectiveStoreId = Get.find<StoreController>().store?.id;
           }
           effectiveStoreId ??= item!.storeId;
 
-          if (cartController.existAnotherStoreItem(effectiveStoreId, moduleId)) {
+          if (cartController.existAnotherStoreItem(
+              effectiveStoreId, moduleId)) {
             // Show confirmation dialog before clearing cart and adding new item
             Get.dialog<void>(
               ConfirmationDialog(
@@ -273,30 +274,35 @@ class ItemWidget extends StatelessWidget {
                     : 'if_you_continue_without_another_store'.tr,
                 onYesPressed: () async {
                   if (kDebugMode) {
-                    debugPrint('✅ [ItemWidget] User confirmed - clearing cart and adding item');
-                    debugPrint('   - Item ID: ${item!.id}, Store ID: ${item!.storeId}');
+                    debugPrint(
+                        '✅ [ItemWidget] User confirmed - clearing cart and adding item');
+                    debugPrint(
+                        '   - Item ID: ${item!.id}, Store ID: ${item!.storeId}');
                   }
-                  
+
                   Get.back<void>(); // Close dialog first
-                  
+
                   try {
                     // ✅ CRITICAL FIX: Always clear local cart first to reset _storeId
                     // This ensures the new item can be added even if online clear fails
                     if (kDebugMode) {
-                      debugPrint('🔄 [ItemWidget] Clearing local cart first...');
+                      debugPrint(
+                          '🔄 [ItemWidget] Clearing local cart first...');
                     }
                     await cartController.clearCartList(canRemoveOnline: false);
-                    
+
                     // Then try to clear online cart (non-blocking)
                     if (kDebugMode) {
                       debugPrint('🔄 [ItemWidget] Clearing cart online...');
                     }
-                    cartController.clearCartOnline(); // Don't await - non-blocking
-                    
+                    cartController
+                        .clearCartOnline(); // Don't await - non-blocking
+
                     if (kDebugMode) {
-                      debugPrint('✅ [ItemWidget] Local cart cleared, proceeding with add...');
+                      debugPrint(
+                          '✅ [ItemWidget] Local cart cleared, proceeding with add...');
                     }
-                    
+
                     // ✅ FIX: Check if item has variations/addons before trying to add
                     // Category restaurants flow: add directly without extras,
                     // then continue to store page.
@@ -347,7 +353,7 @@ class ItemWidget extends StatelessWidget {
             );
             return;
           }
-          
+
           // Same store or empty cart - add directly
           final bool added = await _tryAutoAddSimpleItemToCart(
             item!,
@@ -394,9 +400,10 @@ class ItemWidget extends StatelessWidget {
     bool ignoreOptionRequirements = false,
   }) async {
     if (kDebugMode) {
-      debugPrint('🛒 [ItemWidget] _tryAutoAddSimpleItemToCart called for: ${product.name} (ID: ${product.id})');
+      debugPrint(
+          '🛒 [ItemWidget] _tryAutoAddSimpleItemToCart called for: ${product.name} (ID: ${product.id})');
     }
-    
+
     // Skip auto-add for items that require option/variation selection.
     final bool hasFoodVariations =
         product.foodVariations != null && product.foodVariations!.isNotEmpty;
@@ -404,7 +411,8 @@ class ItemWidget extends StatelessWidget {
         product.choiceOptions != null && product.choiceOptions!.isNotEmpty;
     if (!ignoreOptionRequirements && (hasFoodVariations || hasChoiceOptions)) {
       if (kDebugMode) {
-        debugPrint('⏭️ [ItemWidget] Skipping auto-add - item has variations/addons');
+        debugPrint(
+            '⏭️ [ItemWidget] Skipping auto-add - item has variations/addons');
       }
       return false;
     }
@@ -419,11 +427,12 @@ class ItemWidget extends StatelessWidget {
     try {
       final CartController cartController = Get.find<CartController>();
       final double unitPrice = (product.price ?? 0).toDouble();
-      
+
       if (kDebugMode) {
-        debugPrint('💰 [ItemWidget] Creating cart models - price: $unitPrice, storeId: ${product.storeId}');
+        debugPrint(
+            '💰 [ItemWidget] Creating cart models - price: $unitPrice, storeId: ${product.storeId}');
       }
-      
+
       final OnlineCart onlineCart = OnlineCart(
         null,
         product.id,
@@ -461,7 +470,7 @@ class ItemWidget extends StatelessWidget {
       if (kDebugMode) {
         debugPrint('➕ [ItemWidget] Calling addToCartWithFallback...');
       }
-      
+
       // ✅ FIX: Wait for cart addition to complete and verify success
       bool addSuccess = await cartController.addToCartWithFallback(
           cartModel: cartModel, onlineCart: onlineCart);
@@ -470,11 +479,12 @@ class ItemWidget extends StatelessWidget {
         addSuccess = await cartController.addToCartWithFallback(
             cartModel: cartModel, onlineCart: onlineCart);
       }
-      
+
       if (kDebugMode) {
-        debugPrint('${addSuccess ? "✅" : "⚠️"} [ItemWidget] addToCartWithFallback result: $addSuccess');
+        debugPrint(
+            '${addSuccess ? "✅" : "⚠️"} [ItemWidget] addToCartWithFallback result: $addSuccess');
       }
-      
+
       if (addSuccess) {
         // Wait a bit for cart sync to complete
         if (kDebugMode) {
@@ -504,7 +514,8 @@ class ItemWidget extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-        crossAxisAlignment: ltr ? CrossAxisAlignment.start : CrossAxisAlignment.end,
+        crossAxisAlignment:
+            ltr ? CrossAxisAlignment.start : CrossAxisAlignment.end,
         children: [
           Row(
             children: [
@@ -601,26 +612,39 @@ class ItemWidget extends StatelessWidget {
         Theme.of(context).extension<CustomThemeExtension>()?.yellow_Color;
 
     return Row(
+      mainAxisSize: MainAxisSize.min,
       children: [
         if (discount != null &&
             discount > 0 &&
             item!.originalPrice != null) ...[
-          PriceConverter.convertPrice2(
-            item!.originalPrice!,
-            textStyle: robotoBold.copyWith(
-              fontSize: 11,
-              color: Theme.of(context).disabledColor,
-              decoration: TextDecoration.lineThrough,
+          Flexible(
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: Alignment.centerLeft,
+              child: PriceConverter.convertPrice2(
+                item!.originalPrice!,
+                textStyle: robotoBold.copyWith(
+                  fontSize: 11,
+                  color: Theme.of(context).disabledColor,
+                  decoration: TextDecoration.lineThrough,
+                ),
+              ),
             ),
           ),
-          const SizedBox(width: Dimensions.paddingSizeExtraSmall),
+          const SizedBox(width: 2),
         ],
-        PriceConverter.convertPrice2(
-          item!.price,
-          // ✅ NO discount/discountType - backend already calculated it!
-          textStyle: robotoBold.copyWith(
-            fontSize: 13,
-            color: color,
+        Flexible(
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: PriceConverter.convertPrice2(
+              item!.price,
+              // ✅ NO discount/discountType - backend already calculated it!
+              textStyle: robotoBold.copyWith(
+                fontSize: 13,
+                color: color,
+              ),
+            ),
           ),
         ),
       ],
@@ -736,9 +760,7 @@ class SimilarItemWidget extends StatelessWidget {
   }
 
   String? _getDiscountType() {
-    return ((item!.storeDiscount ?? 0) == 0)
-        ? item!.discountType
-        : 'percent';
+    return ((item!.storeDiscount ?? 0) == 0) ? item!.discountType : 'percent';
   }
 
   bool _getAvailability() {
@@ -806,7 +828,8 @@ class SimilarItemWidget extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-        crossAxisAlignment: ltr ? CrossAxisAlignment.start : CrossAxisAlignment.end,
+        crossAxisAlignment:
+            ltr ? CrossAxisAlignment.start : CrossAxisAlignment.end,
         children: [
           Row(
             children: [

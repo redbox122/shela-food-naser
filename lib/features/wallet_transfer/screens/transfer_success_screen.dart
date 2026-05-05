@@ -12,29 +12,50 @@ class TransferSuccessScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final arguments = Get.arguments as Map<String, dynamic>?;
-    
-final Map<String, dynamic>? args =
-    arguments is Map<String, dynamic> ? arguments : null;
+    final Map<String, dynamic>? arguments =
+        Get.arguments is Map<String, dynamic> ? Get.arguments as Map<String, dynamic> : null;
 
-final String? transactionId = args?['transactionId']?.toString();
+    final String? transactionId = arguments?['transactionId']?.toString();
 
-final double? amount = args?['amount'] is num
-    ? (args?['amount'] as num).toDouble()
-    : double.tryParse(args?['amount']?.toString() ?? '');
+    final dynamic amountRaw = arguments?['amount'];
+    final double? amount = amountRaw is num
+        ? amountRaw.toDouble()
+        : double.tryParse(amountRaw?.toString() ?? '');
 
-final String? recipientName = args?['recipientName']?.toString();
+    final String? recipientName = arguments?['recipientName']?.toString();
 
-final double? newBalance = args?['newBalance'] is num
-    ? (args?['newBalance'] as num).toDouble()
-    : double.tryParse(args?['newBalance']?.toString() ?? '');
+    final dynamic newBalanceRaw = arguments?['newBalance'];
+    final double? newBalance = newBalanceRaw is num
+        ? newBalanceRaw.toDouble()
+        : double.tryParse(newBalanceRaw?.toString() ?? '');
 
-final String? paymentSource = args?['paymentSource']?.toString();
+    final String? paymentSource = arguments?['paymentSource']?.toString();
+    final String? createdAt = arguments?['createdAt']?.toString();
+    final String transactionType =
+        arguments?['transactionType']?.toString() ?? 'wallet_transfer';
 
+    final String sourceText = paymentSource == 'wallet_qidha' ||
+            paymentSource == 'qidha_wallet' ||
+            paymentSource == 'qidha'
+        ? 'qidha_wallet'.tr
+        : 'regular_wallet'.tr;
 
-    final String sourceText = paymentSource == 'wallet' 
-        ? 'regular_wallet'.tr 
-        : 'qidha_wallet'.tr;
+    void openTransactionDetails() {
+      debugPrint(
+          '[TRANSFER_SUCCESS][VIEW_TRANSACTION_TAP] transactionId=$transactionId');
+      Get.toNamed(
+        RouteHelper.getWalletTransactionDetailRoute(),
+        arguments: <String, dynamic>{
+          'transactionId': transactionId,
+          'amount': amount,
+          'transactionType': transactionType,
+          'paymentSource': paymentSource ?? 'wallet',
+          'recipientName': recipientName,
+          if (createdAt != null && createdAt.isNotEmpty) 'createdAt': createdAt,
+          'previousRoute': RouteHelper.transferSuccess,
+        },
+      );
+    }
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -59,7 +80,7 @@ final String? paymentSource = args?['paymentSource']?.toString();
                   color: Colors.green,
                 ),
               ),
-              
+
               const SizedBox(height: Dimensions.paddingSizeLarge),
 
               // Success message
@@ -71,7 +92,7 @@ final String? paymentSource = args?['paymentSource']?.toString();
                 ),
                 textAlign: TextAlign.center,
               ),
-              
+
               const SizedBox(height: Dimensions.paddingSizeSmall),
 
               Text(
@@ -82,7 +103,7 @@ final String? paymentSource = args?['paymentSource']?.toString();
                 ),
                 textAlign: TextAlign.center,
               ),
-              
+
               const SizedBox(height: Dimensions.paddingSizeExtraLarge),
 
               // Transaction details
@@ -109,22 +130,25 @@ final String? paymentSource = args?['paymentSource']?.toString();
                         fontSize: Dimensions.fontSizeLarge,
                       ),
                     ),
-                    
+
                     const SizedBox(height: Dimensions.paddingSizeDefault),
-                    
+
                     _buildDetailRow(context, 'transaction_id'.tr, transactionId ?? 'N/A'),
                     const Divider(),
-                    _buildDetailRow(context, 'amount'.tr, PriceConverter.convertPrice(amount ?? 0), isHighlight: true),
+                    _buildDetailRow(
+                        context, 'amount'.tr, PriceConverter.convertPrice(amount ?? 0),
+                        isHighlight: true),
                     const Divider(),
                     _buildDetailRow(context, 'recipient'.tr, recipientName ?? 'N/A'),
                     const Divider(),
                     _buildDetailRow(context, 'payment_source'.tr, sourceText),
                     const Divider(),
-                    _buildDetailRow(context, 'your_new_balance'.tr, PriceConverter.convertPrice(newBalance ?? 0)),
+                    _buildDetailRow(
+                        context, 'your_new_balance'.tr, PriceConverter.convertPrice(newBalance ?? 0)),
                   ],
                 ),
               ),
-              
+
               const Spacer(),
 
               // Action buttons
@@ -133,7 +157,7 @@ final String? paymentSource = args?['paymentSource']?.toString();
                   SizedBox(
                     width: double.infinity,
                     child: OutlinedButton.icon(
-                      onPressed: () => Get.offAllNamed(RouteHelper.getold_wallet()),
+                      onPressed: openTransactionDetails,
                       icon: const Icon(Icons.receipt_long),
                       label: Text(
                         'view_transaction'.tr,
@@ -146,12 +170,13 @@ final String? paymentSource = args?['paymentSource']?.toString();
                           vertical: Dimensions.paddingSizeDefault,
                         ),
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(Dimensions.radiusDefault),
+                          borderRadius:
+                              BorderRadius.circular(Dimensions.radiusDefault),
                         ),
                       ),
                     ),
                   ),
-                  
+
                   const SizedBox(height: Dimensions.paddingSizeDefault),
 
                   SizedBox(
@@ -172,7 +197,8 @@ final String? paymentSource = args?['paymentSource']?.toString();
                           vertical: Dimensions.paddingSizeDefault,
                         ),
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(Dimensions.radiusDefault),
+                          borderRadius:
+                              BorderRadius.circular(Dimensions.radiusDefault),
                         ),
                       ),
                     ),
@@ -187,7 +213,8 @@ final String? paymentSource = args?['paymentSource']?.toString();
   }
 
   /// Builds detail row
-  Widget _buildDetailRow(BuildContext context, String label, String value, {bool isHighlight = false}) {
+  Widget _buildDetailRow(BuildContext context, String label, String value,
+      {bool isHighlight = false}) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: Dimensions.paddingSizeSmall),
       child: Row(
@@ -204,8 +231,10 @@ final String? paymentSource = args?['paymentSource']?.toString();
             child: Text(
               value,
               style: (isHighlight ? robotoBold : robotoMedium).copyWith(
-                fontSize: isHighlight ? Dimensions.fontSizeLarge : Dimensions.fontSizeDefault,
-                color: isHighlight 
+                fontSize: isHighlight
+                    ? Dimensions.fontSizeLarge
+                    : Dimensions.fontSizeDefault,
+                color: isHighlight
                     ? Theme.of(context).primaryColor
                     : Theme.of(context).textTheme.bodyLarge!.color,
               ),

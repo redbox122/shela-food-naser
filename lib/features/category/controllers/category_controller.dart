@@ -1992,7 +1992,22 @@ class CategoryController extends GetxController implements GetxService {
     try {
       final Response response =
           await searchServiceInterface.getNewSearchFilter(pagedFilter, false);
+      debugPrint('[CAT_FILTER][STATUS] ${response.statusCode}');
       if (response.statusCode == 200) {
+        final dynamic rawBody = response.body;
+        if (rawBody is Map<String, dynamic>) {
+          final int rawTotal = (rawBody['total_size'] as num?)?.toInt() ?? 0;
+          final List<dynamic> rawProducts =
+              (rawBody['products'] is List) ? (rawBody['products'] as List) : <dynamic>[];
+          debugPrint('[CAT_FILTER][RAW_TOTAL] $rawTotal');
+          debugPrint('[CAT_FILTER][RAW_PRODUCTS_COUNT] ${rawProducts.length}');
+          if (rawProducts.isNotEmpty && rawProducts.first is Map<String, dynamic>) {
+            final Map<String, dynamic> first =
+                rawProducts.first as Map<String, dynamic>;
+            debugPrint(
+                '[CAT_FILTER][FIRST_RAW_PRODUCT] id=${first['id']} name=${first['name']}');
+          }
+        }
         if (_isStore) {
           final stores =
               StoreModel.fromJson(response.body as Map<String, dynamic>).stores ??
@@ -2007,6 +2022,7 @@ class CategoryController extends GetxController implements GetxService {
           final items =
               ItemModel.fromJson(response.body as Map<String, dynamic>).items ??
                   <Item>[];
+          debugPrint('[CAT_FILTER][PARSED_PRODUCTS_COUNT] ${items.length}');
           _searchItemList ??= <Item>[];
           if (!append) {
             _searchItemList!.clear();
@@ -2047,18 +2063,27 @@ class CategoryController extends GetxController implements GetxService {
     }
 
     final String query = (searchFilterModel.research_Name ?? '').trim();
+    final String contextCategoryId = (searchFilterModel.id_category ?? '').trim();
     if (query.isEmpty) {
       _searchItemList = [];
       return;
     }
 
     try {
-      final Response response =
-          await searchServiceInterface.getSearchData(query, false);
+      debugPrint(
+          '[CAT_FILTER][CATEGORY_CONTEXT] screenCategoryId=$contextCategoryId selectedCategoryId=$contextCategoryId requestCategoryId=$contextCategoryId');
+      final Response response = await categoryServiceInterface.getSearchData(
+        query,
+        contextCategoryId,
+        false,
+        _type,
+      );
+      debugPrint('[CAT_FILTER][STATUS] ${response.statusCode}');
       if (response.statusCode == 200) {
         _searchItemList = [];
         final items =
             ItemModel.fromJson(response.body as Map<String, dynamic>).items;
+        debugPrint('[CAT_FILTER][PARSED_PRODUCTS_COUNT] ${items?.length ?? 0}');
         if (items != null) {
           _searchItemList!.addAll(items);
         }

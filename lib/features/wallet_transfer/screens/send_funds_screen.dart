@@ -4,7 +4,6 @@ import 'package:sixam_mart/features/profile/controllers/profile_controller.dart'
 import 'package:sixam_mart/features/wallet_kaidha_subscription/controllers/kaidhaSub_controller.dart';
 import 'package:sixam_mart/features/wallet_transfer/controllers/wallet_transfer_controller.dart';
 import 'package:sixam_mart/features/wallet_transfer/data/models/transfer_request_model.dart';
-import 'package:sixam_mart/features/wallet_transfer/services/contact_permission_service.dart';
 import 'package:sixam_mart/features/wallet_transfer/widgets/send_fund_bottom_sheet.dart';
 import 'package:sixam_mart/features/wallet/controllers/wallet_controller.dart';
 import 'package:sixam_mart/features/wallet/widgets/add_fund_dialogue_widget.dart';
@@ -26,9 +25,6 @@ class SendFundsScreen extends StatefulWidget {
 }
 
 class _SendFundsScreenState extends State<SendFundsScreen> {
-  final ContactPermissionService _contactPermissionService =
-      ContactPermissionService();
-
   @override
   void initState() {
     super.initState();
@@ -319,17 +315,15 @@ if (hasQidhaWallet) {
 
   /// Handles Send button tap
   void _handleSend() {
-    _contactPermissionService.checkContactPermission(() {
-      Get.toNamed(RouteHelper.getChooseReceiverRoute())?.then((result) {
-        if (result != null && result is Map) {
-          final recipientName = result['name'] as String? ?? '';
-          final recipientPhone = result['phone'] as String? ?? '';
+    Get.toNamed(RouteHelper.getChooseReceiverRoute())?.then((result) {
+      if (result != null && result is Map) {
+        final recipientName = result['name'] as String? ?? '';
+        final recipientPhone = result['phone'] as String? ?? '';
 
-          if (recipientName.isNotEmpty && recipientPhone.isNotEmpty) {
-            _showSendFundBottomSheet(recipientName, recipientPhone);
-          }
+        if (recipientName.isNotEmpty && recipientPhone.isNotEmpty) {
+          _showSendFundBottomSheet(recipientName, recipientPhone);
         }
-      });
+      }
     });
   }
 
@@ -443,12 +437,14 @@ if (hasQidhaWallet) {
             Get.back(); // Close bottom sheet
             Get.offNamed(
               RouteHelper.getTransferSuccessRoute(),
-              arguments: {
+              arguments: <String, dynamic>{
                 'transactionId': response.data?.transactionId,
                 'amount': amountValue,
                 'recipientName': recipientName,
                 'newBalance': response.data?.senderNewBalance,
                 'paymentSource': paymentSource,
+                'createdAt': response.data?.createdAt,
+                'transactionType': 'wallet_transfer',
               },
             );
           }

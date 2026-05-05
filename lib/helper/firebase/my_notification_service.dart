@@ -12,6 +12,7 @@ import 'package:sixam_mart/features/notification/domain/models/notification_mode
 import 'package:sixam_mart/features/notification/controllers/notification_controller.dart';
 import 'package:sixam_mart/util/app_constants.dart';
 import 'package:sixam_mart/util/backend_message_translator.dart';
+import 'package:sixam_mart/common/utils/secure_log.dart';
 
 /// 🔧 BACKGROUND MESSAGE HANDLER (must be top-level)
 /// This handler is called when the app is in the background or terminated
@@ -40,12 +41,31 @@ class NotificationService {
   static bool _isInitialized = false;
   static bool _backgroundHandlerRegistered = false;
 
+  /// Registers the FCM background message handler exactly once per isolate.
+  ///
+  /// The flag is flipped BEFORE the native call so any reentrant invocation
+  /// (e.g. from a plugin callback that triggers initialization again) is
+  /// short-circuited even if the previous call has not returned yet.
   static void registerBackgroundHandlerOnce() {
     if (_backgroundHandlerRegistered) {
+      if (kDebugMode) {
+        debugPrint('[FCM][BACKGROUND_HANDLER_ALREADY_REGISTERED_SKIP]');
+      }
       return;
     }
-    FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
     _backgroundHandlerRegistered = true;
+    try {
+      FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
+      if (kDebugMode) {
+        debugPrint('[FCM][BACKGROUND_HANDLER_REGISTERED]');
+      }
+    } catch (e) {
+      // If the registration itself throws, leave the flag set so we do not
+      // retry — Firebase considers a duplicate registration an error too.
+      if (kDebugMode) {
+        debugPrint('[FCM][BACKGROUND_HANDLER_REGISTRATION_ERROR] $e');
+      }
+    }
   }
 
   // Initialize notification service
@@ -249,7 +269,9 @@ class NotificationService {
 
   Future<void> _getDeviceToken() async {
     final String? token = await _firebaseMessaging.getToken();
-    debugPrint('Device Token: $token');
+    if (kDebugMode) {
+      SecureLog.logRedactedToken('fcm device token=${SecureLog.maskToken(token)}');
+    }
   }
 
   void _handleNotificationTap(RemoteMessage message) {

@@ -1,5 +1,5 @@
 
-import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -12,6 +12,48 @@ import 'package:sixam_mart/features/auth/domain/models/delivery_man_vehicles_mod
 import 'package:sixam_mart/features/auth/domain/reposotories/deliveryman_registration_repository_interface.dart';
 import 'package:sixam_mart/util/app_constants.dart';
 import 'package:dio/dio.dart' as dio_pkg;
+
+/// Maps [checkDeliveryManRegistration] JSON to [StatusModel] (legacy UI).
+StatusModel statusModelFromCheckRegistration(
+    Map<String, dynamic>? root, String? phone) {
+  if (root == null) {
+    return StatusModel(
+      success: false,
+      message: null,
+      name: null,
+      phone: phone,
+      email: null,
+      status: null,
+    );
+  }
+  final Map<String, dynamic>? dm = root['delivery_man'] is Map
+      ? Map<String, dynamic>.from(root['delivery_man'] as Map)
+      : null;
+  final String applicationStatus =
+      (dm?['application_status'] ?? '').toString().toLowerCase();
+  final String statusRaw = (dm?['status'] ?? '').toString().toLowerCase();
+  final String activeRaw = (dm?['active'] ?? '').toString().toLowerCase();
+  String statusOut =
+      applicationStatus.isNotEmpty ? applicationStatus : statusRaw;
+  if (statusOut.isEmpty &&
+      (activeRaw == '1' ||
+          activeRaw == 'true' ||
+          statusRaw == '1' ||
+          statusRaw == 'active')) {
+    statusOut = 'approved';
+  }
+  if (statusOut.isEmpty && root['is_registered'] == true) {
+    statusOut = 'approved';
+  }
+  return StatusModel(
+    success: true,
+    message: null,
+    name: dm?['name']?.toString(),
+    phone: phone ?? dm?['phone']?.toString(),
+    email: dm?['email']?.toString(),
+    status: statusOut.isNotEmpty ? statusOut : null,
+  );
+}
 
 class DeliverymanRegistrationRepository
     implements DeliverymanRegistrationRepositoryInterface {
@@ -30,7 +72,9 @@ class DeliverymanRegistrationRepository
     DeliveryManBody deliveryManBody,
   ) async {
     if (apiClient.token == null || apiClient.token!.isEmpty) {
-      debugPrint('⚠️ لا يوجد توكن.');
+      if (kDebugMode) {
+        debugPrint('⚠️ لا يوجد توكن.');
+      }
       return false;
     }
 
@@ -81,14 +125,21 @@ class DeliverymanRegistrationRepository
       ),
     );
 
-    debugPrint('\x1B[32m     ${dioResponse.statusCode} \x1B[0m');
-    debugPrint('✅ Response Body:\n${dioResponse.data}');
+    if (kDebugMode) {
+      debugPrint('\x1B[32m     ${dioResponse.statusCode} \x1B[0m');
+      debugPrint(
+          '✅ Response Body (truncated): ${dioResponse.data.toString().length > 200 ? "${dioResponse.data.toString().substring(0, 200)}…" : dioResponse.data}');
+    }
 
     if (dioResponse.statusCode == 200) {
-      debugPrint('\x1B[32m ✅    ${dioResponse.statusMessage} \x1B[0m');
+      if (kDebugMode) {
+        debugPrint('\x1B[32m ✅    ${dioResponse.statusMessage} \x1B[0m');
+      }
       return true;
     } else {
-      debugPrint('❌ Error: ${dioResponse.statusCode}');
+      if (kDebugMode) {
+        debugPrint('❌ Error: ${dioResponse.statusCode}');
+      }
       return false;
     }
   }
@@ -178,49 +229,13 @@ class DeliverymanRegistrationRepository
 
   @override
   Future<StatusModel> getStatus(String? phone) async {
-    final Map<String, dynamic> data = {
-      'phone': phone,
-    };
-
-    // Try known backend variants in order:
-    // 1) current configured uri
-    // 2) direct /delivery-man/status (without auth/customer prefix)
-    // 3) customer-prefixed fallback
-    final List<String> endpointCandidates = <String>[
-      AppConstants.statusUri,
-      '/api/v1/delivery-man/status',
-      '/api/v1/customer/delivery-man/status',
-    ];
-
-    Response? lastResponse;
-    for (final uri in endpointCandidates) {
-      debugPrint('[DM-REG] getStatus -> POST $uri body=$data');
-      final Response response = await apiClient.postData(
-        uri,
-        data,
-        handleError: false,
-      );
-      lastResponse = response;
-
-      if (response.statusCode == 200 || response.statusCode == 201) {
-        debugPrint('[DM-REG] getStatus <- ${response.statusCode} uri=$uri body=${response.body}');
-        return StatusModel.fromJson(response.body as Map<String, dynamic>);
-      }
-
-      debugPrint('[DM-REG] getStatus miss uri=$uri status=${response.statusCode}');
+    if (kDebugMode) {
+      debugPrint(
+          '[PROFILE_STATUS][DELIVERY_SINGLE_ENDPOINT] ${AppConstants.customerDmCheckRegistrationUri}');
     }
-
-    debugPrint(
-        '[DM-REG] getStatus failed status=${lastResponse?.statusCode} body=${lastResponse?.body}');
-    return StatusModel(
-      success: false,
-      message:
-          'status endpoint not found or failed (${lastResponse?.statusCode ?? 'unknown'})',
-      name: null,
-      phone: phone,
-      email: null,
-      status: null,
-    );
+    final Map<String, dynamic>? root =
+        await checkDeliveryManRegistration(phone: phone);
+    return statusModelFromCheckRegistration(root, phone);
   }
 
   @override

@@ -282,12 +282,17 @@ class MessageBubbleWidget extends StatelessWidget {
       debugPrint('[SupportFlow][Chat] message createdAt is null/empty, showing empty date');
       return '';
     }
-    try {
-      return DateConverter.convertTodayYesterdayFormat(rawDate);
-    } catch (e) {
-      debugPrint('[SupportFlow][Chat] failed to format message date: $e (raw: $rawDate)');
+    debugPrint('[CHAT:DATE_PARSE] raw=$rawDate');
+    final String normalizedDate = DateConverter.normalizeArabicDigits(rawDate);
+    debugPrint('[CHAT:DATE_PARSE_NORMALIZED] normalized=$normalizedDate');
+    final DateTime? parsedDate = DateConverter.tryParseDateTimeSafely(rawDate);
+    if (parsedDate == null) {
+      debugPrint('[CHAT:DATE_PARSE_FAIL] raw=$rawDate');
       return '';
     }
+    debugPrint('[CHAT:DATE_PARSE_OK] parsed=$parsedDate');
+    final String formatted = DateConverter.convertTodayYesterdayFormat(rawDate);
+    return formatted;
   }
 
   String _formatOrderDateOrEmpty(String? rawDate) {

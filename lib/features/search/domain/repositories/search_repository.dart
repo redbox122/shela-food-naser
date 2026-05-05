@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sixam_mart/api/api_client.dart';
@@ -58,13 +59,33 @@ class SearchRepository implements SearchRepositoryInterface {
 
   Future<List<Item>?> _getSuggestedItems() async {
     List<Item>? suggestedItemList;
-    final response = await apiClient.getData(AppConstants.suggestedItemUri);
+    _logSearchRequest(endpoint: AppConstants.suggestedItemUri, method: 'GET');
+    final response = await apiClient.getData(
+      AppConstants.suggestedItemUri,
+      useEtag: false,
+      headers: <String, String>{
+        'Cache-Control': 'no-cache',
+        'Pragma': 'no-cache',
+      },
+    );
+    _logSearchResponse(response);
+    if (response.statusCode == 304) {
+      debugPrint('[Search][CACHE_304] type=suggested_items hasCache=false');
+      debugPrint(
+          '[Search][NO_INTERNET_BLOCKED_FOR_304] type=suggested_items');
+      return <Item>[];
+    }
 
     if (response.statusCode == 200 && response.body != null) {
       suggestedItemList = [];
       for (final item in (response.body as List)) {
         suggestedItemList.add(Item.fromJson(item as Map<String, dynamic>));
       }
+      debugPrint(
+          '[Search][CACHE_USED] type=suggested_items count=${suggestedItemList.length}');
+    } else if (response.statusCode != 200) {
+      debugPrint(
+          '[Search][NO_INTERNET_SHOWN] type=suggested_items reason=status_${response.statusCode}');
     }
     return suggestedItemList;
   }
@@ -77,7 +98,14 @@ class SearchRepository implements SearchRepositoryInterface {
     if (moduleId != null) {
       uri = '$uri&module_id=$moduleId';
     }
-    return await apiClient.getData(uri);
+    _logSearchRequest(
+      endpoint: uri,
+      method: 'GET',
+      moduleId: moduleId,
+    );
+    final Response<dynamic> response = await apiClient.getData(uri);
+    _logSearchResponse(response);
+    return response;
   }
 
   Future<Response<dynamic>> _getFilteredSearchData(SearchFilterModel searchFilterModel, bool isStore) async {
@@ -143,15 +171,25 @@ class SearchRepository implements SearchRepositoryInterface {
     }
     final String uri =
         '${AppConstants.searchUri}${isStore ? 'stores' : 'items'}/search?${params.join('&')}';
-    return apiClient.getData(uri);
+    _logSearchRequest(
+      endpoint: uri,
+      method: 'GET',
+      moduleId: moduleId,
+    );
+    final Response<dynamic> response = await apiClient.getData(uri);
+    _logSearchResponse(response);
+    return response;
   }
 
   @override
   Future<SearchSuggestionModel?> getSearchSuggestions(String searchText) async {
     SearchSuggestionModel? model;
     final String safeSearchText = Uri.encodeQueryComponent(searchText.trim());
-    final response = await apiClient
-        .getData('${AppConstants.searchSuggestionsUri}?name=$safeSearchText');
+    final String endpoint =
+        '${AppConstants.searchSuggestionsUri}?name=$safeSearchText';
+    _logSearchRequest(endpoint: endpoint, method: 'GET');
+    final response = await apiClient.getData(endpoint);
+    _logSearchResponse(response);
 
     if (response.statusCode == 200 && response.body != null) {
       model = SearchSuggestionModel.fromJson(response.body as Map<String, dynamic>);
@@ -162,13 +200,34 @@ class SearchRepository implements SearchRepositoryInterface {
   @override
   Future<List<PopularCategoryModel?>?> getPopularCategories() async {
     List<PopularCategoryModel?>? categoryList;
-    final response = await apiClient.getData(AppConstants.searchPopularCategoriesUri);
+    _logSearchRequest(
+        endpoint: AppConstants.searchPopularCategoriesUri, method: 'GET');
+    final response = await apiClient.getData(
+      AppConstants.searchPopularCategoriesUri,
+      useEtag: false,
+      headers: <String, String>{
+        'Cache-Control': 'no-cache',
+        'Pragma': 'no-cache',
+      },
+    );
+    _logSearchResponse(response);
+    if (response.statusCode == 304) {
+      debugPrint('[Search][CACHE_304] type=popular_categories hasCache=false');
+      debugPrint(
+          '[Search][NO_INTERNET_BLOCKED_FOR_304] type=popular_categories');
+      return <PopularCategoryModel?>[];
+    }
 
     if (response.statusCode == 200 && response.body != null) {
       categoryList = [];
       for (final item in (response.body as List)) {
         categoryList.add(PopularCategoryModel.fromJson(item as Map<String, dynamic>));
       }
+      debugPrint(
+          '[Search][CACHE_USED] type=popular_categories count=${categoryList.length}');
+    } else if (response.statusCode != 200) {
+      debugPrint(
+          '[Search][NO_INTERNET_SHOWN] type=popular_categories reason=status_${response.statusCode}');
     }
     return categoryList;
   }
@@ -177,13 +236,35 @@ class SearchRepository implements SearchRepositoryInterface {
   Future<List<PopularCategoryModel?>?> getTrendingCategories() async {
     List<PopularCategoryModel?>? categoryList;
     // Get trending categories from last 24 hours
-    final response = await apiClient.getData('${AppConstants.searchPopularCategoriesUri}?trending=true&hours=24');
+    final String endpoint =
+        '${AppConstants.searchPopularCategoriesUri}?trending=true&hours=24';
+    _logSearchRequest(endpoint: endpoint, method: 'GET');
+    final response = await apiClient.getData(
+      endpoint,
+      useEtag: false,
+      headers: <String, String>{
+        'Cache-Control': 'no-cache',
+        'Pragma': 'no-cache',
+      },
+    );
+    _logSearchResponse(response);
+    if (response.statusCode == 304) {
+      debugPrint('[Search][CACHE_304] type=trending_categories hasCache=false');
+      debugPrint(
+          '[Search][NO_INTERNET_BLOCKED_FOR_304] type=trending_categories');
+      return <PopularCategoryModel?>[];
+    }
 
     if (response.statusCode == 200 && response.body != null) {
       categoryList = [];
       for (final item in (response.body as List)) {
         categoryList.add(PopularCategoryModel.fromJson(item as Map<String, dynamic>));
       }
+      debugPrint(
+          '[Search][CACHE_USED] type=trending_categories count=${categoryList.length}');
+    } else if (response.statusCode != 200) {
+      debugPrint(
+          '[Search][NO_INTERNET_SHOWN] type=trending_categories reason=status_${response.statusCode}');
     }
     return categoryList;
   }
@@ -218,5 +299,43 @@ class SearchRepository implements SearchRepositoryInterface {
       }
     }
     return null;
+  }
+
+  void _logSearchRequest({
+    required String endpoint,
+    required String method,
+    int? moduleId,
+  }) {
+    final Map<String, String> headers = apiClient.getHeader();
+    final String? moduleFromHeader =
+        headers[AppConstants.moduleId] ?? headers['module-id'];
+    final String? zoneFromHeader =
+        headers[AppConstants.zoneId] ?? headers['zone-id'];
+    final bool authPresent =
+        (headers['Authorization'] ?? '').trim().isNotEmpty;
+    debugPrint('[Search][ENDPOINT] $endpoint');
+    debugPrint('[Search][METHOD] $method');
+    debugPrint(
+        '[Search][HEADERS] moduleId=${moduleId ?? moduleFromHeader ?? 'null'} zoneId=${zoneFromHeader ?? 'null'} authPresent=$authPresent');
+  }
+
+  void _logSearchResponse(Response<dynamic> response) {
+    debugPrint('[Search][STATUS] ${response.statusCode}');
+    debugPrint('[Search][RAW_TYPE] ${response.body.runtimeType}');
+    final String rawBody = _truncateBody(response.body);
+    debugPrint('[Search][RAW_BODY] truncated $rawBody');
+  }
+
+  String _truncateBody(dynamic body) {
+    try {
+      final String raw =
+          body is String ? body : jsonEncode(body ?? <String, dynamic>{});
+      if (raw.length <= 400) {
+        return raw;
+      }
+      return '${raw.substring(0, 400)}...';
+    } catch (_) {
+      return body?.toString() ?? '';
+    }
   }
 }

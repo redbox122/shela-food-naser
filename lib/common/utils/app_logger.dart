@@ -13,6 +13,7 @@
  */
 
 import 'package:flutter/foundation.dart';
+import 'package:sixam_mart/common/utils/secure_log.dart';
 
 /// Log levels for different types of messages
 enum LogLevel {
@@ -234,10 +235,14 @@ class AppLogger {
     _apiCallHistory[_currentPage ?? 'unknown']!.add(apiInfo);
     
     final queryStr = query != null && query.isNotEmpty ? '?${query.toString()}' : '';
-    final headerInfo = headers != null && headers.isNotEmpty 
-        ? ' | Headers: ${headers.keys.join(", ")}' 
+    if (kDebugMode && headers != null && headers.isNotEmpty) {
+      debugPrint(
+          '[SECURE_LOG][MASKED_HEADERS] ${SecureLog.maskHeaders(headers)}');
+    }
+    final headerInfo = headers != null && headers.isNotEmpty
+        ? ' | Header keys: ${headers.keys.join(", ")}'
         : '';
-    
+
     _log(LogLevel.api, '→ $method $uri$queryStr$headerInfo');
   }
   
@@ -288,11 +293,15 @@ class AppLogger {
     if (!_enableApiLogging) return;
     
     final queryStr = query != null && query.isNotEmpty ? '?${query.toString()}' : '';
-    final headerInfo = headers != null && headers.isNotEmpty 
-        ? ' | Headers: ${headers.keys.join(", ")}' 
+    if (kDebugMode && headers != null && headers.isNotEmpty) {
+      debugPrint(
+          '[SECURE_LOG][MASKED_HEADERS] ${SecureLog.maskHeaders(headers)}');
+    }
+    final headerInfo = headers != null && headers.isNotEmpty
+        ? ' | Header keys: ${headers.keys.join(", ")}'
         : '';
     final bodyInfo = body != null ? ' | Body: ${body.toString().length > 200 ? "${body.toString().substring(0, 200)}..." : body.toString()}' : '';
-    
+
     _log(LogLevel.api, '→ $method $uri$queryStr$headerInfo$bodyInfo');
     
     if (statusCode != null && duration != null) {

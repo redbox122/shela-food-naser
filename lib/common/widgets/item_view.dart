@@ -156,7 +156,8 @@ class _ItemsViewState extends State<ItemsView> {
                       actionWidget: widget.onNoDataActionTap != null
                           ? OutlinedButton(
                               onPressed: widget.onNoDataActionTap,
-                              child: Text(widget.noDataActionText ?? 'reset'.tr),
+                              child:
+                                  Text(widget.noDataActionText ?? 'reset'.tr),
                             )
                           : null,
                     ),

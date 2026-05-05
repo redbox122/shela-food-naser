@@ -36,6 +36,7 @@ import 'package:sixam_mart/common/cache/comprehensive_home_cache_manager.dart';
 import 'package:sixam_mart/features/menu/widgets/portion_widget.dart';
 import 'package:sixam_mart/features/update/controllers/update_controller.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class MenuScreen extends StatefulWidget {
   const MenuScreen({super.key});
@@ -45,6 +46,12 @@ class MenuScreen extends StatefulWidget {
 }
 
 class _MenuScreenState extends State<MenuScreen> {
+  static const String _prefsDmBadgeKey = 'profile_dm_badge_suffix_v2';
+
+  Map<String, dynamic>? _deliveryRegistrationResponse;
+  bool _deliveryCheckLoading = false;
+  String? _persistedDeliveryBadge;
+
   bool _hasServiceAccess() {
     return AuthHelper.isLoggedIn() &&
         !Get.find<AuthController>().isGuestLoggedIn();
@@ -93,6 +100,25 @@ class _MenuScreenState extends State<MenuScreen> {
       // No data - load it first
       loadData(context);
     }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadPersistedDmBadge();
+    });
+  }
+
+  Future<void> _loadPersistedDmBadge() async {
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    if (!mounted) {
+      return;
+    }
+    setState(() {
+      _persistedDeliveryBadge = prefs.getString(_prefsDmBadgeKey);
+    });
+  }
+
+  Future<void> _persistDmBadge(String value) async {
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_prefsDmBadgeKey, value);
+    _persistedDeliveryBadge = value;
   }
 
   Future<void> loadData(context) async {
@@ -231,7 +257,7 @@ class _MenuScreenState extends State<MenuScreen> {
         debugPrint(
             '🔄 MenuScreen: Loading delegate, deliveryman, and store registration data...');
         Get.find<Delegate_Controller>().get_Delegate();
-        Get.find<DeliverymanRegistrationController>().getStatus();
+        await _refreshDeliveryRegistrationStatus();
         Get.find<StoreRegistrationController>().getZoneList();
         debugPrint('✅ MenuScreen: loadData() completed');
       } else {
@@ -874,21 +900,19 @@ class _MenuScreenState extends State<MenuScreen> {
                                           PortionWidget(
                                             icon: Images.dmIcon,
                                             title: 'join_as_a_delivery_man'.tr,
-                                            route: getStatusRoute(
+                                            route: _getDeliveryRoute(
                                                 isLoggedIn,
                                                 DeliverymanReg_Controller
                                                     .status_model),
                                             onTap: () =>
                                                 _runWithLoginRequired(() {
-                                              final route = getStatusRoute(
-                                                  true,
-                                                  DeliverymanReg_Controller
-                                                      .status_model);
-                                              if (route.isNotEmpty) {
-                                                Get.toNamed(route);
-                                              }
+                                              _handleDeliveryTap(
+                                                true,
+                                                DeliverymanReg_Controller
+                                                    .status_model,
+                                              );
                                             }),
-                                            suffix: getStatusSuffix(
+                                            suffix: _getDeliverySuffix(
                                                 isLoggedIn,
                                                 DeliverymanReg_Controller
                                                     .status_model),
@@ -903,11 +927,9 @@ class _MenuScreenState extends State<MenuScreen> {
                                                 delegate_Controller),
                                             onTap: () =>
                                                 _runWithLoginRequired(() {
-                                              final route = _getDelegateRoute(
-                                                  true, delegate_Controller);
-                                              if (route.isNotEmpty) {
-                                                Get.toNamed(route);
-                                              }
+                                              _handleDelegateTap(
+                                                delegate_Controller,
+                                              );
                                             }),
                                             suffix: _getDelegateSuffix(
                                                 isLoggedIn,
@@ -1154,37 +1176,214 @@ class _MenuScreenState extends State<MenuScreen> {
     );
   }
 
-  String getStatusRoute(bool isLoggedIn, StatusModel? model) {
-    if (!isLoggedIn || model == null) {
-      return RouteHelper.getDeliverymanRegistrationRoute();
+  Future<void> _refreshDeliveryRegistrationStatus() async {
+    final ProfileController profileController = Get.find<ProfileController>();
+    final DeliverymanRegistrationController deliveryController =
+        Get.find<DeliverymanRegistrationController>();
+    final String? phone = profileController.userInfoModel?.phone?.trim();
+    final String? email = profileController.userInfoModel?.email?.trim();
+    if (kDebugMode) {
+      debugPrint(
+          '[PROFILE_STATUS][DELIVERY_CHECK_START] phone=${phone ?? ''}');
     }
-
-    switch (model.status) {
-      case 'pending':
-        return ''; // لا يمكن الانتقال لأي صفحة تعديل
-      case 'active':
-        return RouteHelper.getDeliverymanRegistrationRoute();
-      case 'rejected':
-        return '';
-      default:
-        return '';
+    setState(() {
+      _deliveryCheckLoading = true;
+    });
+    Map<String, dynamic>? response;
+    try {
+      response = await deliveryController.fetchDeliveryRegistrationForProfile(
+        phone: (phone == null || phone.isEmpty) ? null : phone,
+        email: (email == null || email.isEmpty) ? null : email,
+      );
+      if (kDebugMode) {
+        final Map<String, dynamic>? deliveryMan =
+            response?['delivery_man'] is Map<String, dynamic>
+                ? response!['delivery_man'] as Map<String, dynamic>
+                : null;
+        debugPrint(
+            '[PROFILE_STATUS][DELIVERY_RESPONSE] is_registered=${response?['is_registered']} can_register=${response?['can_register']} application_status=${deliveryMan?['application_status']} status=${deliveryMan?['status']} active=${deliveryMan?['active']}');
+      }
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _deliveryRegistrationResponse = response;
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _deliveryCheckLoading = false;
+        });
+      }
+    }
+    if (!mounted) {
+      return;
+    }
+    final String badge =
+        _getDeliverySuffix(true, deliveryController.status_model);
+    await _persistDmBadge(badge);
+    if (kDebugMode) {
+      debugPrint('[PROFILE_STATUS][DELIVERY_FINAL_BADGE] badge=$badge');
     }
   }
 
-  String getStatusSuffix(bool isLoggedIn, StatusModel? model) {
+  String _getDeliveryRoute(bool isLoggedIn, StatusModel? model) {
+    if (!isLoggedIn) {
+      return '';
+    }
+    final Map<String, dynamic>? response = _deliveryRegistrationResponse;
+    if (response == null) {
+      // Fallback to legacy behavior when check-registration payload is unavailable.
+      if (model == null) {
+        return RouteHelper.getDeliverymanRegistrationRoute();
+      }
+      final String legacyStatus = (model.status ?? '').toLowerCase();
+      if (legacyStatus == 'pending' || legacyStatus == 'rejected') {
+        return '';
+      }
+      return RouteHelper.getDeliverymanRegistrationRoute();
+    }
+    final bool isRegistered = response['is_registered'] == true;
+    final bool canRegister = response['can_register'] == true;
+    final String applicationStatus = _getDeliveryApplicationStatus(response);
+    if (!isRegistered && canRegister) {
+      return RouteHelper.getDeliverymanRegistrationRoute();
+    }
+    if (applicationStatus == 'rejected') {
+      return RouteHelper.getDeliverymanRegistrationRoute();
+    }
+    return '';
+  }
+
+  String _getDeliverySuffix(bool isLoggedIn, StatusModel? model) {
     if (!isLoggedIn) return '';
+    final Map<String, dynamic>? response = _deliveryRegistrationResponse;
+    if (response == null &&
+        (_deliveryCheckLoading ||
+            (model == null &&
+                _persistedDeliveryBadge != null &&
+                _persistedDeliveryBadge!.isNotEmpty))) {
+      if (kDebugMode && _deliveryCheckLoading) {
+        debugPrint('[PROFILE_STATUS][DELIVERY_LOADING_KEEP_PREVIOUS]');
+      }
+      return _persistedDeliveryBadge ?? '';
+    }
+    String badge = 'انضم الآن';
+    if (response == null) {
+      final String legacyStatus = (model?.status ?? '').toLowerCase();
+      if (legacyStatus == 'active' || legacyStatus == 'approved') {
+        badge = 'متاح';
+      } else if (legacyStatus == 'rejected') {
+        badge = 'مرفوض';
+      } else if (legacyStatus == 'pending') {
+        badge = 'قيد المراجعة';
+      }
+      return badge;
+    }
+    final bool isRegistered = response['is_registered'] == true;
+    final bool canRegister = response['can_register'] == true;
+    final String applicationStatus = _getDeliveryApplicationStatus(response);
+    if (!isRegistered && canRegister) {
+      badge = 'انضم الآن';
+    } else if (applicationStatus == 'pending') {
+      badge = 'قيد المراجعة';
+    } else if (applicationStatus == 'approved') {
+      badge = 'متاح';
+    } else if (applicationStatus == 'rejected') {
+      badge = 'مرفوض';
+    } else if (isRegistered) {
+      badge = 'متاح';
+    }
+    return badge;
+  }
 
-    if (model == null) return 'تسجيل جديد';
+  String _getDeliveryApplicationStatus(Map<String, dynamic> response) {
+    final Map<String, dynamic>? deliveryMan = response['delivery_man'] is Map<String, dynamic>
+        ? response['delivery_man'] as Map<String, dynamic>
+        : null;
+    final String applicationStatus =
+        (deliveryMan?['application_status'] ?? '').toString().toLowerCase();
+    if (applicationStatus.isNotEmpty) {
+      return applicationStatus;
+    }
+    final String statusRaw = (deliveryMan?['status'] ?? '').toString().toLowerCase();
+    final String activeRaw = (deliveryMan?['active'] ?? '').toString().toLowerCase();
+    if (statusRaw == '1' || statusRaw == 'active' || activeRaw == '1' || activeRaw == 'true') {
+      return 'approved';
+    }
+    return statusRaw;
+  }
 
-    switch (model.status) {
-      case 'pending':
-        return 'قيد المراجعة';
-      case 'active':
-        return 'نشط';
-      case 'rejected':
-        return 'مرفوض';
-      default:
-        return 'قيد المراجعة';
+  Future<void> _handleDeliveryTap(bool isLoggedIn, StatusModel? model) async {
+    if (!isLoggedIn) {
+      return;
+    }
+    final Map<String, dynamic>? response = _deliveryRegistrationResponse;
+    final String applicationStatus = response == null
+        ? (model?.status ?? '').toLowerCase()
+        : _getDeliveryApplicationStatus(response);
+    debugPrint('[PROFILE_STATUS][TAP] item=delivery status=$applicationStatus');
+    final bool isRegistered = response?['is_registered'] == true;
+    final bool canRegister = response?['can_register'] == true;
+    if (response == null && model == null) {
+      debugPrint(
+          '[PROFILE_STATUS][ROUTE] item=delivery route=deliveryman_registration');
+      Get.toNamed(RouteHelper.getDeliverymanRegistrationRoute());
+      return;
+    }
+    if (!isRegistered && canRegister) {
+      debugPrint(
+          '[PROFILE_STATUS][ROUTE] item=delivery route=deliveryman_registration');
+      Get.toNamed(RouteHelper.getDeliverymanRegistrationRoute());
+      return;
+    }
+    if (applicationStatus == 'pending') {
+      debugPrint(
+          '[PROFILE_STATUS][POPUP] item=delivery message=pending_review');
+      await Get.dialog<void>(
+        AlertDialog(
+          content: const Text(
+              'طلبك قيد المراجعة حاليًا، يرجى انتظار رد الإدارة.'),
+          actions: <Widget>[
+            TextButton(
+              onPressed: () => Get.back(),
+              child: const Text('حسنًا'),
+            ),
+          ],
+        ),
+      );
+      return;
+    }
+    if (applicationStatus == 'approved' || applicationStatus == 'active') {
+      debugPrint(
+          '[PROFILE_STATUS][POPUP] item=delivery message=approved');
+      await Get.dialog<void>(
+        AlertDialog(
+          title: const Text('تمت الموافقة على طلبك'),
+          content: const Text('تم قبول طلبك كرجل توصيل.'),
+          actions: <Widget>[
+            TextButton(
+              onPressed: () => Get.back(),
+              child: const Text('حسنًا'),
+            ),
+          ],
+        ),
+      );
+      return;
+    }
+    if (applicationStatus == 'rejected') {
+      debugPrint(
+          '[PROFILE_STATUS][POPUP] item=delivery message=rejected');
+      showCustomSnackBar('تم رفض طلبك، يمكنك إعادة التقديم.', isError: false);
+      debugPrint(
+          '[PROFILE_STATUS][ROUTE] item=delivery route=deliveryman_registration');
+      Get.toNamed(RouteHelper.getDeliverymanRegistrationRoute());
+      return;
+    }
+    final String route = _getDeliveryRoute(isLoggedIn, model);
+    if (route.isNotEmpty) {
+      debugPrint('[PROFILE_STATUS][ROUTE] item=delivery route=$route');
+      Get.toNamed(route);
     }
   }
 
@@ -1223,6 +1422,39 @@ class _MenuScreenState extends State<MenuScreen> {
       default:
         return 'الحالة';
     }
+  }
+
+  Future<void> _handleDelegateTap(Delegate_Controller controller) async {
+    final String? status = controller.delegate_model?.delegateStatus;
+    debugPrint('[PROFILE_STATUS][TAP] item=delegate status=$status');
+    if (status == 'pending') {
+      debugPrint(
+          '[PROFILE_STATUS][BLOCKED] item=delegate reason=pending_review');
+      debugPrint(
+          '[PROFILE_STATUS][POPUP] item=delegate message=pending_review');
+      await Get.dialog<void>(
+        AlertDialog(
+          title: const Text('طلبك قيد المراجعة'),
+          content: const Text(
+            'طلب الانضمام كمندوب تسويق قسائم شرائية قيد المراجعة حاليًا، يرجى انتظار رد الإدارة.',
+          ),
+          actions: <Widget>[
+            TextButton(
+              onPressed: () => Get.back(),
+              child: const Text('حسنًا'),
+            ),
+          ],
+        ),
+      );
+      return;
+    }
+    if (status == 'active' || status == 'approved') {
+      showCustomSnackBar('تمت الموافقة على طلبك', isError: false);
+      return;
+    }
+    final String route = RouteHelper.getAdd_DelegateScreen();
+    debugPrint('[PROFILE_STATUS][ROUTE] item=delegate route=add_delegate_screen');
+    Get.toNamed(route);
   }
   Future<void> _launchExternalUrl(String url) async {
     final Uri uri = Uri.parse(url);

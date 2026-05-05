@@ -1,5 +1,6 @@
 
 import 'package:flutter/foundation.dart';
+import 'package:sixam_mart/util/app_constants.dart';
 
 /// Centralized loading state manager to prevent duplicate data loading
 /// This ensures only one data loading operation happens at a time
@@ -48,7 +49,7 @@ class LoadingStateManager {
   /// Start splash loading
   bool startSplashLoading() {
     if (_isSplashLoading) {
-      if (kDebugMode) {
+      if (kDebugMode && AppConstants.enableVerboseLogs) {
         debugPrint('🚫 Splash loading already in progress, skipping');
       }
       return false;
@@ -56,7 +57,7 @@ class LoadingStateManager {
 
     if (_lastSplashLoad != null &&
         DateTime.now().difference(_lastSplashLoad!) < _minSplashInterval) {
-      if (kDebugMode) {
+      if (kDebugMode && AppConstants.enableVerboseLogs) {
         debugPrint('🚫 Too soon since last splash load, skipping');
       }
       return false;
@@ -65,7 +66,7 @@ class LoadingStateManager {
     _isSplashLoading = true;
     _lastSplashLoad = DateTime.now();
 
-    if (kDebugMode) {
+    if (kDebugMode && AppConstants.enableVerboseLogs) {
       debugPrint('🚀 Starting splash loading');
     }
     return true;
@@ -74,7 +75,7 @@ class LoadingStateManager {
   /// Complete splash loading
   void completeSplashLoading() {
     _isSplashLoading = false;
-    if (kDebugMode) {
+    if (kDebugMode && AppConstants.enableVerboseLogs) {
       debugPrint('✅ Splash loading completed');
     }
   }
@@ -82,7 +83,7 @@ class LoadingStateManager {
   /// Start home loading
   bool startHomeLoading({bool force = false}) {
     if (_isHomeLoading) {
-      if (kDebugMode) {
+      if (kDebugMode && AppConstants.enableVerboseLogs) {
         debugPrint('🚫 Home loading already in progress, skipping');
       }
       return false;
@@ -91,7 +92,7 @@ class LoadingStateManager {
     if (!force &&
         _lastHomeLoad != null &&
         DateTime.now().difference(_lastHomeLoad!) < _minHomeInterval) {
-      if (kDebugMode) {
+      if (kDebugMode && AppConstants.enableVerboseLogs) {
         debugPrint('🚫 Too soon since last home load, skipping');
       }
       return false;
@@ -100,7 +101,7 @@ class LoadingStateManager {
     _isHomeLoading = true;
     _lastHomeLoad = DateTime.now();
 
-    if (kDebugMode) {
+    if (kDebugMode && AppConstants.enableVerboseLogs) {
       debugPrint('🚀 Starting home loading${force ? ' (FORCED)' : ''}');
     }
     return true;
@@ -109,7 +110,7 @@ class LoadingStateManager {
   /// Complete home loading
   void completeHomeLoading() {
     _isHomeLoading = false;
-    if (kDebugMode) {
+    if (kDebugMode && AppConstants.enableVerboseLogs) {
       debugPrint('✅ Home loading completed');
     }
   }
@@ -117,7 +118,7 @@ class LoadingStateManager {
   /// Start background refresh
   bool startBackgroundRefresh() {
     if (_isBackgroundRefreshing) {
-      if (kDebugMode) {
+      if (kDebugMode && AppConstants.enableVerboseLogs) {
         debugPrint('🚫 Background refresh already in progress, skipping');
       }
       return false;
@@ -126,7 +127,7 @@ class LoadingStateManager {
     if (_lastBackgroundRefresh != null &&
         DateTime.now().difference(_lastBackgroundRefresh!) <
             _minBackgroundInterval) {
-      if (kDebugMode) {
+      if (kDebugMode && AppConstants.enableVerboseLogs) {
         debugPrint('🚫 Too soon since last background refresh, skipping');
       }
       return false;
@@ -135,7 +136,7 @@ class LoadingStateManager {
     _isBackgroundRefreshing = true;
     _lastBackgroundRefresh = DateTime.now();
 
-    if (kDebugMode) {
+    if (kDebugMode && AppConstants.enableVerboseLogs) {
       debugPrint('🚀 Starting background refresh');
     }
     return true;
@@ -144,7 +145,7 @@ class LoadingStateManager {
   /// Complete background refresh
   void completeBackgroundRefresh() {
     _isBackgroundRefreshing = false;
-    if (kDebugMode) {
+    if (kDebugMode && AppConstants.enableVerboseLogs) {
       debugPrint('✅ Background refresh completed');
     }
   }
@@ -152,7 +153,7 @@ class LoadingStateManager {
   /// Start comprehensive loading
   bool startComprehensiveLoading() {
     if (_isComprehensiveLoading) {
-      if (kDebugMode) {
+      if (kDebugMode && AppConstants.enableVerboseLogs) {
         debugPrint('🚫 Comprehensive loading already in progress, skipping');
       }
       return false;
@@ -161,7 +162,7 @@ class LoadingStateManager {
     if (_lastComprehensiveLoad != null &&
         DateTime.now().difference(_lastComprehensiveLoad!) <
             _minComprehensiveInterval) {
-      if (kDebugMode) {
+      if (kDebugMode && AppConstants.enableVerboseLogs) {
         debugPrint('🚫 Too soon since last comprehensive load, skipping');
       }
       return false;
@@ -170,7 +171,7 @@ class LoadingStateManager {
     _isComprehensiveLoading = true;
     _lastComprehensiveLoad = DateTime.now();
 
-    if (kDebugMode) {
+    if (kDebugMode && AppConstants.enableVerboseLogs) {
       debugPrint('🚀 Starting comprehensive loading');
     }
     return true;
@@ -179,7 +180,7 @@ class LoadingStateManager {
   /// Complete comprehensive loading
   void completeComprehensiveLoading() {
     _isComprehensiveLoading = false;
-    if (kDebugMode) {
+    if (kDebugMode && AppConstants.enableVerboseLogs) {
       debugPrint('✅ Comprehensive loading completed');
     }
   }
@@ -188,7 +189,7 @@ class LoadingStateManager {
   bool canStartComprehensiveLoading() {
     // Don't start comprehensive loading if splash is loading
     if (_isSplashLoading) {
-      if (kDebugMode) {
+      if (kDebugMode && AppConstants.enableVerboseLogs) {
         debugPrint('🚫 Cannot start comprehensive loading - splash is loading');
       }
       return false;
@@ -196,7 +197,7 @@ class LoadingStateManager {
 
     // Don't start if already loading
     if (_isComprehensiveLoading) {
-      if (kDebugMode) {
+      if (kDebugMode && AppConstants.enableVerboseLogs) {
         debugPrint('🚫 Cannot start comprehensive loading - already in progress');
       }
       return false;
@@ -209,7 +210,7 @@ class LoadingStateManager {
   bool canStartHomeLoading() {
     // Don't start home loading if splash is loading
     if (_isSplashLoading) {
-      if (kDebugMode) {
+      if (kDebugMode && AppConstants.enableVerboseLogs) {
         debugPrint('🚫 Cannot start home loading - splash is loading');
       }
       return false;
@@ -217,7 +218,7 @@ class LoadingStateManager {
 
     // Don't start if already loading
     if (_isHomeLoading) {
-      if (kDebugMode) {
+      if (kDebugMode && AppConstants.enableVerboseLogs) {
         debugPrint('🚫 Cannot start home loading - already in progress');
       }
       return false;

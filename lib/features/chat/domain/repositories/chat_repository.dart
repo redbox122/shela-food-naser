@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sixam_mart/api/api_client.dart';
@@ -22,7 +23,16 @@ class ChatRepository implements ChatRepositoryInterface {
 
   Future<ConversationsModel?> _getConversationList(int offset, String type) async {
     ConversationsModel? conversationModel;
-    final Response response = await apiClient.getData('${AppConstants.conversationListUri}?limit=10&offset=$offset&type=$type');
+    final String endpoint =
+        '${AppConstants.conversationListUri}?limit=10&offset=$offset&type=$type';
+    final Response response = await apiClient.getData(
+      endpoint,
+      useEtag: false,
+      headers: <String, String>{
+        'Cache-Control': 'no-cache',
+        'Pragma': 'no-cache',
+      },
+    );
     if(response.statusCode == 200){
       conversationModel = ConversationsModel.fromJson(response.body as Map<String, dynamic>);
     }
@@ -31,7 +41,16 @@ class ChatRepository implements ChatRepositoryInterface {
 
   Future<ConversationsModel?> _searchConversationList(String name) async {
     ConversationsModel? searchConversationModel;
-    final Response response = await apiClient.getData('${AppConstants.searchConversationListUri}?name=$name&limit=20&offset=1');
+    final String endpoint =
+        '${AppConstants.searchConversationListUri}?name=$name&limit=20&offset=1';
+    final Response response = await apiClient.getData(
+      endpoint,
+      useEtag: false,
+      headers: <String, String>{
+        'Cache-Control': 'no-cache',
+        'Pragma': 'no-cache',
+      },
+    );
     if(response.statusCode == 200) {
       searchConversationModel = ConversationsModel.fromJson(response.body as Map<String, dynamic>);
     }
@@ -40,8 +59,20 @@ class ChatRepository implements ChatRepositoryInterface {
 
   @override
   Future<Response> getMessages(int offset, int? userID, String userType, int? conversationID) async {
-    return await apiClient.getData('${AppConstants.messageListUri}?${conversationID != null ? 'conversation_id' : userType == UserType.admin.name ? 'admin_id'
-        : userType == UserType.vendor.name ? 'vendor_id' : 'delivery_man_id'}=${conversationID ?? userID}&offset=$offset&limit=10');
+    final String endpoint =
+        '${AppConstants.messageListUri}?${conversationID != null ? 'conversation_id' : userType == UserType.admin.name ? 'admin_id'
+        : userType == UserType.vendor.name ? 'vendor_id' : 'delivery_man_id'}=${conversationID ?? userID}&offset=$offset&limit=10';
+    debugPrint('[CHAT:getMessages][ENDPOINT] $endpoint');
+    debugPrint(
+        '[CHAT:getMessages][REQUEST_PARAMS] offset=$offset userID=$userID userType=$userType conversationID=$conversationID');
+    return await apiClient.getData(
+      endpoint,
+      useEtag: false,
+      headers: <String, String>{
+        'Cache-Control': 'no-cache',
+        'Pragma': 'no-cache',
+      },
+    );
   }
 
   @override

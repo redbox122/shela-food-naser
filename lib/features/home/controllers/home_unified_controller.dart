@@ -277,26 +277,47 @@ class HomeUnifiedController extends GetxController implements GetxService {
       await Get.find<SplashController>().ensureModuleReady();
     }
     final int? activeModuleId = ModuleHelper.getModule()?.id;
-    if (!forceRefresh &&
-        activeModuleId != null &&
+    // 🔧 FIX (Bug 1): Even with forceRefresh=true, if a request for this module
+    // is already in flight, JOIN it instead of bailing. We also pre-populate
+    // the memory cache here so that the calling controller's `unifiedData`
+    // getter sees the parsed model BEFORE the original fetcher's
+    // post-processing runs (which can be discarded by a stale generation).
+    if (activeModuleId != null &&
         _activeApiRequests.containsKey(activeModuleId)) {
       if (kDebugMode) {
         appLogger.debug(
-            'HomeUnifiedController: Reusing in-flight request for module $activeModuleId');
+            'HomeUnifiedController: Reusing in-flight request for module $activeModuleId (forceRefresh=$forceRefresh)');
       }
       final reusedResponse = await _activeApiRequests[activeModuleId]!;
-      return reusedResponse != null && reusedResponse.isValid;
+      if (reusedResponse != null && reusedResponse.isValid) {
+        // ⚡ Defensive cache write: ensure `unifiedData` getter returns content
+        // for HomeController's accept logic even if the original fetcher's
+        // continuation has not yet run (or is about to be discarded by a
+        // generation check).
+        final existing = _moduleDataCache[activeModuleId];
+        if (existing == null || !existing.isValid) {
+          _moduleDataCache[activeModuleId] = reusedResponse;
+          _lastFetchTime = DateTime.now();
+          _lastFetchTimePerModule[activeModuleId] = DateTime.now();
+          if (kDebugMode) {
+            appLogger.debug(
+                '⚡ HomeUnifiedController: Dedup-branch populated _moduleDataCache[$activeModuleId] '
+                '(categories=${reusedResponse.categories?.length ?? 0}, '
+                'offers=${reusedResponse.offers?.length ?? 0}, '
+                'banners=${reusedResponse.banners?.length ?? 0})');
+          }
+          // Distribute on next microtask so callers see a populated cache first.
+          Future.microtask(() => _distributeDataToControllers(
+                reusedResponse,
+                loadStores: true,
+                sourceModuleId: activeModuleId,
+              ));
+        }
+        return true;
+      }
+      return false;
     }
     if (_isLoading || _isFetching) {
-      if (!forceRefresh &&
-          activeModuleId != null &&
-          _activeApiRequests.containsKey(activeModuleId)) {
-        if (kDebugMode) {
-          appLogger.debug('Reusing active API request for module $activeModuleId');
-        }
-        final reusedResponse = await _activeApiRequests[activeModuleId]!;
-        return reusedResponse != null && reusedResponse.isValid;
-      }
       if (kDebugMode) {
         appLogger.debug(
             '🚫 HomeUnifiedController: Already loading/fetching, skipping duplicate call');
@@ -384,7 +405,7 @@ class HomeUnifiedController extends GetxController implements GetxService {
                   '⚡ HomeUnifiedController: Skipping duplicate call — has valid data '
                   '(last fetch ${timeSinceLastFetch.inSeconds}s ago, module $effectiveModuleId)');
             }
-            return false;
+            return true;
           } else if (kDebugMode) {
             appLogger.debug(
                 '⚡ HomeUnifiedController: Bypassing interval — no valid data for '
@@ -529,7 +550,7 @@ class HomeUnifiedController extends GetxController implements GetxService {
               '🚫 HomeUnifiedController: Already fetching, skipping duplicate call');
         }
         _isLoading = false;
-        return false;
+        return hasCachedData;
       }
 
       _isFetching = true;
@@ -553,10 +574,22 @@ class HomeUnifiedController extends GetxController implements GetxService {
       }
 
       if (apiData != null && apiData.isValid) {
-        // ⚡ GENERATION CHECK: Discard stale response if module switched during API call
+        // 🔧 FIX (Bug 1): Persist parsed data into memory cache IMMEDIATELY
+        // (before the generation check). The generation check is only meant
+        // to gate UI distribution when the user switched modules during the
+        // fetch — it must NOT cause the parsed payload to be lost. Storing
+        // here is keyed by `effectiveModuleId` which is the moduleId we
+        // fetched for, so it is always correct for that module.
+        _moduleDataCache[effectiveModuleId] = apiData;
+        _lastFetchTime = DateTime.now();
+        _lastFetchTimePerModule[effectiveModuleId] = DateTime.now();
+
+        // ⚡ GENERATION CHECK: Discard stale UI distribution if module switched
         if (_isStaleGeneration(currentGeneration, 'main API')) {
           _isLoading = false;
-          return false; // Module switched, ignore this response
+          // Even on stale generation, the data is preserved in cache so any
+          // subsequent loadHomeData (or unifiedData getter) sees real content.
+          return true;
         }
 
         // 🔧 FIX 3: Check if new API data is identical to cached data BEFORE updating

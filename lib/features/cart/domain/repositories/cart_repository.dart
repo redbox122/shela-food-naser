@@ -1,6 +1,6 @@
 import 'dart:convert';
 
-import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:get/get_connect.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sixam_mart/api/api_client.dart';
@@ -89,11 +89,13 @@ class CartRepository implements CartRepositoryInterface<OnlineCart> {
     if (response.statusCode == 200) {
       onlineCartList = [];
 
-      // ✅ ENABLED: Log request body to verify what we're sending
-      debugPrint(
-          '\x1B[33m🔍 [CART ADD REQUEST BODY]:\n${const JsonEncoder.withIndent('  ').convert(cart.toJson())}\x1B[0m');
-
-      debugPrint('\x1B[32m     ${response.body}     \x1B[0m');
+      // Verbose-only diagnostic dumps. Pre-scan / release builds keep the
+      // logs lean so payloads, prices, and store ids never leak.
+      if (kDebugMode && AppConstants.enableVerboseLogs) {
+        debugPrint(
+            '\x1B[33m🔍 [CART ADD REQUEST BODY]:\n${const JsonEncoder.withIndent('  ').convert(cart.toJson())}\x1B[0m');
+        debugPrint('\x1B[32m     ${response.body}     \x1B[0m');
+      }
 
       if (response.body is List) {
         for (var cart in (response.body as List)) {
@@ -103,8 +105,10 @@ class CartRepository implements CartRepositoryInterface<OnlineCart> {
       }
     } else {
       debugPrint('❌ addToCartOnline failed: status=${response.statusCode}');
-      debugPrint('   - requestBody: $requestBody');
-      debugPrint('   - responseBody: ${response.body}');
+      if (kDebugMode && AppConstants.enableVerboseLogs) {
+        debugPrint('   - requestBody: $requestBody');
+        debugPrint('   - responseBody: ${response.body}');
+      }
       final dynamic errors = response.body is Map<String, dynamic>
           ? (response.body as Map<String, dynamic>)['errors']
           : null;
@@ -246,7 +250,12 @@ class CartRepository implements CartRepositoryInterface<OnlineCart> {
     );
     if (response.statusCode == 200) {
       onlineCartList = [];
-      debugPrint('🔄 Raw API response for cart data: ${response.body}');
+      // Verbose-only raw payload dump. Pre-scan / release builds keep the
+      // logs lean — full cart payloads can be hundreds of lines and contain
+      // stale prices, so we never print them by default.
+      if (kDebugMode && AppConstants.enableVerboseLogs) {
+        debugPrint('🔄 Raw API response for cart data: ${response.body}');
+      }
 
       // ✅ BACKEND CONTRACT: Response should be either:
       // 1. Object with {success, store_id, cart_items} (new format)
@@ -264,7 +273,7 @@ class CartRepository implements CartRepositoryInterface<OnlineCart> {
             : int.tryParse(storeIdRaw?.toString() ?? '');
         cartItemsList = responseBody['cart_items'] as List<dynamic>?;
 
-        if (extractedStoreId != null) {
+        if (extractedStoreId != null && kDebugMode && AppConstants.enableVerboseLogs) {
           debugPrint('✅ Extracted store_id from response: $extractedStoreId');
         }
 
@@ -279,55 +288,58 @@ class CartRepository implements CartRepositoryInterface<OnlineCart> {
       } else if (responseBody is List) {
         // ✅ LEGACY FORMAT: Direct list (for backward compatibility)
         cartItemsList = responseBody;
-        debugPrint(
-            '⚠️ Using legacy format (direct List) - store_id not available');
+        if (kDebugMode && AppConstants.enableVerboseLogs) {
+          debugPrint(
+              '⚠️ Using legacy format (direct List) - store_id not available');
+        }
       }
 
       // Parse cart items
       if (cartItemsList != null) {
         for (var cart in cartItemsList) {
           final cartMap = cart as Map<String, dynamic>;
-          debugPrint(
-              "🔄 Processing cart item: ${cartMap['item']?['name']} - qty: ${cartMap['quantity']}");
-
-          // BUGFIX: Removed flawed quantity workaround that incorrectly calculated quantity
-          // from price division without accounting for variations.
-          //
-          // The workaround assumed: total_price = unit_price × quantity
-          // But reality is: total_price = (unit_price + variations_price) × quantity
-          //
-          // This caused items with expensive variations to have their quantity incorrectly
-          // multiplied (e.g., 69 SAR item with 22 SAR base = 3.14 → 3 quantity WRONG!)
-          //
-          // The backend API returns the correct quantity. Trust it.
+          if (kDebugMode && AppConstants.enableVerboseLogs) {
+            debugPrint(
+                "🔄 Processing cart item: ${cartMap['item']?['name']} - qty: ${cartMap['quantity']}");
+          }
 
           onlineCartList.add(OnlineCartModel.fromJson(cartMap));
         }
       }
 
-      debugPrint('🔄 Total cart items from API: ${onlineCartList.length}');
+      if (kDebugMode && AppConstants.enableVerboseLogs) {
+        debugPrint('🔄 Total cart items from API: ${onlineCartList.length}');
+      }
 
       // ✅ BACKEND CONTRACT: Store store_id from response
       if (extractedStoreId != null) {
         _lastStoreId = extractedStoreId;
-        debugPrint('✅ Stored store_id in repository: $_lastStoreId');
+        if (kDebugMode && AppConstants.enableVerboseLogs) {
+          debugPrint('✅ Stored store_id in repository: $_lastStoreId');
+        }
       } else {
         // If store_id not in response, only warn if cart has items
         if (onlineCartList.isNotEmpty) {
-          debugPrint(
-              '⚠️ store_id not found with non-empty cart - backend contract violation');
+          if (kDebugMode && AppConstants.enableVerboseLogs) {
+            debugPrint(
+                '⚠️ store_id not found with non-empty cart - backend contract violation');
+          }
           // Fallback: extract from first cart item
           final firstItem = onlineCartList.first.item;
           if (firstItem?.storeId != null) {
             _lastStoreId = firstItem!.storeId;
-            debugPrint(
-                '⚠️ store_id not in response, extracted from first item: $_lastStoreId');
+            if (kDebugMode && AppConstants.enableVerboseLogs) {
+              debugPrint(
+                  '⚠️ store_id not in response, extracted from first item: $_lastStoreId');
+            }
           }
         } else {
           // API explicitly returned empty cart and no store_id -> clear stale store context.
           _lastStoreId = null;
-          debugPrint(
-              'ℹ️ Empty cart response with null store_id - cleared cached store_id in repository');
+          if (kDebugMode && AppConstants.enableVerboseLogs) {
+            debugPrint(
+                'ℹ️ Empty cart response with null store_id - cleared cached store_id in repository');
+          }
         }
       }
     }

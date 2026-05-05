@@ -16,7 +16,8 @@ class WalletTransferService implements WalletTransferServiceInterface {
   @override
   Future<ValidateRecipientResponseModel?> validateRecipient(String phone) async {
     final Response response = await walletTransferRepositoryInterface.validateRecipient(phone);
-    if (response.statusCode == 200) {
+    if ((response.statusCode == 200 || response.statusCode == 400 || response.statusCode == 404) &&
+        response.body is Map<String, dynamic>) {
       return ValidateRecipientResponseModel.fromJson(response.body as Map<String, dynamic>);
     }
     return null;

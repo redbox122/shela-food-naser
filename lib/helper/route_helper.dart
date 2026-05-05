@@ -21,6 +21,7 @@ import 'package:sixam_mart/features/wallet/screens/wallet_screen.dart';
 import 'package:sixam_mart/features/wallet_transfer/screens/send_funds_screen.dart';
 import 'package:sixam_mart/features/wallet_transfer/screens/choose_receiver_screen.dart';
 import 'package:sixam_mart/features/wallet_transfer/screens/transfer_success_screen.dart';
+import 'package:sixam_mart/features/wallet_transfer/screens/wallet_transaction_detail_screen.dart';
 import 'package:sixam_mart/features/loyalty/screens/loyalty_screen.dart';
 import 'package:sixam_mart/features/profile/domain/models/update_user_model.dart';
 import 'package:sixam_mart/features/refer_and_earn/screens/refer_and_earn_screen.dart';
@@ -179,6 +180,8 @@ class RouteHelper {
   static const String sendFunds = '/send-funds';
   static const String chooseReceiver = '/choose-receiver';
   static const String transferSuccess = '/transfer-success';
+
+  static const String walletTransactionDetail = '/wallet-transaction-detail';
 
   static const String loyalty = '/loyalty';
   static const String referAndEarn = '/refer-and-earn';
@@ -387,6 +390,8 @@ class RouteHelper {
   static String getChooseReceiverRoute() => chooseReceiver;
 
   static String getTransferSuccessRoute() => transferSuccess;
+
+  static String getWalletTransactionDetailRoute() => walletTransactionDetail;
 
   static String getContract_ReviewRoute() => Contract_Review;
 
@@ -665,6 +670,9 @@ class RouteHelper {
     GetPage(name: chooseReceiver, page: () => const ChooseReceiverScreen()),
     GetPage(name: transferSuccess, page: () => const TransferSuccessScreen()),
     GetPage(
+        name: walletTransactionDetail,
+        page: () => const WalletTransactionDetailScreen()),
+    GetPage(
         name: splash,
         page: () {
           NotificationBodyModel? data;
@@ -856,7 +864,12 @@ class RouteHelper {
 
     GetPage(
         name: search,
-        page: () => getRoute(SearchScreen(queryText: Get.parameters['query']))),
+        page: () {
+          final String searchQuery = Get.parameters['query'] ?? '';
+          debugPrint(
+              '[Search][OPEN] route=${Get.currentRoute} query=$searchQuery');
+          return getRoute(SearchScreen(queryText: searchQuery));
+        }),
 
     GetPage(
         name: store,

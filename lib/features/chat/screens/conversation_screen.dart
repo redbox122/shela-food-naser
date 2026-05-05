@@ -113,6 +113,9 @@ class _ConversationScreenState extends State<ConversationScreen> {
                                     showCustomSnackBar('write_something'.tr);
                                   }
                                 },
+                                onChanged: (String text) {
+                                  chatController.searchConversation(text);
+                                },
                                 iconPressed: () {
                                   if (chatController.searchConversationModel != null) {
                                     _searchController.text = '';

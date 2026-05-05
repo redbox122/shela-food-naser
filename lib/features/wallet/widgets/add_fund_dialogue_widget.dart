@@ -19,21 +19,55 @@ class AddFundDialogueWidget extends StatefulWidget {
 class _AddFundDialogueWidgetState extends State<AddFundDialogueWidget> {
   final TextEditingController inputAmountController = TextEditingController();
   final FocusNode focusNode = FocusNode();
+  bool _isLoadingMethods = false;
+  bool _isDisposed = false;
 
   @override
   void initState() {
     super.initState();
+    debugPrint('[ADD_FUND_DIALOG][OPEN]');
     Get.find<WalletController>().isTextFieldEmpty('', isUpdate: false);
     Get.find<WalletController>().changeDigitalPaymentName('', isUpdate: false);
     Get.find<WalletController>()
         .setSelectedPaymentMethod(null, isUpdate: false);
-
-    // Load payment methods with default amount
-    _loadPaymentMethods(1000.0);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || _isDisposed) {
+        debugPrint('[ADD_FUND_DIALOG][DISPOSED_SKIP]');
+        return;
+      }
+      debugPrint('[ADD_FUND_DIALOG][POST_FRAME_LOAD]');
+      _loadPaymentMethods(1000.0);
+    });
   }
 
   Future<void> _loadPaymentMethods(double amount) async {
-    await Get.find<WalletController>().loadPaymentMethodsForWallet(amount);
+    if (_isLoadingMethods) {
+      debugPrint('[ADD_FUND_DIALOG][DUPLICATE_LOAD_BLOCKED]');
+      return;
+    }
+    if (!mounted || _isDisposed) {
+      debugPrint('[ADD_FUND_DIALOG][DISPOSED_SKIP]');
+      return;
+    }
+    _isLoadingMethods = true;
+    debugPrint('[ADD_FUND_DIALOG][LOAD_PAYMENT_METHODS_START]');
+    try {
+      await Get.find<WalletController>().loadPaymentMethodsForWallet(amount);
+      final int count = Get.find<WalletController>().paymentMethods.length;
+      debugPrint('[ADD_FUND_DIALOG][LOAD_PAYMENT_METHODS_DONE] count=$count');
+    } catch (e) {
+      debugPrint('[ADD_FUND_DIALOG][LOAD_PAYMENT_METHODS_ERROR] error=$e');
+    } finally {
+      _isLoadingMethods = false;
+    }
+  }
+
+  @override
+  void dispose() {
+    _isDisposed = true;
+    inputAmountController.dispose();
+    focusNode.dispose();
+    super.dispose();
   }
 
   Widget _buildPaymentMethodsList(WalletController walletController) {

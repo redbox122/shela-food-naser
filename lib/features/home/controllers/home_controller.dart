@@ -512,27 +512,54 @@ class HomeController extends GetxController implements GetxService {
       );
       final statusCode = unifiedController.lastRequestStatusCode;
       final errorCode = unifiedController.lastRequestErrorCode;
+
+      // 🔧 FIX (HOME_UNIFIED Issue 3): Trust the parsed model presence instead
+      // of relying solely on `success` boolean. If HTTP=200 and the parsed model
+      // contains usable content (categories/banners/offers/brands), accept it.
+      final unifiedData = unifiedController.unifiedData;
+      final int categoriesCount = unifiedData?.categories?.length ?? 0;
+      final int offersCount = unifiedData?.offers?.length ?? 0;
+      final int bannersCount = unifiedData?.banners?.length ?? 0;
+      final int brandsCount = unifiedData?.brands?.length ?? 0;
+      final bool hasParsedContent = categoriesCount > 0 ||
+          bannersCount > 0 ||
+          offersCount > 0 ||
+          brandsCount > 0;
       final bool hasUsableUnifiedData = unifiedController.hasCachedData ||
-          (unifiedController.unifiedData?.isValid ?? false);
+          (unifiedData?.isValid ?? false) ||
+          hasParsedContent;
       final bool isConnectivityFailure = statusCode == 1;
       final bool effectiveSuccess = success && !isConnectivityFailure;
-      final bool isUnifiedSuccess =
-          effectiveSuccess ||
+      final bool isUnifiedSuccess = effectiveSuccess ||
           statusCode == 304 ||
-          (hasUsableUnifiedData && !isConnectivityFailure);
+          (hasUsableUnifiedData && !isConnectivityFailure) ||
+          // ⚡ Decisive accept: 200 + any parsed content = success regardless of
+          // success flag, even when controller-level dedup returned false.
+          (statusCode == 200 && hasParsedContent && !isConnectivityFailure);
+
+      if (kDebugMode) {
+        debugPrint(
+            '[HOME_UNIFIED][CONTROLLER_RECEIVE] success=$success hasData=$hasUsableUnifiedData '
+            'categories=$categoriesCount offers=$offersCount banners=$bannersCount brands=$brandsCount');
+      }
 
       if (isUnifiedSuccess) {
         if (kDebugMode) {
-          debugPrint('✅ HomeController: Unified considered successful '
-              '(success=$effectiveSuccess, rawSuccess=$success, status=$statusCode, hasData=$hasUsableUnifiedData)');
+          debugPrint(
+              '[HOME_UNIFIED][RESULT] status=$statusCode parsedSuccess=$success '
+              'hasData=$hasUsableUnifiedData categories=$categoriesCount offers=$offersCount');
+          debugPrint('[HOME_UNIFIED][ACCEPTED]');
         }
         _dataSource = HomeDataSource.unified;
         return true;
       }
 
       if (kDebugMode) {
-        debugPrint('⚠️ HomeController: Unified considered failed '
-            '(success=$success, status=$statusCode, error=$errorCode, hasData=$hasUsableUnifiedData, connectivityFailure=$isConnectivityFailure)');
+        debugPrint(
+            '[HOME_UNIFIED][RESULT] status=$statusCode parsedSuccess=$success '
+            'hasData=$hasUsableUnifiedData categories=$categoriesCount offers=$offersCount');
+        debugPrint(
+            '[HOME_UNIFIED][REJECTED] reason=not_unified_success connectivity=$isConnectivityFailure error=$errorCode');
       }
 
       return false;

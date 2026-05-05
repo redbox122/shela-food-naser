@@ -1,5 +1,8 @@
 
 import 'package:flutter/material.dart';
+import 'dart:convert';
+import 'package:sixam_mart/features/category/domain/models/category_model.dart';
+import 'package:sixam_mart/features/splash/controllers/splash_controller.dart';
 import 'package:sixam_mart/features/item/domain/models/item_model.dart';
 import 'package:sixam_mart/features/search/domain/models/popular_categories_model.dart';
 import 'package:sixam_mart/features/search/domain/models/search_filter_model.dart';
@@ -53,6 +56,14 @@ class SearchController extends GetxController implements GetxService {
   bool get isLoading => _isLoading;
   bool _hasError = false;
   bool get hasError => _hasError;
+  bool _isLoadingSuggestedItems = false;
+  bool get isLoadingSuggestedItems => _isLoadingSuggestedItems;
+  bool _isLoadingPopularCategories = false;
+  bool get isLoadingPopularCategories => _isLoadingPopularCategories;
+  bool _isLoadingTrendingCategories = false;
+  bool get isLoadingTrendingCategories => _isLoadingTrendingCategories;
+  bool _isLoadingHistory = false;
+  bool get isLoadingHistory => _isLoadingHistory;
   bool _hasPopularCategoriesError = false;
   bool get hasPopularCategoriesError => _hasPopularCategoriesError;
   bool _hasTrendingCategoriesError = false;
@@ -118,6 +129,13 @@ class SearchController extends GetxController implements GetxService {
 
   bool _isPriceAscending = false;
   bool get isPriceAscending => _isPriceAscending;
+  int? _activeModuleId;
+  int? get activeModuleId => _activeModuleId;
+  List<CategoryModel> _discoveryFallbackCategories = <CategoryModel>[];
+  List<CategoryModel> get discoveryFallbackCategories =>
+      _discoveryFallbackCategories;
+  int? _fallbackCategoriesModuleId;
+  int? get fallbackCategoriesModuleId => _fallbackCategoriesModuleId;
 
   // ===================================================================================================================
 
@@ -233,6 +251,8 @@ class SearchController extends GetxController implements GetxService {
   void setSearchMode(bool isSearchMode, {bool canUpdate = true}) {
     _isSearchMode = isSearchMode;
     if (isSearchMode) {
+      _isLoading = false;
+      _hasError = false;
       _searchText = '';
       _itemResultText = '';
       _storeResultText = '';
@@ -290,29 +310,111 @@ class SearchController extends GetxController implements GetxService {
     update();
   }
 
-  void getSuggestedItems() async {
-    final List<Item>? suggestedItemList =
-        await searchServiceInterface.getSuggestedItems();
-    if (suggestedItemList != null) {
-      _suggestedItemList = [];
-      _suggestedItemList!.addAll(suggestedItemList);
+  void resetForModuleSwitch({required bool hasQuery}) {
+    _hasError = false;
+    _hasPopularCategoriesError = false;
+    _hasTrendingCategoriesError = false;
+    _isLoading = false;
+    _isLoadingSuggestedItems = false;
+    _isLoadingPopularCategories = false;
+    _isLoadingTrendingCategories = false;
+    _isLoadingHistory = false;
+    _searchSuggestionModel = null;
+    _suggestedItemList = <Item>[];
+    _searchItemList = <Item>[];
+    _allItemList = <Item>[];
+    _searchStoreList = <Store>[];
+    _allStoreList = <Store>[];
+    _popularCategoryList = <PopularCategoryModel?>[];
+    _trendingCategoryList = <PopularCategoryModel?>[];
+    _discoveryFallbackCategories = <CategoryModel>[];
+    if (!hasQuery) {
+      _searchText = '';
+      _isSearchMode = true;
     }
     update();
   }
 
+  void setActiveModuleId(int? moduleId) {
+    _activeModuleId = moduleId;
+  }
+
+  void setDiscoveryFallbackCategories(List<CategoryModel> categories,
+      {required int? moduleId}) {
+    _fallbackCategoriesModuleId = moduleId;
+    _discoveryFallbackCategories = List<CategoryModel>.from(categories);
+    debugPrint(
+        '[Search][DISCOVERY_FALLBACK_CATEGORIES] moduleId=${moduleId ?? 'null'} count=${_discoveryFallbackCategories.length}');
+    if (_discoveryFallbackCategories.isEmpty) {
+      debugPrint(
+          '[Search][SECTION_EMPTY] type=discovery_fallback_categories moduleId=${moduleId ?? 'null'}');
+    }
+    update();
+  }
+
+  void getSuggestedItems() async {
+    _isLoadingSuggestedItems = true;
+    final int? moduleId =
+        Get.isRegistered<SplashController>() ? Get.find<SplashController>().module?.id : null;
+    debugPrint(
+        '[Search][FETCH_START] type=suggested_items moduleId=${moduleId ?? 'null'}');
+    update();
+    try {
+      final List<Item>? suggestedItemList =
+          await searchServiceInterface.getSuggestedItems();
+      _suggestedItemList = <Item>[];
+      if (suggestedItemList != null) {
+        _suggestedItemList!.addAll(suggestedItemList);
+      }
+      debugPrint(
+          '[Search][PARSED_COUNT] type=suggested_items moduleId=${moduleId ?? 'null'} count=${_suggestedItemList?.length ?? 0}');
+      if ((_suggestedItemList?.isEmpty ?? true)) {
+        debugPrint(
+            '[Search][SECTION_EMPTY] type=suggested_items moduleId=${moduleId ?? 'null'}');
+      }
+    } catch (e) {
+      _suggestedItemList = <Item>[];
+      debugPrint('[Search][ERROR] suggested_items $e');
+    } finally {
+      _isLoadingSuggestedItems = false;
+      debugPrint(
+          '[Search][DONE] type=suggested_items moduleId=${moduleId ?? 'null'} loading=false');
+      debugPrint(
+          '[Search][FINALLY] type=suggested_items moduleId=${moduleId ?? 'null'} loading=false');
+      update();
+    }
+  }
+
   void searchData({String? query, bool? fromHome}) async {
-    if (query == null || query.isEmpty) return;
+    final String normalizedQuery = (query ?? '').trim();
+    if (normalizedQuery.isEmpty) {
+      _isLoading = false;
+      _hasError = false;
+      _searchText = '';
+      _searchItemList = <Item>[];
+      _allItemList = <Item>[];
+      _searchStoreList = <Store>[];
+      _allStoreList = <Store>[];
+      _isSearchMode = true;
+      debugPrint('[Search][EMPTY_QUERY] handled=true');
+      debugPrint('[Search][DONE] loading=false');
+      debugPrint('[Search][FINALLY] loading=false');
+      update();
+      return;
+    }
 
     // Check if we need to search both items and stores
-    final bool needItemSearch = query != _itemResultText || fromHome == true;
-    final bool needStoreSearch = query != _storeResultText || fromHome == true;
+    final bool needItemSearch =
+        normalizedQuery != _itemResultText || fromHome == true;
+    final bool needStoreSearch =
+        normalizedQuery != _storeResultText || fromHome == true;
 
     // If we need to search, perform both searches in parallel
     if (needItemSearch || needStoreSearch) {
       _isLoading = true;
       _hasError = false;
-      _searchHomeText = query;
-      _searchText = query;
+      _searchHomeText = normalizedQuery;
+      _searchText = normalizedQuery;
       _rating = -1;
       _storeRating = -1;
       _upperValue = 0;
@@ -327,8 +429,8 @@ class SearchController extends GetxController implements GetxService {
         _allStoreList = null;
       }
 
-      if (!_historyList.contains(query)) {
-        _historyList.insert(0, query);
+      if (!_historyList.contains(normalizedQuery)) {
+        _historyList.insert(0, normalizedQuery);
       }
 
       searchServiceInterface.saveSearchHistory(_historyList);
@@ -341,23 +443,43 @@ class SearchController extends GetxController implements GetxService {
       // Perform both searches in parallel
       final futures = <Future>[];
 
+      bool itemSearchOk = true;
+      bool storeSearchOk = true;
       if (needItemSearch) {
-        futures.add(_searchItems(query));
+        debugPrint('[Search][FETCH_START] type=items');
+        futures.add(_searchItems(normalizedQuery).then((value) {
+          itemSearchOk = value;
+        }));
       }
 
       if (needStoreSearch) {
-        futures.add(_searchStores(query));
+        debugPrint('[Search][FETCH_START] type=stores');
+        futures.add(_searchStores(normalizedQuery).then((value) {
+          storeSearchOk = value;
+        }));
       }
 
-      // Wait for both searches to complete
-      await Future.wait(futures);
-
-      _isLoading = false;
-      update();
+      try {
+        // Wait for both searches to complete
+        await Future.wait(futures);
+      } catch (e) {
+        _hasError = true;
+        debugPrint('[Search][ERROR] $e');
+      } finally {
+        final bool allRequestedFailed = (!needItemSearch || !itemSearchOk) &&
+            (!needStoreSearch || !storeSearchOk);
+        final bool hasAnyItemData = (_searchItemList?.isNotEmpty ?? false);
+        final bool hasAnyStoreData = (_searchStoreList?.isNotEmpty ?? false);
+        _hasError = allRequestedFailed && !hasAnyItemData && !hasAnyStoreData;
+        _isLoading = false;
+        debugPrint('[Search][DONE] loading=false');
+        debugPrint('[Search][FINALLY] loading=false');
+        update();
+      }
     }
   }
 
-  Future<void> _searchItems(String query) async {
+  Future<bool> _searchItems(String query) async {
     try {
       final Response response =
           await searchServiceInterface.getSearchData(query, false);
@@ -369,6 +491,7 @@ class SearchController extends GetxController implements GetxService {
 
         // جلب العناصر
         final List<Item> items = ItemModel.fromJson(response.body as Map<String, dynamic>).items ?? [];
+        debugPrint('[Search][PARSED_COUNT] type=items count=${items.length}');
 
         // ✅ ترتيب حسب السعر (تصاعدي أو تنازلي)
         items.sort((a, b) {
@@ -389,20 +512,27 @@ class SearchController extends GetxController implements GetxService {
         for (final item in items) {
           debugPrint('${item.name} - ${item.price}');
         }
+        return true;
       } else {
+        debugPrint('[Search][STATUS] type=items code=${response.statusCode}');
+        debugPrint('[Search][RAW_TYPE] type=items rawType=${response.body.runtimeType}');
+        debugPrint(
+            '[Search][RAW_BODY] truncated ${_truncateBody(response.body)}');
         _hasError = true;
         _searchItemList = [];
         _allItemList = [];
+        return false;
       }
     } catch (e) {
-      debugPrint('Error searching items: $e');
+      debugPrint('[Search][ERROR] items $e');
       _hasError = true;
       _searchItemList = [];
       _allItemList = [];
+      return false;
     }
   }
 
-  Future<void> _searchStores(String query) async {
+  Future<bool> _searchStores(String query) async {
     try {
       final Response response =
           await searchServiceInterface.getSearchData(query, true);
@@ -414,16 +544,26 @@ class SearchController extends GetxController implements GetxService {
         final storeModel = StoreModel.fromJson(response.body as Map<String, dynamic>);
         _searchStoreList!.addAll(storeModel.stores!);
         _allStoreList!.addAll(storeModel.stores!);
+        debugPrint(
+            '[Search][PARSED_COUNT] type=stores count=${_searchStoreList!.length}');
+        return true;
       } else {
+        debugPrint('[Search][STATUS] type=stores code=${response.statusCode}');
+        debugPrint(
+            '[Search][RAW_TYPE] type=stores rawType=${response.body.runtimeType}');
+        debugPrint(
+            '[Search][RAW_BODY] truncated ${_truncateBody(response.body)}');
         _hasError = true;
         _searchStoreList = [];
         _allStoreList = [];
+        return false;
       }
     } catch (e) {
-      debugPrint('Error searching stores: $e');
+      debugPrint('[Search][ERROR] stores $e');
       _hasError = true;
       _searchStoreList = [];
       _allStoreList = [];
+      return false;
     }
   }
 
@@ -490,10 +630,21 @@ class SearchController extends GetxController implements GetxService {
   }
 
   void getHistoryList() {
+    _isLoadingHistory = true;
     _isSearchMode = true;
     _searchText = '';
     _historyList = [];
-    _historyList.addAll(searchServiceInterface.getSearchAddress());
+    try {
+      _historyList.addAll(searchServiceInterface.getSearchAddress());
+      debugPrint('[Search][PARSED_COUNT] type=recent_searches count=${_historyList.length}');
+    } catch (e) {
+      debugPrint('[Search][ERROR] recent_searches $e');
+      _historyList = <String>[];
+    } finally {
+      _isLoadingHistory = false;
+      debugPrint('[Search][FINALLY] type=recent_searches loading=false');
+      update();
+    }
   }
 
   void removeHistory(int index) {
@@ -571,33 +722,80 @@ class SearchController extends GetxController implements GetxService {
   }
 
   Future<void> getPopularCategories() async {
-    _popularCategoryList = null;
+    _isLoadingPopularCategories = true;
+    debugPrint('[Search][FETCH_START] type=popular_categories');
+    _popularCategoryList = <PopularCategoryModel?>[];
     _hasPopularCategoriesError = false;
+    update();
     try {
       _popularCategoryList = await searchServiceInterface.getPopularCategories();
+      debugPrint(
+          '[Search][PARSED_COUNT] type=popular_categories count=${_popularCategoryList?.length ?? 0}');
       if (_popularCategoryList == null) {
         _hasPopularCategoriesError = true;
+        debugPrint(
+            '[Search][NO_INTERNET_SHOWN] type=popular_categories reason=null_response');
+        _popularCategoryList = <PopularCategoryModel?>[];
+      } else if (_popularCategoryList!.isEmpty) {
+        debugPrint('[Search][SECTION_EMPTY] type=popular_categories');
       }
-    } catch (_) {
+    } catch (e) {
+      debugPrint('[Search][ERROR] popular_categories $e');
       _hasPopularCategoriesError = true;
+      debugPrint(
+          '[Search][NO_INTERNET_SHOWN] type=popular_categories reason=exception');
       _popularCategoryList = <PopularCategoryModel?>[];
+    } finally {
+      _isLoadingPopularCategories = false;
+      debugPrint('[Search][DONE] type=popular_categories loading=false');
+      debugPrint('[Search][FINALLY] type=popular_categories loading=false');
     }
     update();
   }
 
   Future<void> getTrendingCategories() async {
-    _trendingCategoryList = null;
+    _isLoadingTrendingCategories = true;
+    debugPrint('[Search][FETCH_START] type=trending_categories');
+    _trendingCategoryList = <PopularCategoryModel?>[];
     _hasTrendingCategoriesError = false;
+    update();
     try {
       _trendingCategoryList =
           await searchServiceInterface.getTrendingCategories();
+      debugPrint(
+          '[Search][PARSED_COUNT] type=trending_categories count=${_trendingCategoryList?.length ?? 0}');
       if (_trendingCategoryList == null) {
         _hasTrendingCategoriesError = true;
+        debugPrint(
+            '[Search][NO_INTERNET_SHOWN] type=trending_categories reason=null_response');
+        _trendingCategoryList = <PopularCategoryModel?>[];
+      } else if (_trendingCategoryList!.isEmpty) {
+        debugPrint('[Search][SECTION_EMPTY] type=trending_categories');
       }
-    } catch (_) {
+    } catch (e) {
+      debugPrint('[Search][ERROR] trending_categories $e');
       _hasTrendingCategoriesError = true;
+      debugPrint(
+          '[Search][NO_INTERNET_SHOWN] type=trending_categories reason=exception');
       _trendingCategoryList = <PopularCategoryModel?>[];
+    } finally {
+      _isLoadingTrendingCategories = false;
+      debugPrint('[Search][DONE] type=trending_categories loading=false');
+      debugPrint('[Search][FINALLY] type=trending_categories loading=false');
     }
     update();
+  }
+
+  String _truncateBody(dynamic body) {
+    try {
+      final String raw =
+          body is String ? body : jsonEncode(body ?? <String, dynamic>{});
+      if (raw.length <= 400) {
+        return raw;
+      }
+      return '${raw.substring(0, 400)}...';
+    } catch (_) {
+      return body?.toString() ?? '';
+    }
   }
 }

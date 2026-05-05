@@ -77,23 +77,21 @@ class DateConverter {
   }
 
   static String dateTimeStringToDateTime(String dateTime) {
-    DateTime d;
-    try {
-      d = DateTime.parse(dateTime).toLocal();
-    } catch (_) {
-      try {
-        d = DateFormat('yyyy-MM-dd HH:mm:ss').parseUtc(dateTime).toLocal();
-      } catch (_) {
-        try {
-          d = DateFormat('yyyy-MM-dd HH:mm:ss').parse(dateTime).toLocal();
-        } catch (_) {
-          d = DateTime.now();
-        }
-      }
+    debugPrint(
+        '[CHAT:DATE_PARSE_CALLER] function=dateTimeStringToDateTime raw=$dateTime');
+    final DateTime? parsedDate = tryParseDateTimeSafely(dateTime);
+    if (parsedDate == null) {
+      debugPrint(
+          '[CHAT:DATE_PARSE_FAIL_SAFE] function=dateTimeStringToDateTime raw=$dateTime');
+      final DateTime fallbackNow = DateTime.now();
+      final String fallbackFormatted = DateFormat(
+              'dd MMM yyyy,  ${_timeFormatter()}', _getLocale().toString())
+          .format(fallbackNow);
+      return _convertToArabicIndic(fallbackFormatted);
     }
     final String formatted =
         DateFormat('dd MMM yyyy,  ${_timeFormatter()}', _getLocale().toString())
-            .format(d);
+            .format(parsedDate);
     return _convertToArabicIndic(formatted);
   }
 
@@ -126,23 +124,47 @@ class DateConverter {
   }
 
   static String isoStringToLocalString(String dateTime) {
+    debugPrint(
+        '[CHAT:DATE_PARSE_CALLER] function=isoStringToLocalString raw=$dateTime');
+    final DateTime? parsedDate = tryParseDateTimeSafely(dateTime);
+    if (parsedDate == null) {
+      debugPrint(
+          '[CHAT:DATE_PARSE_FAIL_SAFE] function=isoStringToLocalString raw=$dateTime');
+      return '';
+    }
     final String formatted =
         DateFormat('yyyy-MM-dd HH:mm:ss', _getLocale().toString())
-            .format(DateTime.parse(dateTime).toLocal());
+            .format(parsedDate);
     return _convertToArabicIndic(formatted);
   }
 
   static String isoStringToReadableString(String dateTime) {
+    debugPrint(
+        '[CHAT:DATE_PARSE_CALLER] function=isoStringToReadableString raw=$dateTime');
+    final DateTime? parsedDate = tryParseDateTimeSafely(dateTime);
+    if (parsedDate == null) {
+      debugPrint(
+          '[CHAT:DATE_PARSE_FAIL_SAFE] function=isoStringToReadableString raw=$dateTime');
+      return '';
+    }
     final String formatted =
         DateFormat('dd MMMM, yyyy HH:mm a', _getLocale().toString())
-            .format(DateTime.parse(dateTime).toLocal());
+            .format(parsedDate);
     return _convertToArabicIndic(formatted);
   }
 
   static String stringToReadableString(String dateTime) {
+    debugPrint(
+        '[CHAT:DATE_PARSE_CALLER] function=stringToReadableString raw=$dateTime');
+    final DateTime? parsedDate = tryParseDateTimeSafely(dateTime);
+    if (parsedDate == null) {
+      debugPrint(
+          '[CHAT:DATE_PARSE_FAIL_SAFE] function=stringToReadableString raw=$dateTime');
+      return '';
+    }
     final String formatted =
         DateFormat('dd MMMM, yyyy', _getLocale().toString())
-            .format(DateTime.parse(dateTime).toLocal());
+            .format(parsedDate);
     return _convertToArabicIndic(formatted);
   }
 
@@ -160,8 +182,16 @@ class DateConverter {
   }
 
   static String stringToLocalDateOnly(String dateTime) {
+    debugPrint(
+        '[CHAT:DATE_PARSE_CALLER] function=stringToLocalDateOnly raw=$dateTime');
+    final DateTime? parsedDate = tryParseDateTimeSafely(dateTime);
+    if (parsedDate == null) {
+      debugPrint(
+          '[CHAT:DATE_PARSE_FAIL_SAFE] function=stringToLocalDateOnly raw=$dateTime');
+      return '';
+    }
     final String formatted = DateFormat('dd MMM yyyy', _getLocale().toString())
-        .format(DateFormat('yyyy-MM-dd').parse(dateTime));
+        .format(parsedDate);
     return _convertToArabicIndic(formatted);
   }
 
@@ -299,8 +329,15 @@ class DateConverter {
   }
 
   static String convertTodayYesterdayFormat(String createdAt) {
+    debugPrint(
+        '[CHAT:DATE_PARSE_CALLER] function=convertTodayYesterdayFormat raw=$createdAt');
     final now = _now();
-    final createdAtDate = DateTime.parse(createdAt).toLocal();
+    final DateTime? createdAtDate = tryParseDateTimeSafely(createdAt);
+    if (createdAtDate == null) {
+      debugPrint(
+          '[CHAT:DATE_PARSE_FAIL_SAFE] function=convertTodayYesterdayFormat raw=$createdAt');
+      return '';
+    }
 
     if (createdAtDate.year == now.year &&
         createdAtDate.month == now.month &&
@@ -322,8 +359,15 @@ class DateConverter {
   }
 
   static String convertOnlyTodayTime(String createdAt) {
+    debugPrint(
+        '[CHAT:DATE_PARSE_CALLER] function=convertOnlyTodayTime raw=$createdAt');
     final now = _now();
-    final createdAtDate = DateTime.parse(createdAt).toLocal();
+    final DateTime? createdAtDate = tryParseDateTimeSafely(createdAt);
+    if (createdAtDate == null) {
+      debugPrint(
+          '[CHAT:DATE_PARSE_FAIL_SAFE] function=convertOnlyTodayTime raw=$createdAt');
+      return '';
+    }
 
     if (createdAtDate.year == now.year &&
         createdAtDate.month == now.month &&
@@ -350,29 +394,14 @@ class DateConverter {
   }
 
   static DateTime _parseFlexibleDateTime(String dateTime) {
-    try {
-      return DateTime.parse(dateTime).toLocal();
-    } catch (e) {
-      if (kDebugMode) debugPrint('$e');
+    final DateTime? parsedDate = tryParseDateTimeSafely(dateTime);
+    if (parsedDate != null) {
+      return parsedDate;
     }
-
-    const List<String> patterns = <String>[
-      'yyyy-MM-dd HH:mm:ss',
-      'yyyy-MM-ddTHH:mm:ss',
-      'yyyy-MM-ddTHH:mm:ss.SSS',
-      'yyyy-MM-ddTHH:mm:ss.SSSSSS',
-      'yyyy-MM-dd HH:mm:ss.SSS',
-      'yyyy-MM-dd HH:mm:ss.SSSSSS',
-    ];
-
-    for (final String pattern in patterns) {
-      try {
-        return DateFormat(pattern).parse(dateTime, true).toLocal();
-      } catch (e) {
-        if (kDebugMode) debugPrint('$e');
-      }
+    if (kDebugMode) {
+      debugPrint(
+          '[CHAT:DATE_PARSE_FAIL_SAFE] function=_parseFlexibleDateTime raw=$dateTime');
     }
-
     return DateTime.now();
   }
 
@@ -427,5 +456,61 @@ class DateConverter {
       result = result.replaceAll(western[i], arabicIndic[i]);
     }
     return result;
+  }
+
+  static String normalizeArabicDigits(String input) {
+    const List<String> arabicIndic = <String>[
+      '٠',
+      '١',
+      '٢',
+      '٣',
+      '٤',
+      '٥',
+      '٦',
+      '٧',
+      '٨',
+      '٩'
+    ];
+    const List<String> easternArabicIndic = <String>[
+      '۰',
+      '۱',
+      '۲',
+      '۳',
+      '۴',
+      '۵',
+      '۶',
+      '۷',
+      '۸',
+      '۹'
+    ];
+    String normalized = input;
+    for (int index = 0; index < arabicIndic.length; index++) {
+      normalized = normalized.replaceAll(arabicIndic[index], index.toString());
+      normalized =
+          normalized.replaceAll(easternArabicIndic[index], index.toString());
+    }
+    return normalized;
+  }
+
+  static DateTime? tryParseDateTimeSafely(String dateTime) {
+    final String normalizedDateTime = normalizeArabicDigits(dateTime).trim();
+    final DateTime? directParsed = DateTime.tryParse(normalizedDateTime);
+    if (directParsed != null) {
+      return directParsed.toLocal();
+    }
+    const List<String> patterns = <String>[
+      'yyyy-MM-dd HH:mm:ss',
+      'yyyy-MM-ddTHH:mm:ss',
+      'yyyy-MM-ddTHH:mm:ss.SSS',
+      'yyyy-MM-ddTHH:mm:ss.SSSSSS',
+      'yyyy-MM-dd HH:mm:ss.SSS',
+      'yyyy-MM-dd HH:mm:ss.SSSSSS',
+    ];
+    for (final String pattern in patterns) {
+      try {
+        return DateFormat(pattern).parse(normalizedDateTime, true).toLocal();
+      } catch (_) {}
+    }
+    return null;
   }
 }

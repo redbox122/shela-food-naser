@@ -1,5 +1,7 @@
 import 'package:get/get.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/scheduler.dart';
+import 'package:flutter/widgets.dart';
 import 'package:myfatoorah_flutter/myfatoorah_flutter.dart';
 import 'package:sixam_mart/features/payment/domain/services/myfatoorah_service.dart';
 import 'package:sixam_mart/features/payment/domain/repositories/myfatoorah_repository.dart';
@@ -62,6 +64,7 @@ class WalletController extends GetxController implements GetxService {
 
   bool _isLoadingPaymentMethods = false;
   bool get isLoadingPaymentMethods => _isLoadingPaymentMethods;
+  bool _isPaymentMethodsLoadInProgress = false;
 
   MFPaymentMethod? _selectedPaymentMethod;
   MFPaymentMethod? get selectedPaymentMethod => _selectedPaymentMethod;
@@ -124,8 +127,13 @@ class WalletController extends GetxController implements GetxService {
   /// Load MyFatoorah payment methods for wallet add fund
   /// Now uses backend endpoint instead of direct SDK call
   Future<void> loadPaymentMethodsForWallet(double amount) async {
+    if (_isPaymentMethodsLoadInProgress) {
+      debugPrint('[ADD_FUND_DIALOG][DUPLICATE_LOAD_BLOCKED]');
+      return;
+    }
+    _isPaymentMethodsLoadInProgress = true;
     _isLoadingPaymentMethods = true;
-    update();
+    _safeUpdate();
 
     try {
       debugPrint('🔄 Loading payment methods from backend for wallet - Amount: $amount SAR');
@@ -185,6 +193,20 @@ class WalletController extends GetxController implements GetxService {
     }
 
     _isLoadingPaymentMethods = false;
+    _isPaymentMethodsLoadInProgress = false;
+    _safeUpdate();
+  }
+
+  void _safeUpdate() {
+    if (SchedulerBinding.instance.schedulerPhase ==
+            SchedulerPhase.persistentCallbacks ||
+        SchedulerBinding.instance.schedulerPhase ==
+            SchedulerPhase.midFrameMicrotasks) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        update();
+      });
+      return;
+    }
     update();
   }
 

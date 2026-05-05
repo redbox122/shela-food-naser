@@ -154,7 +154,17 @@ class _WebConversationListViewWidgetState extends State<WebConversationListViewW
                         Positioned(
                           right: Get.find<LocalizationController>().isLtr ? 5 : null, top: 15, left: Get.find<LocalizationController>().isLtr ? null : 5,
                           child: Text(
-                            DateConverter.convertOnlyTodayTime(widget.conversation!.conversations![index]!.lastMessageTime!),
+                            () {
+                              final String rawLastMessageTime = widget
+                                      .conversation!
+                                      .conversations![index]!
+                                      .lastMessageTime ??
+                                  '';
+                              debugPrint(
+                                  '[CHAT:DATE_PARSE_CALLER] function=WebConversationListViewWidget.lastMessageTime raw=$rawLastMessageTime');
+                              return DateConverter.convertOnlyTodayTime(
+                                  rawLastMessageTime);
+                            }(),
                             style: robotoRegular.copyWith(color: Theme.of(context).hintColor, fontSize: Dimensions.fontSizeExtraSmall),
                           ),
                         ),

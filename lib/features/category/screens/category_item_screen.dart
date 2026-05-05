@@ -322,6 +322,12 @@ class CategoryItemScreenState extends State<CategoryItemScreen>
 
   List<Item> _applyLocalItemFilters(
       CategoryController controller, List<Item> items) {
+    debugPrint('[CAT_FILTER][CLIENT_FILTER_START] count=${items.length}');
+    if (controller.isSearching) {
+      debugPrint(
+          '[CAT_FILTER][CLIENT_FILTER_RESULT] before=${items.length} after=${items.length}');
+      return List<Item>.from(items);
+    }
     final splashController = Get.find<SplashController>();
     final bool isEcommerceModule =
         splashController.module?.moduleType == AppConstants.ecommerce ||
@@ -355,7 +361,12 @@ class CategoryItemScreenState extends State<CategoryItemScreen>
     if (nameQuery.isNotEmpty && nameQuery != ' ') {
       filtered.removeWhere((item) {
         final String itemName = (item.name ?? '').toLowerCase();
-        return !itemName.contains(nameQuery);
+        final bool matches = itemName.contains(nameQuery);
+        if (!matches) {
+          debugPrint(
+              '[CAT_FILTER][CLIENT_FILTER_REMOVED] id=${item.id} name=${item.name ?? ''} reason=name_mismatch');
+        }
+        return !matches;
       });
     }
 
@@ -377,6 +388,8 @@ class CategoryItemScreenState extends State<CategoryItemScreen>
       }
     }
 
+    debugPrint(
+        '[CAT_FILTER][CLIENT_FILTER_RESULT] before=${items.length} after=${filtered.length}');
     return filtered;
   }
 
@@ -759,6 +772,22 @@ class CategoryItemScreenState extends State<CategoryItemScreen>
           (catController.hasCategoryError || !splashController.hasConnection) &&
           !catController.isLoading &&
           hasCategoryDataMissing;
+      final List<Item> filteredDisplayItems = _applyLocalItemFilters(
+        catController,
+        (catController.isSearching
+                ? catController.searchItemList
+                : catController.categoryItemList) ??
+            <Item>[],
+      );
+      debugPrint('[CAT_FILTER][DISPLAY_LIST_COUNT] ${filteredDisplayItems.length}');
+      if (!catController.isStore &&
+          !catController.isLoading &&
+          filteredDisplayItems.isEmpty) {
+        final String emptyReason = catController.isSearching
+            ? 'search_results_empty_after_display'
+            : 'category_items_empty';
+        debugPrint('[CAT_FILTER][EMPTY_STATE_SHOWN] reason=$emptyReason');
+      }
       return PopScope(
         onPopInvokedWithResult: (didPop, result) async {
           if (catController.isSearching) {
@@ -1278,14 +1307,7 @@ class CategoryItemScreenState extends State<CategoryItemScreen>
                                         controller: scrollController,
                                         child: ItemsView(
                                           isStore: false,
-                                          items: _applyLocalItemFilters(
-                                            catController,
-                                            (catController.isSearching
-                                                    ? catController.searchItemList
-                                                    : catController
-                                                        .categoryItemList) ??
-                                                [],
-                                          ),
+                                          items: filteredDisplayItems,
                                           stores: null,
                                           verticalItem: catController.isVertical,
                                           navigateItemToStoreOnTap:

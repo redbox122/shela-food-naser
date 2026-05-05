@@ -49,11 +49,17 @@ class ApiChecker {
       });
     } else {
       if (response.statusText != 'The guest id field is required.') {
-        final cleanMessage =
+        final String cleanMessage =
             response.statusText?.replaceFirst('messages.', '') ?? '';
-        debugPrint(
-          '\x1B[32mcheckApi >>>>>>>>>>>>>>   $cleanMessage\x1B[0m',
-        );
+        if (kDebugMode) {
+          final String endpoint =
+              uri ?? response.request?.url.toString() ?? 'unknown';
+          final String method = response.request?.method ?? '?';
+          debugPrint(
+            '[API_ERROR][CHECK_API] method=$method endpoint=$endpoint '
+            'status=${response.statusCode} requestId=— safeMessage=$cleanMessage',
+          );
+        }
       }
     }
   }

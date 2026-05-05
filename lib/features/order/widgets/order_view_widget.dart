@@ -301,10 +301,14 @@ class OrderViewWidget extends StatelessWidget {
                   ),
                 ),
               ),
-              Padding(
-                padding: const EdgeInsets.only(right: 8),
-                child: buildOrderButtons(context, order,
-                    isRunning: isRunning, orderController: Get.find<OrderController>()),
+              Flexible(
+                fit: FlexFit.loose,
+                child: Padding(
+                  padding: const EdgeInsetsDirectional.only(end: 8),
+                  child: buildOrderButtons(context, order,
+                      isRunning: isRunning,
+                      orderController: Get.find<OrderController>()),
+                ),
               ),
             ],
           ),
@@ -327,6 +331,9 @@ class OrderViewWidget extends StatelessWidget {
           child: Text(
             orderController.getOrderStatusLabel(order['raw_status'] as String?),
             style: Theme.of(context).textTheme.bodySmall,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.center,
           ),
         ),
         if (isRunning == 0)

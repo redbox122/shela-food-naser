@@ -4,7 +4,6 @@ import 'package:sixam_mart/common/utils/app_logger.dart';
 import 'package:sixam_mart/features/category/controllers/category_controller.dart';
 import 'package:sixam_mart/features/splash/controllers/splash_controller.dart';
 import 'package:sixam_mart/theme/app_color_tokens.dart';
-import 'package:sixam_mart/util/app_constants.dart';
 import 'package:sixam_mart/util/dimensions.dart';
 import 'package:sixam_mart/util/styles.dart';
 
@@ -81,19 +80,24 @@ class _CategoryFilterBarState extends State<CategoryFilterBar> {
 
   void _applyFilters() {
     final categoryController = Get.find<CategoryController>();
-    final splashController = Get.find<SplashController>();
 
     final String rawQuery = _productNameController.text.trim();
     final bool hasQuery = rawQuery.isNotEmpty;
-    final bool isEcommerceModule =
-        splashController.module?.moduleType == AppConstants.ecommerce ||
-            splashController.module?.id == 3;
-
-    // Search across all Hyper categories when module is ecommerce and query exists.
-    final bool shouldSearchAllHyperCategories = isEcommerceModule && hasQuery;
-    final String effectiveCategoryId =
-        shouldSearchAllHyperCategories ? '' : widget.categoryID;
+    final String effectiveCategoryId = widget.categoryID;
     final bool shouldUseApiSearch = hasQuery;
+    final String selectedCategoryId = widget.categoryID;
+    final String requestCategoryId = effectiveCategoryId;
+    _logFilter(
+        '[CATEGORY_CONTEXT] screenCategoryId=${widget.categoryID} selectedCategoryId=$selectedCategoryId requestCategoryId=$requestCategoryId');
+    if (requestCategoryId.isEmpty) {
+      if (hasQuery) {
+        _logFilter('[CATEGORY_CONTEXT_CLEARED_BY_USER]');
+      } else {
+        _logFilter('[CATEGORY_CONTEXT_MISSING] reason=empty_category_id');
+      }
+    } else {
+      _logFilter('[CATEGORY_CONTEXT_APPLIED] category_id=$requestCategoryId');
+    }
 
     if (!shouldUseApiSearch && categoryController.isSearching) {
       categoryController.toggleSearch(context);
@@ -108,9 +112,7 @@ class _CategoryFilterBarState extends State<CategoryFilterBar> {
       'max': _maxPrice,
       'discount': false,
       'fromHome': !shouldUseApiSearch,
-      'scope': shouldSearchAllHyperCategories
-          ? 'hyper_all_categories'
-          : 'current_category',
+      'scope': 'current_category',
     };
 
     _logFilter('_applyFilters payload => $payload');

@@ -371,9 +371,13 @@ class HomeUnifiedModel {
         businessSettings == null;
   }
 
-  /// Check if data is valid (has at least some content)
+  /// Check if data is valid (has at least some content).
+  /// Missing `campaigns` alone does not invalidate — other sections may still render.
   bool get isValid {
-    return !isEmpty;
+    if (!isEmpty) {
+      return true;
+    }
+    return promotionalBanner != null;
   }
 }
 

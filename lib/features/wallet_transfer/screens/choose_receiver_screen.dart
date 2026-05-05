@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_contacts/flutter_contacts.dart';
 import 'package:get/get.dart';
+import 'package:sixam_mart/common/widgets/custom_image.dart';
 import 'package:sixam_mart/features/wallet_transfer/controllers/wallet_transfer_controller.dart';
 import 'package:sixam_mart/features/wallet_transfer/data/models/saved_recipient_model.dart';
 import 'package:sixam_mart/util/dimensions.dart';
@@ -91,24 +92,165 @@ class _ChooseReceiverScreenState extends State<ChooseReceiverScreen> {
   }
 
   /// Handles contact selection
-  void _onContactSelected(Contact contact) {
+  Future<void> _onContactSelected(Contact contact) async {
     if (contact.phones.isNotEmpty) {
       final phone = contact.phones.first.number;
-      Get.back(result: {
-        'name': contact.displayName,
-        'phone': phone,
-        'isContact': true,
-      });
+      await _validateAndSelectRecipient(phone);
     }
   }
 
   /// Handles saved recipient selection
-  void _onSavedRecipientSelected(SavedRecipientModel recipient) {
+  Future<void> _onSavedRecipientSelected(SavedRecipientModel recipient) async {
+    await _validateAndSelectRecipient(recipient.recipientPhone ?? '');
+  }
+
+  Future<void> _validateAndSelectRecipient(String phoneInput) async {
+    final WalletTransferController controller =
+        Get.find<WalletTransferController>();
+    final bool isValid = await controller.validateRecipient(phoneInput);
+    if (!isValid || controller.validatedRecipient == null) {
+      return;
+    }
+    final recipient = controller.validatedRecipient!;
+    debugPrint(
+        '[WALLET_TRANSFER][RECIPIENT_SELECTED] id=${recipient.id} phone=${recipient.phone}');
     Get.back(result: {
-      'name': recipient.displayName,
-      'phone': recipient.recipientPhone ?? '',
+      'name': recipient.name ?? '',
+      'phone': recipient.phone ?? '',
       'isContact': false,
     });
+  }
+
+  Widget _buildManualInputSection() {
+    return GetBuilder<WalletTransferController>(builder: (controller) {
+      return Padding(
+        padding: const EdgeInsets.fromLTRB(
+          Dimensions.paddingSizeDefault,
+          0,
+          Dimensions.paddingSizeDefault,
+          Dimensions.paddingSizeSmall,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'إدخال رقم الجوال يدويًا',
+              style: robotoBold.copyWith(fontSize: Dimensions.fontSizeDefault),
+            ),
+            const SizedBox(height: Dimensions.paddingSizeSmall),
+            Directionality(
+              textDirection: TextDirection.ltr,
+              child: TextField(
+                controller: _searchController,
+                keyboardType: TextInputType.phone,
+                textAlign: TextAlign.left,
+                decoration: InputDecoration(
+                  hintText: '+9665XXXXXXXX',
+                  suffixIcon: controller.isValidating
+                      ? const Padding(
+                          padding: EdgeInsets.all(12),
+                          child: SizedBox(
+                            height: 16,
+                            width: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          ),
+                        )
+                      : IconButton(
+                          icon: const Icon(Icons.search),
+                          onPressed: () => _validateAndSelectRecipient(
+                            _searchController.text.trim(),
+                          ),
+                        ),
+                  border: OutlineInputBorder(
+                    borderRadius:
+                        BorderRadius.circular(Dimensions.radiusDefault),
+                  ),
+                ),
+                onChanged: (String value) {
+                  if (controller.validatedRecipient != null) {
+                    controller.clearValidatedRecipient();
+                  }
+                  _filterContacts(value);
+                },
+                onSubmitted: (String value) {
+                  _validateAndSelectRecipient(value.trim());
+                },
+              ),
+            ),
+            const SizedBox(height: Dimensions.paddingSizeSmall),
+            if (controller.validatedRecipient != null)
+              _buildValidatedManualRecipientCard(controller),
+            if (!controller.isValidating &&
+                controller.validatedRecipient == null &&
+                _searchController.text.trim().isNotEmpty &&
+                controller.lastError == 'USER_NOT_FOUND')
+              Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: Text(
+                  'لا يوجد مستخدم بهذا الرقم',
+                  style: robotoRegular.copyWith(color: Colors.red),
+                ),
+              ),
+          ],
+        ),
+      );
+    });
+  }
+
+  Widget _buildValidatedManualRecipientCard(WalletTransferController controller) {
+    final recipient = controller.validatedRecipient!;
+    return InkWell(
+      onTap: () {
+        debugPrint(
+            '[WALLET_TRANSFER][RECIPIENT_SELECTED] id=${recipient.id} phone=${recipient.phone}');
+        Get.back(result: {
+          'name': recipient.name ?? '',
+          'phone': recipient.phone ?? '',
+          'isContact': false,
+        });
+      },
+      child: Container(
+        padding: const EdgeInsets.all(Dimensions.paddingSizeDefault),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(Dimensions.radiusDefault),
+          border: Border.all(color: Theme.of(context).primaryColor),
+          color: Theme.of(context).primaryColor.withValues(alpha: 0.08),
+        ),
+        child: Row(
+          children: [
+            CircleAvatar(
+              backgroundColor: Theme.of(context).cardColor,
+              child: ClipOval(
+                child: CustomImage(
+                  image: recipient.image ?? '',
+                  height: 38,
+                  width: 38,
+                ),
+              ),
+            ),
+            const SizedBox(width: Dimensions.paddingSizeSmall),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(recipient.name ?? '',
+                      style: robotoBold.copyWith(
+                          fontSize: Dimensions.fontSizeDefault)),
+                  Text(
+                    recipient.phone ?? '',
+                    style: robotoRegular.copyWith(
+                      color: Theme.of(context).disabledColor,
+                    ),
+                    textDirection: TextDirection.ltr,
+                  ),
+                ],
+              ),
+            ),
+            Text('اختيار', style: robotoMedium),
+          ],
+        ),
+      ),
+    );
   }
 
   @override
@@ -132,51 +274,13 @@ class _ChooseReceiverScreenState extends State<ChooseReceiverScreen> {
       ),
       body: Column(
         children: [
-          // Search bar
-          Padding(
-            padding: const EdgeInsets.all(Dimensions.paddingSizeDefault),
-            child: TextField(
-              controller: _searchController,
-              decoration: InputDecoration(
-                hintText: 'search'.tr,
-                prefixIcon: Icon(
-                  Icons.search,
-                  color: Theme.of(context).disabledColor,
-                ),
-                suffixIcon: _searchController.text.isNotEmpty
-                    ? IconButton(
-                        icon: Icon(Icons.clear, color: Theme.of(context).disabledColor),
-                        onPressed: () {
-                          _searchController.clear();
-                          _filterContacts('');
-                        },
-                      )
-                    : null,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(Dimensions.radiusDefault),
-                  borderSide: BorderSide(color: Theme.of(context).disabledColor),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(Dimensions.radiusDefault),
-                  borderSide: BorderSide(
-                    color: Theme.of(context).primaryColor,
-                    width: 2,
-                  ),
-                ),
-                filled: true,
-                fillColor: Theme.of(context).cardColor,
-              ),
-              onChanged: _filterContacts,
-            ),
-          ),
+          _buildManualInputSection(),
 
           // Content
           Expanded(
             child: _isLoading
                 ? const Center(child: CircularProgressIndicator())
-                : !_hasPermission
-                    ? _buildPermissionDeniedView()
-                    : _buildContactsList(),
+                : _buildContactsList(),
           ),
         ],
       ),
@@ -245,8 +349,9 @@ class _ChooseReceiverScreenState extends State<ChooseReceiverScreen> {
           const Divider(height: 1),
         ],
 
-        // Contacts section
-        if (!hasSearch)
+        if (!_hasPermission)
+          _buildPermissionDeniedView(),
+        if (_hasPermission && !hasSearch)
           Padding(
             padding: const EdgeInsets.symmetric(
               horizontal: Dimensions.paddingSizeDefault,

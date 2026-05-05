@@ -17,6 +17,7 @@ import 'package:sixam_mart/helper/address_helper.dart';
 import 'package:sixam_mart/helper/module_helper.dart';
 import 'package:sixam_mart/util/app_constants.dart';
 import 'package:sixam_mart/common/security/secure_token_storage.dart';
+import 'package:sixam_mart/common/utils/secure_log.dart';
 
 class AuthRepository implements AuthRepositoryInterface {
   final ApiClient apiClient;
@@ -475,7 +476,7 @@ class AuthRepository implements AuthRepositoryInterface {
     if (deviceToken != null && deviceToken != '@') {
       if (kDebugMode) {
         debugPrint(
-            '✅ AuthRepository: Device Token loaded: ${deviceToken.substring(0, 20)}...');
+            '✅ AuthRepository: Device Token loaded: ${SecureLog.maskToken(deviceToken)}');
       }
     }
     return deviceToken;

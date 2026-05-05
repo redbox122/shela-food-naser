@@ -21,6 +21,7 @@ import 'package:sixam_mart/common/security/secure_http_client.dart';
 import 'package:dio/dio.dart' as dio_pkg;
 import 'package:sixam_mart/util/environment_config.dart';
 import 'package:sixam_mart/common/utils/app_logger.dart';
+import 'package:sixam_mart/common/utils/secure_log.dart';
 import 'package:sixam_mart/core/cache/hive_home_cache_service.dart';
 import 'package:sixam_mart/core/cache/etag_scope_key_builder.dart';
 import 'package:sixam_mart/features/splash/controllers/splash_controller.dart';
@@ -48,12 +49,14 @@ String _stringifyResponseBodyForLog(Response<dynamic> response) {
     if (b == null) {
       return '';
     }
-    if (b is String) {
-      return b;
+    final String s = b is String ? b : jsonEncode(b);
+    const int maxLen = kReleaseMode ? 80 : 400;
+    if (s.length > maxLen) {
+      return '${s.substring(0, maxLen)}…';
     }
-    return jsonEncode(b);
+    return s;
   } catch (_) {
-    return response.bodyString ?? '';
+    return '[unavailable]';
   }
 }
 
@@ -656,8 +659,7 @@ class ApiClient extends GetxService {
       String? requestId}) async {
     try {
       final fullUri = changeBaseUrl ? newUri!.toString() : uri;
-      final bool isCouponApplyUri =
-          fullUri.contains('/api/v1/coupon/apply');
+      final bool isCouponApplyUri = fullUri.contains('/api/v1/coupon/apply');
       final bool effectiveUseEtag = useEtag && !isCouponApplyUri;
       final String effectiveRequestId =
           requestId ?? 'req_${DateTime.now().millisecondsSinceEpoch}';
@@ -1316,12 +1318,15 @@ class ApiClient extends GetxService {
       // Use secure client if available and token is valid
       if (_useSecureClient && await _isSecureTokenValid()) {
         try {
-          debugPrint(
-              '\x1B[35m🔥 Using Secure Client (Dio) for FormData\x1B[0m');
-          debugPrint('\x1B[35m - URI: $uri\x1B[0m');
-          debugPrint('\x1B[35m - Headers: $finalHeaders\x1B[0m');
-          debugPrint(
-              '\x1B[35m - Content-Type in headers: ${finalHeaders.containsKey('Content-Type')}\x1B[0m');
+          if (kDebugMode) {
+            debugPrint(
+                '\x1B[35m🔥 Using Secure Client (Dio) for FormData\x1B[0m');
+            debugPrint('\x1B[35m - URI: $uri\x1B[0m');
+            debugPrint(
+                '\x1B[35m - Headers (masked): ${SecureLog.maskHeadersDynamic(finalHeaders)}\x1B[0m');
+            debugPrint(
+                '\x1B[35m - Content-Type in headers: ${finalHeaders.containsKey('Content-Type')}\x1B[0m');
+          }
 
           final response = await _secureHttpClient.dio.post<dynamic>(
             uri,
@@ -1333,9 +1338,12 @@ class ApiClient extends GetxService {
             ),
           );
 
-          debugPrint('\x1B[35m✅ Secure Client Response:\x1B[0m');
-          debugPrint('\x1B[35m - Status: ${response.statusCode}\x1B[0m');
-          debugPrint('\x1B[35m - Headers: ${response.headers}\x1B[0m');
+          if (kDebugMode) {
+            debugPrint('\x1B[35m✅ Secure Client Response:\x1B[0m');
+            debugPrint('\x1B[35m - Status: ${response.statusCode}\x1B[0m');
+            debugPrint(
+                '\x1B[35m - Response header keys: ${response.headers.map.keys.join(",")}\x1B[0m');
+          }
 
           stopwatch.stop();
           appLogger.logApiCallSuccess('POST (FormData)', uri,
@@ -1379,13 +1387,16 @@ class ApiClient extends GetxService {
       }
 
       // Fallback: Create new Dio instance for multipart
-      debugPrint('\x1B[35m🔥 Using Fallback Dio Client for FormData\x1B[0m');
-      debugPrint('\x1B[35m - Base URL: $appBaseUrl\x1B[0m');
-      debugPrint('\x1B[35m - URI: $uri\x1B[0m');
-      debugPrint('\x1B[35m - Full URL: $appBaseUrl$uri\x1B[0m');
-      debugPrint('\x1B[35m - Headers: $finalHeaders\x1B[0m');
-      debugPrint(
-          '\x1B[35m - Content-Type in headers: ${finalHeaders.containsKey('Content-Type')}\x1B[0m');
+      if (kDebugMode) {
+        debugPrint('\x1B[35m🔥 Using Fallback Dio Client for FormData\x1B[0m');
+        debugPrint('\x1B[35m - Base URL: $appBaseUrl\x1B[0m');
+        debugPrint('\x1B[35m - URI: $uri\x1B[0m');
+        debugPrint('\x1B[35m - Full URL: $appBaseUrl$uri\x1B[0m');
+        debugPrint(
+            '\x1B[35m - Headers (masked): ${SecureLog.maskHeadersDynamic(finalHeaders)}\x1B[0m');
+        debugPrint(
+            '\x1B[35m - Content-Type in headers: ${finalHeaders.containsKey('Content-Type')}\x1B[0m');
+      }
 
       final dioClient = dio_pkg.Dio(dio_pkg.BaseOptions(
         baseUrl: appBaseUrl,
@@ -1405,11 +1416,19 @@ class ApiClient extends GetxService {
           ),
         );
 
-        debugPrint('\x1B[35m✅ Dio Response received:\x1B[0m');
-        debugPrint('\x1B[35m - Status: ${response.statusCode}\x1B[0m');
-        debugPrint(
-            '\x1B[35m - Request Headers: ${response.requestOptions.headers}\x1B[0m');
-        debugPrint('\x1B[35m - Response Headers: ${response.headers}\x1B[0m');
+        if (kDebugMode) {
+          debugPrint('\x1B[35m✅ Dio Response received:\x1B[0m');
+          debugPrint('\x1B[35m - Status: ${response.statusCode}\x1B[0m');
+          try {
+            final Map<String, String> rh = response.requestOptions.headers.map(
+              (String k, dynamic v) => MapEntry(k, v.toString()),
+            );
+            debugPrint(
+                '\x1B[35m - Request Headers (masked): ${SecureLog.maskHeaders(rh)}\x1B[0m');
+          } catch (_) {}
+          debugPrint(
+              '\x1B[35m - Response header keys: ${response.headers.map.keys.join(",")}\x1B[0m');
+        }
 
         stopwatch.stop();
 
@@ -1919,8 +1938,7 @@ class ApiClient extends GetxService {
     final Map<String, String> headersMap = {};
     try {
       (dioResponse.headers.map as Map).forEach((k, v) {
-        headersMap[k.toString()] =
-            (v is List) ? v.join(',') : v.toString();
+        headersMap[k.toString()] = (v is List) ? v.join(',') : v.toString();
       });
     } catch (_) {}
     _updateServerTimeOffsetFromHeaders(headersMap);

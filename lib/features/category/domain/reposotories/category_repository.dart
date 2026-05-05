@@ -577,9 +577,25 @@ class CategoryRepository implements CategoryRepositoryInterface {
   @override
   Future<Response> getSearchData(
       String? query, String? categoryID, bool isStore, String type) async {
-    return await apiClient.getData(
-      '${AppConstants.searchUri}${isStore ? 'stores' : 'items'}/search?name=$query&category_id=$categoryID&type=$type&offset=1&limit=50',
-    );
+    final String safeQuery = Uri.encodeQueryComponent((query ?? '').trim());
+    final List<String> params = <String>[
+      'name=$safeQuery',
+      'type=$type',
+      'offset=1',
+      'limit=50',
+    ];
+    if ((categoryID ?? '').trim().isNotEmpty) {
+      params.add('category_id=${Uri.encodeQueryComponent(categoryID!.trim())}');
+      debugPrint('[CAT_FILTER][CATEGORY_CONTEXT_APPLIED] category_id=${categoryID.trim()}');
+    } else {
+      debugPrint('[CAT_FILTER][CATEGORY_CONTEXT_MISSING] reason=empty_category_id');
+    }
+    final String endpoint =
+        '${AppConstants.searchUri}${isStore ? 'stores' : 'items'}/search?${params.join('&')}';
+    debugPrint('[CAT_FILTER][ENDPOINT] $endpoint');
+    debugPrint(
+        '[CAT_FILTER][REQUEST_PARAMS] name=$safeQuery type=$type offset=1 limit=50 category_id=${(categoryID ?? '').trim()}');
+    return await apiClient.getData(endpoint);
   }
 
   @override
