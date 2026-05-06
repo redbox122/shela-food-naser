@@ -9,10 +9,21 @@ import 'package:sixam_mart/features/auth/domain/services/auth_service_interface.
 import 'package:sixam_mart/features/profile/controllers/profile_controller.dart';
 import 'package:sixam_mart/features/wallet_kaidha_subscription/controllers/kaidhaSub_controller.dart';
 import 'package:sixam_mart/helper/admin_otp_bypass_helper.dart';
+import 'package:sixam_mart/util/app_constants.dart';
 
 class AuthService implements AuthServiceInterface {
   final AuthRepositoryInterface authRepositoryInterface;
   AuthService({required this.authRepositoryInterface});
+
+  String _maskPhone(String phone) {
+    if (phone.isEmpty) {
+      return '***';
+    }
+    if (phone.length <= 5) {
+      return '${phone[0]}***';
+    }
+    return '${phone.substring(0, 4)}*****${phone.substring(phone.length - 3)}';
+  }
 
   @override
   bool isSharedPrefNotificationActive() {
@@ -21,7 +32,8 @@ class AuthService implements AuthServiceInterface {
 
   @override
   Future<ResponseModel> registration(SignUpBodyModel signUpBody) async {
-    final Response response = await authRepositoryInterface.registration(signUpBody);
+    final Response response =
+        await authRepositoryInterface.registration(signUpBody);
     if (response.statusCode == 200) {
       final AuthResponseModel authResponse =
           AuthResponseModel.fromJson(response.body as Map<String, dynamic>);
@@ -53,8 +65,8 @@ class AuthService implements AuthServiceInterface {
               ? response.body as Map<String, dynamic>
               : <String, dynamic>{};
 
-      final bool otpRequired =
-          responseBody['otp_required'] == true || responseBody['otp_required'] == 1;
+      final bool otpRequired = responseBody['otp_required'] == true ||
+          responseBody['otp_required'] == 1;
       if (otpRequired) {
         final String otpPhone =
             responseBody['phone']?.toString() ?? emailOrPhone;
@@ -112,8 +124,7 @@ class AuthService implements AuthServiceInterface {
         }
 
         return ResponseModel(true, 'otp_required',
-            otpRequired: true,
-            otpPhone: otpPhone);
+            otpRequired: true, otpPhone: otpPhone);
       }
 
       final AuthResponseModel authResponse =
@@ -192,7 +203,7 @@ class AuthService implements AuthServiceInterface {
   void _updateUserDataFromLoginResponse(Map<String, dynamic> responseBody) {
     try {
       debugPrint('🔍 AuthService: Checking login response for user data...');
-      
+
       // Check if user data exists in response (backend will add 'user' field)
       if (responseBody.containsKey('user') && responseBody['user'] is Map) {
         final userData = responseBody['user'] as Map<String, dynamic>;
@@ -201,35 +212,49 @@ class AuthService implements AuthServiceInterface {
         debugPrint('   - Name: ${userData['f_name']} ${userData['l_name']}');
         debugPrint('   - Loyalty Points: ${userData['loyalty_point'] ?? 0}');
         debugPrint('   - Wallet Balance: ${userData['wallet_balance'] ?? 0.0}');
-        debugPrint('   - Has Qidha Wallet: ${userData['has_qidha_wallet'] ?? false}');
-        
+        debugPrint(
+            '   - Has Qidha Wallet: ${userData['has_qidha_wallet'] ?? false}');
+
         // Update ProfileController with minimal user data
         if (Get.isRegistered<ProfileController>()) {
-          debugPrint('📝 AuthService: Updating ProfileController with user data...');
+          debugPrint(
+              '📝 AuthService: Updating ProfileController with user data...');
           final profileController = Get.find<ProfileController>();
           profileController.setUserInfoFromLogin(
-            id: userData['id'] is int ? userData['id'] as int : int.tryParse(userData['id']?.toString() ?? '0'),
+            id: userData['id'] is int
+                ? userData['id'] as int
+                : int.tryParse(userData['id']?.toString() ?? '0'),
             fName: userData['f_name']?.toString(),
             lName: userData['l_name']?.toString(),
-            imageFullUrl: (userData['image_full_url'] ?? userData['image'])?.toString(),
-            loyaltyPoint: userData['loyalty_point'] is int ? userData['loyalty_point'] as int : (int.tryParse(userData['loyalty_point']?.toString() ?? '0') ?? 0),
+            imageFullUrl:
+                (userData['image_full_url'] ?? userData['image'])?.toString(),
+            loyaltyPoint: userData['loyalty_point'] is int
+                ? userData['loyalty_point'] as int
+                : (int.tryParse(userData['loyalty_point']?.toString() ?? '0') ??
+                    0),
             // ⚡ FIX: Safe parsing - handle both String and numeric values
             walletBalance: (userData['wallet_balance'] is String)
                 ? (double.tryParse(userData['wallet_balance'] as String) ?? 0.0)
-                : ((userData['wallet_balance'] is num) ? (userData['wallet_balance'] as num).toDouble() : 0.0),
+                : ((userData['wallet_balance'] is num)
+                    ? (userData['wallet_balance'] as num).toDouble()
+                    : 0.0),
           );
           debugPrint('✅ AuthService: ProfileController updated successfully');
         } else {
           debugPrint('⚠️ AuthService: ProfileController not registered');
         }
-        
+
         // Update Qidha wallet state if wallet exists
         if (userData['has_qidha_wallet'] == true) {
-          debugPrint('💳 AuthService: User has Qidha wallet - updating wallet state...');
-          debugPrint('   - Signed: ${userData['qidha_wallet_signed'] ?? false}');
-          debugPrint('   - Active: ${userData['qidha_wallet_active'] ?? false}');
-          debugPrint('   - Balance: ${userData['qidha_wallet_balance'] ?? 'null'}');
-          
+          debugPrint(
+              '💳 AuthService: User has Qidha wallet - updating wallet state...');
+          debugPrint(
+              '   - Signed: ${userData['qidha_wallet_signed'] ?? false}');
+          debugPrint(
+              '   - Active: ${userData['qidha_wallet_active'] ?? false}');
+          debugPrint(
+              '   - Balance: ${userData['qidha_wallet_balance'] ?? 'null'}');
+
           if (Get.isRegistered<KaidhaSubscriptionController>()) {
             final kaidhaController = Get.find<KaidhaSubscriptionController>();
             kaidhaController.setWalletStateFromLogin(
@@ -238,41 +263,49 @@ class AuthService implements AuthServiceInterface {
               balance: userData['qidha_wallet_balance']?.toString(),
             );
             debugPrint('✅ AuthService: Wallet state updated successfully');
-            
+
             // Only fetch full wallet data if wallet is not signed/active (needed for subscription flow)
-            final qidhaWalletSigned = userData['qidha_wallet_signed'] is bool 
-                ? userData['qidha_wallet_signed'] as bool 
-                : (userData['qidha_wallet_signed']?.toString() == '1' || userData['qidha_wallet_signed']?.toString() == 'true');
-            final qidhaWalletActive = userData['qidha_wallet_active'] is bool 
-                ? userData['qidha_wallet_active'] as bool 
-                : (userData['qidha_wallet_active']?.toString() == '1' || userData['qidha_wallet_active']?.toString() == 'true');
+            final qidhaWalletSigned = userData['qidha_wallet_signed'] is bool
+                ? userData['qidha_wallet_signed'] as bool
+                : (userData['qidha_wallet_signed']?.toString() == '1' ||
+                    userData['qidha_wallet_signed']?.toString() == 'true');
+            final qidhaWalletActive = userData['qidha_wallet_active'] is bool
+                ? userData['qidha_wallet_active'] as bool
+                : (userData['qidha_wallet_active']?.toString() == '1' ||
+                    userData['qidha_wallet_active']?.toString() == 'true');
             if (!qidhaWalletSigned || !qidhaWalletActive) {
-              debugPrint('🔄 AuthService: Wallet not signed/active - loading full wallet data in background...');
+              debugPrint(
+                  '🔄 AuthService: Wallet not signed/active - loading full wallet data in background...');
               // Load full wallet data in background (non-blocking) - needed for subscription flow
               kaidhaController.get_Wallet_Kaidh();
             } else {
-              debugPrint('⚡ AuthService: Wallet is signed and active - no API call needed (balance already set)');
+              debugPrint(
+                  '⚡ AuthService: Wallet is signed and active - no API call needed (balance already set)');
             }
           } else {
-            debugPrint('⚠️ AuthService: KaidhaSubscriptionController not registered');
+            debugPrint(
+                '⚠️ AuthService: KaidhaSubscriptionController not registered');
           }
         } else {
           debugPrint('ℹ️ AuthService: User has no Qidha wallet');
         }
       } else {
-        debugPrint('⚠️ AuthService: No user data in login response (backend may not have updated yet)');
+        debugPrint(
+            '⚠️ AuthService: No user data in login response (backend may not have updated yet)');
         debugPrint('   - Response keys: ${responseBody.keys.toList()}');
       }
     } catch (e, stackTrace) {
       if (kDebugMode) {
-        debugPrint('❌ AuthService: Error updating user data from login response - $e');
+        debugPrint(
+            '❌ AuthService: Error updating user data from login response - $e');
         debugPrint('   Stack trace: $stackTrace');
       }
       // Don't throw - login should still succeed even if user data extraction fails
     }
   }
 
-  Future<void> _updateHeaderFunctionality(AuthResponseModel authResponse, {bool alreadyInApp = false}) async {
+  Future<void> _updateHeaderFunctionality(AuthResponseModel authResponse,
+      {bool alreadyInApp = false}) async {
     if (authResponse.isEmailVerified! &&
         authResponse.isPhoneVerified! &&
         authResponse.isPersonalInfo! &&
@@ -281,7 +314,8 @@ class AuthService implements AuthServiceInterface {
       // 🔧 CRITICAL FIX: saveUserToken now updates headers IMMEDIATELY (synchronously)
       // Headers are updated before any async operations complete
       // This ensures updateToken() and getUserInfo() calls have the correct token
-      await authRepositoryInterface.saveUserToken(authResponse.token ?? '', alreadyInApp: alreadyInApp);
+      await authRepositoryInterface.saveUserToken(authResponse.token ?? '',
+          alreadyInApp: alreadyInApp);
       // ✅ Headers are already updated by saveUserToken, safe to call updateToken now
       await authRepositoryInterface.updateToken();
       await authRepositoryInterface.clearSharedPrefGuestId();
@@ -295,7 +329,8 @@ class AuthService implements AuthServiceInterface {
       required String loginType,
       required String verified,
       bool alreadyInApp = false}) async {
-    final Response response = await authRepositoryInterface.otpLogin(phone: phone, otp: otp, loginType: loginType, verified: verified);
+    final Response response = await authRepositoryInterface.otpLogin(
+        phone: phone, otp: otp, loginType: loginType, verified: verified);
     if (response.statusCode == 200) {
       final Map<String, dynamic> responseBody =
           (response.body is Map<String, dynamic>)
@@ -322,16 +357,29 @@ class AuthService implements AuthServiceInterface {
     if (AdminOtpBypassHelper.isBypassPhone(phone)) {
       if (kDebugMode) {
         debugPrint(
-            '🔐 AuthService: Admin OTP bypass active, skipping resend API for $phone');
+            '🔐 AuthService: Admin OTP bypass active, skipping resend API for ${_maskPhone(phone)}');
       }
       return ResponseModel(true, 'success');
     }
 
-    final Response response = await authRepositoryInterface.resend_Otp(phone: phone);
+    final Response response =
+        await authRepositoryInterface.resend_Otp(phone: phone);
     if (response.statusCode == 200) {
       return ResponseModel(true, response.statusText ?? 'success');
     } else {
-      return ResponseModel(false, response.statusText);
+      final dynamic body = response.body;
+      final String responseMessage = body is Map<String, dynamic>
+          ? (body['message']?.toString() ??
+              response.statusText ??
+              'unknown_error')
+          : (response.statusText ?? 'unknown_error');
+      final String statusCode = (response.statusCode ?? -1).toString();
+      final String errorDetails =
+          'Resend OTP failed (status: $statusCode, endpoint: ${AppConstants.resendOtpUri}, message: $responseMessage)';
+      if (kDebugMode) {
+        debugPrint('AuthService: $errorDetails');
+      }
+      return ResponseModel(false, errorDetails);
     }
   }
 
@@ -413,7 +461,8 @@ class AuthService implements AuthServiceInterface {
 
   @override
   Future<bool> clearSharedData({bool removeToken = true}) async {
-    return await authRepositoryInterface.clearSharedData(removeToken: removeToken);
+    return await authRepositoryInterface.clearSharedData(
+        removeToken: removeToken);
   }
 
   @override
@@ -422,8 +471,10 @@ class AuthService implements AuthServiceInterface {
   }
 
   @override
-  Future<void> saveUserNumberAndPassword(String number, String password, String countryCode) async {
-    await authRepositoryInterface.saveUserNumberAndPassword(number, password, countryCode);
+  Future<void> saveUserNumberAndPassword(
+      String number, String password, String countryCode) async {
+    await authRepositoryInterface.saveUserNumberAndPassword(
+        number, password, countryCode);
   }
 
   @override
@@ -497,5 +548,3 @@ class AuthService implements AuthServiceInterface {
     return await authRepositoryInterface.saveDeviceToken();
   }
 }
-
-

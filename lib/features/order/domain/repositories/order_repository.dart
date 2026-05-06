@@ -73,7 +73,24 @@ class OrderRepository implements OrderRepositoryInterface {
         '[OrderCancel] cancel response status=${response.statusCode} bodyType=${response.body.runtimeType}');
     if (response.body is Map<String, dynamic>) {
       final Map<String, dynamic> map = response.body as Map<String, dynamic>;
-      final dynamic message = map['message'];
+      String? resolvedMessage;
+      final dynamic directMessage = map['message'];
+      if (directMessage != null && directMessage.toString().trim().isNotEmpty) {
+        resolvedMessage = directMessage.toString();
+      }
+      if ((resolvedMessage == null || resolvedMessage.trim().isEmpty) &&
+          map['errors'] is List &&
+          (map['errors'] as List).isNotEmpty) {
+        final dynamic firstError = (map['errors'] as List).first;
+        if (firstError is Map<String, dynamic>) {
+          final dynamic errorMessage = firstError['message'];
+          if (errorMessage != null &&
+              errorMessage.toString().trim().isNotEmpty) {
+            resolvedMessage = errorMessage.toString();
+          }
+        }
+      }
+      resolvedMessage ??= 'تعذر إلغاء الطلب';
       final bool apiSuccess = map['success'] == true ||
           map['success'] == 1 ||
           map['success'] == '1';
@@ -88,13 +105,16 @@ class OrderRepository implements OrderRepositoryInterface {
       final dynamic refundTransactionId = map['refund_transaction_id'];
 
       debugPrint('[OrderCancel] cancel response keys=${map.keys.toList()}');
-      debugPrint('[OrderCancel] cancel response message=$message');
+      debugPrint('[OrderCancel] cancel response message=$resolvedMessage');
       debugPrint(
           '[OrderCancel] refund_processed=$refundProcessed refund_target=$refundTarget refund_amount=$refundAmount wallet_balance_after_refund=$walletBalanceAfterRefund refund_transaction_id=$refundTransactionId');
 
       if (response.statusCode == 200 && apiSuccess) {
         success = true;
-        String successMessage = message?.toString() ?? 'order_cancelled'.tr;
+        String successMessage = (directMessage != null &&
+                directMessage.toString().trim().isNotEmpty)
+            ? directMessage.toString()
+            : 'order_cancelled'.tr;
         if (refundProcessed) {
           if (refundTarget == 'wallet_qidha') {
             successMessage = 'refund_to_qidha_wallet_processing'.tr;
@@ -111,12 +131,14 @@ class OrderRepository implements OrderRepositoryInterface {
           isError: false,
         );
       } else {
-        showCustomSnackBar(message?.toString() ?? 'Failed to cancel order');
+        showCustomSnackBar(resolvedMessage);
       }
     } else {
-      debugPrint('[OrderCancel] cancel response raw=${response.body}');
+      debugPrint('[OrderCancel] cancel response map not available');
       if (response.statusCode == 200) {
         success = true;
+      } else {
+        showCustomSnackBar('تعذر إلغاء الطلب');
       }
     }
     return success;

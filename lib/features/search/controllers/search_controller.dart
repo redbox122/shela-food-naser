@@ -464,13 +464,24 @@ class SearchController extends GetxController implements GetxService {
         await Future.wait(futures);
       } catch (e) {
         _hasError = true;
+        debugPrint('[SEARCH_FETCH_ERROR] status=exception message=$e');
         debugPrint('[Search][ERROR] $e');
       } finally {
         final bool allRequestedFailed = (!needItemSearch || !itemSearchOk) &&
             (!needStoreSearch || !storeSearchOk);
         final bool hasAnyItemData = (_searchItemList?.isNotEmpty ?? false);
         final bool hasAnyStoreData = (_searchStoreList?.isNotEmpty ?? false);
+        final int itemCount = _searchItemList?.length ?? 0;
+        final int storeCount = _searchStoreList?.length ?? 0;
         _hasError = allRequestedFailed && !hasAnyItemData && !hasAnyStoreData;
+        if (_hasError) {
+          debugPrint('[SEARCH_FETCH_ERROR] status=all_failed message=no_data');
+        } else if (!hasAnyItemData && !hasAnyStoreData) {
+          debugPrint('[SEARCH_FETCH_EMPTY]');
+        } else {
+          debugPrint(
+              '[SEARCH_FETCH_SUCCESS] selectedType=${_isStore ? 'stores' : 'items'} itemCount=$itemCount storeCount=$storeCount');
+        }
         _isLoading = false;
         debugPrint('[Search][DONE] loading=false');
         debugPrint('[Search][FINALLY] loading=false');
@@ -514,6 +525,8 @@ class SearchController extends GetxController implements GetxService {
         }
         return true;
       } else {
+        debugPrint(
+            '[SEARCH_FETCH_ERROR] status=${response.statusCode} message=items_request_failed');
         debugPrint('[Search][STATUS] type=items code=${response.statusCode}');
         debugPrint('[Search][RAW_TYPE] type=items rawType=${response.body.runtimeType}');
         debugPrint(
@@ -524,6 +537,7 @@ class SearchController extends GetxController implements GetxService {
         return false;
       }
     } catch (e) {
+      debugPrint('[SEARCH_FETCH_ERROR] status=exception message=items_$e');
       debugPrint('[Search][ERROR] items $e');
       _hasError = true;
       _searchItemList = [];
@@ -548,6 +562,8 @@ class SearchController extends GetxController implements GetxService {
             '[Search][PARSED_COUNT] type=stores count=${_searchStoreList!.length}');
         return true;
       } else {
+        debugPrint(
+            '[SEARCH_FETCH_ERROR] status=${response.statusCode} message=stores_request_failed');
         debugPrint('[Search][STATUS] type=stores code=${response.statusCode}');
         debugPrint(
             '[Search][RAW_TYPE] type=stores rawType=${response.body.runtimeType}');
@@ -559,6 +575,7 @@ class SearchController extends GetxController implements GetxService {
         return false;
       }
     } catch (e) {
+      debugPrint('[SEARCH_FETCH_ERROR] status=exception message=stores_$e');
       debugPrint('[Search][ERROR] stores $e');
       _hasError = true;
       _searchStoreList = [];

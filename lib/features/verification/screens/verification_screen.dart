@@ -67,9 +67,14 @@ class VerificationScreenState extends State<VerificationScreen> {
     Get.find<VerificationController>()
         .updateVerificationCode('', canUpdate: false);
     if (widget.number != null) {
-      _number = widget.number!.startsWith('+')
-          ? widget.number
-          : '+${widget.number!.substring(1, widget.number!.length)}';
+      final String trimmedNumber = widget.number!.trim();
+      if (trimmedNumber.startsWith('+')) {
+        _number = trimmedNumber;
+      } else if (trimmedNumber.startsWith('00')) {
+        _number = '+${trimmedNumber.substring(2)}';
+      } else {
+        _number = '+$trimmedNumber';
+      }
     }
     if (widget.fromLogin2fa && AdminOtpBypassHelper.isBypassPhone(_number)) {
       Get.find<VerificationController>()
@@ -424,7 +429,7 @@ class VerificationScreenState extends State<VerificationScreen> {
                               color: Theme.of(context).disabledColor),
                         ),
                         TextButton(
-                          onPressed: _seconds < 1 && !widget.fromLogin2fa
+                          onPressed: _seconds < 1
                               ? () async {
                                   if (widget.firebaseSession != null) {
                                     await Get.find<AuthController>()
@@ -515,19 +520,34 @@ class VerificationScreenState extends State<VerificationScreen> {
           isError: false);
       return;
     }
-    if (widget.fromLogin2fa) {
-      showCustomSnackBar('Resend is not available — please login again');
+    if (_number == null || _number!.isEmpty) {
+      showCustomSnackBar('invalid_phone_number'.tr);
       return;
     }
+
+    void onSuccess() {
+      Get.find<VerificationController>()
+          .updateVerificationCode('', canUpdate: false);
+      _startTimer();
+      showCustomSnackBar('resend_code_successful'.tr, isError: false);
+    }
+
     if (widget.userModel != null) {
       Get.find<ProfileController>().updateUserInfo(
           widget.userModel!, Get.find<AuthController>().getUserToken(),
           fromVerification: true);
+    } else if (widget.fromLogin2fa) {
+      Get.find<AuthController>().resend_Otp(phone: _number!).then((value) {
+        if (value.isSuccess) {
+          onSuccess();
+        } else {
+          showCustomSnackBar(value.message);
+        }
+      });
     } else if (widget.fromSignUp) {
       Get.find<AuthController>().resend_Otp(phone: _number!).then((value) {
         if (value.isSuccess) {
-          _startTimer();
-          showCustomSnackBar('resend_code_successful'.tr, isError: false);
+          onSuccess();
         } else {
           showCustomSnackBar(value.message);
         }
@@ -535,8 +555,7 @@ class VerificationScreenState extends State<VerificationScreen> {
     } else {
       Get.find<VerificationController>().forgetPassword(_number).then((value) {
         if (value.isSuccess) {
-          _startTimer();
-          showCustomSnackBar('resend_code_successful'.tr, isError: false);
+          onSuccess();
         } else {
           showCustomSnackBar(value.message);
         }

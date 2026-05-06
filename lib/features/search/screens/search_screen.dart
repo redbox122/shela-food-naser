@@ -110,19 +110,9 @@ class SearchScreenState extends State<SearchScreen>
     _selectedSearchModuleName = splashController.module?.moduleName ?? '';
     _selectedSearchModuleType = splashController.module?.moduleType ?? '';
 
-    Get.find<search.SearchController>().getPopularCategories();
-    Get.find<search.SearchController>().getTrendingCategories();
-    if (_isLoggedIn) {
-      Get.find<search.SearchController>().getSuggestedItems();
-    }
-    Get.find<search.SearchController>().getHistoryList();
-    debugPrint('[Search][INIT] query=${widget.queryText ?? ''}');
-    if (widget.queryText!.isNotEmpty) {
-      debugPrint('[Search][FETCH_START] type=initial_query_search');
-      _actionSearch(true, widget.queryText, true);
-    } else {
-      debugPrint('[Search][EMPTY_QUERY] handled=true');
-    }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _initializeSearchStateOnOpen();
+    });
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _searchFocusNode.requestFocus();
@@ -175,6 +165,8 @@ class SearchScreenState extends State<SearchScreen>
 
       // Set store mode first to update UI immediately
       searchController.setStore(isStore);
+      debugPrint(
+          '[SEARCH_FETCH_START] query=$queryText selectedType=${isStore ? 'stores' : 'items'}');
 
       // Exit search mode so results can be displayed
       searchController.setSearchMode(false);
@@ -330,6 +322,16 @@ class SearchScreenState extends State<SearchScreen>
     return 10;
   }
 
+  bool _isRestaurantModule(ModuleModel module) {
+    final String moduleType =
+        (module.moduleType ?? '').toString().trim().toLowerCase();
+    final String moduleName =
+        (module.moduleName ?? '').toString().trim().toLowerCase();
+    return moduleName.contains('مطعم') ||
+        moduleName.contains('restaurant') ||
+        (moduleType.isNotEmpty && moduleType != AppConstants.ecommerce);
+  }
+
   void _switchTab(bool isStore) {
     final searchController = Get.find<search.SearchController>();
 
@@ -340,6 +342,36 @@ class SearchScreenState extends State<SearchScreen>
       searchController.setStore(isStore);
       // No need to re-search, data is already loaded
       setState(() {});
+    }
+  }
+
+  Future<void> _initializeSearchStateOnOpen() async {
+    final searchController = Get.find<search.SearchController>();
+    final splashController = Get.find<SplashController>();
+    final ModuleModel? initialModule = splashController.module;
+    final List<ModuleModel> sortedModules =
+        List<ModuleModel>.from(splashController.moduleList ?? <ModuleModel>[])
+          ..sort((a, b) {
+            final int p = _moduleSortPriority(a).compareTo(_moduleSortPriority(b));
+            if (p != 0) return p;
+            return (a.id ?? 0).compareTo(b.id ?? 0);
+          });
+    final int initialVisualIndex = sortedModules
+        .indexWhere((module) => module.id != null && module.id == initialModule?.id);
+    debugPrint('[SEARCH_OPEN]');
+    debugPrint(
+        '[SEARCH_INITIAL_VISUAL_TAB] index=$initialVisualIndex module=${initialModule?.moduleName ?? 'null'} moduleId=${initialModule?.id ?? 'null'}');
+    debugPrint(
+        '[SEARCH_INITIAL_CONTROLLER_TAB] isStore=${searchController.isStore} activeModuleId=${searchController.activeModuleId ?? 'null'}');
+    final String initialQuery = (widget.queryText ?? '').trim();
+    if (initialQuery.isNotEmpty) {
+      searchController.setSearchText(initialQuery);
+    }
+    if (initialModule != null) {
+      if (_isRestaurantModule(initialModule)) {
+        debugPrint('[SEARCH_RESTAURANT_INIT_CALL]');
+      }
+      await _handleModuleSwitch(initialModule);
     }
   }
 
@@ -498,6 +530,9 @@ class SearchScreenState extends State<SearchScreen>
                         return;
                       }
                       if (!isActive) {
+                        if (_isRestaurantModule(module)) {
+                          debugPrint('[SEARCH_TAB_TAP_RESTAURANTS]');
+                        }
                         await _handleModuleSwitch(module);
                       }
                     },
@@ -711,7 +746,9 @@ class SearchScreenState extends State<SearchScreen>
                           onSubmitted: (text) {
                             _showSuggestion = false;
                             if (text.isNotEmpty) {
-                              _actionSearch(false, text, false);
+                              debugPrint(
+                                  '[SEARCH_QUERY_SUBMIT] query=$text selectedType=${searchController.isStore ? 'stores' : 'items'}');
+                              _actionSearch(searchController.isStore, text, false);
                             }
                           },
                           decoration: InputDecoration(
@@ -868,7 +905,9 @@ class SearchScreenState extends State<SearchScreen>
                           onSubmitted: (text) {
                             _showSuggestion = false;
                             if (text.isNotEmpty) {
-                              _actionSearch(false, text, false);
+                              debugPrint(
+                                  '[SEARCH_QUERY_SUBMIT] query=$text selectedType=${searchController.isStore ? 'stores' : 'items'}');
+                              _actionSearch(searchController.isStore, text, false);
                             }
                           },
                           decoration: InputDecoration(
@@ -1157,8 +1196,8 @@ class SearchScreenState extends State<SearchScreen>
             _RecentSearchRow(
               text: searchController.historyList[i],
               onDelete: () => searchController.removeHistory(i),
-              onTap: () =>
-                  _actionSearch(false, searchController.historyList[i], false),
+              onTap: () => _actionSearch(
+                  searchController.isStore, searchController.historyList[i], false),
             ),
             if (i < 2) const SizedBox(height: DesignTokens.spaceSmall),
           ],
@@ -1167,19 +1206,22 @@ class SearchScreenState extends State<SearchScreen>
           _RecentSearchRow(
             text: 'offers_and_discounts'.tr,
             onDelete: () {},
-            onTap: () => _actionSearch(false, 'offers_and_discounts'.tr, false),
+            onTap: () => _actionSearch(
+                searchController.isStore, 'offers_and_discounts'.tr, false),
           ),
           const SizedBox(height: DesignTokens.spaceSmall),
           _RecentSearchRow(
             text: 'drinks'.tr,
             onDelete: () {},
-            onTap: () => _actionSearch(false, 'drinks'.tr, false),
+            onTap: () =>
+                _actionSearch(searchController.isStore, 'drinks'.tr, false),
           ),
           const SizedBox(height: DesignTokens.spaceSmall),
           _RecentSearchRow(
             text: 'market'.tr,
             onDelete: () {},
-            onTap: () => _actionSearch(false, 'market'.tr, false),
+            onTap: () =>
+                _actionSearch(searchController.isStore, 'market'.tr, false),
           ),
         ],
       ],
