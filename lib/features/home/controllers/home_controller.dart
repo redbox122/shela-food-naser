@@ -35,6 +35,8 @@ class HomeController extends GetxController implements GetxService {
   bool _hasInitialLoadCompleted = false;
   Worker? _moduleWorker;
   bool _isHomeDataLoading = false;
+  int? _inFlightModuleId;
+  int? _queuedModuleId;
   DateTime? _lastHomeDataLoadAt;
   static const Duration _homeDataLoadThrottle = Duration(seconds: 3);
 
@@ -332,10 +334,23 @@ class HomeController extends GetxController implements GetxService {
     bool forcePartial = false,
     bool forceRefresh = false,
   }) async {
+    final int? requestedModuleId = Get.isRegistered<SplashController>()
+        ? Get.find<SplashController>().module?.id
+        : null;
     if (_isHomeDataLoading) {
+      if (requestedModuleId != null &&
+          _inFlightModuleId != null &&
+          requestedModuleId != _inFlightModuleId) {
+        _queuedModuleId = requestedModuleId;
+        if (kDebugMode) {
+          debugPrint(
+              '[HOME_LOAD_FORCE_NEW_MODULE] requestedModuleId=$requestedModuleId previousInFlightModuleId=$_inFlightModuleId');
+        }
+        return;
+      }
       if (kDebugMode) {
         debugPrint(
-            '⏭️ HomeController: loadHomeData skipped - request already in progress');
+            '[HOME_LOAD_SKIPPED] requestedModuleId=$requestedModuleId inFlightModuleId=$_inFlightModuleId');
       }
       return;
     }
@@ -352,6 +367,7 @@ class HomeController extends GetxController implements GetxService {
     }
 
     _isHomeDataLoading = true;
+    _inFlightModuleId = requestedModuleId;
     _lastHomeDataLoadAt = now;
     if (kDebugMode) {
       debugPrint(
@@ -443,7 +459,18 @@ class HomeController extends GetxController implements GetxService {
         }
       }
     } finally {
+      final int? completedModuleId = _inFlightModuleId;
       _isHomeDataLoading = false;
+      _inFlightModuleId = null;
+      if (_queuedModuleId != null && _queuedModuleId != completedModuleId) {
+        final int queuedModuleId = _queuedModuleId!;
+        _queuedModuleId = null;
+        if (kDebugMode) {
+          debugPrint(
+              '[HOME_LOAD_FORCE_NEW_MODULE] requestedModuleId=$queuedModuleId previousInFlightModuleId=$completedModuleId');
+        }
+        unawaited(loadHomeData(forceRefresh: true));
+      }
     }
   }
 

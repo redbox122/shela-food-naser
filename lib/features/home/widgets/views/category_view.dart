@@ -59,7 +59,10 @@ class CategoryView extends StatelessWidget {
   /// Compact home grid so four tiles fit without scrolling past clipped labels.
   static const double _homeCategoryImageSize = 98;
   static const double _homeCategoryLabelMaxHeight = 44;
-  static const double _homeCategoryGridAspectRatio = 1.12;
+  /// Width/height for each grid child. [CircularRingAvatar] is taller than
+  /// [_homeCategoryImageSize] (padding + border); 1.12 made cells too short
+  /// on common phone widths (~8px bottom overflow). ~0.92 fits the true content height.
+  static const double _homeCategoryGridAspectRatio = 0.92;
 
   final ScrollController? scrollController;
 

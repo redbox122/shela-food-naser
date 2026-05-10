@@ -30,6 +30,7 @@ class CustomImage extends StatefulWidget {
   final int? diskCacheHeight;
   final Widget? placeholderWidget;
   final Widget? errorWidget;
+  final void Function(String url, Object error)? onImageError;
 
   const CustomImage(
       {super.key,
@@ -48,7 +49,8 @@ class CustomImage extends StatefulWidget {
       this.diskCacheWidth,
       this.diskCacheHeight,
       this.placeholderWidget,
-      this.errorWidget});
+      this.errorWidget,
+      this.onImageError});
 
   @override
   State<CustomImage> createState() => _CustomImageState();
@@ -426,6 +428,7 @@ class _CustomImageState extends State<CustomImage> {
                     widget.placeholderWidget ??
                     Image.asset(Images.placeholder, fit: widget.fit ?? BoxFit.cover),
                 errorWidget: (context, url, error) {
+                  widget.onImageError?.call(url, error);
                   final message = _resolveErrorMessage(error);
                   if (kDebugMode) {
                     debugPrint(
@@ -473,6 +476,7 @@ class _CustomImageState extends State<CustomImage> {
                 placeholder: (context, url) =>
                     widget.placeholderWidget ?? _buildBlurHashPlaceholder(),
                 errorWidget: (context, url, error) {
+                  widget.onImageError?.call(url, error);
                   final message = _resolveErrorMessage(error);
                   if (kDebugMode) {
                     debugPrint(

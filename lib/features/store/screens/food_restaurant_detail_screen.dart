@@ -1104,11 +1104,37 @@ class _FoodRestaurantDetailScreenState
         builder: (storeController) {
           return GetBuilder<CategoryController>(
             builder: (categoryController) {
-              final store = storeController.store;
+              final controllerStore = storeController.store;
+              final int? requestedStoreId = widget.store?.id;
+
+              // 🔒 STALE-CACHE GUARD: Only use the controller's store if its id
+              // matches the requested route id. This prevents flashing the
+              // previously opened store (e.g. "Hyper Shella") while loading a
+              // newly tapped store (e.g. "Grape Time").
+              final bool controllerMatchesRoute = controllerStore != null &&
+                  requestedStoreId != null &&
+                  controllerStore.id == requestedStoreId;
+              final Store? store = controllerMatchesRoute ? controllerStore : null;
+
+              if (kDebugMode &&
+                  controllerStore != null &&
+                  requestedStoreId != null &&
+                  controllerStore.id != requestedStoreId) {
+                debugPrint(
+                  '[STORE_DETAILS_STALE_IGNORED] requestedId=$requestedStoreId '
+                  'cachedId=${controllerStore.id}',
+                );
+              }
 
               // ⚡ V2: Use minimal store data for immediate render, fallback to detailed data when available
               // This eliminates loading flicker by showing header/info immediately
               final displayStore = store ?? widget.store;
+              if (kDebugMode) {
+                debugPrint(
+                  '[STORE_DETAILS_RENDER] requestedId=$requestedStoreId '
+                  'displayId=${displayStore?.id} matched=$controllerMatchesRoute',
+                );
+              }
 
               // 🛠️ TASK 5: Show retry button if 500 error and no cache (only if we have no store data at all)
               if (storeController.hasStoreError &&

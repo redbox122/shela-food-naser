@@ -645,6 +645,10 @@ class SplashController extends GetxController implements GetxService {
     }
 
     final ModuleModel? previousModule = selectedModule.value;
+    if (kDebugMode) {
+      debugPrint(
+          '[HOME_MODULE_SWITCH] from=${previousModule?.id} to=${module.id}');
+    }
     if (previousModule?.id != null &&
         previousModule!.id != module.id &&
         Get.isRegistered<BannerController>()) {
@@ -2736,7 +2740,11 @@ class SplashController extends GetxController implements GetxService {
 
           // Update BannerController directly using setFromUnified
           if (bannerModel != null) {
-            bannerController.setFromUnified(bannerModel: bannerModel);
+            bannerController.setFromUnified(
+              bannerModel: bannerModel,
+              moduleId: finalModuleId,
+              source: 'splash_promotional_preload',
+            );
             if (kDebugMode) {
               debugPrint(
                   '✅ SplashController: Loaded ${bannerModel.banners?.length ?? 0} promotional banners');

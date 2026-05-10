@@ -38,6 +38,8 @@ class BannerController extends GetxController implements GetxService {
   // 🚫 UI THREAD PROTECTION: Track last loaded module ID to prevent duplicate API calls
   int? _lastLoadedModuleId;
   int? get lastLoadedModuleId => _lastLoadedModuleId;
+  int? _currentBannerModuleId;
+  int? get currentBannerModuleId => _currentBannerModuleId;
   final Map<int, BannerModel> _featuredBannerCacheByModule = {};
   final Map<int, Future<BannerModel?>> _featuredBannerRequests = {};
 
@@ -74,6 +76,52 @@ class BannerController extends GetxController implements GetxService {
 
   List<dynamic>? _featuredBannerDataList;
   List<dynamic>? get featuredBannerDataList => _featuredBannerDataList;
+
+  int get homeBannerCount {
+    final int featuredCount = _featuredBannerList?.length ?? 0;
+    final int regularCount = _bannerImageList?.length ?? 0;
+    return featuredCount > 0 ? featuredCount : regularCount;
+  }
+
+  bool get hasAnyHomeBanners => homeBannerCount > 0;
+
+  void _bindBannerModuleId({
+    required int? moduleId,
+    required String source,
+  }) {
+    if (moduleId == null) {
+      return;
+    }
+    _currentBannerModuleId = moduleId;
+    if (kDebugMode) {
+      debugPrint(
+          '[HOME_BANNER_ACCEPTED] moduleId=$_currentBannerModuleId count=$homeBannerCount source=$source');
+    }
+  }
+
+  bool ensureHomeBannersForCurrentModule({
+    required int? currentModuleId,
+    required String source,
+  }) {
+    if (currentModuleId == null || !hasAnyHomeBanners) {
+      return false;
+    }
+    if (_currentBannerModuleId == null) {
+      _currentBannerModuleId = currentModuleId;
+      if (kDebugMode) {
+        debugPrint(
+            '[HOME_BANNER_NULL_MODULE_ADOPTED] currentModuleId=$currentModuleId count=$homeBannerCount source=$source');
+      }
+      return true;
+    }
+    if (_currentBannerModuleId != currentModuleId) {
+      if (kDebugMode) {
+        debugPrint(
+            '[HOME_BANNER_IGNORED_STALE] currentModuleId=$currentModuleId bannerModuleId=$_currentBannerModuleId');
+      }
+    }
+    return false;
+  }
 
   int _currentIndex = 0;
   int get currentIndex => _currentIndex;
@@ -206,7 +254,12 @@ class BannerController extends GetxController implements GetxService {
           _featuredBannerCacheByModule.containsKey(currentModuleId)) {
         final cached = _featuredBannerCacheByModule[currentModuleId]!;
         _lastLoadedModuleId = currentModuleId;
-        setFromUnified(bannerModel: cached, silent: true);
+        setFromUnified(
+          bannerModel: cached,
+          moduleId: currentModuleId,
+          source: 'in_memory_cache',
+          silent: true,
+        );
         if (kDebugMode) {
           appLogger.debug(
               'BannerController.getFeaturedBanner: Using in-memory cache for module $currentModuleId');
@@ -374,6 +427,10 @@ class BannerController extends GetxController implements GetxService {
       _bannerImageList = List<String?>.from(_featuredBannerList ?? <String?>[]);
       _bannerDataList =
           List<dynamic>.from(_featuredBannerDataList ?? <dynamic>[]);
+      _bindBannerModuleId(
+        moduleId: currentModuleId,
+        source: 'featured_api',
+      );
 
       if (currentModuleId != null) {
         _featuredBannerCacheByModule[currentModuleId] = bannerModel;
@@ -531,7 +588,12 @@ class BannerController extends GetxController implements GetxService {
         return;
       }
 
-      setFromUnified(bannerModel: bannerModel, silent: false);
+      setFromUnified(
+        bannerModel: bannerModel,
+        moduleId: 3,
+        source: 'startup_preload',
+        silent: false,
+      );
 
       // Persist the same banner payload for all known modules to maximize cache hits.
       final cacheService = HiveHomeCacheService();
@@ -603,6 +665,7 @@ class BannerController extends GetxController implements GetxService {
       _currentIndex = 0;
       _isLoading = false;
       _lastLoadedModuleId = null; // Clear module tracking
+      _currentBannerModuleId = null;
       _featuredBannerCacheByModule.clear();
       _featuredBannerRequests.clear();
       _hasDistributedOnce = false;
@@ -862,6 +925,15 @@ class BannerController extends GetxController implements GetxService {
               '⚡ BannerController._prepareBanner: First distribution detected - forcing update');
         }
       }
+      final int? selectedModuleId = Get.isRegistered<SplashController>()
+          ? Get.find<SplashController>().selectedModule.value?.id
+          : null;
+      if (hasAnyBanners) {
+        _bindBannerModuleId(
+          moduleId: selectedModuleId,
+          source: 'regular_banner_payload',
+        );
+      }
     }
     update();
   }
@@ -869,6 +941,9 @@ class BannerController extends GetxController implements GetxService {
   /// Set banner data from bootstrap endpoint
   /// ⚡ CRITICAL FIX: Don't overwrite existing banners if bootstrap has no banners
   void setBannerDataFromBootstrap(BannerModel bannerModel) {
+    final int? selectedModuleId = Get.isRegistered<SplashController>()
+        ? Get.find<SplashController>().selectedModule.value?.id
+        : null;
     // Check if bootstrap actually has banners
     final hasCampaigns =
         bannerModel.campaigns != null && bannerModel.campaigns!.isNotEmpty;
@@ -999,6 +1074,10 @@ class BannerController extends GetxController implements GetxService {
       appLogger.info(
           '✅ BannerController.setBannerDataFromBootstrap: Updating UI after empty-to-non-empty transition');
     }
+    _bindBannerModuleId(
+      moduleId: selectedModuleId,
+      source: 'bootstrap',
+    );
     update();
     if (kDebugMode) {
       final bannerCount = _featuredBannerList?.length ?? 0;
@@ -1012,8 +1091,24 @@ class BannerController extends GetxController implements GetxService {
   /// [silent] - If true, only updates if empty-to-non-empty transition (prevents unnecessary updates)
   void setFromUnified({
     required BannerModel bannerModel,
+    int? moduleId,
+    String source = 'unified',
     bool silent = false,
   }) {
+    final int? selectedModuleId =
+        Get.isRegistered<SplashController>()
+            ? Get.find<SplashController>().selectedModule.value?.id
+            : null;
+    final int? effectiveModuleId = moduleId ?? selectedModuleId;
+    if (selectedModuleId != null &&
+        effectiveModuleId != null &&
+        selectedModuleId != effectiveModuleId) {
+      if (kDebugMode) {
+        debugPrint(
+            '[HOME_BANNER_IGNORED_STALE] currentModuleId=$selectedModuleId bannerModuleId=$effectiveModuleId');
+      }
+      return;
+    }
     // Check if bootstrap actually has banners
     final hasCampaigns =
         bannerModel.campaigns != null && bannerModel.campaigns!.isNotEmpty;
@@ -1023,8 +1118,8 @@ class BannerController extends GetxController implements GetxService {
     if (!hasCampaigns && !hasBanners) {
       // No banners in unified data - don't overwrite existing banners
       if (kDebugMode) {
-        appLogger.warning(
-            '⚠️ BannerController.setFromUnified: No banners in unified data, preserving existing banners');
+        debugPrint(
+            '[HOME_BANNER_EMPTY] moduleId=${effectiveModuleId ?? selectedModuleId} reason=unified_payload_empty source=$source');
       }
       return;
     }
@@ -1117,6 +1212,10 @@ class BannerController extends GetxController implements GetxService {
     final bool hasAnyBanners = nowHasFeaturedBanners || nowHasBannerImages;
     if (!_hasDistributedOnce && hasAnyBanners) {
       _hasDistributedOnce = true;
+      _bindBannerModuleId(
+        moduleId: effectiveModuleId ?? selectedModuleId,
+        source: source,
+      );
       if (kDebugMode) {
         appLogger.debug(
             '⚡ BannerController.setFromUnified: First distribution detected - forcing update');
@@ -1127,6 +1226,10 @@ class BannerController extends GetxController implements GetxService {
 
     // 🔥 RULE: Empty-to-non-empty transition = ALWAYS update (no silent mode)
     if (isEmptyToNonEmpty) {
+      _bindBannerModuleId(
+        moduleId: effectiveModuleId ?? selectedModuleId,
+        source: source,
+      );
       if (kDebugMode) {
         appLogger.debug(
             '🔧 BannerController.setFromUnified: Empty-to-non-empty transition detected - forcing update');
@@ -1145,6 +1248,10 @@ class BannerController extends GetxController implements GetxService {
     }
 
     // Normal update
+    _bindBannerModuleId(
+      moduleId: effectiveModuleId ?? selectedModuleId,
+      source: source,
+    );
     update();
     if (kDebugMode) {
       final bannerCount = _featuredBannerList?.length ?? 0;
@@ -1154,12 +1261,34 @@ class BannerController extends GetxController implements GetxService {
   }
 
   /// Clear unified banners when switching modules and new payload is empty.
-  void clearUnifiedBanners({bool notify = true}) {
+  void clearUnifiedBanners({
+    bool notify = true,
+    int? moduleId,
+    String reason = 'unknown',
+  }) {
+    final int? selectedModuleId =
+        Get.isRegistered<SplashController>()
+            ? Get.find<SplashController>().selectedModule.value?.id
+            : null;
+    if (moduleId != null &&
+        selectedModuleId != null &&
+        moduleId != selectedModuleId) {
+      if (kDebugMode) {
+        debugPrint(
+            '[HOME_BANNER_IGNORED_STALE] currentModuleId=$selectedModuleId bannerModuleId=$moduleId');
+      }
+      return;
+    }
     _featuredBannerList = [];
     _featuredBannerDataList = [];
     _bannerImageList = [];
     _bannerDataList = [];
     _isLoading = false;
+    _currentBannerModuleId = moduleId ?? selectedModuleId;
+    if (kDebugMode) {
+      debugPrint(
+          '[HOME_BANNER_EMPTY] moduleId=$_currentBannerModuleId reason=$reason');
+    }
     if (notify) {
       update();
     }
@@ -1280,6 +1409,9 @@ class BannerController extends GetxController implements GetxService {
     List<dynamic>? featuredBannerDataList,
     PromotionalBanner? promotionalBanner,
   }) {
+    final int? selectedModuleId = Get.isRegistered<SplashController>()
+        ? Get.find<SplashController>().selectedModule.value?.id
+        : null;
     // 🔧 CRITICAL FIX: Check for empty-to-non-empty transition (must always update)
     // This fixes the bug where banners don't appear after loading from cache
     bool isEmptyToNonEmpty = false;
@@ -1356,6 +1488,10 @@ class BannerController extends GetxController implements GetxService {
     }
 
     if (hasChanged) {
+      _bindBannerModuleId(
+        moduleId: selectedModuleId,
+        source: 'cache',
+      );
       if (kDebugMode && isEmptyToNonEmpty) {
         appLogger.info(
             '✅ BannerController: Updating UI after empty-to-non-empty transition');
@@ -1479,6 +1615,13 @@ class BannerController extends GetxController implements GetxService {
 
       // 🔧 FIX: Set isLoading to false to prevent skeleton from appearing
       _isLoading = false;
+      final int? selectedModuleId = Get.isRegistered<SplashController>()
+          ? Get.find<SplashController>().selectedModule.value?.id
+          : null;
+      _bindBannerModuleId(
+        moduleId: selectedModuleId,
+        source: 'featured_cache',
+      );
       update();
       if (kDebugMode) {
         final bannerCount = _featuredBannerList?.length ?? 0;

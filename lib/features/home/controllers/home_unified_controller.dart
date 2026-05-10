@@ -157,6 +157,12 @@ class HomeUnifiedController extends GetxController implements GetxService {
       if (_moduleDataCache.containsKey(moduleId)) {
         final memoryData = _moduleDataCache[moduleId]!;
         if (memoryData.isValid) {
+          if (kDebugMode) {
+            final int bannerCount = (memoryData.banners?.length ?? 0) +
+                (memoryData.campaigns?.length ?? 0);
+            debugPrint(
+                '[HOME_BANNER_CACHE_LOAD] moduleId=$moduleId count=$bannerCount source=memory');
+          }
           // 🔧 FIX: Wrap distribution AND update in Future.microtask to fix setState during build
           Future.microtask(() {
             _distributeDataToControllers(memoryData,
@@ -175,6 +181,12 @@ class HomeUnifiedController extends GetxController implements GetxService {
       if (cachedData != null &&
           cachedData.isValid &&
           _isCachePayloadValid(cachedData, moduleId)) {
+        if (kDebugMode) {
+          final int bannerCount = (cachedData.banners?.length ?? 0) +
+              (cachedData.campaigns?.length ?? 0);
+          debugPrint(
+              '[HOME_BANNER_CACHE_LOAD] moduleId=$moduleId count=$bannerCount source=hive');
+        }
         // Store in memory cache for future instant switches
         _moduleDataCache[moduleId] = cachedData;
         // 🔧 FIX: Wrap distribution AND update in Future.microtask to fix setState during build
@@ -752,17 +764,19 @@ class HomeUnifiedController extends GetxController implements GetxService {
       bool loadStores = true,
       bool force = false,
       int? sourceModuleId}) {
-    final int? currentModuleId =
-        data.meta?.moduleId ?? ModuleHelper.getModule()?.id;
+    final int? activeModuleId = ModuleHelper.getModule()?.id;
+    final int? responseModuleId =
+        sourceModuleId ?? data.meta?.moduleId ?? activeModuleId;
+    final int? currentModuleId = responseModuleId;
     final dataHash = data.hashCode;
 
-    // Reject stale cached payloads when module switched before microtask execution.
-    if (sourceModuleId != null &&
-        currentModuleId != null &&
-        sourceModuleId != currentModuleId) {
+    // Reject stale payloads when module switched before microtask execution.
+    if (activeModuleId != null &&
+        responseModuleId != null &&
+        activeModuleId != responseModuleId) {
       if (kDebugMode) {
-        appLogger.debug(
-            'HomeUnifiedController: REJECTED cache from module $sourceModuleId (current=$currentModuleId)');
+        debugPrint(
+            '[HOME_BANNER_IGNORED_STALE] responseModuleId=$responseModuleId currentModuleId=$activeModuleId');
       }
       return false;
     }
@@ -851,6 +865,12 @@ class HomeUnifiedController extends GetxController implements GetxService {
 
       // Only update if we have new banners AND (no existing banners OR new banners are not empty)
       if (hasNewBanners) {
+        if (kDebugMode) {
+          final int newBannerCount =
+              (data.banners?.length ?? 0) + (data.campaigns?.length ?? 0);
+          debugPrint(
+              '[HOME_BANNER_API_SUCCESS] moduleId=$currentModuleId count=$newBannerCount');
+        }
         final bannerModel = data.toBannerModel();
 
         // ⚡ PERFORMANCE: Deep equality check to prevent flickering
@@ -878,7 +898,11 @@ class HomeUnifiedController extends GetxController implements GetxService {
         if (shouldUpdateBanners) {
           // 🔧 PROTECTIVE DISTRIBUTION: Wrap in try-catch to prevent crash from blocking other controllers
           try {
-            bannerController.setFromUnified(bannerModel: bannerModel);
+            bannerController.setFromUnified(
+              bannerModel: bannerModel,
+              moduleId: currentModuleId,
+              source: 'home_unified',
+            );
             shouldUpdateUI = true;
             if (kDebugMode) {
               appLogger.debug(
@@ -905,7 +929,11 @@ class HomeUnifiedController extends GetxController implements GetxService {
               '   🗑️ BannerController: Module changed with empty banners - clearing stale banner state');
         }
         try {
-          bannerController.clearUnifiedBanners(notify: true);
+          bannerController.clearUnifiedBanners(
+            notify: true,
+            moduleId: currentModuleId,
+            reason: 'module_change_empty_payload',
+          );
           shouldUpdateUI = true;
         } catch (e) {
           if (kDebugMode) {
@@ -915,6 +943,8 @@ class HomeUnifiedController extends GetxController implements GetxService {
       } else {
         // 🔍 DEBUG: Log when no banners are found
         if (kDebugMode) {
+          debugPrint(
+              '[HOME_BANNER_EMPTY] moduleId=$currentModuleId reason=distribution_no_banners');
           appLogger.warning(
               '   ⚠️ BannerController: No banners in API response and no existing banners');
           appLogger.debug('      - banners: ${data.banners?.length ?? 0}');

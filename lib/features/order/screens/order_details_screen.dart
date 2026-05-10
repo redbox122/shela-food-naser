@@ -22,6 +22,7 @@ import 'package:sixam_mart/util/styles.dart';
 import 'package:sixam_mart/common/widgets/confirmation_dialog.dart';
 import 'package:sixam_mart/common/widgets/custom_app_bar.dart';
 import 'package:sixam_mart/common/widgets/custom_button.dart';
+import 'package:sixam_mart/common/widgets/custom_image.dart';
 import 'package:sixam_mart/common/widgets/custom_dialog.dart';
 import 'package:sixam_mart/common/widgets/custom_snackbar.dart';
 import 'package:sixam_mart/common/widgets/footer_view.dart';
@@ -29,7 +30,9 @@ import 'package:sixam_mart/features/checkout/widgets/offline_success_dialog.dart
 import 'package:sixam_mart/features/order/widgets/cancellation_dialogue_widget.dart';
 import 'package:sixam_mart/features/order/widgets/order_info_widget.dart';
 import 'package:sixam_mart/features/review/screens/rate_review_screen.dart';
+import 'package:sixam_mart/features/item/domain/models/item_model.dart';
 import 'package:sixam_mart/features/store/domain/models/store_model.dart';
+import 'package:sixam_mart/features/store/controllers/store_controller.dart';
 import 'package:sixam_mart/features/store/screens/store_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -62,6 +65,11 @@ class OrderDetailsScreenState extends State<OrderDetailsScreen> {
   final ScrollController scrollController = ScrollController();
   bool _isInitialLoading = true;
   bool _showRetryAction = false;
+  final Map<int, List<Item>> _productAlternativesByOrderId =
+      <int, List<Item>>{};
+  final Set<int> _productAlternativesLoading = <int>{};
+  final Set<int> _productAlternativesExpanded = <int>{};
+  final Set<int> _productAlternativesLoaded = <int>{};
 
   bool _isFailedOrExpiredStatus(String? status) {
     final normalized = (status ?? '').toLowerCase();
@@ -269,6 +277,12 @@ class OrderDetailsScreenState extends State<OrderDetailsScreen> {
           }
           final List<OrderDetailsModel> orderDetailsList = details;
           final OrderModel order = track;
+          if (kDebugMode) {
+            debugPrint(
+              '[ORDER_DETAILS_BUILD] orderId=${order.id} status=${order.orderStatus} '
+              'storeId=${order.store?.id} hasStore=${order.store != null}',
+            );
+          }
 
           double deliveryCharge = 0;
           double itemsPrice = 0;
@@ -666,7 +680,11 @@ class OrderDetailsScreenState extends State<OrderDetailsScreen> {
                                   startApiCall: () => _startApiCall(),
                                 ),
                           if (_isFailedOrExpiredStatus(order.orderStatus))
-                            _buildFailedOrderRecoverySection(orderController, order),
+                            _buildFailedOrderRecoverySection(
+                              orderController,
+                              order,
+                              orderDetailsList,
+                            ),
                         ],
                       ))),
             )),
@@ -944,11 +962,65 @@ class OrderDetailsScreenState extends State<OrderDetailsScreen> {
   }
 
   Widget _buildFailedOrderRecoverySection(
-      OrderController orderController, OrderModel order) {
+    OrderController orderController,
+    OrderModel order,
+    List<OrderDetailsModel> orderDetailsList,
+  ) {
     final int orderId = order.id ?? 0;
     final bool loading = orderController.isAlternativeStoresLoading(orderId);
     final bool expanded = orderController.isAlternativeStoresExpanded(orderId);
     final stores = orderController.getAlternativeStoresForOrder(orderId);
+    final bool productLoading = _productAlternativesLoading.contains(orderId);
+    final bool productExpanded = _productAlternativesExpanded.contains(orderId);
+    final List<Item> productAlternatives =
+        _productAlternativesByOrderId[orderId] ?? <Item>[];
+
+    final String moduleType = _resolveOrderModuleTypeForRecovery(order);
+    final bool isRestaurantModule = _isRestaurantModuleType(moduleType);
+    final bool isEcommerceLike = _isEcommerceModuleType(
+      moduleType,
+      storeModuleId: order.store?.moduleId,
+      storeName: order.store?.name,
+    );
+
+    if (kDebugMode) {
+      debugPrint(
+        '[CANCELLED_ORDER_RECOVERY_BUILD] orderId=$orderId',
+      );
+      debugPrint(
+        '[CANCELLED_ORDER_MODULE_FIELDS] moduleType=${order.moduleType} '
+        'moduleId=${order.store?.moduleId} storeModuleType=$moduleType '
+        'storeId=${order.store?.id} storeName=${order.store?.name}',
+      );
+      debugPrint(
+        '[CANCELLED_ORDER_IS_RESTAURANT] orderId=$orderId value=$isRestaurantModule',
+      );
+      debugPrint(
+        '[CANCELLED_ORDER_IS_ECOMMERCE] orderId=$orderId value=$isEcommerceLike',
+      );
+      debugPrint(
+        '[ALTERNATIVES_SECTION_TYPE] orderId=$orderId '
+        'type=${isRestaurantModule ? 'restaurant' : (isEcommerceLike ? 'hidden' : 'hidden')} '
+        'count=${stores.length}',
+      );
+      debugPrint(
+        '[RECOVERY_SECTION_TYPE] orderId=$orderId '
+        'type=${isRestaurantModule ? 'restaurant' : (isEcommerceLike ? 'product' : 'hidden')}',
+      );
+      if (!isRestaurantModule && !isEcommerceLike) {
+        final String hiddenReason = isEcommerceLike
+            ? 'ecommerce_or_grocery_no_product_alternatives_api'
+            : 'unknown_module_safe_hide';
+        debugPrint(
+          '[ALTERNATIVES_SECTION_HIDDEN] orderId=$orderId '
+          'reason=$hiddenReason',
+        );
+        debugPrint(
+          '[RECOVERY_SECTION_HIDDEN_REASON] orderId=$orderId reason=$hiddenReason',
+        );
+      }
+    }
+
     return Container(
       width: Dimensions.webMaxWidth,
       margin: const EdgeInsets.all(Dimensions.paddingSizeSmall),
@@ -963,61 +1035,460 @@ class OrderDetailsScreenState extends State<OrderDetailsScreen> {
           Text('تعذر إكمال الطلب', style: robotoBold),
           const SizedBox(height: Dimensions.paddingSizeExtraSmall),
           Text('تم إرجاع المبلغ إلى محفظتك', style: robotoRegular),
-          const SizedBox(height: Dimensions.paddingSizeDefault),
-          OutlinedButton(
-            onPressed: () {
-              orderController.toggleAlternativeStores(orderId);
-            },
-            child: Text('مطاعم بديلة'),
-          ),
-          if (expanded && loading)
-            const Padding(
-              padding: EdgeInsets.only(top: Dimensions.paddingSizeSmall),
-              child: LoadingWidget(),
+          // Alternatives section is restaurant/cafe only. We do NOT have a
+          // product-alternatives API to honour the ecommerce/grocery case, so
+          // we hide the section gracefully instead of inventing fake data or
+          // showing restaurant wording.
+          if (isRestaurantModule) ...[
+            const SizedBox(height: Dimensions.paddingSizeDefault),
+            OutlinedButton(
+              onPressed: () {
+                orderController.toggleAlternativeStores(orderId);
+              },
+              child: const Text('مطاعم بديلة'),
             ),
-          if (expanded && !loading && stores.isEmpty)
-            Padding(
-              padding: const EdgeInsets.only(top: Dimensions.paddingSizeSmall),
-              child: Text('لا توجد مطاعم بديلة متاحة حالياً',
-                  style: robotoRegular),
-            ),
-          if (expanded && !loading && stores.isNotEmpty)
-            ListView.separated(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              itemBuilder: (context, index) {
-                final store = stores[index];
-                final int? storeId = int.tryParse('${store['id'] ?? store['store_id'] ?? ''}');
-                final String name = '${store['name'] ?? store['store_name'] ?? ''}';
-                final String address = '${store['address'] ?? ''}';
-                return ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  title: Text(name.isEmpty ? '#$storeId' : name),
-                  subtitle: address.isEmpty ? null : Text(address),
-                  trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-                  onTap: storeId == null
-                      ? null
-                      : () {
-                          final int? targetModuleId = int.tryParse(
-                            '${store['module_id'] ?? store['moduleId'] ?? ''}',
-                          );
-                          Get.toNamed(
-                            RouteHelper.getStoreRoute(id: storeId, page: 'store'),
-                            arguments: StoreScreen(
-                              store: Store(
-                                id: storeId,
-                                moduleId: targetModuleId,
-                              ),
-                              fromModule: false,
-                            ),
-                          );
-                        },
+            if (expanded && loading)
+              const Padding(
+                padding: EdgeInsets.only(top: Dimensions.paddingSizeSmall),
+                child: LoadingWidget(),
+              ),
+            if (expanded && !loading && stores.isEmpty)
+              Padding(
+                padding:
+                    const EdgeInsets.only(top: Dimensions.paddingSizeSmall),
+                child: Text('لا توجد مطاعم بديلة متاحة حالياً',
+                    style: robotoRegular),
+              ),
+            if (expanded && !loading && stores.isNotEmpty)
+              ListView.separated(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                itemBuilder: (context, index) {
+                  final store = stores[index];
+                  return _buildAlternativeStoreTile(store);
+                },
+                separatorBuilder: (_, __) => const Divider(height: 1),
+                itemCount: stores.length,
+              ),
+          ],
+          if (isEcommerceLike) ...[
+            const SizedBox(height: Dimensions.paddingSizeDefault),
+            OutlinedButton(
+              onPressed: () {
+                _toggleProductAlternatives(
+                  order: order,
+                  orderDetailsList: orderDetailsList,
                 );
               },
-              separatorBuilder: (_, __) => const Divider(height: 1),
-              itemCount: stores.length,
+              child: const Text('منتجات بديلة'),
             ),
+            if (productExpanded && productLoading)
+              const Padding(
+                padding: EdgeInsets.only(top: Dimensions.paddingSizeSmall),
+                child: LoadingWidget(),
+              ),
+            if (productExpanded && !productLoading && productAlternatives.isEmpty)
+              Padding(
+                padding: const EdgeInsets.only(top: Dimensions.paddingSizeSmall),
+                child: Text('لا توجد منتجات بديلة متاحة حالياً',
+                    style: robotoRegular),
+              ),
+            if (productExpanded && !productLoading && productAlternatives.isNotEmpty)
+              Builder(builder: (_) {
+                if (kDebugMode) {
+                  debugPrint(
+                      '[PRODUCT_ALTERNATIVES_RENDER] orderId=$orderId count=${productAlternatives.length}');
+                }
+                return ListView.separated(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  itemBuilder: (context, index) {
+                    final Item item = productAlternatives[index];
+                    return _buildAlternativeProductTile(item);
+                  },
+                  separatorBuilder: (_, __) => const Divider(height: 1),
+                  itemCount: productAlternatives.length,
+                );
+              }),
+          ],
         ],
+      ),
+    );
+  }
+
+  Future<void> _toggleProductAlternatives({
+    required OrderModel order,
+    required List<OrderDetailsModel> orderDetailsList,
+  }) async {
+    final int orderId = order.id ?? 0;
+    if (orderId <= 0) {
+      return;
+    }
+    if (_productAlternativesExpanded.contains(orderId)) {
+      setState(() {
+        _productAlternativesExpanded.remove(orderId);
+      });
+      return;
+    }
+    setState(() {
+      _productAlternativesExpanded.add(orderId);
+    });
+    if (_productAlternativesLoaded.contains(orderId)) {
+      return;
+    }
+    await _fetchProductAlternatives(
+      order: order,
+      orderDetailsList: orderDetailsList,
+    );
+  }
+
+  Future<void> _fetchProductAlternatives({
+    required OrderModel order,
+    required List<OrderDetailsModel> orderDetailsList,
+  }) async {
+    final int orderId = order.id ?? 0;
+    final int? storeId = order.store?.id;
+    final int? moduleId = order.store?.moduleId;
+    final int? categoryId = _resolveOrderCategoryId(orderDetailsList);
+    final Set<int> excludedItemIds = _extractOrderedItemIds(orderDetailsList);
+
+    if (kDebugMode) {
+      debugPrint(
+        '[PRODUCT_ALTERNATIVES_FETCH_START] orderId=$orderId storeId=$storeId '
+        'moduleId=$moduleId categoryId=$categoryId',
+      );
+    }
+
+    if (orderId <= 0 || storeId == null || storeId <= 0) {
+      if (kDebugMode) {
+        debugPrint(
+            '[PRODUCT_ALTERNATIVES_FETCH_EMPTY] orderId=$orderId reason=missing_store_id');
+      }
+      if (mounted) {
+        setState(() {
+          _productAlternativesByOrderId[orderId] = <Item>[];
+          _productAlternativesLoaded.add(orderId);
+        });
+      }
+      return;
+    }
+
+    if (mounted) {
+      setState(() {
+        _productAlternativesLoading.add(orderId);
+      });
+    }
+
+    try {
+      final StoreController storeController = Get.find<StoreController>();
+      ItemModel? itemModel;
+      if (categoryId != null && categoryId > 0) {
+        itemModel = await storeController.fetchCategoryItemsPage(
+          storeId: storeId,
+          categoryId: categoryId,
+          offset: 1,
+          limit: 20,
+        );
+      }
+      itemModel ??= await storeController.fetchCategoryItemsPage(
+        storeId: storeId,
+        categoryId: 0,
+        offset: 1,
+        limit: 20,
+      );
+
+      final List<Item> rawItems = itemModel?.items ?? <Item>[];
+      final List<Item> filtered = <Item>[];
+      for (final Item item in rawItems) {
+        final int? itemId = item.id;
+        if (itemId == null) {
+          continue;
+        }
+        if (excludedItemIds.contains(itemId)) {
+          continue;
+        }
+        if (item.storeId != null && item.storeId != storeId) {
+          continue;
+        }
+        filtered.add(item);
+      }
+      final List<Item> deduped = <Item>[];
+      final Set<int> seen = <int>{};
+      for (final Item item in filtered) {
+        if (item.id == null) {
+          continue;
+        }
+        if (seen.add(item.id!)) {
+          deduped.add(item);
+        }
+      }
+      final List<Item> resolved = deduped.take(6).toList();
+      if (kDebugMode) {
+        if (resolved.isEmpty) {
+          debugPrint('[PRODUCT_ALTERNATIVES_FETCH_EMPTY] orderId=$orderId');
+        } else {
+          debugPrint(
+              '[PRODUCT_ALTERNATIVES_FETCH_SUCCESS] orderId=$orderId count=${resolved.length}');
+        }
+      }
+      if (mounted) {
+        setState(() {
+          _productAlternativesByOrderId[orderId] = resolved;
+          _productAlternativesLoaded.add(orderId);
+        });
+      }
+    } catch (_) {
+      if (kDebugMode) {
+        debugPrint('[PRODUCT_ALTERNATIVES_FETCH_EMPTY] orderId=$orderId');
+      }
+      if (mounted) {
+        setState(() {
+          _productAlternativesByOrderId[orderId] = <Item>[];
+          _productAlternativesLoaded.add(orderId);
+        });
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _productAlternativesLoading.remove(orderId);
+        });
+      }
+    }
+  }
+
+  int? _resolveOrderCategoryId(List<OrderDetailsModel> orderDetailsList) {
+    for (final OrderDetailsModel detail in orderDetailsList) {
+      final int? directCategoryId = detail.itemDetails?.categoryId;
+      if (directCategoryId != null && directCategoryId > 0) {
+        return directCategoryId;
+      }
+      final List<CategoryIds>? categoryIds = detail.itemDetails?.categoryIds;
+      if (categoryIds != null && categoryIds.isNotEmpty) {
+        final int? nestedCategoryId = categoryIds.first.id;
+        if (nestedCategoryId != null && nestedCategoryId > 0) {
+          return nestedCategoryId;
+        }
+      }
+    }
+    return null;
+  }
+
+  Set<int> _extractOrderedItemIds(List<OrderDetailsModel> orderDetailsList) {
+    final Set<int> ids = <int>{};
+    for (final OrderDetailsModel detail in orderDetailsList) {
+      if (detail.itemId != null) {
+        ids.add(detail.itemId!);
+      }
+      if (detail.itemDetails?.id != null) {
+        ids.add(detail.itemDetails!.id!);
+      }
+    }
+    return ids;
+  }
+
+  String _normalizeModuleType(String? moduleType) {
+    if (moduleType == null) {
+      return '';
+    }
+    return moduleType
+        .trim()
+        .toLowerCase()
+        .replaceAll('_', '')
+        .replaceAll('-', '')
+        .replaceAll(' ', '');
+  }
+
+  String _resolveOrderModuleTypeForRecovery(OrderModel order) {
+    final String direct = _normalizeModuleType(order.moduleType);
+    if (direct.isNotEmpty && direct != 'null') {
+      return direct;
+    }
+    final int? storeModuleId = order.store?.moduleId;
+    if (storeModuleId != null) {
+      final SplashController splashController = Get.find<SplashController>();
+      final List<dynamic> modules = splashController.moduleList ?? <dynamic>[];
+      for (final dynamic module in modules) {
+        final int? id = module?.id is int ? module.id as int : null;
+        if (id == storeModuleId) {
+          final String resolved = _normalizeModuleType(module?.moduleType?.toString());
+          if (resolved.isNotEmpty) {
+            return resolved;
+          }
+          break;
+        }
+      }
+      if (storeModuleId == 7) {
+        return 'grocery';
+      }
+    }
+    final String storeName = _normalizeModuleType(order.store?.name);
+    if (storeName.contains('hypershella') || storeName.contains('هايبرشلة')) {
+      return 'ecommerce';
+    }
+    return '';
+  }
+
+  bool _isRestaurantModuleType(String moduleType) {
+    return moduleType == 'food' ||
+        moduleType == 'restaurant' ||
+        moduleType == 'cafe';
+  }
+
+  bool _isEcommerceModuleType(
+    String moduleType, {
+    int? storeModuleId,
+    String? storeName,
+  }) {
+    final String normalizedName = _normalizeModuleType(storeName);
+    final bool matchedByName = normalizedName.contains('هايبرشله') ||
+        normalizedName.contains('شله') ||
+        normalizedName.contains('hypershella') ||
+        normalizedName.contains('shellamarket') ||
+        normalizedName.contains('market');
+    return moduleType == 'ecommerce' ||
+        moduleType == 'grocery' ||
+        moduleType == 'pharmacy' ||
+        moduleType == 'shop' ||
+        moduleType == 'store' ||
+        storeModuleId == 3 ||
+        matchedByName;
+  }
+
+  String? _firstNonEmptyString(List<dynamic> values) {
+    for (final dynamic value in values) {
+      if (value == null) continue;
+      final String text = value.toString().trim();
+      if (text.isEmpty || text.toLowerCase() == 'null') continue;
+      return text;
+    }
+    return null;
+  }
+
+  Widget _buildAlternativeStoreTile(Map<String, dynamic> store) {
+    final int? storeId =
+        int.tryParse('${store['id'] ?? store['store_id'] ?? ''}');
+    final String name =
+        '${store['name'] ?? store['store_name'] ?? ''}'.trim();
+    final String address = '${store['address'] ?? ''}'.trim();
+    final String? logoUrl = _firstNonEmptyString(<dynamic>[
+      store['logo_full_url'],
+      store['logoFullUrl'],
+      store['cover_photo_full_url'],
+      store['coverPhotoFullUrl'],
+      store['image_full_url'],
+      store['image'],
+      store['logo'],
+      store['cover_photo'],
+    ]);
+
+    final ThemeData theme = Theme.of(context);
+    final Widget thumbnail = ClipRRect(
+      borderRadius: BorderRadius.circular(Dimensions.radiusSmall),
+      child: SizedBox(
+        width: 44,
+        height: 44,
+        child: logoUrl == null
+            ? _buildAlternativePlaceholder(theme)
+            : CustomImage(
+                image: logoUrl,
+                width: 44,
+                height: 44,
+                errorWidget: _buildAlternativePlaceholder(theme),
+              ),
+      ),
+    );
+
+    return ListTile(
+      contentPadding: EdgeInsets.zero,
+      leading: thumbnail,
+      title: Text(name.isEmpty ? '#${storeId ?? ''}' : name,
+          maxLines: 1, overflow: TextOverflow.ellipsis),
+      subtitle: address.isEmpty
+          ? null
+          : Text(address, maxLines: 1, overflow: TextOverflow.ellipsis),
+      trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+      onTap: storeId == null
+          ? null
+          : () {
+              final int? targetModuleId = int.tryParse(
+                '${store['module_id'] ?? store['moduleId'] ?? ''}',
+              );
+              Get.toNamed(
+                RouteHelper.getStoreRoute(id: storeId, page: 'store'),
+                arguments: StoreScreen(
+                  store: Store(
+                    id: storeId,
+                    moduleId: targetModuleId,
+                  ),
+                  fromModule: false,
+                ),
+              );
+            },
+    );
+  }
+
+  Widget _buildAlternativeProductTile(Item item) {
+    final String? imageUrl = _firstNonEmptyString(<dynamic>[
+      item.imageFullUrl,
+      item.imagesFullUrl != null && item.imagesFullUrl!.isNotEmpty
+          ? item.imagesFullUrl!.first
+          : null,
+    ]);
+    final ThemeData theme = Theme.of(context);
+    final Widget thumbnail = ClipRRect(
+      borderRadius: BorderRadius.circular(Dimensions.radiusSmall),
+      child: SizedBox(
+        width: 44,
+        height: 44,
+        child: imageUrl == null
+            ? _buildAlternativePlaceholder(theme)
+            : CustomImage(
+                image: imageUrl,
+                width: 44,
+                height: 44,
+                errorWidget: _buildAlternativePlaceholder(theme),
+              ),
+      ),
+    );
+
+    return ListTile(
+      contentPadding: EdgeInsets.zero,
+      leading: thumbnail,
+      title: Text(
+        item.name ?? '#${item.id ?? ''}',
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+      ),
+      subtitle: item.price == null
+          ? null
+          : Text(
+              PriceConverter.convertPrice(item.price),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+      trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+      onTap: item.id == null
+          ? null
+          : () {
+              if (kDebugMode) {
+                debugPrint('[PRODUCT_ALTERNATIVES_TAP] itemId=${item.id}');
+              }
+              Get.toNamed(
+                RouteHelper.getItemDetailsRoute(item.id, false),
+              );
+            },
+    );
+  }
+
+  Widget _buildAlternativePlaceholder(ThemeData theme) {
+    return Container(
+      color: theme.colorScheme.surfaceContainerHighest
+          .withValues(alpha: 0.6),
+      alignment: Alignment.center,
+      child: Icon(
+        Icons.storefront_outlined,
+        size: 22,
+        color: theme.disabledColor,
       ),
     );
   }

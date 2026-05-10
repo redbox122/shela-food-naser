@@ -285,7 +285,25 @@ class _GroceryStoreDetailScreenState extends State<GroceryStoreDetailScreen> {
         builder: (storeController) {
           return GetBuilder<CategoryController>(
             builder: (categoryController) {
-              final store = storeController.store;
+              final controllerStore = storeController.store;
+              final int? requestedStoreId = widget.store?.id;
+
+              // 🔒 STALE-CACHE GUARD: Only use the controller's store if its id
+              // matches the requested route id (prevents flashing previous store).
+              final bool controllerMatchesRoute = controllerStore != null &&
+                  requestedStoreId != null &&
+                  controllerStore.id == requestedStoreId;
+              final store = controllerMatchesRoute ? controllerStore : null;
+
+              if (kDebugMode &&
+                  controllerStore != null &&
+                  requestedStoreId != null &&
+                  controllerStore.id != requestedStoreId) {
+                debugPrint(
+                  '[STORE_DETAILS_STALE_IGNORED] grocery requestedId=$requestedStoreId '
+                  'cachedId=${controllerStore.id}',
+                );
+              }
 
               if (store == null || store.name == null) {
                 return const StoreDetailsScreenShimmerWidget(); // ⚡ TASK 2: Instant skeleton morphing

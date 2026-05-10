@@ -216,23 +216,41 @@ class _StoreScreenState extends State<StoreScreen> {
         body: GetBuilder<StoreController>(builder: (storeController) {
           // ⚡ INSTANT UI: Use widget.store for immediate render, fallback to storeController.store
           // This achieves 0ms perceived load time by showing header immediately
-          // ✅ FIX: Prefer storeController.store if available (has full data including cover photo)
-          // If widget.store doesn't have cover photo but storeController.store does, use storeController.store
+          // 🔒 STALE-CACHE GUARD: Only use the controller's store if its id matches
+          // the requested route id. Otherwise the previously visited store
+          // (e.g. "Hyper Shella") would flash before the new store loads.
+          final Store? controllerStore = storeController.store;
+          final int? requestedStoreId = widget.store?.id;
+          final bool controllerMatchesRoute = controllerStore != null &&
+              requestedStoreId != null &&
+              controllerStore.id == requestedStoreId;
+
+          if (kDebugMode &&
+              controllerStore != null &&
+              requestedStoreId != null &&
+              controllerStore.id != requestedStoreId) {
+            debugPrint(
+              '[STORE_DETAILS_STALE_IGNORED] generic requestedId=$requestedStoreId '
+              'cachedId=${controllerStore.id}',
+            );
+          }
+
           Store? displayStore;
-          if (storeController.store != null) {
-            displayStore = storeController.store;
+          if (controllerMatchesRoute) {
+            displayStore = controllerStore;
           } else if (widget.store != null) {
             displayStore = widget.store;
           }
 
           // ✅ FIX: If widget.store is missing cover photo but storeController.store has it, prefer storeController.store
-          if (displayStore == widget.store &&
-              storeController.store != null &&
+          // (only when the controller store id matches the requested route id)
+          if (controllerMatchesRoute &&
+              displayStore == widget.store &&
               (displayStore?.coverPhotoFullUrl == null ||
                   displayStore!.coverPhotoFullUrl!.isEmpty) &&
-              storeController.store!.coverPhotoFullUrl != null &&
-              storeController.store!.coverPhotoFullUrl!.isNotEmpty) {
-            displayStore = storeController.store;
+              controllerStore.coverPhotoFullUrl != null &&
+              controllerStore.coverPhotoFullUrl!.isNotEmpty) {
+            displayStore = controllerStore;
           }
 
           // Ensure displayStore is not null for the rest of the build

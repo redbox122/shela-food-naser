@@ -1,5 +1,6 @@
 
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
 import 'dart:async';
 import 'package:sixam_mart/features/home/controllers/home_controller.dart';
@@ -520,12 +521,45 @@ class _ShopHomeScreenState extends State<ShopHomeScreen> {
                   final hasRegularBanners = bannerController.bannerImageList != null &&
                       bannerController.bannerImageList!.isNotEmpty;
                   final hasData = hasFeaturedBanners || hasRegularBanners;
+                  final currentModuleId = module?.id;
+                  final source = hasFeaturedBanners ? 'featured' : 'regular';
+                  bannerController.ensureHomeBannersForCurrentModule(
+                    currentModuleId: currentModuleId,
+                    source: source,
+                  );
+                  final bannerModuleId = bannerController.currentBannerModuleId;
+                  final resolvedBannerModuleId =
+                      (hasData && currentModuleId != null && bannerModuleId == null)
+                          ? currentModuleId
+                          : bannerModuleId;
+                  final hasCurrentModuleBanners = currentModuleId == null
+                      ? hasData
+                      : (hasData && resolvedBannerModuleId == currentModuleId);
+                  final bannerCount = hasFeaturedBanners
+                      ? bannerController.featuredBannerList!.length
+                      : (hasRegularBanners
+                          ? bannerController.bannerImageList!.length
+                          : 0);
+                  if (kDebugMode) {
+                    debugPrint(
+                        '[HOME_BANNER_RENDER] currentModuleId=$currentModuleId bannerModuleId=$resolvedBannerModuleId count=$bannerCount source=$source');
+                    if (currentModuleId != null &&
+                        resolvedBannerModuleId != null &&
+                        resolvedBannerModuleId != currentModuleId) {
+                      debugPrint(
+                          '[HOME_BANNER_IGNORED_STALE] currentModuleId=$currentModuleId bannerModuleId=$resolvedBannerModuleId');
+                    }
+                    if (!hasCurrentModuleBanners) {
+                      debugPrint(
+                          '[HOME_BANNER_EMPTY] moduleId=$currentModuleId reason=module_banner_mismatch_or_empty');
+                    }
+                  }
                   
                   // ⚡ PERFORMANCE: Removed verbose banner logging from build() - causes jank at 60fps
                   // Log banner details only when banners first appear, not on every rebuild
                   
                         // Show if enabled in business_settings AND has data
-                        return (isEnabled && hasData)
+                        return (isEnabled && hasCurrentModuleBanners)
                             ? const BannerView(isFeatured: false)
                             : const SizedBox.shrink();
                       },

@@ -78,36 +78,37 @@ class OrderInfoWidget extends StatelessWidget {
               : const SizedBox(),
 
           !isDesktop
-              ? SizedBox(
-                  height: DateConverter.isBeforeTime(order.scheduleAt) &&
-                          (Get.find<SplashController>()
-                                  .getModuleConfig(order.moduleType)
-                                  .newVariation ??
-                              false)
-                      ? (order.orderStatus != 'delivered' &&
-                              order.orderStatus != 'failed' &&
-                              order.orderStatus != 'canceled' &&
-                              order.orderStatus != 'refund_requested' &&
-                              order.orderStatus != 'refunded' &&
-                              order.orderStatus != 'refund_request_canceled')
-                          ? 280
-                          : 140
-                      : parcel ||
-                              prescriptionOrder ||
-                              (orderController.orderDetails!.isNotEmpty &&
-                                  orderController.orderDetails![0].itemDetails!
-                                          .moduleType ==
-                                      'grocery') ||
-                              (orderController.orderDetails!.isNotEmpty &&
-                                  orderController.orderDetails![0].itemDetails!
-                                          .moduleType ==
-                                      'ecommerce') ||
-                              (orderController.orderDetails!.isNotEmpty &&
-                                  orderController.orderDetails![0].itemDetails!
-                                          .moduleType ==
-                                      'pharmacy')
-                          ? 140
-                          : 0)
+              ? Builder(builder: (context) {
+                  // 🔧 FIX: Resolve module type from EITHER the details list OR
+                  // the order track model so the banner spacer is correct on
+                  // re-entry. On second open, `orderDetails` may briefly be
+                  // empty after `trackOrder` resets it, which previously made
+                  // this height collapse to 0 and hid the banner.
+                  final String? resolvedModuleType =
+                      OrderBannerViewWidget.resolveOrderModuleType(
+                          order, orderController);
+                  final bool hasModuleBanner = resolvedModuleType == 'grocery' ||
+                      resolvedModuleType == 'ecommerce' ||
+                      resolvedModuleType == 'pharmacy';
+                  return SizedBox(
+                    height: DateConverter.isBeforeTime(order.scheduleAt) &&
+                            (Get.find<SplashController>()
+                                    .getModuleConfig(order.moduleType)
+                                    .newVariation ??
+                                false)
+                        ? (order.orderStatus != 'delivered' &&
+                                order.orderStatus != 'failed' &&
+                                order.orderStatus != 'canceled' &&
+                                order.orderStatus != 'refund_requested' &&
+                                order.orderStatus != 'refunded' &&
+                                order.orderStatus != 'refund_request_canceled')
+                            ? 280
+                            : 140
+                        : parcel || prescriptionOrder || hasModuleBanner
+                            ? 140
+                            : 0,
+                  );
+                })
               : const SizedBox(),
 
           Container(
