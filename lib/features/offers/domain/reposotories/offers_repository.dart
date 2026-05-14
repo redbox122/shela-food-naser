@@ -22,17 +22,17 @@ class OffersRepository implements OffersRepositoryInterface {
 
   // -----------------------------
 
-  String fixImageUrl(String? url,
-      {String baseDomain =
-          'https://dev.shelafood.com/storage/offers-banners/'}) {
+  String fixImageUrl(String? url, {String? baseDomain}) {
     if (url == null || url.trim().isEmpty) return '';
     final trimmedUrl = url.trim();
     if (trimmedUrl.startsWith('http://') || trimmedUrl.startsWith('https://')) {
       return trimmedUrl;
     }
-    final cleanedBase = baseDomain.endsWith('/')
-        ? baseDomain.substring(0, baseDomain.length - 1)
-        : baseDomain;
+    final String resolvedBase = baseDomain ??
+        '${AppConstants.baseUrl}/storage/offers-banners/';
+    final cleanedBase = resolvedBase.endsWith('/')
+        ? resolvedBase.substring(0, resolvedBase.length - 1)
+        : resolvedBase;
     final cleanedUrl =
         trimmedUrl.startsWith('/') ? trimmedUrl.substring(1) : trimmedUrl;
     return '$cleanedBase/$cleanedUrl';

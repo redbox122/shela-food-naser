@@ -11,7 +11,7 @@ import 'package:http/http.dart' as http;
 
 /// Configuration for different environments
 class TraceConfig {
-  static const String baseUrl = 'https://dev.shelafood.com';
+  static const String baseUrl = 'https://shellafood.com';
 
   // Module IDs from the app
   static const int foodModuleId = 1;

@@ -401,7 +401,7 @@ class PlaceOrderBodyModel {
     // The working PHP test doesn't send this field at all
     // data['contact_person_email'] = _guestEmail?.isNotEmpty == true
     //     ? _guestEmail!
-    //     : 'user@dev.shelafood.com';
+    //     : 'user@example.com';
     data['extra_packaging_amount'] = _extraPackagingAmount;
     data['create_new_user'] = _createNewUser;
     if (_password != null) {

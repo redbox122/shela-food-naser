@@ -6,7 +6,7 @@ import 'dart:io';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 
-const baseUrl = 'https://dev.shelafood.com';
+const baseUrl = 'https://shellafood.com';
 const defaultZoneIds = [2, 4, 3, 5];
 const defaultLat = '24.604301879077966';
 const defaultLng = '46.59593515098095';

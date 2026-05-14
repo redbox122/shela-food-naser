@@ -4,7 +4,7 @@
 // PRODUCTION CONFIGURATION
 // ===========================================
 // This app is configured for production deployment
-// Base URL: https://dev.shelafood.com
+// Base URL: resolved from [EnvironmentConfig] (production: https://shellafood.com)
 // Environment: Production
 // ===========================================
 
