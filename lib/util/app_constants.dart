@@ -455,6 +455,8 @@ class AppConstants {
   static const String walletAccessToken = '6ammart_wallet_access_token';
   static const String guestId = 'guest_id';
   static const String guestNumber = 'guest_number';
+  /// Play Install Referrer store-QR token (customer sign-up only; not ref_code).
+  static const String qrReferralInstallToken = '6ammart_qr_referral_install_token';
   static const String referBottomSheet = '6ammart_reffer_bottomsheet_show';
   static const String dmRegisterSuccess = '6ammart_dm_registration_success';
   static const String isRestaurantRegister = '6ammart_store_registration';

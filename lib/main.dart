@@ -34,6 +34,8 @@ import 'package:sixam_mart/core/cache/hive_migration_service.dart';
 import 'package:sixam_mart/core/debug/leak_tracking_wrapper.dart';
 import 'package:flutter/foundation.dart';
 import 'helper/get_di.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:sixam_mart/features/auth/helper/qr_referral_install_referrer_service.dart';
 
 final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
     FlutterLocalNotificationsPlugin();
@@ -183,6 +185,12 @@ Future<Map<String, Map<String, String>>> _initEssentialOnly() async {
 
   // Only initialize the bare minimum needed for DI and routing
   final languages = await init();
+
+  unawaited(
+    QrReferralInstallReferrerService.captureFromInstallReferrer(
+      Get.find<SharedPreferences>(),
+    ),
+  );
 
   final duration = DateTime.now().difference(startTime).inMilliseconds;
   appLogger.info('âš¡ Essential services initialized in ${duration}ms');

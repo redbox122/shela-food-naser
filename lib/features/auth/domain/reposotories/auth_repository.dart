@@ -18,6 +18,7 @@ import 'package:sixam_mart/helper/module_helper.dart';
 import 'package:sixam_mart/util/app_constants.dart';
 import 'package:sixam_mart/common/security/secure_token_storage.dart';
 import 'package:sixam_mart/common/utils/secure_log.dart';
+import 'package:sixam_mart/features/auth/helper/qr_referral_token_storage.dart';
 
 class AuthRepository implements AuthRepositoryInterface {
   final ApiClient apiClient;
@@ -149,11 +150,27 @@ class AuthRepository implements AuthRepositoryInterface {
     return false;
   }
 
+  QrReferralTokenStorage get _qrReferralTokenStorage =>
+      QrReferralTokenStorage(sharedPreferences);
+
+  @override
+  Future<void> clearQrReferralInstallToken() async {
+    await _qrReferralTokenStorage.clearToken();
+  }
+
   @override
   Future<Response> registration(SignUpBodyModel signUpBody) async {
+    final Map<String, dynamic> payload = signUpBody.toJson();
+    final String? qrReferralToken = _qrReferralTokenStorage.getStoredToken();
+    if (qrReferralToken != null && qrReferralToken.isNotEmpty) {
+      payload['referral_token'] = qrReferralToken;
+      debugPrint(
+        '[QR_REFERRAL_SIGNUP_PAYLOAD_ATTACHED] token=$qrReferralToken',
+      );
+    }
     return await apiClient.postData(
       AppConstants.registerUri,
-      signUpBody.toJson(),
+      payload,
       handleError: false,
     );
   }

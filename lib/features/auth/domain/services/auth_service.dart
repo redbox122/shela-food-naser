@@ -35,6 +35,7 @@ class AuthService implements AuthServiceInterface {
     final Response response =
         await authRepositoryInterface.registration(signUpBody);
     if (response.statusCode == 200) {
+      await authRepositoryInterface.clearQrReferralInstallToken();
       final AuthResponseModel authResponse =
           AuthResponseModel.fromJson(response.body as Map<String, dynamic>);
       await _updateHeaderFunctionality(authResponse);

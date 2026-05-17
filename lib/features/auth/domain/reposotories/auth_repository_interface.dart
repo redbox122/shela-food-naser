@@ -9,6 +9,7 @@ import 'package:sixam_mart/interfaces/repository_interface.dart';
 abstract class AuthRepositoryInterface extends RepositoryInterface {
   bool isSharedPrefNotificationActive();
   Future<Response> registration(SignUpBodyModel signUpBody);
+  Future<void> clearQrReferralInstallToken();
   //Future<Response> login({String? phone, String? password});
   Future<Response> login(
       {required String emailOrPhone, required String password, required String loginType, required String fieldType});
