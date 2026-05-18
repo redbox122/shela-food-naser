@@ -423,6 +423,7 @@ class _PersonalInformationState extends State<PersonalInformation> {
               focusNode: KaidhaSub_Controller.identityCardFocus,
               containerKey: KaidhaSubscriptionController.identityCardKey,
               isEmpty: KaidhaSub_Controller.isIdentityCardEmpty,
+              isInvalid: KaidhaSub_Controller.isIdentityCardInvalid,
               errorKey: 'identity_card_number',
               errorText:
                   KaidhaSub_Controller.fieldErrors['identity_card_number'],
@@ -864,12 +865,14 @@ class _PersonalInformationState extends State<PersonalInformation> {
     String? errorKey,
     String? errorText,
     int maxLength = 10,
+    bool isInvalid = false,
     required String text,
     required BuildContext context,
     required FocusNode focusNode,
     required GlobalKey containerKey,
     required bool isEmpty,
   }) {
+    final bool hasFieldError = isEmpty || isInvalid;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -898,6 +901,11 @@ class _PersonalInformationState extends State<PersonalInformation> {
                 }
                 if (errorKey != null && errorKey.isNotEmpty) {
                   KaidhaSub_Controller.clearFieldError(errorKey);
+                  KaidhaSub_Controller.clearFieldError('national_id');
+                }
+                if (KaidhaSub_Controller.isIdentityCardInvalid) {
+                  KaidhaSub_Controller.isIdentityCardInvalid = false;
+                  KaidhaSub_Controller.update();
                 }
                 KaidhaSub_Controller.debouncedSaveState();
               },
@@ -910,15 +918,15 @@ class _PersonalInformationState extends State<PersonalInformation> {
                 enabledBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(10),
                   borderSide: BorderSide(
-                    color: isEmpty ? Colors.red : AppColors.gryColor_3,
-                    width: isEmpty ? 1.5 : 1.0,
+                    color: hasFieldError ? Colors.red : AppColors.gryColor_3,
+                    width: hasFieldError ? 1.5 : 1.0,
                   ),
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(10),
                   borderSide: BorderSide(
-                    color: isEmpty ? Colors.red : AppColors.greenColor,
-                    width: isEmpty ? 1.5 : 1.0,
+                    color: hasFieldError ? Colors.red : AppColors.greenColor,
+                    width: hasFieldError ? 1.5 : 1.0,
                   ),
                 ),
                 border: OutlineInputBorder(
@@ -942,6 +950,15 @@ class _PersonalInformationState extends State<PersonalInformation> {
           const SizedBox(height: 6),
           Text(
             errorText,
+            style: robotoRegular.copyWith(
+              color: Colors.red,
+              fontSize: Dimensions.fontSizeSmall,
+            ),
+          ),
+        ] else if (isInvalid) ...[
+          const SizedBox(height: 6),
+          Text(
+            'qidha_identity_card_must_be_10_digits'.tr,
             style: robotoRegular.copyWith(
               color: Colors.red,
               fontSize: Dimensions.fontSizeSmall,

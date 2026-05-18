@@ -28,6 +28,7 @@ import 'package:sixam_mart/api/api_client.dart';
 import 'package:sixam_mart/util/app_constants.dart';
 import 'package:sixam_mart/core/cache/hive_home_cache_service.dart';
 import 'package:sixam_mart/common/exceptions/validation_exception.dart';
+import 'package:sixam_mart/features/wallet_kaidha_subscription/domain/utils/qidha_validation.dart';
 import 'dart:io';
 
 class KaidhaSubscriptionController extends GetxController
@@ -131,6 +132,8 @@ class KaidhaSubscriptionController extends GetxController
   bool isPhoneEmpty = false;
   bool isNumberOfFamilyEmpty = false;
   bool isIdentityCardEmpty = false;
+  bool isIdentityCardInvalid = false;
+  bool isJobSpecificationEmpty = false;
   bool isNeighborhoodEmpty = false;
   bool isEmployerEmpty = false;
   bool isTotalSalaryEmpty = false;
@@ -230,6 +233,7 @@ class KaidhaSubscriptionController extends GetxController
 
   void updatejobSpecification(String newjobSpecification) {
     jobSpecification = newjobSpecification;
+    isJobSpecificationEmpty = false;
     _scheduleUpdate();
   }
 
@@ -1843,8 +1847,128 @@ class KaidhaSubscriptionController extends GetxController
 
   // -------------------------------
 
-  void validate_Fields_Screen_1(BuildContext context) {
+  void _logQidhaValidationBlocked(String step, String field) {
+    debugPrint('[QIDHA_VALIDATION_BLOCKED] step=$step field=$field');
+  }
+
+  void _logQidhaValidationMessage(String message) {
+    debugPrint('[QIDHA_VALIDATION_MESSAGE] message=$message');
+  }
+
+  void _showQidhaValidationMessage(String message) {
+    final String trimmed = message.trim();
+    final String displayMessage = trimmed.isNotEmpty
+        ? trimmed
+        : 'this_field_is_required'.tr;
+    _logQidhaValidationMessage(displayMessage);
+    showCustomSnackBar(displayMessage);
+  }
+
+  bool _blockQidhaStepValidation({
+    required BuildContext context,
+    required String step,
+    required String field,
+    required String message,
+    VoidCallback? afterBlock,
+  }) {
+    _logQidhaValidationBlocked(step, field);
+    _showQidhaValidationMessage(message);
+    afterBlock?.call();
+    update();
+    return false;
+  }
+
+  String _requiredFieldMessage(String fieldLabelKey) {
+    return '${fieldLabelKey.tr}: ${'this_field_is_required'.tr}';
+  }
+
+  String? _identityTenDigitErrorMessage(String rawValue) {
+    final String digits = QidhaValidation.digitsOnly(rawValue);
+    if (digits.isEmpty) {
+      return null;
+    }
+    if (QidhaValidation.isTenDigitNumericString(digits)) {
+      return null;
+    }
+    return 'qidha_identity_card_must_be_10_digits'.tr;
+  }
+
+  bool _applyIdentityTenDigitFieldErrors(String rawValue) {
+    final String? message = _identityTenDigitErrorMessage(rawValue);
+    if (message == null) {
+      isIdentityCardInvalid = false;
+      fieldErrors.remove('national_id');
+      fieldErrors.remove('identity_card_number');
+      return true;
+    }
+    isIdentityCardInvalid = true;
+    fieldErrors['national_id'] = 'qidha_national_id_must_be_10_digits'.tr;
+    fieldErrors['identity_card_number'] = message;
+    return false;
+  }
+
+  bool _prevalidateWalletIdentityFields(BuildContext context) {
+    final String rawId = identity_card_number.text.trim();
+    if (rawId.isEmpty) {
+      isIdentityCardEmpty = true;
+      isIdentityCardInvalid = false;
+      debugPrint(
+          '[QIDHA_WALLET_PREVALIDATION_FAILED] step=2 field=identity_card_number reason=empty');
+      _blockQidhaStepValidation(
+        context: context,
+        step: '2',
+        field: 'identity_card_number',
+        message: _requiredFieldMessage('identity_card_number'),
+        afterBlock: () {
+          FocusScope.of(context).requestFocus(identityCardFocus);
+        },
+      );
+      return false;
+    }
+    if (!_applyIdentityTenDigitFieldErrors(rawId)) {
+      debugPrint(
+          '[QIDHA_WALLET_PREVALIDATION_FAILED] step=2 field=national_id,identity_card_number length=${rawId.length}');
+      _blockQidhaStepValidation(
+        context: context,
+        step: '2',
+        field: 'national_id,identity_card_number',
+        message: fieldErrors['identity_card_number'] ??
+            'qidha_identity_card_must_be_10_digits'.tr,
+        afterBlock: () {
+          FocusScope.of(context).requestFocus(identityCardFocus);
+          if (identityCardKey.currentContext != null) {
+            Scrollable.ensureVisible(
+              identityCardKey.currentContext!,
+              duration: const Duration(milliseconds: 500),
+              curve: Curves.easeInOut,
+            );
+          }
+        },
+      );
+      return false;
+    }
+    return true;
+  }
+
+  void _surfaceWalletValidationErrors(Map<String, String> errors) {
+    if (errors.containsKey('national_id') ||
+        errors.containsKey('identity_card_number')) {
+      isIdentityCardInvalid = true;
+      isIdentityCardEmpty = identity_card_number.text.trim().isEmpty;
+    }
+    final Iterable<String> messages =
+        errors.values.where((String value) => value.trim().isNotEmpty);
+    final String combined = messages.join('\n');
+    _showQidhaValidationMessage(
+      combined.isNotEmpty ? combined : 'wallet_creation_error'.tr,
+    );
+    update();
+  }
+
+  bool validate_Fields_Screen_1(BuildContext context) {
     debugPrint('[QidhaSub][VALIDATE] reason=next_button_pressed');
+    isIdentityCardInvalid = false;
+    clearFieldErrors();
     isFirstNameEmpty = firstname.text.isEmpty;
     isFatherNameEmpty = fathername.text.isEmpty;
     isGrandFatherNameEmpty = grandfathername.text.isEmpty;
@@ -1865,111 +1989,199 @@ class KaidhaSubscriptionController extends GetxController
     update();
 
     if (isFirstNameEmpty) {
-      FocusScope.of(context).requestFocus(firstNameFocus);
-      return;
+      return _blockQidhaStepValidation(
+        context: context,
+        step: '1',
+        field: 'first_name',
+        message: _requiredFieldMessage('first_name'),
+        afterBlock: () => FocusScope.of(context).requestFocus(firstNameFocus),
+      );
     }
     if (isFatherNameEmpty) {
-      FocusScope.of(context).requestFocus(fatherNameFocus);
-      return;
+      return _blockQidhaStepValidation(
+        context: context,
+        step: '1',
+        field: 'father_name',
+        message: _requiredFieldMessage('father_name'),
+        afterBlock: () => FocusScope.of(context).requestFocus(fatherNameFocus),
+      );
     }
     if (isGrandFatherNameEmpty) {
-      FocusScope.of(context).requestFocus(grandFatherNameFocus);
-      return;
+      return _blockQidhaStepValidation(
+        context: context,
+        step: '1',
+        field: 'grandfather_name',
+        message: _requiredFieldMessage('grandfather_name'),
+        afterBlock: () =>
+            FocusScope.of(context).requestFocus(grandFatherNameFocus),
+      );
     }
     if (isLastNameEmpty) {
-      FocusScope.of(context).requestFocus(lastNameFocus);
-      return;
+      return _blockQidhaStepValidation(
+        context: context,
+        step: '1',
+        field: 'last_name',
+        message: _requiredFieldMessage('last_name'),
+        afterBlock: () => FocusScope.of(context).requestFocus(lastNameFocus),
+      );
     }
     if (birthDate.isEmpty) {
-      {
-        isBirthDateEmpty = true;
-        update();
-
-        Scrollable.ensureVisible(
-          birthDateKey.currentContext!,
-          duration: const Duration(milliseconds: 500),
-          curve: Curves.easeInOut,
-        );
-        return;
-      }
-    }
-
-    if (nationality.isEmpty) {
-      isNationalityEmpty = true;
-      update();
-    }
-    if (nationality.isEmpty) {
-      isNationalityEmpty = true;
-      update();
-
-      // التمرير إلى العنصر
-      Scrollable.ensureVisible(
-        nationalityKey.currentContext!,
-        duration: const Duration(milliseconds: 500),
-        curve: Curves.easeInOut,
+      isBirthDateEmpty = true;
+      return _blockQidhaStepValidation(
+        context: context,
+        step: '1',
+        field: 'birth_date',
+        message: _requiredFieldMessage('birth_date'),
+        afterBlock: () {
+          if (birthDateKey.currentContext != null) {
+            Scrollable.ensureVisible(
+              birthDateKey.currentContext!,
+              duration: const Duration(milliseconds: 500),
+              curve: Curves.easeInOut,
+            );
+          }
+        },
       );
-
-      return;
     }
-
+    if (nationality.isEmpty) {
+      isNationalityEmpty = true;
+      return _blockQidhaStepValidation(
+        context: context,
+        step: '1',
+        field: 'nationality',
+        message: _requiredFieldMessage('nationality'),
+        afterBlock: () {
+          if (nationalityKey.currentContext != null) {
+            Scrollable.ensureVisible(
+              nationalityKey.currentContext!,
+              duration: const Duration(milliseconds: 500),
+              curve: Curves.easeInOut,
+            );
+          }
+        },
+      );
+    }
     if (isMaritalStatusEmpty) {
-      showCustomSnackBar('يرجى تحديد الحالة الاجتماعية');
-      return;
+      return _blockQidhaStepValidation(
+        context: context,
+        step: '1',
+        field: 'marital_status',
+        message: 'qidha_marital_status_required'.tr,
+      );
     }
     if (number_of_family_members.text.isEmpty ||
         number_of_family_members.text.trim() == '0') {
       isNumberOfFamilyEmpty = true;
-      update();
-
-      Scrollable.ensureVisible(
-        numberKey.currentContext!,
-        duration: const Duration(milliseconds: 500),
-        curve: Curves.easeInOut,
+      return _blockQidhaStepValidation(
+        context: context,
+        step: '1',
+        field: 'number_of_family_members',
+        message: 'qidha_family_members_required'.tr,
+        afterBlock: () {
+          if (numberKey.currentContext != null) {
+            Scrollable.ensureVisible(
+              numberKey.currentContext!,
+              duration: const Duration(milliseconds: 500),
+              curve: Curves.easeInOut,
+            );
+          }
+          numberOfFamilyFocus.requestFocus();
+        },
       );
-      numberOfFamilyFocus.requestFocus();
-      return;
     }
-
     if (isIdentityCardEmpty) {
-      FocusScope.of(context).requestFocus(identityCardFocus);
-      return;
+      return _blockQidhaStepValidation(
+        context: context,
+        step: '1',
+        field: 'identity_card_number',
+        message: _requiredFieldMessage('identity_card_number'),
+        afterBlock: () =>
+            FocusScope.of(context).requestFocus(identityCardFocus),
+      );
+    }
+    if (!_applyIdentityTenDigitFieldErrors(identity_card_number.text)) {
+      return _blockQidhaStepValidation(
+        context: context,
+        step: '1',
+        field: 'identity_card_number',
+        message: fieldErrors['identity_card_number'] ??
+            'qidha_identity_card_must_be_10_digits'.tr,
+        afterBlock: () {
+          FocusScope.of(context).requestFocus(identityCardFocus);
+          if (identityCardKey.currentContext != null) {
+            Scrollable.ensureVisible(
+              identityCardKey.currentContext!,
+              duration: const Duration(milliseconds: 500),
+              curve: Curves.easeInOut,
+            );
+          }
+        },
+      );
     }
     if (isPhoneEmpty) {
-      FocusScope.of(context).requestFocus(phoneFocus);
-      return;
+      return _blockQidhaStepValidation(
+        context: context,
+        step: '1',
+        field: 'mobile',
+        message: 'enter_phone_number'.tr,
+        afterBlock: () => FocusScope.of(context).requestFocus(phoneFocus),
+      );
     }
     if (end_date.isEmpty) {
       isEndDateEmpty = true;
-      update();
-
-      Scrollable.ensureVisible(
-        endDateKey.currentContext!,
-        duration: const Duration(milliseconds: 500),
-        curve: Curves.easeInOut,
+      return _blockQidhaStepValidation(
+        context: context,
+        step: '1',
+        field: 'end_date',
+        message: _requiredFieldMessage('identity_card_expiry'),
+        afterBlock: () {
+          if (endDateKey.currentContext != null) {
+            Scrollable.ensureVisible(
+              endDateKey.currentContext!,
+              duration: const Duration(milliseconds: 500),
+              curve: Curves.easeInOut,
+            );
+          }
+          endDateFocus.requestFocus();
+        },
       );
-
-      endDateFocus.requestFocus();
-      return;
     }
-
     if (isEmployerEmpty) {
-      FocusScope.of(context).requestFocus(employerFocus);
-      return;
+      return _blockQidhaStepValidation(
+        context: context,
+        step: '1',
+        field: 'name_of_employer',
+        message: _requiredFieldMessage('employer_name'),
+        afterBlock: () => FocusScope.of(context).requestFocus(employerFocus),
+      );
     }
     if (isNeighborhoodEmpty) {
-      FocusScope.of(context).requestFocus(neighborhoodFocus);
-      return;
+      return _blockQidhaStepValidation(
+        context: context,
+        step: '1',
+        field: 'neighborhood',
+        message: _requiredFieldMessage('neighborhood'),
+        afterBlock: () => FocusScope.of(context).requestFocus(neighborhoodFocus),
+      );
     }
     if (total_salary.text.isEmpty) {
       isTotalSalaryEmpty = true;
-      update();
-      Scrollable.ensureVisible(
-        totalSalaryKey.currentContext!,
-        duration: const Duration(milliseconds: 500),
-        curve: Curves.easeInOut,
+      return _blockQidhaStepValidation(
+        context: context,
+        step: '1',
+        field: 'total_salary',
+        message: _requiredFieldMessage('total_salary'),
+        afterBlock: () {
+          if (totalSalaryKey.currentContext != null) {
+            Scrollable.ensureVisible(
+              totalSalaryKey.currentContext!,
+              duration: const Duration(milliseconds: 500),
+              curve: Curves.easeInOut,
+            );
+          }
+          totalSalaryFocus.requestFocus();
+        },
       );
-      totalSalaryFocus.requestFocus();
-      return;
     }
 
     // Debug: Show all data that will be sent to backend
@@ -2010,53 +2222,69 @@ class KaidhaSubscriptionController extends GetxController
     debugPrint('🔍 ===== END STEP 1 DATA DEBUG =====');
 
     nextStage(context);
+    return true;
   }
 
   void validate_Fields_Screen_2(BuildContext context, String nationalId) async {
     debugPrint('🔍 Starting Step 2 validation...');
 
+    if (!_prevalidateWalletIdentityFields(context)) {
+      return;
+    }
+
     // 1. Form Validation & Data Preparation
-    if (jobSpecification.isEmpty ||
-        salary_day.text.isEmpty ||
-        monthlyIncome.text.isEmpty) {
-      if (salary_day.text.isEmpty) {
-        isSalaryDayEmpty = true;
-        update();
-
-        // التمرير والتركيز على حقل يوم الراتب
-        if (salaryDayFocus.hasFocus == false) {
-          salaryDayFocus.requestFocus();
-        }
-
-        if (salaryDayKey.currentContext != null) {
-          Scrollable.ensureVisible(
-            salaryDayKey.currentContext!,
-            duration: const Duration(milliseconds: 500),
-            curve: Curves.easeInOut,
-          );
-        }
-
-        return;
-      }
-
-      if (monthlyIncome.text.isEmpty) {
-        isMonthlyIncomeEmpty = true;
-        update();
-
-        if (!monthlyIncomeFocus.hasFocus) {
-          monthlyIncomeFocus.requestFocus();
-        }
-
-        if (monthlyIncomeKey.currentContext != null) {
-          Scrollable.ensureVisible(
-            monthlyIncomeKey.currentContext!,
-            duration: const Duration(milliseconds: 500),
-            curve: Curves.easeInOut,
-          );
-        }
-
-        return;
-      }
+    if (jobSpecification.isEmpty) {
+      isJobSpecificationEmpty = true;
+      _blockQidhaStepValidation(
+        context: context,
+        step: '2',
+        field: 'job_specification',
+        message: 'qidha_job_specification_required'.tr,
+      );
+      return;
+    }
+    if (salary_day.text.isEmpty) {
+      isSalaryDayEmpty = true;
+      _blockQidhaStepValidation(
+        context: context,
+        step: '2',
+        field: 'salary_day',
+        message: _requiredFieldMessage('salary_day'),
+        afterBlock: () {
+          if (!salaryDayFocus.hasFocus) {
+            salaryDayFocus.requestFocus();
+          }
+          if (salaryDayKey.currentContext != null) {
+            Scrollable.ensureVisible(
+              salaryDayKey.currentContext!,
+              duration: const Duration(milliseconds: 500),
+              curve: Curves.easeInOut,
+            );
+          }
+        },
+      );
+      return;
+    }
+    if (monthlyIncome.text.isEmpty) {
+      isMonthlyIncomeEmpty = true;
+      _blockQidhaStepValidation(
+        context: context,
+        step: '2',
+        field: 'monthly_amount',
+        message: _requiredFieldMessage('monthly_income'),
+        afterBlock: () {
+          if (!monthlyIncomeFocus.hasFocus) {
+            monthlyIncomeFocus.requestFocus();
+          }
+          if (monthlyIncomeKey.currentContext != null) {
+            Scrollable.ensureVisible(
+              monthlyIncomeKey.currentContext!,
+              duration: const Duration(milliseconds: 500),
+              curve: Curves.easeInOut,
+            );
+          }
+        },
+      );
       return;
     }
 
@@ -2153,7 +2381,9 @@ class KaidhaSubscriptionController extends GetxController
 
     if (!walletCreated) {
       debugPrint('❌ Step 2 failed: Wallet creation failed');
-      showCustomSnackBar('فشل في إنشاء المحفظة');
+      if (fieldErrors.isEmpty) {
+        showCustomSnackBar('فشل في إنشاء المحفظة');
+      }
       return;
     }
 
@@ -2305,7 +2535,10 @@ class KaidhaSubscriptionController extends GetxController
         success = await kaidhaSubServiceInterface.Stor_info(
             Get.context!, kaidhaSub, All_files);
       } on ValidationException catch (e) {
+        debugPrint(
+            '[QIDHA_WALLET_422_ERROR_PARSED] errors=${e.errors.keys.join(',')}');
         setFieldErrors(e.errors);
+        _surfaceWalletValidationErrors(e.errors);
         return false;
       }
 
@@ -2999,6 +3232,8 @@ class KaidhaSubscriptionController extends GetxController
     isPhoneEmpty = false;
     isNumberOfFamilyEmpty = false;
     isIdentityCardEmpty = false;
+    isIdentityCardInvalid = false;
+    isJobSpecificationEmpty = false;
     isNeighborhoodEmpty = false;
     isEmployerEmpty = false;
     isTotalSalaryEmpty = false;

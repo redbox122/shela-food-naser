@@ -162,6 +162,8 @@ class KaidhaSubRepository implements KaidhaSubRepositoryInterface {
             }
           }
           if (fieldErrors.isNotEmpty) {
+            debugPrint(
+                '[QIDHA_WALLET_422_ERROR_PARSED] fields=${fieldErrors.keys.join(',')}');
             throw ValidationException(fieldErrors);
           }
         }

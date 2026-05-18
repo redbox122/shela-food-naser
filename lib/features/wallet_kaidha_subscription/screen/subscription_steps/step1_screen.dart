@@ -48,11 +48,13 @@ class _Step_1_ScreenState extends State<Step_1_Screen> {
                               buttonText: 'next'.tr,
                               onPressed: () async {
                                 debugPrint('[QidhaSub][NEXT] pressed');
-                                KaidhaSubController.validate_Fields_Screen_1(
-                                    context);
-
-                                KaidhaSubController.SendState_kaidha(
-                                    'in_progress'); //  ارسال الحاله
+                                final bool isValid =
+                                    KaidhaSubController
+                                        .validate_Fields_Screen_1(context);
+                                if (isValid) {
+                                  KaidhaSubController.SendState_kaidha(
+                                      'in_progress');
+                                }
                               },
                             ),
                           ),
