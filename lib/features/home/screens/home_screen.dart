@@ -4,6 +4,7 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
+import 'package:sixam_mart/features/home/controllers/akhdamni_flow_controller.dart';
 import 'package:sixam_mart/features/home/controllers/home_controller.dart';
 import 'package:sixam_mart/features/home/screens/all_sections/food_home_screen.dart';
 import 'package:sixam_mart/features/home/screens/all_sections/pharmacy_home_screen.dart';
@@ -12,6 +13,7 @@ import 'package:sixam_mart/features/home/widgets/cashback_dialog_widget.dart';
 import 'package:sixam_mart/features/home/widgets/custom_appBar_widget.dart';
 import 'package:sixam_mart/features/home/widgets/refer_bottom_sheet_widget.dart';
 import 'package:sixam_mart/features/home/widgets/professional_module_strip.dart';
+import 'package:sixam_mart/features/home/widgets/akhdamni/akhdamni_flow_section.dart';
 import 'package:sixam_mart/features/location/controllers/location_controller.dart';
 import 'package:sixam_mart/features/store/controllers/store_controller.dart';
 import 'package:sixam_mart/features/splash/controllers/splash_controller.dart';
@@ -1326,22 +1328,29 @@ class _HomeScreenState extends State<HomeScreen> {
                                 child: FlattenedModuleContent(
                                   // ⚡ TASK 1: Flattened widget tree
                                   moduleWidget: !showMobileModule
-                                      ? Column(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                          children: [
-                                            isGrocery
-                                                ? GroceryHomeScreen()
-                                                : isPharmacy
-                                                    ? PharmacyHomeScreen()
-                                                    : isFood
-                                                        ? const FoodHomeScreen()
-                                                        : isShop
-                                                            ? ShopHomeScreen()
-                                                            : isTaxi
-                                                                ? TaxiHomeScreen()
-                                                                : const SizedBox(),
-                                          ],
+                                      ? GetBuilder<AkhdamniFlowController>(
+                                          builder: (akhdamniController) {
+                                            if (akhdamniController.isFlowActive) {
+                                              return const AkhdamniFlowSection();
+                                            }
+                                            return Column(
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.start,
+                                              children: [
+                                                isGrocery
+                                                    ? GroceryHomeScreen()
+                                                    : isPharmacy
+                                                        ? PharmacyHomeScreen()
+                                                        : isFood
+                                                            ? const FoodHomeScreen()
+                                                            : isShop
+                                                                ? ShopHomeScreen()
+                                                                : isTaxi
+                                                                    ? TaxiHomeScreen()
+                                                                    : const SizedBox(),
+                                              ],
+                                            );
+                                          },
                                         )
                                       : ModuleView(
                                           splashController: splashController),

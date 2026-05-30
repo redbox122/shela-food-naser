@@ -447,4 +447,7 @@ class Images {
 
   static const String mapIconExtended = 'assets/json/map-picker-1.json';
   static const String mapIconMinimised = 'assets/json/map-picker-2.json';
+
+  static const String serves = 'assets/image/serves.png';
+  static const String giving = 'assets/image/giving.png';
 }

@@ -15,6 +15,7 @@ import 'package:sixam_mart/features/business/domain/services/business_service.da
 import 'package:sixam_mart/features/business/domain/services/business_service_interface.dart';
 import 'package:sixam_mart/features/update/controllers/update_controller.dart';
 import 'package:sixam_mart/features/home/controllers/advertisement_controller.dart';
+import 'package:sixam_mart/features/home/controllers/akhdamni_flow_controller.dart';
 import 'package:sixam_mart/features/home/controllers/home_controller.dart';
 import 'package:sixam_mart/features/home/controllers/home_unified_controller.dart';
 import 'package:sixam_mart/features/home/domain/repositories/advertisement_repository.dart';
@@ -650,6 +651,7 @@ Future<Map<String, Map<String, String>>> init() async {
   Get.lazyPut(() => FavouriteController(favouriteServiceInterface: Get.find()));
   Get.lazyPut(() => HomeController(homeServiceInterface: Get.find()),
       fenix: true);
+  Get.lazyPut(() => AkhdamniFlowController(), fenix: true);
   // ⚡ BFF API v2: Home Unified Controller (for /api/v2/home-unified endpoint)
   // ⚡ TITAN BOARD: Permanent singleton to survive route flushes during module switching
   // This ensures loadHomeData() calls don't fail when Get.offAllNamed() executes
