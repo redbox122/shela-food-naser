@@ -157,7 +157,7 @@ class WebProfileWidget extends StatelessWidget {
                   ? Expanded(
                       child: ProfileCardWidget(
                       image: Images.shoppingBagIcon,
-                      data: profileController.userInfoModel!.orderCount.toString(),
+                      data: (profileController.userInfoModel!.orderCount ?? 0).toString(),
                       title: 'total_order'.tr,
                     ))
                   : const SizedBox(),

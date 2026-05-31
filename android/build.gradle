@@ -17,6 +17,10 @@ subprojects {
                     namespace project.group
                 }
 
+                // Force all plugins to use an already-installed platform so Gradle
+                // doesn't try to download per-plugin SDK platforms (e.g. 31, 33).
+                // Must be >= 36 because androidx (browser, activity, core) requires it.
+                compileSdkVersion 36
 
                 compileOptions {
                     sourceCompatibility JavaVersion.VERSION_17
@@ -29,7 +33,7 @@ subprojects {
                 }
                 java {
                     toolchain {
-                        languageVersion = JavaLanguageVersion.of(17)
+                        languageVersion = JavaLanguageVersion.of(21)
                     }
                 }
 
