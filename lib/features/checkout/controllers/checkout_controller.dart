@@ -65,13 +65,25 @@ class CheckoutController extends GetxController implements GetxService {
 
   String selected_Now_Scheduled = 'now';
 
-  String? countryDialCode =
-      Get.find<AuthController>().getUserCountryCode().isNotEmpty
-          ? Get.find<AuthController>().getUserCountryCode()
-          : CountryCode.fromCountryCode(
-                      Get.find<SplashController>().configModel!.country!)
-                  .dialCode ??
-              Get.find<LocalizationController>().locale.countryCode;
+  String? countryDialCode = _resolveCountryDialCode();
+
+  // 🛡️ NULL-SAFE: Resolve the country dial code without crashing when the
+  // backend config has no country set (configModel/country can be null).
+  // Falls back to the saved user country code, then to the active locale.
+  static String? _resolveCountryDialCode() {
+    final String userCountryCode =
+        Get.find<AuthController>().getUserCountryCode();
+    if (userCountryCode.isNotEmpty) {
+      return userCountryCode;
+    }
+    final String? configCountry =
+        Get.find<SplashController>().configModel?.country;
+    if (configCountry != null && configCountry.isNotEmpty) {
+      return CountryCode.fromCountryCode(configCountry).dialCode ??
+          Get.find<LocalizationController>().locale.countryCode;
+    }
+    return Get.find<LocalizationController>().locale.countryCode;
+  }
 
   bool _isLoading = false;
   bool get isLoading => _isLoading;
@@ -1428,10 +1440,16 @@ class CheckoutController extends GetxController implements GetxService {
   }
 
   Future<void> initializeTimeSlot(Store store) async {
-    _timeSlots = await checkoutServiceInterface.initializeTimeSlot(store,
-        Get.find<SplashController>().configModel!.scheduleOrderSlotDuration!);
-    _allTimeSlots = await checkoutServiceInterface.initializeTimeSlot(store,
-        Get.find<SplashController>().configModel!.scheduleOrderSlotDuration!);
+    // 🛡️ NULL-SAFE: configModel/scheduleOrderSlotDuration can be null when the
+    // backend config is incomplete. Fall back to a 30-min slot instead of
+    // crashing the whole checkout preparation.
+    final int slotDuration =
+        Get.find<SplashController>().configModel?.scheduleOrderSlotDuration ??
+            30;
+    _timeSlots =
+        await checkoutServiceInterface.initializeTimeSlot(store, slotDuration);
+    _allTimeSlots =
+        await checkoutServiceInterface.initializeTimeSlot(store, slotDuration);
 
     _validateSlot(_allTimeSlots!, 0, store.orderPlaceToScheduleInterval,
         notify: false);
@@ -1439,11 +1457,13 @@ class CheckoutController extends GetxController implements GetxService {
 
   void _validateSlot(List<TimeSlotModel> slots, int dateIndex, int? interval,
       {bool notify = true}) {
+    // 🛡️ NULL-SAFE: any link in config → moduleConfig → module can be null
+    // when the backend config is incomplete; avoid crashing slot validation.
     final orderPlaceToScheduleInterval = Get.find<SplashController>()
-        .configModel!
-        .moduleConfig!
-        .module!
-        .orderPlaceToScheduleInterval;
+        .configModel
+        ?.moduleConfig
+        ?.module
+        ?.orderPlaceToScheduleInterval;
     _timeSlots = checkoutServiceInterface.validateTimeSlot(
         slots,
         dateIndex,

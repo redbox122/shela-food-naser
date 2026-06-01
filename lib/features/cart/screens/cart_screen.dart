@@ -383,6 +383,13 @@ class _CartScreenState extends State<CartScreen> with RouteAware {
         return;
       }
 
+      // 🔎 Pre-distance diagnostics (helps trace null/coordinate issues)
+      debugPrint('📊 [Cart] Distance inputs:'
+          ' storeId=${store.id},'
+          ' storeLat=${store.latitude}, storeLng=${store.longitude},'
+          ' addressLat=${currentAddress.latitude},'
+          ' addressLng=${currentAddress.longitude}');
+
       // Calculate distance using Haversine formula (same as checkout)
       final distance = Geolocator.distanceBetween(
             double.parse(currentAddress.latitude!),
