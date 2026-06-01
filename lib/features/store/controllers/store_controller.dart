@@ -3211,6 +3211,16 @@ class StoreController extends GetxController implements GetxService {
   void set_Price(bool value) {
     _isPriceAscending = value;
 
+    // Re-sort the currently displayed lists immediately so tapping the button
+    // reorders the visible items right away (not only on the next data load).
+    int byPrice(Item a, Item b) => _isPriceAscending
+        ? (a.price ?? 0).compareTo(b.price ?? 0)
+        : (b.price ?? 0).compareTo(a.price ?? 0);
+
+    _storeItemModel?.items?.sort(byPrice);
+    _visibleItemList?.sort(byPrice);
+    _allStoreItems?.sort(byPrice);
+
     update();
   }
 
