@@ -284,6 +284,21 @@ class OrderController extends GetxController implements GetxService {
     }
   }
 
+  /// Removes a stale running order from local cache (e.g. unpaid digital order after payment failure).
+  void removeRunningOrderLocally(int orderId) {
+    final List<OrderModel>? orders = _runningOrderModel?.orders;
+    if (orders == null || orders.isEmpty) {
+      return;
+    }
+    final int before = orders.length;
+    orders.removeWhere((OrderModel order) => order.id == orderId);
+    if (orders.length != before) {
+      debugPrint(
+          '[OrderCtrl] removeRunningOrderLocally removed orderId=$orderId');
+      update();
+    }
+  }
+
   void pickRefundImage(bool isRemove) async {
     if (isRemove) {
       _refundImage = null;

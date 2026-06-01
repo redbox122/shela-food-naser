@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:country_code_picker/country_code_picker.dart';
 import 'package:flutter/foundation.dart';
@@ -162,6 +163,14 @@ class CheckoutController extends GetxController implements GetxService {
   bool _isPaymentInProgress = false;
   bool _isOrderPaid = false;
 
+  /// While true, suppress "order placed successfully" notifications for unpaid digital orders.
+  bool _suppressPendingOrderPlacementNotifications = false;
+  bool get suppressPendingOrderPlacementNotifications =>
+      _suppressPendingOrderPlacementNotifications;
+
+  bool get isDigitalPaymentSelected =>
+      _paymentMethodIndex == 2 || select_payment_Methods != null;
+
   // 🥇 Anti-loop Guard: Payment Flow State
   PaymentFlowState _paymentFlowState = PaymentFlowState.idle;
   PaymentFlowState get paymentFlowState => _paymentFlowState;
@@ -180,10 +189,49 @@ class CheckoutController extends GetxController implements GetxService {
     _paymentFlowState = PaymentFlowState.idle;
     _isPaymentInProgress = false;
     _isOrderPaid = false;
+    _suppressPendingOrderPlacementNotifications = false;
     _isLoading = false;
     if (notify) {
       update();
     }
+  }
+
+  /// Digital payment: order created ≠ final success — suppress premature success UX.
+  void beginDigitalPaymentFlow() {
+    _suppressPendingOrderPlacementNotifications = true;
+    debugPrint('[Payment][Digital] Suppressing pending-order success notifications');
+  }
+
+  void endDigitalPaymentFlow({required bool succeeded}) {
+    _suppressPendingOrderPlacementNotifications = false;
+    debugPrint(
+        '[Payment][Digital] End flow succeeded=$succeeded suppress=$_suppressPendingOrderPlacementNotifications');
+  }
+
+  Future<void> _refreshRunningOrdersFromServer() async {
+    if (!Get.isRegistered<OrderController>()) {
+      return;
+    }
+    try {
+      await Get.find<OrderController>().getRunningOrders(1, isUpdate: true);
+    } catch (e) {
+      debugPrint('[Payment][Digital] getRunningOrders refresh failed: $e');
+    }
+  }
+
+  Future<void> handleDigitalPaymentFailure() async {
+    _paymentFlowState = PaymentFlowState.failed;
+    _isLoading = false;
+    _isPaymentInProgress = false;
+    _isOrderPaid = false;
+    endDigitalPaymentFlow(succeeded: false);
+    update(['payment']);
+    final int? pendingOrderId = _currentOrderId;
+    if (pendingOrderId != null && Get.isRegistered<OrderController>()) {
+      Get.find<OrderController>().removeRunningOrderLocally(pendingOrderId);
+    }
+    await _refreshRunningOrdersFromServer();
+    showCustomSnackBar('فشلت العملية، يرجى المحاولة في وقت آخر');
   }
 
   void clearCartOnPaymentConfirmed() {
@@ -669,14 +717,6 @@ class CheckoutController extends GetxController implements GetxService {
 
       _isOrderPaid = confirmed;
       _isPaymentInProgress = false;
-
-      if (!confirmed && webResult == 'error') {
-        showCustomSnackBar('فشل الدفع - يرجى المحاولة مرة أخرى');
-      }
-
-      if (!confirmed && webResult != 'error') {
-        showCustomSnackBar('تعذر التحقق من الدفع - يرجى المحاولة لاحقًا');
-      }
 
       return confirmed;
     } catch (error) {
@@ -2056,9 +2096,7 @@ class CheckoutController extends GetxController implements GetxService {
           contactNumber: contactNumber,
         );
         if (!paymentSucceeded) {
-          _isLoading = false;
-          update();
-          showCustomSnackBar('فشلت العملية، يرجى المحاولة في وقت آخر');
+          await handleDigitalPaymentFailure();
           return '';
         }
       } else if (_paymentMethodIndex == 0 && isKaidhaPay == true) {
@@ -2238,9 +2276,16 @@ class CheckoutController extends GetxController implements GetxService {
         // 🥇 Update flow state - نجحت العملية
         _paymentFlowState = PaymentFlowState.success;
 
-        const String successMessage = 'تم انشاء الطلب وتم الدفع بنجاح';
+        final bool isDigitalPayment = isDigitalPaymentSelected;
+        final String successMessage = isDigitalPayment
+            ? 'تم الدفع بنجاح'
+            : 'تم انشاء الطلب وتم الدفع بنجاح';
 
-        // Show success message only after full successful flow
+        if (isDigitalPayment) {
+          endDigitalPaymentFlow(succeeded: true);
+        }
+
+        // Show success message only after full successful flow (not after createOrder).
         Future.delayed(const Duration(seconds: 1), () {
           showCustomSnackBar(successMessage, isError: false);
         });
@@ -2262,6 +2307,7 @@ class CheckoutController extends GetxController implements GetxService {
             fromCart,
             isCashOnDeliveryActive,
             contactNumber,
+            isDigitalPayment: isDigitalPayment,
           );
         }
 
@@ -2279,32 +2325,28 @@ class CheckoutController extends GetxController implements GetxService {
         _currentOrderId = null;
         _currentOrderAmount = 0.0;
       } else {
-        // 🥇 Update flow state - فشل
+        if (isDigitalPaymentSelected) {
+          await handleDigitalPaymentFailure();
+        } else {
+          _paymentFlowState = PaymentFlowState.failed;
+          _isLoading = false;
+          update(['payment']);
+          showCustomSnackBar('payment_failed'.tr);
+        }
+      }
+    } catch (e) {
+      debugPrint('خطأ أثناء معالجة الدفع: $e');
+      if (isDigitalPaymentSelected) {
+        await handleDigitalPaymentFailure();
+      } else {
         _paymentFlowState = PaymentFlowState.failed;
         _isLoading = false;
         update(['payment']);
-
-        // ❌ لا Navigation - فقط عرض الرسالة
-        // ⛔ لا نستدعي callback عند الفشل لمنع Navigation Loop
-        // ✅ UX: عرض رسالة واضحة للمستخدم
-        showCustomSnackBar('payment_failed'.tr);
-        // ❌ تم إزالة callback عند الفشل لمنع Navigation Loop
+        final String errorMessage = e.toString().contains('timeout')
+            ? 'connection_to_api_server_failed'.tr
+            : '${'payment_failed'.tr}: ${e.toString()}';
+        showCustomSnackBar(errorMessage);
       }
-    } catch (e) {
-      // 🥇 Update flow state - فشل
-      _paymentFlowState = PaymentFlowState.failed;
-      _isLoading = false;
-      update(['payment']);
-      debugPrint('خطأ أثناء معالجة الدفع: $e');
-
-      // ❌ لا Navigation - فقط عرض الرسالة
-      // ⛔ لا نستدعي callback عند الفشل لمنع Navigation Loop
-      // ✅ UX: عرض رسالة واضحة مع تفاصيل الخطأ
-      final String errorMessage = e.toString().contains('timeout')
-          ? 'connection_to_api_server_failed'.tr
-          : '${'payment_failed'.tr}: ${e.toString()}';
-      showCustomSnackBar(errorMessage);
-      // ❌ تم إزالة callback عند الفشل لمنع Navigation Loop
     }
 
     // Reset payment method selection after payment flow completes
@@ -2457,8 +2499,9 @@ class CheckoutController extends GetxController implements GetxService {
     double? maximumCodOrderAmount,
     bool fromCart,
     bool isCashOnDeliveryActive,
-    String? contactNumber,
-  ) async {
+    String? contactNumber, {
+    bool isDigitalPayment = false,
+  }) async {
     // ⛔ Guard 1: لا Navigation إلا عند success صريح
     if (!isSuccess) {
       debugPrint(
@@ -2495,28 +2538,26 @@ class CheckoutController extends GetxController implements GetxService {
         Get.find<CartController>().clearCartList();
       }
       setGuestAddress(null);
-      if (!Get.find<OrderController>().showBottomSheet) {
+      if (!isDigitalPayment &&
+          !Get.find<OrderController>().showBottomSheet) {
         Get.find<OrderController>().showRunningOrders(canUpdate: false);
       }
       if (isDmTipSave) {
         saveSharedPrefDmTipIndex(selectedTips.toString());
       }
       stopLoader(canUpdate: false);
-      // Don't reload home data after order creation - go directly to order details
-      // HomeScreen.loadData(context, true);
-      if (paymentMethodIndex == 2) {
-        // For digital payments (MyFatoorah), redirect directly to order success page
-        // since payment is already processed
+      if (isDigitalPayment) {
         debugPrint(
-            '🎉 Digital payment completed successfully, redirecting to order success page');
+            '🎉 Digital payment confirmed — navigating to order success (not after unpaid createOrder)');
+        unawaited(_refreshRunningOrdersFromServer());
         Get.offNamed(RouteHelper.getOrderSuccessRoute(
             orderID, contactNumber ?? '',
             createAccount: isCreateAccount, guestId: AuthHelper.getGuestId()));
       } else {
-        final double total = ((amount / 100) *
-            Get.find<SplashController>()
-                .configModel!
-                .loyaltyPointItemPurchasePoint!);
+        final double loyaltyPointRate = Get.find<SplashController>()
+                .configModel?.loyaltyPointItemPurchasePoint ??
+            0;
+        final double total = (amount / 100) * loyaltyPointRate;
         if (AuthHelper.isLoggedIn()) {
           Get.find<AuthController>().saveEarningPoint(total.toStringAsFixed(0));
         }

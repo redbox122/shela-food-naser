@@ -12,6 +12,7 @@ import 'package:sixam_mart/features/order/controllers/order_controller.dart';
 import 'package:sixam_mart/features/rental_module/rental_order/controllers/taxi_order_controller.dart';
 import 'package:sixam_mart/features/rental_module/rental_order/screens/taxi_order_details_screen.dart';
 import 'package:sixam_mart/helper/auth_helper.dart';
+import 'package:sixam_mart/helper/firebase/my_notification_service.dart';
 import 'package:sixam_mart/helper/route_helper.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
@@ -164,6 +165,14 @@ class NotificationHelper {
               willUpdate: false);
         }
       } else {
+        if (NotificationService.shouldSuppressPendingDigitalOrderNotification(
+            message)) {
+          if (kDebugMode) {
+            debugPrint(
+                '🔕 NotificationHelper: Suppressed pending digital-order placement notification');
+          }
+          return;
+        }
         NotificationHelper.showNotification(
             message, flutterLocalNotificationsPlugin);
         if (AuthHelper.isLoggedIn()) {

@@ -448,7 +448,8 @@ class CheckoutScreenState extends State<CheckoutScreen> {
     Get.find<CheckoutController>()
         .pickPrescriptionImage(isRemove: true, isCamera: false);
     _isWalletActive =
-        Get.find<SplashController>().configModel!.customerWalletStatus == 1;
+        (Get.find<SplashController>().configModel?.customerWalletStatus ?? 0) ==
+            1;
     Get.find<CheckoutController>().updateTips(
       Get.find<CheckoutController>().getSharedPrefDmTipIndex().isNotEmpty
           ? int.parse(Get.find<CheckoutController>().getSharedPrefDmTipIndex())
@@ -475,23 +476,24 @@ class CheckoutScreenState extends State<CheckoutScreen> {
   }
 
   void _setSinglePaymentActive() {
+    final ConfigModel? configModel = Get.find<SplashController>().configModel;
+    final List<PaymentBody>? activePaymentMethods =
+        configModel?.activePaymentMethodList;
     if ((!_firstTimeCheckPayment &&
             !_isCashOnDeliveryActive! &&
             _isDigitalPaymentActive! &&
-            Get.find<SplashController>()
-                    .configModel!
-                    .activePaymentMethodList!
-                    .length ==
-                1) &&
+            activePaymentMethods != null &&
+            activePaymentMethods.length == 1) &&
         ((!_isWalletActive && AuthHelper.isLoggedIn()) ||
             !AuthHelper.isLoggedIn())) {
+      final String? paymentWay = activePaymentMethods.first.getWay;
+      if (paymentWay == null) {
+        return;
+      }
       Future.delayed(const Duration(milliseconds: 600), () {
         Get.find<CheckoutController>().setPaymentMethod(2, isUpdate: false);
         Get.find<CheckoutController>().changeDigitalPaymentName(
-            Get.find<SplashController>()
-                .configModel!
-                .activePaymentMethodList![0]
-                .getWay!,
+            paymentWay,
             willUpdate: false);
         _firstTimeCheckPayment = true;
       });
@@ -509,10 +511,11 @@ class CheckoutScreenState extends State<CheckoutScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final Module? module =
-        Get.find<SplashController>().configModel!.moduleConfig!.module;
+    final SplashController splashController = Get.find<SplashController>();
+    final ConfigModel? configModel = splashController.configModel;
+    final Module? module = configModel?.moduleConfig?.module;
     final bool guestCheckoutPermission = AuthHelper.isGuestLoggedIn() &&
-        Get.find<SplashController>().configModel!.guestCheckoutStatus!;
+        (configModel?.guestCheckoutStatus ?? false);
     final bool isLoggedIn = AuthHelper.isLoggedIn();
     final KaidhaSubscriptionController kaidhaSubController =
         Get.find<KaidhaSubscriptionController>();
@@ -624,9 +627,9 @@ class CheckoutScreenState extends State<CheckoutScreen> {
                           _checkCODActive(store: checkoutController.store);
                       _isDigitalPaymentActive = _checkDigitalPaymentActive(
                           store: checkoutController.store);
-                      _isOfflinePaymentActive = Get.find<SplashController>()
-                              .configModel!
-                              .offlinePaymentStatus! &&
+                      final bool offlinePaymentEnabled =
+                          configModel?.offlinePaymentStatus ?? false;
+                      _isOfflinePaymentActive = offlinePaymentEnabled &&
                           _checkZoneOfflinePaymentOnOff(
                               addressModel: currentAddress,
                               checkoutController: checkoutController);
@@ -669,10 +672,8 @@ class CheckoutScreenState extends State<CheckoutScreen> {
                         // 🔒 SAFE NULL HANDLING: Use null-coalescing instead of null check operator
                         final double couponDiscount = PriceConverter.toFixed(
                             couponController.discount ?? 0.0);
-                        final bool taxIncluded = Get.find<SplashController>()
-                                .configModel!
-                                .taxIncluded ==
-                            1;
+                        final bool taxIncluded =
+                            (configModel?.taxIncluded ?? 0) == 1;
 
                         // Calculate subtotal as items prices only (without tax) - same as cart screen
                         final double subTotal =
@@ -699,23 +700,20 @@ class CheckoutScreenState extends State<CheckoutScreen> {
                           taxPercent: _taxPercent,
                         );
 
-                        final double additionalCharge =
-                            Get.find<SplashController>()
-                                    .configModel!
-                                    .additionalChargeStatus!
-                                ? Get.find<SplashController>()
-                                    .configModel!
-                                    .additionCharge!
-                                : 0;
+                        final bool additionalChargeEnabled =
+                            configModel?.additionalChargeStatus ?? false;
+                        final double additionalCharge = additionalChargeEnabled
+                            ? (configModel?.additionCharge ?? 0)
+                            : 0;
 
                         // Debug logging for additional charge
                         debugPrint('💰 Checkout additionalCharge calculation:');
                         debugPrint(
-                            '   - additionalChargeStatus: ${Get.find<SplashController>().configModel!.additionalChargeStatus}');
+                            '   - additionalChargeStatus: ${configModel?.additionalChargeStatus}');
                         debugPrint(
-                            '   - additionalChargeName: ${Get.find<SplashController>().configModel!.additionalChargeName}');
+                            '   - additionalChargeName: ${configModel?.additionalChargeName}');
                         debugPrint(
-                            '   - additionCharge (raw): ${Get.find<SplashController>().configModel!.additionCharge}');
+                            '   - additionCharge (raw): ${configModel?.additionCharge}');
                         debugPrint(
                             '   - Calculated additionalCharge: $additionalCharge');
                         final AddressModel? effectiveAddress =
@@ -1903,6 +1901,12 @@ class CheckoutScreenState extends State<CheckoutScreen> {
                             debugPrint(
                                 '\x1B[32m📋 Step 1: Creating Order (Unpaid)...\x1B[0m');
 
+                            final bool isDigitalCheckout =
+                                selectedPaymentIndex == 2;
+                            if (isDigitalCheckout) {
+                              checkoutController.beginDigitalPaymentFlow();
+                            }
+
                             if (!mounted) return;
                             final String orderID =
                                 await checkoutController.createOrder(
@@ -1916,6 +1920,10 @@ class CheckoutScreenState extends State<CheckoutScreen> {
                             }
 
                             if (orderID.isEmpty) {
+                              if (isDigitalCheckout) {
+                                checkoutController.endDigitalPaymentFlow(
+                                    succeeded: false);
+                              }
                               return;
                             }
 
@@ -2079,8 +2087,9 @@ class CheckoutScreenState extends State<CheckoutScreen> {
     if (store != null && currentAddress?.zoneData != null) {
       for (final ZoneData zData in currentAddress!.zoneData!) {
         if (zData.id == store.zoneId) {
-          isDigitalPaymentActive = zData.digitalPayment! &&
-              Get.find<SplashController>().configModel!.digitalPayment!;
+          isDigitalPaymentActive = (zData.digitalPayment ?? false) &&
+              (Get.find<SplashController>().configModel?.digitalPayment ??
+                  false);
         }
       }
     }
@@ -2528,11 +2537,11 @@ class CheckoutScreenState extends State<CheckoutScreen> {
         distance: distance,
         extraCharge: extraCharge);
 
+    final double? freeDeliveryOver =
+        Get.find<SplashController>().configModel?.freeDeliveryOver;
     if (orderType == 'take_away' ||
         (store != null && store.freeDelivery!) ||
-        (Get.find<SplashController>().configModel!.freeDeliveryOver != null &&
-            orderAmount >=
-                Get.find<SplashController>().configModel!.freeDeliveryOver!) ||
+        (freeDeliveryOver != null && orderAmount >= freeDeliveryOver) ||
         Get.find<CouponController>().freeDelivery ||
         (AuthHelper.isGuestLoggedIn() &&
             (Get.find<CheckoutController>().guestAddress == null &&
@@ -2563,7 +2572,8 @@ class CheckoutScreenState extends State<CheckoutScreen> {
         (taxIncluded ? 0 : tax) + // Add tax only if not included in prices
         additionalCharge +
         ((orderType != 'take_away' &&
-                Get.find<SplashController>().configModel!.dmTipsStatus == 1)
+                (Get.find<SplashController>().configModel?.dmTipsStatus ?? 0) ==
+                    1)
             ? tips
             : 0) +
         extraPackagingCharge);
@@ -2572,9 +2582,13 @@ class CheckoutScreenState extends State<CheckoutScreen> {
   bool _checkZoneOfflinePaymentOnOff(
       {required AddressModel? addressModel,
       required CheckoutController checkoutController}) {
+    final List<ZoneData>? zoneDataList = addressModel?.zoneData;
+    if (zoneDataList == null || zoneDataList.isEmpty) {
+      return false;
+    }
     bool? status = false;
     ZoneData? zoneData;
-    for (final data in addressModel!.zoneData!) {
+    for (final data in zoneDataList) {
       if (data.id == checkoutController.store?.zoneId) {
         zoneData = data;
         break;

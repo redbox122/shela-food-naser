@@ -8,6 +8,7 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:sixam_mart/features/checkout/controllers/checkout_controller.dart';
 import 'package:sixam_mart/features/notification/domain/models/notification_model.dart';
 import 'package:sixam_mart/features/notification/controllers/notification_controller.dart';
 import 'package:sixam_mart/util/app_constants.dart';
@@ -301,7 +302,57 @@ class NotificationService {
     }
   }
 
+  /// Shared with [NotificationHelper] — suppress "order placed" while digital payment is pending.
+  static bool shouldSuppressPendingDigitalOrderNotification(
+      RemoteMessage message) {
+    if (!isPendingOrderPlacementNotification(message)) {
+      return false;
+    }
+    if (!Get.isRegistered<CheckoutController>()) {
+      return false;
+    }
+    return Get.find<CheckoutController>()
+        .suppressPendingOrderPlacementNotifications;
+  }
+
+  static bool isPendingOrderPlacementNotification(RemoteMessage message) {
+    final String title = (message.notification?.title ?? '').toLowerCase();
+    final String body = (message.notification?.body ?? '').toLowerCase();
+    if (title.contains('successfully placed') ||
+        body.contains('successfully placed') ||
+        title.contains('is_successfully_placed') ||
+        body.contains('is_successfully_placed')) {
+      return true;
+    }
+    final Map<String, dynamic> data = message.data;
+    final String paymentStatus =
+        (data['payment_status'] ?? '').toString().toLowerCase();
+    final bool hasOrderId = data['order_id'] != null;
+    final String type = (data['type'] ?? data['notification_type'] ?? '')
+        .toString()
+        .toLowerCase();
+    final bool isOrderLike = hasOrderId ||
+        type.contains('order') ||
+        title.contains('order') ||
+        body.contains('order') ||
+        title.contains('طلب') ||
+        body.contains('طلب');
+    if (!isOrderLike) {
+      return false;
+    }
+    return paymentStatus.isEmpty ||
+        paymentStatus == 'unpaid' ||
+        paymentStatus == 'pending' ||
+        paymentStatus == 'created';
+  }
+
   bool _shouldSuppressForegroundOrderNotification(RemoteMessage message) {
+    if (shouldSuppressPendingDigitalOrderNotification(message)) {
+      debugPrint(
+          '🔕 NotificationService: Suppressed pending digital-order placement notification');
+      return true;
+    }
+
     final String currentRoute = Get.currentRoute.toLowerCase();
     final bool isOnPaymentWebView =
         currentRoute.contains('myfatoorahpaymentwebviewscreen'.toLowerCase());
