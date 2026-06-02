@@ -8,22 +8,11 @@ import 'package:sixam_mart/features/auth/domain/reposotories/auth_repository_int
 import 'package:sixam_mart/features/auth/domain/services/auth_service_interface.dart';
 import 'package:sixam_mart/features/profile/controllers/profile_controller.dart';
 import 'package:sixam_mart/features/wallet_kaidha_subscription/controllers/kaidhaSub_controller.dart';
-import 'package:sixam_mart/helper/admin_otp_bypass_helper.dart';
 import 'package:sixam_mart/util/app_constants.dart';
 
 class AuthService implements AuthServiceInterface {
   final AuthRepositoryInterface authRepositoryInterface;
   AuthService({required this.authRepositoryInterface});
-
-  String _maskPhone(String phone) {
-    if (phone.isEmpty) {
-      return '***';
-    }
-    if (phone.length <= 5) {
-      return '${phone[0]}***';
-    }
-    return '${phone.substring(0, 4)}*****${phone.substring(phone.length - 3)}';
-  }
 
   @override
   bool isSharedPrefNotificationActive() {
@@ -72,58 +61,6 @@ class AuthService implements AuthServiceInterface {
         final String otpPhone =
             responseBody['phone']?.toString() ?? emailOrPhone;
 
-        // Admin-only OTP bypass: do not route to OTP screen.
-        // Attempt backend verification directly using the fixed code.
-        if (AdminOtpBypassHelper.isBypassPhone(otpPhone)) {
-          if (kDebugMode) {
-            debugPrint(
-                '🔐 AuthService: Admin OTP bypass login flow for $otpPhone');
-          }
-
-          final Response bypassResponse =
-              await authRepositoryInterface.verifyLoginOtp(
-            phone: otpPhone,
-            otp: AdminOtpBypassHelper.fixedOtp,
-          );
-
-          if (bypassResponse.statusCode == 200) {
-            final Map<String, dynamic> bypassBody =
-                (bypassResponse.body is Map<String, dynamic>)
-                    ? bypassResponse.body as Map<String, dynamic>
-                    : <String, dynamic>{};
-
-            final AuthResponseModel authResponse =
-                AuthResponseModel.fromJson(bypassBody);
-            if (authResponse.token != null && authResponse.token!.isNotEmpty) {
-              if (!bypassBody.containsKey('is_phone_verified')) {
-                authResponse.isPhoneVerified = true;
-              }
-              if (!bypassBody.containsKey('is_personal_info')) {
-                authResponse.isPersonalInfo = true;
-              }
-              if (!bypassBody.containsKey('is_email_verified')) {
-                authResponse.isEmailVerified = true;
-              }
-
-              await _updateHeaderFunctionality(authResponse,
-                  alreadyInApp: alreadyInApp);
-              _updateUserDataFromLoginResponse(bypassBody);
-              return ResponseModel(true, authResponse.token ?? '',
-                  authResponseModel: authResponse);
-            }
-
-            if (kDebugMode) {
-              debugPrint(
-                  '⚠️ AuthService: Admin bypass returned 200 but without token');
-            }
-          } else {
-            if (kDebugMode) {
-              debugPrint(
-                  '⚠️ AuthService: Admin bypass response has no token, keeping OTP-required flow');
-            }
-          }
-        }
-
         return ResponseModel(true, 'otp_required',
             otpRequired: true, otpPhone: otpPhone);
       }
@@ -148,25 +85,8 @@ class AuthService implements AuthServiceInterface {
       {required String phone,
       required String otp,
       bool alreadyInApp = false}) async {
-    Response response =
+    final Response response =
         await authRepositoryInterface.verifyLoginOtp(phone: phone, otp: otp);
-
-    // Admin-only fallback:
-    // If login-otp endpoint rejects fixed code, try verifyPhone endpoint.
-    if (response.statusCode != 200 &&
-        AdminOtpBypassHelper.isBypassPhone(phone) &&
-        otp == AdminOtpBypassHelper.fixedOtp) {
-      if (kDebugMode) {
-        debugPrint(
-            '🔁 AuthService: verifyLoginOtp failed for admin phone, trying verifyPhone fallback');
-      }
-      response = await authRepositoryInterface.otpLogin(
-        phone: phone,
-        otp: otp,
-        loginType: 'manual',
-        verified: 'yes',
-      );
-    }
 
     if (response.statusCode == 200) {
       final Map<String, dynamic> responseBody =
@@ -355,14 +275,6 @@ class AuthService implements AuthServiceInterface {
 
   @override
   Future<ResponseModel> resendOtp({required String phone}) async {
-    if (AdminOtpBypassHelper.isBypassPhone(phone)) {
-      if (kDebugMode) {
-        debugPrint(
-            '🔐 AuthService: Admin OTP bypass active, skipping resend API for ${_maskPhone(phone)}');
-      }
-      return ResponseModel(true, 'success');
-    }
-
     final Response response =
         await authRepositoryInterface.resend_Otp(phone: phone);
     if (response.statusCode == 200) {

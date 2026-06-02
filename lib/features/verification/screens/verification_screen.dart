@@ -10,7 +10,6 @@ import 'package:sixam_mart/features/auth/controllers/auth_controller.dart';
 import 'package:sixam_mart/features/verification/controllers/verification_controller.dart';
 import 'package:sixam_mart/features/verification/screens/new_pass_screen.dart';
 import 'package:sixam_mart/features/checkout/widgets/checkout_loading_dialog.dart';
-import 'package:sixam_mart/helper/admin_otp_bypass_helper.dart';
 import 'package:sixam_mart/helper/responsive_helper.dart';
 import 'package:sixam_mart/helper/route_helper.dart';
 import 'package:sixam_mart/util/dimensions.dart';
@@ -75,10 +74,6 @@ class VerificationScreenState extends State<VerificationScreen> {
       } else {
         _number = '+$trimmedNumber';
       }
-    }
-    if (widget.fromLogin2fa && AdminOtpBypassHelper.isBypassPhone(_number)) {
-      Get.find<VerificationController>()
-          .updateVerificationCode(AdminOtpBypassHelper.fixedOtp);
     }
     _email = widget.email;
     _startTimer();
@@ -359,14 +354,6 @@ class VerificationScreenState extends State<VerificationScreen> {
                                   });
                                 }
                               } else if (widget.fromLogin2fa) {
-                                if (AdminOtpBypassHelper.isBypassPhone(
-                                        _number) &&
-                                    verificationController.verificationCode !=
-                                        AdminOtpBypassHelper.fixedOtp) {
-                                  showCustomSnackBar(
-                                      'Admin number uses fixed code: ${AdminOtpBypassHelper.fixedOtp}');
-                                  return;
-                                }
                                 Get.find<AuthController>()
                                     .verifyLoginOtp(
                                   phone: _number!,
@@ -514,12 +501,6 @@ class VerificationScreenState extends State<VerificationScreen> {
   }
 
   void _resendOtp() {
-    if (AdminOtpBypassHelper.isBypassPhone(_number)) {
-      showCustomSnackBar(
-          'Admin number: OTP sending is disabled, use ${AdminOtpBypassHelper.fixedOtp}',
-          isError: false);
-      return;
-    }
     if (_number == null || _number!.isEmpty) {
       showCustomSnackBar('invalid_phone_number'.tr);
       return;
