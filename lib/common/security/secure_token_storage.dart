@@ -15,8 +15,9 @@
 import 'dart:async';
 import 'dart:math';
 import 'dart:typed_data';
-import 'package:flutter/foundation.dart' show kDebugMode;
+import 'package:flutter/foundation.dart' show kDebugMode, visibleForTesting;
 import 'package:encrypt/encrypt.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sixam_mart/common/utils/app_logger.dart';
 
@@ -29,6 +30,16 @@ class SecureTokenStorage {
   static const String _tokenExpiryKey = 'token_expiry_timestamp';
   static const String _lastRotationKey = 'last_token_rotation';
   static const String _rotationCountKey = 'token_rotation_count';
+
+  // Storage keys for the AES key/IV. These are kept in flutter_secure_storage
+  // (Android Keystore / iOS Keychain). They previously lived in SharedPreferences
+  // alongside the ciphertext, which defeated the encryption; see _initializeEncryptionKeys
+  // for the one-time migration that moves any legacy values out of SharedPreferences.
+  static const String _encryptionKeyName = 'secure_encryption_key';
+  static const String _ivKeyName = 'secure_initialization_vector';
+
+  // Hardware-backed secure storage for the encryption key material.
+  static const FlutterSecureStorage _secureStorage = FlutterSecureStorage();
   
   // Encryption configuration
   static const int _keyLength = 32; // 256 bits
@@ -79,37 +90,83 @@ class SecureTokenStorage {
     }
   }
   
-  /// Initialize encryption keys securely
+  /// Reset all in-memory state so a fresh [initialize] runs from scratch.
+  /// Test-only: the migration/key-resolution path is otherwise gated behind
+  /// one-time static flags that persist for the process lifetime.
+  @visibleForTesting
+  static void resetForTesting() {
+    _isInitialized = false;
+    _initCompleter = null;
+    _encryptionKey = null;
+    _initializationVector = null;
+    _cachedToken = null;
+    _cachedTokenExpiry = null;
+    _cachedTokenTimestamp = null;
+  }
+
+  /// Initialize encryption keys securely.
+  ///
+  /// The AES key/IV live in [_secureStorage] (Android Keystore / iOS Keychain).
+  /// Resolution order:
+  ///   1. Read from secure storage — the normal path.
+  ///   2. Otherwise migrate any legacy key/IV from SharedPreferences (older app
+  ///      versions stored them there), move them into secure storage and delete
+  ///      the SharedPreferences copies. Using the same key/IV keeps existing
+  ///      users logged in — their stored ciphertext stays decryptable.
+  ///   3. Otherwise generate fresh key/IV and persist to secure storage only.
   static Future<void> _initializeEncryptionKeys() async {
-    final prefs = await SharedPreferences.getInstance();
-    
-    // Check if we have existing keys
-    final String? existingKey = prefs.getString('secure_encryption_key');
-    final String? existingIV = prefs.getString('secure_initialization_vector');
-    
+    // 1. Try the secure location first.
+    String? existingKey = await _secureStorage.read(key: _encryptionKeyName);
+    String? existingIV = await _secureStorage.read(key: _ivKeyName);
+
+    // 2. Migrate from the legacy SharedPreferences location if needed.
+    if (existingKey == null || existingIV == null) {
+      final prefs = await SharedPreferences.getInstance();
+      final String? legacyKey = prefs.getString(_encryptionKeyName);
+      final String? legacyIV = prefs.getString(_ivKeyName);
+
+      if (legacyKey != null && legacyIV != null) {
+        await _secureStorage.write(key: _encryptionKeyName, value: legacyKey);
+        await _secureStorage.write(key: _ivKeyName, value: legacyIV);
+        // Remove the insecure copies so the key no longer sits next to the ciphertext.
+        await prefs.remove(_encryptionKeyName);
+        await prefs.remove(_ivKeyName);
+
+        existingKey = legacyKey;
+        existingIV = legacyIV;
+
+        if (kDebugMode) {
+          appLogger.info(
+              '🔐 Migrated encryption key/IV from SharedPreferences to secure storage');
+        }
+      }
+    }
+
     if (existingKey != null && existingIV != null) {
       // Use existing keys
       _encryptionKey = Key.fromBase64(existingKey);
       _initializationVector = IV.fromBase64(existingIV);
     } else {
-      // Generate new secure keys
+      // 3. Generate new secure keys
       final random = Random.secure();
       final keyBytes = Uint8List(_keyLength);
       final ivBytes = Uint8List(_ivLength);
-      
+
       for (int i = 0; i < _keyLength; i++) {
         keyBytes[i] = random.nextInt(256);
       }
       for (int i = 0; i < _ivLength; i++) {
         ivBytes[i] = random.nextInt(256);
       }
-      
+
       _encryptionKey = Key(keyBytes);
       _initializationVector = IV(ivBytes);
-      
-      // Store keys securely (in production, consider using Flutter Secure Storage)
-      await prefs.setString('secure_encryption_key', _encryptionKey!.base64);
-      await prefs.setString('secure_initialization_vector', _initializationVector!.base64);
+
+      // Store keys in hardware-backed secure storage (never SharedPreferences).
+      await _secureStorage.write(
+          key: _encryptionKeyName, value: _encryptionKey!.base64);
+      await _secureStorage.write(
+          key: _ivKeyName, value: _initializationVector!.base64);
     }
   }
   
