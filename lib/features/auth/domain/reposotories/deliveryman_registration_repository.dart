@@ -12,6 +12,7 @@ import 'package:sixam_mart/features/auth/domain/models/delivery_man_vehicles_mod
 import 'package:sixam_mart/features/auth/domain/reposotories/deliveryman_registration_repository_interface.dart';
 import 'package:sixam_mart/util/app_constants.dart';
 import 'package:dio/dio.dart' as dio_pkg;
+import 'package:sixam_mart/common/security/certificate_pinning.dart';
 
 /// Maps [checkDeliveryManRegistration] JSON to [StatusModel] (legacy UI).
 StatusModel statusModelFromCheckRegistration(
@@ -113,6 +114,7 @@ class DeliverymanRegistrationRepository
     }
 
     final dio = dio_pkg.Dio();
+    CertificatePinning.apply(dio);
     final dioResponse = await dio.post<dynamic>(
       url,
       data: formData,

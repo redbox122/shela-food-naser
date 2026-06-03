@@ -6,6 +6,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 // import 'package:in_app_update/in_app_update.dart'; // DISABLED - causes crashes
 import 'package:sixam_mart/util/app_constants.dart';
+import 'package:sixam_mart/common/security/certificate_pinning.dart';
 import 'package:sixam_mart/common/utils/json_parser.dart';
 import 'package:get/get.dart';
 import 'package:flutter/foundation.dart';
@@ -47,6 +48,7 @@ class AppVersionService {
 
       // Make API call
       final dio = dio_pkg.Dio();
+      CertificatePinning.apply(dio);
       final response = await dio.get<dynamic>(
         '${AppConstants.baseUrl}$_versionCheckEndpoint',
         queryParameters: {'platform': platform, 'current': currentVersion},
