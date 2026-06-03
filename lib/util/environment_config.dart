@@ -65,9 +65,18 @@ class EnvironmentConfig {
   /// Get environment name as string
   static String get environmentName => currentEnvironment.name.toUpperCase();
 
-  /// Check if certificate pinning should be enabled
-  static bool get enableCertificatePinning =>
-      currentEnvironment == Environment.production;
+  /// Master switch for TLS certificate pinning.
+  ///
+  /// OFF by default on purpose: with this flag false the app behaves exactly as
+  /// before — plain HTTPS validated by the OS trust store, no cert assets are
+  /// loaded and no custom SecurityContext is built.
+  ///
+  /// When true (mobile only — web is always skipped), every Dio client that
+  /// talks to our own domain is pinned to the bundled GTS WE1 intermediate and
+  /// GTS Root R4 CA certificates (see assets/certs/). Do NOT enable for
+  /// production until it has been validated on a real test build, otherwise a
+  /// wrong/expired pin would lock every user out of the app.
+  static const bool enableCertificatePinning = false;
 
   /// Check if secure HTTP client should be used
   static bool get useSecureHttpClient =>

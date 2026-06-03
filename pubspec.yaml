@@ -131,6 +131,7 @@ flutter:
     - assets/language/
     - assets/map/
     - assets/json/
+    - assets/certs/
 
   fonts:
     - family: Roboto

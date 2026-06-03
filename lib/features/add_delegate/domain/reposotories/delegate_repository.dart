@@ -3,6 +3,7 @@
 import 'package:flutter/material.dart';
 import 'package:dio/dio.dart' as dio_pkg;
 import 'package:path/path.dart' as p;
+import 'package:sixam_mart/common/security/certificate_pinning.dart';
 import 'package:sixam_mart/api/api_client.dart';
 import 'package:sixam_mart/common/widgets/custom_snackbar.dart';
 import 'package:sixam_mart/features/add_delegate/domain/models/delegate_api_model.dart';
@@ -28,6 +29,7 @@ class DelegateRepository implements DelegateRepositoryInterface {
 
     try {
       final dio = dio_pkg.Dio();
+      CertificatePinning.apply(dio);
       final dioResponse = await dio.get<dynamic>(
         url,
         options: dio_pkg.Options(
@@ -109,6 +111,7 @@ class DelegateRepository implements DelegateRepositoryInterface {
     }
 
     final dio = dio_pkg.Dio();
+    CertificatePinning.apply(dio);
     final dioResponse = await dio.post<dynamic>(
       url,
       data: formData,

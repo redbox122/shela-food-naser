@@ -20,6 +20,7 @@ import 'package:flutter/foundation.dart';
 import 'package:dio/dio.dart';
 import 'package:crypto/crypto.dart';
 import 'certificate_pinning_service.dart';
+import 'certificate_pinning.dart';
 import 'package:sixam_mart/core/cache/hive_home_cache_service.dart';
 import 'package:sixam_mart/core/cache/etag_scope_key_builder.dart';
 import 'package:sixam_mart/helper/string_extension.dart';
@@ -69,6 +70,9 @@ class SecureHttpClient {
 
     // Configure security features
     CertificatePinningService.configureDioWithSecurity(_dio, _baseUrl);
+
+    // Pin this client to our CA chain (no-op while the flag is OFF / on web).
+    CertificatePinning.apply(_dio);
 
     // Add security interceptors
     _addSecurityInterceptors();

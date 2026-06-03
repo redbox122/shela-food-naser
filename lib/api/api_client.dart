@@ -18,6 +18,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sixam_mart/common/security/secure_token_storage.dart';
 import 'package:sixam_mart/common/security/certificate_pinning_service.dart';
 import 'package:sixam_mart/common/security/secure_http_client.dart';
+import 'package:sixam_mart/common/security/certificate_pinning.dart';
 import 'package:dio/dio.dart' as dio_pkg;
 import 'package:sixam_mart/util/environment_config.dart';
 import 'package:sixam_mart/common/utils/app_logger.dart';
@@ -86,6 +87,9 @@ class ApiClient extends GetxService {
       connectTimeout: const Duration(seconds: 30),
       receiveTimeout: const Duration(seconds: 30),
     ));
+    // Pin the fallback client too (no-op while the flag is OFF). Without this,
+    // a pinning failure on the secure client would silently downgrade here.
+    CertificatePinning.apply(_fallbackDio);
     _initializeSecureServices();
     token = sharedPreferences.getString(AppConstants.token);
     AddressModel? addressModel;
@@ -1404,6 +1408,8 @@ class ApiClient extends GetxService {
         receiveTimeout: Duration(seconds: timeoutInSeconds),
         headers: finalHeaders,
       ));
+      // Multipart fallback also targets our domain — pin it too.
+      CertificatePinning.apply(dioClient);
 
       try {
         debugPrint('\x1B[35m🔥 Sending Dio POST request...\x1B[0m');

@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:dio/dio.dart' as dio_pkg;
+import 'package:sixam_mart/common/security/certificate_pinning.dart';
 import 'package:sixam_mart/api/api_client.dart';
 import 'package:sixam_mart/common/widgets/custom_snackbar.dart';
 // import 'package:sixam_mart/common/widgets/dialog/wallet_dialog.dart';
@@ -108,6 +109,7 @@ class KaidhaSubRepository implements KaidhaSubRepositoryInterface {
     // ==========================================
 
     final dio = dio_pkg.Dio();
+    CertificatePinning.apply(dio);
     final dioResponse = await dio.post<dynamic>(
       url,
       data: formData,
@@ -546,6 +548,7 @@ class KaidhaSubRepository implements KaidhaSubRepositoryInterface {
       debugPrint('📤 جاري جلب عقد PDF من الخادم... ($pdfEndpoint)');
 
       final dioPdf = dio_pkg.Dio();
+      CertificatePinning.apply(dioPdf);
       final pdfResponse = await dioPdf.get<List<int>>(
         '${AppConstants.baseUrl}$pdfEndpoint',
         options: dio_pkg.Options(
