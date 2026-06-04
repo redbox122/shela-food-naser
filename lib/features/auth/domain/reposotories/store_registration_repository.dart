@@ -7,6 +7,7 @@ import 'package:sixam_mart/features/auth/domain/reposotories/store_registration_
 import 'package:sixam_mart/features/business/domain/models/package_model.dart';
 import 'package:sixam_mart/util/app_constants.dart';
 import 'package:dio/dio.dart' as dio_pkg;
+import 'package:sixam_mart/common/security/certificate_pinning.dart';
 import 'package:flutter/foundation.dart';
 import 'package:sixam_mart/common/utils/app_logger.dart';
 
@@ -76,6 +77,7 @@ class StoreRegistrationRepository
 
     try {
       final dio = dio_pkg.Dio();
+      CertificatePinning.apply(dio);
       final dioResponse = await dio.post<dynamic>(
         url,
         data: formData,

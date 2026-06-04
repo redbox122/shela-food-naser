@@ -58,8 +58,6 @@ class AppConstants {
   // For production, inject via --dart-define=FACEBOOK_APP_ID=... at build time.
   static const String facebookAppId =
       String.fromEnvironment('FACEBOOK_APP_ID', defaultValue: '380903914182154');
-  static const String facebookClientToken =
-      String.fromEnvironment('FACEBOOK_CLIENT_TOKEN', defaultValue: '6d874ccc2786e43042d78823eecd5b63');
 
   // Website configuration
   static const bool useReactWebsite = true; // Production website

@@ -27,6 +27,7 @@ import 'package:sixam_mart/services/secure_token_loader.dart';
 import 'package:sixam_mart/services/cache_manager.dart';
 import 'package:sixam_mart/services/edge_to_edge_service.dart';
 import 'package:sixam_mart/common/utils/app_logger.dart';
+import 'package:sixam_mart/common/security/certificate_pinning.dart';
 import 'package:sixam_mart/common/widgets/global_sticky_cart_overlay.dart';
 import 'package:sixam_mart/core/logger/app_logger.dart' as logger_package;
 import 'package:sixam_mart/core/cache/hive_home_cache_service.dart';
@@ -112,6 +113,11 @@ Future<void> main() async {
       details.stack,
     );
   };
+
+  // TLS certificate pinning bootstrap. No-op while the flag is OFF (default).
+  // When ON it loads the pinned CA assets and fails clearly here if they are
+  // missing — before any network request is made.
+  await CertificatePinning.init();
 
   // âš¡ CRITICAL OPTIMIZATION: Load ONLY essential services for first screen
   // Move ALL heavy operations to background after first frame

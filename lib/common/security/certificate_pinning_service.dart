@@ -18,6 +18,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:crypto/crypto.dart';
 import 'package:dio/dio.dart';
+import 'package:sixam_mart/util/environment_config.dart';
 
 /// Certificate Pinning Service for secure API communication
 /// Prevents MITM attacks by validating SSL certificates
@@ -95,14 +96,25 @@ class CertificatePinningService {
           _certificateFingerprints[_currentEnvironment] ?? [];
 
       if (allowedFingerprints.isEmpty) {
+        // Fail-closed when pinning is enabled: an empty list must never be
+        // treated as "trust anything". Real enforcement is done via the bundled
+        // CA SecurityContext (see CertificatePinning); this guard just makes
+        // sure this legacy helper can't silently bypass pinning.
+        if (EnvironmentConfig.enableCertificatePinning) {
+          if (kDebugMode) {
+            debugPrint(
+                '❌ Certificate pinning ON but no fingerprints configured for $_currentEnvironment — rejecting (fail-closed)');
+          }
+          return false;
+        }
         if (kDebugMode) {
           debugPrint(
               '⚠️ No certificate fingerprints configured for $_currentEnvironment environment');
           debugPrint(
               '⚠️ Certificate pinning is effectively DISABLED - add fingerprints before production release');
         }
-        // Note: Set _certificateFingerprints for production before release.
-        // Returning true here bypasses pinning entirely.
+        // Pinning flag is OFF — preserve legacy permissive behaviour for the
+        // (unused) fingerprint path so nothing changes while the flag is off.
         return true; // Allow if no fingerprints configured
       }
 
