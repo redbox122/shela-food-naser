@@ -23,6 +23,22 @@ class Images {
 
   static const String sar = 'assets/image/sar.png';
 
+  static const String shella_bag = 'assets/image/shella_bag.png';
+  static const String Blured_effect_1 = 'assets/image/Blured_effect_1.png';
+  static const String Blured_effect_2 = 'assets/image/Blured_effect_2.png';
+  static const String Blured_effect_3 = 'assets/image/Blured_effect_3.png';
+  static const String Blured_effect_4 = 'assets/image/Blured_effect_4.png';
+  static const String ob_ic_food = 'assets/image/ob_ic_food.png';
+  static const String oclock = 'assets/image/oclock.png';
+  static const String boxes = 'assets/image/boxes.png';
+  static const String ob_ic_pharmacy = 'assets/image/ob_ic_pharmacy.png';
+  static const String ob_ic_grocery = 'assets/image/ob_ic_grocery.png';
+  static const String discount_20 = 'assets/image/discount_20%.png';
+  static const String discount_30 = 'assets/image/discount_30%.png';
+  static const String discount_50 = 'assets/image/discount_50%.png';
+  static const String Exclusive_discounts =
+      'assets/image/Exclusive_discounts.png';
+
   static const String restaurantMarker = 'assets/image/restaurant_marker.png';
   static const String deliveryManMarker =
       'assets/image/delivery_man_marker.png';

@@ -144,3 +144,11 @@ flutter:
           weight: 700
         - asset: assets/font/Roboto-Black.ttf
           weight: 900
+    - family: Tajawal
+      fonts:
+        - asset: assets/font/Tajawal-Regular.ttf
+          weight: 400
+        - asset: assets/font/Tajawal-Medium.ttf
+          weight: 500
+        - asset: assets/font/Tajawal-Bold.ttf
+          weight: 700
