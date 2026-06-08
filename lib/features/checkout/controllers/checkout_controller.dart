@@ -546,6 +546,124 @@ class CheckoutController extends GetxController implements GetxService {
     }
   }
 
+  /// Returns the stored gateway invoice id ONLY if the pending context belongs
+  /// to [orderId]; otherwise null. Lets an explicit per-order check reuse the
+  /// real MyFatoorah invoice saved when the payment was started.
+  String? pendingInvoiceIdForOrder(int orderId) {
+    final Map<String, dynamic>? ctx = _readPendingPaymentContext();
+    if (ctx == null) return null;
+    final int? ctxOrderId = ctx['order_id'] is int
+        ? ctx['order_id'] as int
+        : int.tryParse('${ctx['order_id']}');
+    if (ctxOrderId != orderId) return null;
+    final String? invoiceId = (ctx['invoice_id'] as String?)?.trim();
+    return (invoiceId != null && invoiceId.isNotEmpty) ? invoiceId : null;
+  }
+
+  /// Clears the stored pending-payment context ONLY if it belongs to [orderId],
+  /// so an explicit check on one order never wipes another order's context.
+  Future<void> _clearPendingContextIfMatches(int orderId,
+      {String reason = ''}) async {
+    final Map<String, dynamic>? ctx = _readPendingPaymentContext();
+    if (ctx == null) return;
+    final int? ctxOrderId = ctx['order_id'] is int
+        ? ctx['order_id'] as int
+        : int.tryParse('${ctx['order_id']}');
+    if (ctxOrderId == orderId) {
+      await clearPendingPaymentContext(reason: reason);
+    }
+  }
+
+  /// Explicit, user-initiated payment status check for ONE specific
+  /// digital/MyFatoorah order — triggered from Orders / Order Details, never
+  /// from checkout open. Safe: it only inspects the given [orderId], never shows
+  /// a checkout snackbar, and does not touch wallet_qidha / wallet / COD flows
+  /// (the caller gates on payment_method == 'digital_payment').
+  ///
+  /// Uses the order's invoice id when available; otherwise falls back to the
+  /// existing trackOrder status check. Returns the resolved result so the caller
+  /// can refresh its own UI. Does not change any backend contract.
+  Future<MyFatoorahPaymentResult> checkOrderPaymentStatusExplicit(
+    int orderId, {
+    String? invoiceId,
+    String? contactNumber,
+  }) async {
+    // Invoice id source priority:
+    //  1) stored pending_payment_context invoice id (only if it matches THIS
+    //     order) — the real gateway invoice saved when the payment started,
+    //  2) invoice id passed in from the order data (if the order model carries
+    //     one), then
+    //  3) no invoice id → fall back to the trackOrder status check below.
+    final String? contextInvoiceId = pendingInvoiceIdForOrder(orderId);
+    final String? resolvedInvoiceId =
+        (contextInvoiceId != null && contextInvoiceId.isNotEmpty)
+            ? contextInvoiceId
+            : ((invoiceId != null && invoiceId.isNotEmpty) ? invoiceId : null);
+
+    debugPrint(
+        '[PaymentRecovery][EXPLICIT_ORDER_CHECK_START] orderId=$orderId '
+        'invoiceSource=${contextInvoiceId != null && contextInvoiceId.isNotEmpty ? 'context' : ((invoiceId != null && invoiceId.isNotEmpty) ? 'order' : 'trackOrder')}');
+
+    MyFatoorahPaymentResult result;
+    try {
+      if (resolvedInvoiceId != null && resolvedInvoiceId.isNotEmpty) {
+        result = await _checkMyFatoorahStatus(resolvedInvoiceId);
+      } else {
+        // No gateway invoice id on the order — use the order status / trackOrder
+        // check (single read, not a long poll).
+        final OrderController orderController = Get.find<OrderController>();
+        await orderController.trackOrder(
+          orderId.toString(),
+          null,
+          false,
+          contactNumber: contactNumber,
+          preserveTrackModel: true,
+        );
+        final String paymentStatus =
+            orderController.trackModel?.paymentStatus?.toLowerCase() ?? '';
+        final String orderStatus =
+            orderController.trackModel?.orderStatus?.toLowerCase() ?? '';
+        if (paymentStatus == 'paid' || paymentStatus == 'partially_paid') {
+          result = MyFatoorahPaymentResult.paid;
+        } else if (paymentStatus == 'failed' ||
+            paymentStatus == 'canceled' ||
+            paymentStatus == 'cancelled' ||
+            orderStatus == 'failed' ||
+            orderStatus == 'canceled' ||
+            orderStatus == 'cancelled') {
+          result = MyFatoorahPaymentResult.failed;
+        } else {
+          result = MyFatoorahPaymentResult.pending;
+        }
+      }
+    } catch (e) {
+      debugPrint('[PaymentRecovery][EXPLICIT_ORDER_CHECK] exception: $e');
+      // Never wrongly mark as failed — treat as pending so the user can retry.
+      result = MyFatoorahPaymentResult.pending;
+    }
+
+    debugPrint(
+        '[PaymentRecovery][EXPLICIT_ORDER_CHECK_RESULT] orderId=$orderId '
+        'result=$result');
+
+    switch (result) {
+      case MyFatoorahPaymentResult.paid:
+        await _clearPendingContextIfMatches(orderId, reason: 'explicit_paid');
+        showCustomSnackBar('تم تأكيد دفع طلبك بنجاح', isError: false);
+        break;
+      case MyFatoorahPaymentResult.pending:
+        showCustomSnackBar(
+            'الدفع لم يكتمل بعد، يمكنك المحاولة مرة أخرى أو متابعة الطلب من هنا');
+        break;
+      case MyFatoorahPaymentResult.failed:
+        await _clearPendingContextIfMatches(orderId, reason: 'explicit_failed');
+        showCustomSnackBar(
+            'فشل الدفع أو تم إلغاؤه. يرجى المحاولة مرة أخرى.');
+        break;
+    }
+    return result;
+  }
+
   void selectPaymentMethod(int index) {
     if (index < 0 || index >= paymentMethods.length) {
       return;
