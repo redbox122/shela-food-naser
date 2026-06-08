@@ -39,7 +39,38 @@ import 'package:sixam_mart/features/payment/domain/services/myfatoorah_service.d
 import 'package:sixam_mart/features/payment/domain/repositories/myfatoorah_repository.dart';
 import 'package:sixam_mart/features/payment/domain/utils/myfatoorah_mapper.dart';
 import 'package:flutter_cache_manager/flutter_cache_manager.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../my_coupon/controllers/my_coupon_controller.dart';
+
+/// Outcome of verifying a MyFatoorah payment via the backend check-status
+/// endpoint after the WebView returns.
+enum MyFatoorahPaymentResult {
+  /// Gateway confirmed and order is paid/confirmed.
+  paid,
+
+  /// Invoice is still Pending / transaction InProgress — payment was not
+  /// completed. The order stays hidden as payment_pending; the user can retry.
+  pending,
+
+  /// Payment failed or was cancelled.
+  failed,
+}
+
+/// Why [CheckoutController.recoverPendingPaymentIfAny] was invoked. Controls
+/// whether automatic recovery (network check-status + user-facing snackbar) is
+/// allowed, so a stale context from an unrelated old order never pops a warning
+/// during a normal checkout open.
+enum PaymentRecoveryTrigger {
+  /// Checkout screen opened normally (cart → checkout). NEVER auto-recovers or
+  /// shows a pending warning for an unrelated/old order — only TTL cleanup.
+  checkoutOpen,
+
+  /// App returned to foreground (e.g. after the MyFatoorah WebView / payment).
+  appResume,
+
+  /// Explicit entry from a payment-recovery flow — always allowed to recover.
+  explicit,
+}
 
 class _CheckoutReadableError {
   final String? code;
@@ -108,6 +139,86 @@ class CheckoutController extends GetxController implements GetxService {
 
   void finishPlaceOrder() {
     _placeOrderLocked = false;
+  }
+
+  /// Final safety guard run BEFORE any order/payment request is sent — covers
+  /// all payment methods (wallet_qidha, wallet, digital_payment/MyFatoorah, and
+  /// cash). Returns true when it is safe to proceed; false blocks the order.
+  ///
+  /// [couponDiscount] is compared against the PRODUCT subtotal only (never
+  /// delivery fee, tax, tips, app fee, or additional charge). On a coupon-caused
+  /// failure the invalid coupon is removed and totals recalculate through the
+  /// CouponController's own update(); existing coupon revalidation is untouched.
+  ///
+  /// Logs are intentionally limited to numeric totals — no token, address, or
+  /// payment credentials are ever logged here.
+  bool guardCheckoutTotals({
+    required double payableTotal,
+    required double orderAmount,
+    required double productSubtotal,
+    required double couponDiscount,
+  }) {
+    debugPrint('[Checkout][TOTAL_GUARD_START]');
+    debugPrint(
+      '[Checkout][TOTAL_GUARD_VALUES] '
+      'payableTotal=$payableTotal orderAmount=$orderAmount '
+      'productSubtotal=$productSubtotal couponDiscount=$couponDiscount',
+    );
+
+    String? blockReason;
+    bool couponCaused = false;
+
+    // 1) Coupon discount sanity — measured against the product subtotal only.
+    if (couponDiscount.isNaN ||
+        couponDiscount.isInfinite ||
+        couponDiscount < 0) {
+      blockReason = 'coupon_discount_invalid';
+      couponCaused = true;
+    } else if (productSubtotal.isNaN ||
+        productSubtotal.isInfinite ||
+        productSubtotal < 0) {
+      blockReason = 'product_subtotal_invalid';
+    } else if (couponDiscount > productSubtotal) {
+      blockReason = 'coupon_discount_exceeds_subtotal';
+      couponCaused = true;
+    }
+    // 2) Final payable total sanity.
+    else if (payableTotal.isNaN ||
+        payableTotal.isInfinite ||
+        payableTotal <= 0) {
+      blockReason = 'payable_total_invalid';
+    }
+    // 3) Amount sent to backend must match the displayed payable total.
+    else if (orderAmount.isNaN ||
+        orderAmount.isInfinite ||
+        (orderAmount - payableTotal).abs() > 0.01) {
+      blockReason = 'order_amount_mismatch';
+    }
+
+    if (blockReason != null) {
+      debugPrint(
+        '[Checkout][TOTAL_GUARD_BLOCKED] reason=$blockReason '
+        'couponCaused=$couponCaused',
+      );
+      if (couponCaused) {
+        // Clear the invalid coupon; CouponController.update() rebuilds the
+        // checkout UI so totals recalculate without the stale discount.
+        try {
+          if (Get.isRegistered<CouponController>()) {
+            Get.find<CouponController>().removeCouponData(true);
+          }
+        } catch (_) {}
+        showCustomSnackBar('تم إزالة الكوبون لأنه لم يعد صالحًا', isError: true);
+      } else {
+        showCustomSnackBar(
+            'الإجمالي غير صحيح، برجاء تحديث السلة والمحاولة مرة أخرى',
+            isError: true);
+      }
+      return false;
+    }
+
+    debugPrint('[Checkout][TOTAL_GUARD_PASSED]');
+    return true;
   }
 
   // Flag to prevent UI flickering during checkout initialization
@@ -219,6 +330,11 @@ class CheckoutController extends GetxController implements GetxService {
     }
   }
 
+  /// Message to show for the next digital-payment failure. Lets [Pay]
+  /// distinguish "not completed yet (pending/InProgress)" from a hard
+  /// failure/cancel while reusing the shared cleanup below. Consumed once.
+  String? _digitalFailureMessage;
+
   Future<void> handleDigitalPaymentFailure() async {
     _paymentFlowState = PaymentFlowState.failed;
     _isLoading = false;
@@ -231,7 +347,10 @@ class CheckoutController extends GetxController implements GetxService {
       Get.find<OrderController>().removeRunningOrderLocally(pendingOrderId);
     }
     await _refreshRunningOrdersFromServer();
-    showCustomSnackBar('فشلت العملية، يرجى المحاولة في وقت آخر');
+    final String message =
+        _digitalFailureMessage ?? 'فشلت العملية، يرجى المحاولة في وقت آخر';
+    _digitalFailureMessage = null;
+    showCustomSnackBar(message);
   }
 
   void clearCartOnPaymentConfirmed() {
@@ -241,6 +360,190 @@ class CheckoutController extends GetxController implements GetxService {
       if (kDebugMode) debugPrint('$e');
     }
     resetPaymentState();
+  }
+
+  // ==========================================================================
+  // PENDING PAYMENT RECOVERY (MyFatoorah / digital)
+  // --------------------------------------------------------------------------
+  // Persists a NON-sensitive payment context so a MyFatoorah/digital payment
+  // can be re-verified after the app is backgrounded, killed, network-dropped,
+  // or the user backs out — instead of wrongly treating the order as lost or
+  // failed. NEVER stores card data, tokens, or full address.
+  // ==========================================================================
+
+  bool _recoveringPendingPayment = false;
+
+  Future<void> storePendingPaymentContext({
+    required int orderId,
+    String? invoiceId,
+    required String paymentMethod,
+  }) async {
+    try {
+      final SharedPreferences prefs = Get.find<SharedPreferences>();
+      final Map<String, dynamic> ctx = <String, dynamic>{
+        'order_id': orderId,
+        'invoice_id': (invoiceId != null && invoiceId.isNotEmpty)
+            ? invoiceId
+            : null,
+        'payment_method': paymentMethod,
+        'timestamp': DateTime.now().millisecondsSinceEpoch,
+      };
+      await prefs.setString(
+          AppConstants.pendingPaymentContext, jsonEncode(ctx));
+      debugPrint(
+          '[PaymentRecovery][STORE_PENDING] orderId=$orderId '
+          'hasInvoice=${invoiceId != null && invoiceId.isNotEmpty} '
+          'method=$paymentMethod');
+    } catch (e) {
+      debugPrint('[PaymentRecovery][STORE_PENDING] failed: $e');
+    }
+  }
+
+  Map<String, dynamic>? _readPendingPaymentContext() {
+    try {
+      final SharedPreferences prefs = Get.find<SharedPreferences>();
+      final String? raw =
+          prefs.getString(AppConstants.pendingPaymentContext);
+      if (raw == null || raw.isEmpty) return null;
+      final dynamic decoded = jsonDecode(raw);
+      if (decoded is Map<String, dynamic>) return decoded;
+      return null;
+    } catch (e) {
+      debugPrint('[PaymentRecovery] read pending context failed: $e');
+      return null;
+    }
+  }
+
+  Future<void> clearPendingPaymentContext({String reason = ''}) async {
+    try {
+      final SharedPreferences prefs = Get.find<SharedPreferences>();
+      await prefs.remove(AppConstants.pendingPaymentContext);
+      debugPrint('[PaymentRecovery][CLEAR_PENDING] reason=$reason');
+    } catch (e) {
+      debugPrint('[PaymentRecovery][CLEAR_PENDING] failed: $e');
+    }
+  }
+
+  /// Max age of a stored pending-payment context. Older contexts are treated as
+  /// expired and cleared instead of being recovered (prevents a long-dead order
+  /// from popping a warning on a future checkout).
+  static const Duration _pendingPaymentContextTtl = Duration(minutes: 30);
+
+  /// Re-checks a previously-started MyFatoorah/digital payment exactly once.
+  ///
+  /// [trigger] gates whether automatic recovery is allowed:
+  ///  • [PaymentRecoveryTrigger.checkoutOpen] → NEVER auto-recovers a stale/old
+  ///    order; only does TTL cleanup, so a normal cart→checkout open can't show
+  ///    a pending warning that belongs to a previous order.
+  ///  • [PaymentRecoveryTrigger.appResume] → recovers only when the stored
+  ///    context belongs to THIS session's order (e.g. returning after the
+  ///    MyFatoorah WebView).
+  ///  • [PaymentRecoveryTrigger.explicit] → always recovers (came from a
+  ///    payment-recovery flow).
+  ///
+  /// Never marks an unconfirmed order as failed — pending/InProgress stays
+  /// pending and the context is kept for a later re-check. Reuses the existing
+  /// check-status logic; does not change any backend contract.
+  Future<void> recoverPendingPaymentIfAny({
+    PaymentRecoveryTrigger trigger = PaymentRecoveryTrigger.appResume,
+  }) async {
+    if (_recoveringPendingPayment) return;
+
+    // Never interfere with a payment that is actively running in this session;
+    // that flow verifies itself when the WebView returns.
+    if (_isPaymentInProgress || isPaymentFlowInProgress) return;
+
+    final Map<String, dynamic>? ctx = _readPendingPaymentContext();
+    if (ctx == null) return;
+
+    final int? orderId = ctx['order_id'] is int
+        ? ctx['order_id'] as int
+        : int.tryParse('${ctx['order_id']}');
+    final String? invoiceId = (ctx['invoice_id'] as String?)?.trim();
+
+    // 1) TTL: drop a context that is older than the allowed window.
+    final int ts = ctx['timestamp'] is int
+        ? ctx['timestamp'] as int
+        : int.tryParse('${ctx['timestamp']}') ?? 0;
+    final int ageMs = DateTime.now().millisecondsSinceEpoch - ts;
+    if (ts <= 0 || ageMs > _pendingPaymentContextTtl.inMilliseconds) {
+      debugPrint(
+          '[PaymentRecovery][EXPIRED_CONTEXT] orderId=$orderId '
+          'ageMin=${(ageMs / 60000).floor()} ttlMin=${_pendingPaymentContextTtl.inMinutes}');
+      await clearPendingPaymentContext(reason: 'expired_context');
+      return;
+    }
+
+    // 2) Normal checkout open must NOT auto-recover an unrelated/old order. Keep
+    // the (non-expired) context silently; a real resume/explicit trigger or a
+    // new payment will handle it.
+    if (trigger == PaymentRecoveryTrigger.checkoutOpen) {
+      debugPrint(
+          '[PaymentRecovery][SKIP_CHECKOUT_OPEN] contextOrderId=$orderId '
+          'currentOrderId=$_currentOrderId');
+      return;
+    }
+
+    // 3) Relevance: outside an explicit recovery flow, only recover when the
+    // stored context belongs to THIS checkout session's order. This blocks a
+    // stale context (e.g. old order 448) from showing a warning on app resume
+    // while the user is on an unrelated new checkout.
+    final bool sessionMatches =
+        _currentOrderId != null && orderId != null && orderId == _currentOrderId;
+    if (trigger != PaymentRecoveryTrigger.explicit && !sessionMatches) {
+      debugPrint(
+          '[PaymentRecovery][SKIP_STALE_CONTEXT] contextOrderId=$orderId '
+          'currentOrderId=$_currentOrderId trigger=$trigger');
+      return;
+    }
+
+    _recoveringPendingPayment = true;
+    try {
+      debugPrint(
+          '[PaymentRecovery][CHECK_START] orderId=$orderId '
+          'hasInvoice=${invoiceId != null && invoiceId.isNotEmpty} '
+          'trigger=$trigger');
+
+      MyFatoorahPaymentResult result;
+      if (invoiceId != null && invoiceId.isNotEmpty) {
+        result = await _checkMyFatoorahStatus(invoiceId);
+      } else if (orderId != null) {
+        final bool confirmed = await _confirmMyFatoorahPayment(orderId);
+        result = confirmed
+            ? MyFatoorahPaymentResult.paid
+            : MyFatoorahPaymentResult.pending;
+      } else {
+        await clearPendingPaymentContext(reason: 'no_identifiers');
+        return;
+      }
+
+      debugPrint('[PaymentRecovery][CHECK_RESULT] result=$result');
+
+      switch (result) {
+        case MyFatoorahPaymentResult.paid:
+          await clearPendingPaymentContext(reason: 'paid');
+          clearCartOnPaymentConfirmed();
+          showCustomSnackBar('تم تأكيد دفع طلبك بنجاح', isError: false);
+          if (orderId != null) {
+            Get.toNamed(RouteHelper.getOrderDetailsRoute(orderId));
+          } else {
+            Get.toNamed(RouteHelper.getOrderRoute());
+          }
+          break;
+        case MyFatoorahPaymentResult.pending:
+          // Keep the context so a later resume can confirm. NOT a failure.
+          showCustomSnackBar(
+              'الدفع لم يكتمل بعد، يمكنك متابعة حالة الطلب من طلباتي');
+          break;
+        case MyFatoorahPaymentResult.failed:
+          await clearPendingPaymentContext(reason: 'failed');
+          showCustomSnackBar(
+              'تعذّر إتمام عملية الدفع ولم يتم خصم أي مبلغ. يمكنك المحاولة مرة أخرى.');
+          break;
+      }
+    } finally {
+      _recoveringPendingPayment = false;
+    }
   }
 
   void selectPaymentMethod(int index) {
@@ -682,8 +985,19 @@ class CheckoutController extends GetxController implements GetxService {
       final dynamic data = body['data'];
       final String? paymentUrl =
           data is Map<String, dynamic> ? data['payment_url']?.toString() : null;
+      // Capture the MyFatoorah invoice id so we can verify the payment via the
+      // dedicated check-status endpoint (key_type=InvoiceId) after the WebView
+      // returns — instead of polling trackOrder many times.
+      final String? invoiceId = data is Map<String, dynamic>
+          ? (data['invoice_id'] ??
+                  data['InvoiceId'] ??
+                  data['invoiceId'] ??
+                  body['invoice_id'] ??
+                  body['InvoiceId'])
+              ?.toString()
+          : (body['invoice_id'] ?? body['InvoiceId'])?.toString();
       debugPrint(
-          '[Pay][PaymentUrl] hasUrl=${paymentUrl != null && paymentUrl.isNotEmpty} url=${paymentUrl ?? ''}');
+          '[Pay][PaymentUrl] hasUrl=${paymentUrl != null && paymentUrl.isNotEmpty} url=${paymentUrl ?? ''} invoiceId=${invoiceId ?? ''}');
 
       if (paymentUrl == null || paymentUrl.isEmpty) {
         debugPrint('? MyFatoorah process returned no payment_url');
@@ -697,6 +1011,24 @@ class CheckoutController extends GetxController implements GetxService {
       final String errorUrl =
           '${AppConstants.baseUrl}/api/v1/payment/myfatoorah/error';
 
+      // ✅ LOADING FIX: Stop the checkout button loader BEFORE opening the
+      // MyFatoorah webview. Otherwise the spinner sits stuck under the webview
+      // and stays active across the whole payment + confirmation window.
+      debugPrint('[Pay][PaymentUrl] payment_url found — preparing to open MyFatoorah');
+      _isLoading = false;
+      update(['payment']);
+      debugPrint('[Pay][Loading] loading OFF before navigating to MyFatoorah');
+      debugPrint('[Pay][Navigate] navigating to MyFatoorah webview');
+
+      // 💾 Persist a NON-sensitive recovery context BEFORE opening the WebView,
+      // so a kill / background / network drop / back-out can be re-verified
+      // later instead of being treated as a lost or failed order.
+      await storePendingPaymentContext(
+        orderId: orderId,
+        invoiceId: invoiceId,
+        paymentMethod: 'digital_payment',
+      );
+
       final String? webResult = await Get.to(
         () => MyFatoorahPaymentWebViewScreen(
           initialUrl: paymentUrl,
@@ -705,20 +1037,65 @@ class CheckoutController extends GetxController implements GetxService {
         ),
       );
 
-      debugPrint('MyFatoorah WebView result: $webResult');
+      debugPrint('[Pay][Return] payment screen returned result=$webResult');
 
-      // Always confirm from backend (do not trust URL alone)
-      final bool confirmed = await _confirmMyFatoorahPayment(
-        orderId,
-        contactNumber: contactNumber,
-      );
+      // Show a short "checking payment" loader ONLY while we call check-status.
+      // It is cleared below in every path, so it can never become a stuck overlay.
+      _isLoading = true;
+      update(['payment']);
+
+      // ✅ Verify with the backend check-status endpoint (single call) instead
+      // of polling trackOrder up to 30 times. Fall back to a short trackOrder
+      // check only if the gateway invoice id is unavailable.
+      MyFatoorahPaymentResult result;
+      if (invoiceId != null && invoiceId.isNotEmpty) {
+        result = await _checkMyFatoorahStatus(invoiceId);
+      } else {
+        debugPrint(
+            '[Pay][CheckStatus] no invoice_id available — falling back to limited trackOrder check');
+        final bool confirmed = await _confirmMyFatoorahPayment(
+          orderId,
+          contactNumber: contactNumber,
+        );
+        result = confirmed
+            ? MyFatoorahPaymentResult.paid
+            : MyFatoorahPaymentResult.pending;
+      }
       debugPrint(
-          '[Pay][ConfirmResult] confirmed=$confirmed webResult=$webResult orderId=$orderId');
+          '[Pay][CheckStatus] result=$result webResult=$webResult orderId=$orderId');
 
-      _isOrderPaid = confirmed;
       _isPaymentInProgress = false;
+      // ✅ Always clear the checking loader so returning from MyFatoorah never
+      // leaves the screen stuck on a spinner.
+      _isLoading = false;
+      update(['payment']);
 
-      return confirmed;
+      switch (result) {
+        case MyFatoorahPaymentResult.paid:
+          _isOrderPaid = true;
+          // Confirmed paid — recovery context is no longer needed.
+          await clearPendingPaymentContext(reason: 'paid_in_flow');
+          return true;
+        case MyFatoorahPaymentResult.pending:
+          // Payment not completed yet — keep order hidden as payment_pending and
+          // let the user retry. KEEP the recovery context so a later app
+          // resume / checkout re-open can re-verify the real status.
+          _isOrderPaid = false;
+          _digitalFailureMessage =
+              'الدفع لم يكتمل بعد، يمكنك متابعة حالة الطلب من طلباتي';
+          // If the user explicitly chose "go to my orders" from the back
+          // dialog, take them there.
+          if (webResult == 'go_to_orders') {
+            Get.toNamed(RouteHelper.getOrderRoute());
+          }
+          return false;
+        case MyFatoorahPaymentResult.failed:
+          _isOrderPaid = false;
+          _digitalFailureMessage =
+              'فشل الدفع أو تم إلغاؤه. يرجى المحاولة مرة أخرى.';
+          await clearPendingPaymentContext(reason: 'failed_in_flow');
+          return false;
+      }
     } catch (error) {
       debugPrint('? MyFatoorah payment error: $error');
       debugPrint('[Pay][Exception] type=${error.runtimeType}');
@@ -727,12 +1104,88 @@ class CheckoutController extends GetxController implements GetxService {
     }
   }
 
+  /// Verify a MyFatoorah payment via the backend check-status endpoint.
+  ///
+  /// Single call — no 30× polling. Maps the response to a [MyFatoorahPaymentResult]:
+  ///  • paid      → order.payment_status == 'paid' (and order_status confirmed)
+  ///  • pending   → data.InvoiceStatus Pending / transaction InProgress, or the
+  ///                order is still unpaid / payment_pending (NOT a failure)
+  ///  • failed    → anything else (failed / cancelled / HTTP error)
+  Future<MyFatoorahPaymentResult> _checkMyFatoorahStatus(
+    String invoiceId,
+  ) async {
+    try {
+      final apiClient = Get.find<ApiClient>();
+      final repository = MyFatoorahRepository(apiClient: apiClient);
+      final service = MyFatoorahService(repository: repository);
+
+      final Response response = await service.checkStatus(
+        key: invoiceId,
+        keyType: 'InvoiceId',
+      );
+      debugPrint(
+          '[Pay][CheckStatus] status=${response.statusCode} body=${response.body}');
+
+      final Map<String, dynamic> body = response.body is Map<String, dynamic>
+          ? response.body as Map<String, dynamic>
+          : <String, dynamic>{};
+      final dynamic data = body['data'];
+      final dynamic order = body['order'];
+
+      final String invoiceStatus = (data is Map<String, dynamic>
+              ? (data['InvoiceStatus'] ??
+                  data['TransactionStatus'] ??
+                  data['transaction_status'] ??
+                  '')
+              : '')
+          .toString()
+          .toLowerCase();
+      final String paymentStatus = (order is Map<String, dynamic>
+              ? (order['payment_status'] ?? '')
+              : (body['payment_status'] ?? ''))
+          .toString()
+          .toLowerCase();
+      final String orderStatus = (order is Map<String, dynamic>
+              ? (order['order_status'] ?? '')
+              : (body['order_status'] ?? ''))
+          .toString()
+          .toLowerCase();
+
+      debugPrint(
+          '[Pay][CheckStatus] invoiceStatus="$invoiceStatus" payment_status="$paymentStatus" order_status="$orderStatus"');
+
+      // 1) Real gateway confirmation → success (money captured).
+      if (paymentStatus == 'paid' || paymentStatus == 'partially_paid') {
+        return MyFatoorahPaymentResult.paid;
+      }
+
+      // 2) Not completed yet — Pending / InProgress / still unpaid. Do NOT poll;
+      // keep the order hidden as payment_pending and let the user retry.
+      if (invoiceStatus == 'pending' ||
+          invoiceStatus == 'inprogress' ||
+          invoiceStatus == 'in progress' ||
+          paymentStatus == 'unpaid' ||
+          orderStatus == 'payment_pending') {
+        return MyFatoorahPaymentResult.pending;
+      }
+
+      // 3) Anything else → failed / cancelled.
+      return MyFatoorahPaymentResult.failed;
+    } catch (e) {
+      debugPrint('[Pay][CheckStatus] exception: $e');
+      // Treat as pending (not a hard failure) so the user can simply retry and
+      // we never wrongly mark an unconfirmed order as failed.
+      return MyFatoorahPaymentResult.pending;
+    }
+  }
+
   Future<bool> _confirmMyFatoorahPayment(
     int orderId, {
     String? contactNumber,
   }) async {
     final OrderController orderController = Get.find<OrderController>();
-    const int maxTries = 30;
+    // Fallback only (no gateway invoice id). Kept short — NOT a 30× poll.
+    const int maxTries = 5;
 
     for (int i = 0; i < maxTries; i++) {
       debugPrint('[Pay][Confirm] try=${i + 1}/$maxTries orderId=$orderId');
@@ -1813,37 +2266,76 @@ class CheckoutController extends GetxController implements GetxService {
       debugPrint(
           '\x1B[32m[CreateOrder] bodyType=${response.body.runtimeType}\x1B[0m');
 
+      // Parse the body once (placeOrder uses handleError:false, so non-2xx
+      // responses still carry the decoded JSON map).
+      final dynamic responseBody = response.body;
+      final Map<String, dynamic>? bodyMap =
+          responseBody is Map<String, dynamic> ? responseBody : null;
+
+      // 🔧 Order id can arrive under several field names (order_id, orderId, id).
+      orderID = (bodyMap?['order_id'] ??
+              bodyMap?['orderId'] ??
+              bodyMap?['id'] ??
+              '')
+          .toString();
+
+      // 🔁 DIGITAL PAYMENT pending-order detection.
+      // The backend intentionally creates the digital-payment order as
+      // payment_status=unpaid / order_status=payment_pending. When its
+      // duplicate-prevention kicks in — often right after an internal backend
+      // 403 such as the "$txDuration" bug — it replies with
+      // duplicate_prevented=true and the SAME existing order_id. That is a
+      // usable existing pending order, NOT a failure: reuse it and continue to
+      // MyFatoorah instead of showing a scary "Failed to create order" error.
+      final bool duplicatePrevented = bodyMap?['duplicate_prevented'] == true;
+      final String orderStatusStr =
+          (bodyMap?['status'] ?? bodyMap?['order_status'] ?? '')
+              .toString()
+              .toLowerCase();
+      final String paymentStatusStr =
+          (bodyMap?['payment_status'] ?? '').toString().toLowerCase();
+      final bool isPendingPaymentState =
+          orderStatusStr == 'payment_pending' || paymentStatusStr == 'unpaid';
+
+      final bool isHttpSuccess =
+          response.statusCode == 200 || response.statusCode == 201;
+      // Treat a returned order id together with duplicate_prevented OR a
+      // payment_pending/unpaid state as a valid existing order even when the
+      // HTTP status itself was not 2xx (e.g. the backend 403 $txDuration case).
+      final bool isUsablePendingOrder =
+          orderID.isNotEmpty && (duplicatePrevented || isPendingPaymentState);
+
       // ✅ FIX: قبول 200 أو 201 كـ success (لا نعتمد على success field)
       // لأن prescription endpoint قد لا يرجع success: true
-      if (response.statusCode == 200 || response.statusCode == 201) {
-        // 🔧 FIX: Check all possible order ID field names (order_id, orderId, id)
-        orderID = (response.body['order_id'] ??
-                response.body['orderId'] ??
-                response.body['id'] ??
-                '')
-            .toString();
+      if (isHttpSuccess || isUsablePendingOrder) {
+        if (duplicatePrevented) {
+          debugPrint(
+              '\x1B[33m♻️ [CreateOrder] duplicate_prevented=true → reusing existing pending order: $orderID\x1B[0m');
+        }
         debugPrint(
-            '[CreateOrder][RAW] order_id=${response.body['order_id']} orderId=${response.body['orderId']} id=${response.body['id']} success=${response.body['success']} message=${response.body['message']} signatureStatus=${response.body['signatureStatus'] ?? response.body['signature_status']}');
+            '[CreateOrder][RAW] order_id=${bodyMap?['order_id']} orderId=${bodyMap?['orderId']} id=${bodyMap?['id']} success=${bodyMap?['success']} message=${bodyMap?['message']} duplicate_prevented=$duplicatePrevented signatureStatus=${bodyMap?['signatureStatus'] ?? bodyMap?['signature_status']}');
         debugPrint(
-            '\x1B[32m✅ Order created successfully: $orderID (unpaid)\x1B[0m');
+            '\x1B[32m✅ Order ready: $orderID (statusCode=${response.statusCode}, status=$orderStatusStr, payment_status=$paymentStatusStr)\x1B[0m');
         debugPrint(
-            "\x1B[32m[CreateOrder] amount=${response.body['total_ammount'] ?? response.body['total_amount'] ?? 'N/A'}\x1B[0m");
+            "\x1B[32m[CreateOrder] amount=${bodyMap?['total_ammount'] ?? bodyMap?['total_amount'] ?? 'N/A'}\x1B[0m");
         debugPrint(
-            "\x1B[32m[CreateOrder] status=${response.body['status'] ?? 'N/A'} (unpaid)\x1B[0m");
-        debugPrint(
-            "\x1B[32m[CreateOrder] keys=${response.body is Map ? (response.body as Map).keys.toList() : 'N/A'}\x1B[0m");
+            "\x1B[32m[CreateOrder] keys=${bodyMap?.keys.toList() ?? 'N/A'}\x1B[0m");
 
         // Store order ID for later payment processing
         if (orderID.isNotEmpty) {
           _currentOrderId = int.tryParse(orderID);
           _currentOrderAmount = double.tryParse(
-                  (response.body['total_ammount'] ??
-                          response.body['total_amount'] ??
+                  (bodyMap?['total_ammount'] ??
+                          bodyMap?['total_amount'] ??
                           '0')
                       .toString()) ??
               0.0;
 
           // 🥇 Update flow state - جاهز للدفع
+          // NOTE: payment_pending + unpaid is the expected pre-payment state
+          // for digital payment. We do NOT show a success notification and do
+          // NOT navigate to order details here — that only happens after the
+          // payment is actually confirmed.
           _paymentFlowState = PaymentFlowState.preparingPayment;
           _isLoading = false;
           update();

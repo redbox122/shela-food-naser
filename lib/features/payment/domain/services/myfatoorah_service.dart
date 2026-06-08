@@ -39,6 +39,14 @@ class MyFatoorahService {
     );
   }
 
+  /// Verify a MyFatoorah payment status via the backend (single call, no polling)
+  Future<Response> checkStatus({
+    required String key,
+    String keyType = 'InvoiceId',
+  }) async {
+    return await repository.checkStatus(key: key, keyType: keyType);
+  }
+
   /// Process payment without order via backend and return payment_url in response
   Future<Response> processPaymentWithoutOrder({
     required double amount,

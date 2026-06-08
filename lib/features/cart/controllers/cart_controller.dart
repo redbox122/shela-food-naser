@@ -162,6 +162,10 @@ class CartController extends GetxController implements GetxService {
     // Recalculate totals
     _recalculateTotals();
 
+    // 🔁 Revalidate any applied coupon against the fresh cart (covers add /
+    // remove / increase / decrease / clear). Auto-removes or recomputes it.
+    _revalidateAppliedCouponSafely(reason: reason);
+
     if (_cartList.isNotEmpty) {
       _syncStickyCartBarSnapshotFromCart();
     } else if (!_isCartDataLoading && !_serverCartListReplaceInProgress) {
@@ -186,6 +190,37 @@ class CartController extends GetxController implements GetxService {
     final newHash = _getCartListHash();
     if (newHash != _cartListHash) {
       _cartListHash = newHash;
+    }
+  }
+
+  /// Revalidate the applied coupon (if any) against the current cart. Safe to
+  /// call from any mutation: guarded so a missing CouponController or any error
+  /// never breaks cart updates. Min purchase is checked against [subTotal]
+  /// (product subtotal only — no delivery/tax/tips/fees).
+  void _revalidateAppliedCouponSafely({String reason = ''}) {
+    try {
+      // Empty/cleared cart: don't fire a spurious "coupon removed" message —
+      // coupon teardown is handled by the cart-clear / order-success flow.
+      if (_cartList.isEmpty) {
+        return;
+      }
+      if (!Get.isRegistered<CouponController>()) {
+        return;
+      }
+      final CouponController couponController = Get.find<CouponController>();
+      if (!couponController.hasAppliedCoupon) {
+        return;
+      }
+      couponController.revalidateAppliedCoupon(
+        cartSubtotal: subTotal,
+        currentModuleId: ModuleHelper.getCacheModule()?.id,
+        currentStoreId: storeId,
+        reason: 'cart_mutated:$reason',
+      );
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('⚠️ coupon revalidation skipped: $e');
+      }
     }
   }
 

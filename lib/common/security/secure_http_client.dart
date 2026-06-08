@@ -25,6 +25,7 @@ import 'package:sixam_mart/core/cache/hive_home_cache_service.dart';
 import 'package:sixam_mart/core/cache/etag_scope_key_builder.dart';
 import 'package:sixam_mart/helper/string_extension.dart';
 import 'package:sixam_mart/common/utils/app_logger.dart';
+import 'package:sixam_mart/util/app_constants.dart';
 
 /// Secure HTTP Client Service using Dio
 /// Provides enhanced security for API communication
@@ -234,11 +235,22 @@ class SecureHttpClient {
               }
             }
 
-            // Log security-related errors
+            // Downgrade the scary error log for the known place-order case:
+            // the backend intentionally returns a non-2xx (e.g. 403) for a
+            // payment_pending/unpaid digital order, but the body still carries a
+            // usable order_id (often with duplicate_prevented=true). Dio's
+            // validateStatus treats that as an exception, yet createOrder()
+            // handles it as a valid pending order. So log it as info, not an
+            // error — without hiding genuine failures that have no usable id.
             if (kDebugMode) {
-              debugPrint('❌ HTTP Error: ${error.message}');
-              debugPrint('❌ Error Type: ${error.type}');
-              debugPrint('❌ Status Code: ${error.response?.statusCode}');
+              if (_isUsablePendingOrderError(error)) {
+                debugPrint(
+                    'ℹ️ place-order returned ${error.response?.statusCode} with a usable pending order_id — handled by createOrder(), not a failure');
+              } else {
+                debugPrint('❌ HTTP Error: ${error.message}');
+                debugPrint('❌ Error Type: ${error.type}');
+                debugPrint('❌ Status Code: ${error.response?.statusCode}');
+              }
             }
 
             handler.next(error);
@@ -248,6 +260,66 @@ class SecureHttpClient {
         },
       ),
     );
+  }
+
+  /// Whether a Dio error is the benign "place-order returned a usable pending
+  /// order" case that createOrder() handles successfully.
+  ///
+  /// True only when ALL of the following hold:
+  ///  - the request targets POST /api/v1/customer/order/place,
+  ///  - the response body is a map containing a non-empty order id, AND
+  ///  - the body signals duplicate_prevented=true OR a payment_pending /
+  ///    unpaid state.
+  ///
+  /// Returns false for any genuine failure (no usable order id), so real
+  /// errors are still logged normally.
+  bool _isUsablePendingOrderError(DioException error) {
+    try {
+      final RequestOptions options = error.requestOptions;
+      if (options.method.toUpperCase() != 'POST') {
+        return false;
+      }
+      if (!options.path.contains(AppConstants.placeOrderUri)) {
+        return false;
+      }
+
+      final dynamic rawBody = error.response?.data;
+      Map<String, dynamic>? body;
+      if (rawBody is Map<String, dynamic>) {
+        body = rawBody;
+      } else if (rawBody is String && rawBody.trim().isNotEmpty) {
+        final dynamic decoded = jsonDecode(rawBody);
+        if (decoded is Map<String, dynamic>) {
+          body = decoded;
+        }
+      }
+      if (body == null) {
+        return false;
+      }
+
+      final String orderId =
+          (body['order_id'] ?? body['orderId'] ?? body['id'] ?? '')
+              .toString()
+              .trim();
+      if (orderId.isEmpty) {
+        return false;
+      }
+
+      final bool duplicatePrevented = body['duplicate_prevented'] == true;
+      final String statusStr =
+          (body['status'] ?? body['order_status'] ?? '')
+              .toString()
+              .toLowerCase();
+      final String paymentStatusStr =
+          (body['payment_status'] ?? '').toString().toLowerCase();
+      final bool isPendingPayment =
+          statusStr == 'payment_pending' || paymentStatusStr == 'unpaid';
+
+      return duplicatePrevented || isPendingPayment;
+    } catch (_) {
+      // Any parsing issue → treat as a normal error and log it.
+      return false;
+    }
   }
 
   /// Check rate limiting for requests

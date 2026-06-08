@@ -1,0 +1,12 @@
+# قالب توقيع الإصدار (Release signing) — انسخ هذا الملف إلى key.properties واملأ القيم.
+# الملف الحقيقي key.properties و *.jks مستثنيان في .gitignore — لا تَرفعهما إطلاقًا.
+#
+# 1) أنشئ الـ keystore (مرة واحدة) — انظر الأمر في توثيق المشروع / رسالة المساعد.
+# 2) انسخ هذا الملف:  copy key.properties.example key.properties
+# 3) املأ القيم الأربع التالية بنفس ما أدخلته عند إنشاء الـ keystore:
+
+storePassword=كلمة_سر_المخزن
+keyPassword=كلمة_سر_المفتاح
+keyAlias=upload
+# المسار نسبيّ إلى مجلد android/ (حيث يُقرأ key.properties)
+storeFile=app/upload-keystore.jks

@@ -175,6 +175,23 @@ class MyFatoorahRepository {
     return await apiClient.postData(uri, body);
   }
 
+  /// Verify a MyFatoorah payment status via the backend after the WebView
+  /// returns. The backend reconciles with the gateway and echoes the order
+  /// state, so we call this ONCE instead of polling trackOrder many times.
+  ///
+  /// Body: { "key_type": "InvoiceId", "key": <invoiceId> }
+  Future<Response> checkStatus({
+    required String key,
+    String keyType = 'InvoiceId',
+  }) async {
+    const String uri = '/api/v1/payment/myfatoorah/check-status';
+    final Map<String, dynamic> body = <String, dynamic>{
+      'key_type': keyType,
+      'key': key,
+    };
+    return await apiClient.postData(uri, body);
+  }
+
   /// Process payment without order via backend and return payment_url
   Future<Response> processPaymentWithoutOrder({
     required double amount,
