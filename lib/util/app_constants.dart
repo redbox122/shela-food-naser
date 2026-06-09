@@ -468,6 +468,11 @@ class AppConstants {
   static const String operationAreaId = 'operationAreaId';
   static const String moduleId = 'moduleId';
   static const String cacheModuleId = 'cacheModuleId';
+  // Non-sensitive pending payment context (order_id / invoice_id / method /
+  // timestamp) used to recover a MyFatoorah/digital payment after the app is
+  // backgrounded, killed, network-dropped, or the user backs out. Never stores
+  // card data, tokens, or address.
+  static const String pendingPaymentContext = 'pending_payment_context';
   static const String localizationKey = 'X-localization';
   static const String latitude = 'latitude';
   static const String longitude = 'longitude';

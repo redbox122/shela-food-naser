@@ -29,6 +29,24 @@ final robotoBlack = TextStyle(
   fontSize: Dimensions.fontSizeDefault,
 );
 
+final tajawalRegular = TextStyle(
+  fontFamily: 'Tajawal',
+  fontWeight: FontWeight.w400,
+  fontSize: Dimensions.fontSizeDefault,
+);
+
+final tajawalMedium = TextStyle(
+  fontFamily: 'Tajawal',
+  fontWeight: FontWeight.w500,
+  fontSize: Dimensions.fontSizeDefault,
+);
+
+final tajawalBold = TextStyle(
+  fontFamily: 'Tajawal',
+  fontWeight: FontWeight.w700,
+  fontSize: Dimensions.fontSizeDefault,
+);
+
 final BoxDecoration riderContainerDecoration = BoxDecoration(
   borderRadius: const BorderRadius.all(Radius.circular(Dimensions.radiusSmall)),
   color: Theme.of(Get.context!).primaryColor.withValues(alpha: 0.1),

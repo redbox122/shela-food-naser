@@ -8,6 +8,19 @@ import '../domain/models/my_coupon_models.dart';
 import '../domain/repositories/coupon_repository.dart';
 import '../domain/services/coupon_service_interface.dart';
 
+/// Result of [CouponController.revalidateAppliedCoupon].
+enum CouponRevalidationResult {
+  /// Coupon still valid and the discount value did not change.
+  unchanged,
+
+  /// Coupon still valid but the money discount was recomputed because the cart
+  /// subtotal changed (e.g. percent coupon on a smaller/bigger cart).
+  recomputed,
+
+  /// Coupon became invalid and was auto-removed (code + discount + model cleared).
+  removed,
+}
+
 class CouponController extends GetxController implements GetxService {
   final CouponServiceInterface couponServiceInterface;
   CouponController({required this.couponServiceInterface});
@@ -205,6 +218,131 @@ class CouponController extends GetxController implements GetxService {
         '[Coupon][DISCOUNT_CALC] subtotalOrder=$order discountValue=${_coupon!.discount} '
         'discountType=${_coupon!.discountType} couponDiscountAmount=$_discount',
       );
+    }
+  }
+
+  /// Re-validates the currently applied coupon against the latest cart/context.
+  ///
+  /// - Auto-removes the coupon (clearing code + discount + model, recalculating
+  ///   totals via [update]) when it is no longer valid for any of: expire_date
+  ///   passed, status inactive, already used, subtotal below min_purchase,
+  ///   module_id mismatch, or store_id mismatch (store-specific coupons).
+  /// - Otherwise recomputes the money discount against the new subtotal so a
+  ///   shrinking/growing cart can never carry a stale amount.
+  ///
+  /// Backend stays the final source of truth (zone/eligibility/used are also
+  /// enforced server-side on /coupon/apply and at place-order).
+  CouponRevalidationResult revalidateAppliedCoupon({
+    required double cartSubtotal,
+    int? currentModuleId,
+    int? currentStoreId,
+    String reason = '',
+  }) {
+    if (_coupon == null) {
+      return CouponRevalidationResult.unchanged;
+    }
+    if (kDebugMode) {
+      debugPrint(
+        '[Coupon][REVALIDATE_START] code=${_coupon?.code} reason=$reason '
+        'module=$currentModuleId store=$currentStoreId',
+      );
+      debugPrint(
+        '[Coupon][REVALIDATE_CART_SUBTOTAL] subtotal=$cartSubtotal '
+        'minPurchase=${_coupon?.minPurchase} freeDelivery=$_freeDelivery',
+      );
+    }
+
+    final String? invalidReason = _firstCouponInvalidReason(
+      cartSubtotal: cartSubtotal,
+      currentModuleId: currentModuleId,
+      currentStoreId: currentStoreId,
+    );
+
+    if (invalidReason != null) {
+      final String removedCode = _coupon?.code ?? '';
+      if (kDebugMode) {
+        debugPrint(
+          '[Coupon][REVALIDATE_INVALID_REASON] reason=$invalidReason code=$removedCode',
+        );
+      }
+      _coupon = null;
+      _discount = 0.0;
+      _freeDelivery = false;
+      if (kDebugMode) {
+        debugPrint('[Coupon][AUTO_REMOVED] code=$removedCode reason=$invalidReason');
+      }
+      update();
+      showCustomSnackBar('تم إزالة الكوبون لأنه لم يعد صالحًا');
+      return CouponRevalidationResult.removed;
+    }
+
+    // Still valid. Free-delivery coupons have no money discount to recompute.
+    if (_freeDelivery) {
+      return CouponRevalidationResult.unchanged;
+    }
+    final double previous = _discount ?? 0.0;
+    _recomputeDiscountForSubtotal(cartSubtotal);
+    final double updated = _discount ?? 0.0;
+    if ((updated - previous).abs() > 0.0001) {
+      if (kDebugMode) {
+        debugPrint(
+          '[Coupon][REVALIDATE_RECALC] code=${_coupon?.code} '
+          'old=$previous new=$updated subtotal=$cartSubtotal',
+        );
+      }
+      update();
+      return CouponRevalidationResult.recomputed;
+    }
+    return CouponRevalidationResult.unchanged;
+  }
+
+  /// Returns the first reason the applied coupon is invalid, or null if valid.
+  /// Min purchase is checked against the product subtotal ONLY (no delivery,
+  /// tax, tips, app fee, or additional charge).
+  String? _firstCouponInvalidReason({
+    required double cartSubtotal,
+    int? currentModuleId,
+    int? currentStoreId,
+  }) {
+    final CouponModel c = _coupon!;
+    if (couponIsExpiredByDate(c)) {
+      return 'expire_date_passed';
+    }
+    if (c.status != null && c.status != 1) {
+      return 'status_inactive';
+    }
+    if (c.isUsed) {
+      return 'already_used';
+    }
+    final double? minP = c.minPurchase;
+    if (minP != null && minP > 0 && cartSubtotal < minP) {
+      return 'below_min_purchase';
+    }
+    if (c.moduleId != null &&
+        currentModuleId != null &&
+        c.moduleId != currentModuleId) {
+      return 'module_mismatch';
+    }
+    // Store-specific coupon (store_id set & > 0) must match the current store.
+    if (c.storeId != null &&
+        c.storeId! > 0 &&
+        currentStoreId != null &&
+        c.storeId != currentStoreId) {
+      return 'store_mismatch';
+    }
+    return null;
+  }
+
+  void _recomputeDiscountForSubtotal(double subtotal) {
+    final CouponModel c = _coupon!;
+    if (c.discountType == 'percent') {
+      double d = (c.discount ?? 0) * subtotal / 100;
+      if (c.maxDiscount != null && c.maxDiscount! > 0 && d > c.maxDiscount!) {
+        d = c.maxDiscount!;
+      }
+      _discount = d;
+    } else {
+      _discount = c.discount ?? 0;
     }
   }
 

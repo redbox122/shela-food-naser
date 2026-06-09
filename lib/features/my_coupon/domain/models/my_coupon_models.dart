@@ -15,6 +15,10 @@ class CouponModel {
   int? limit;
   String? data;
   int? storeId;
+  /// Backend module this coupon belongs to (module_id). Null = not module-scoped.
+  int? moduleId;
+  /// Backend active flag (status). 1 = active. Null = unknown (treat as active).
+  int? status;
   String? createdAt;
   String? updatedAt;
   /// Backend: successful order with this coupon by current user (not canceled/refunded).
@@ -40,6 +44,8 @@ class CouponModel {
     this.limit,
     this.data,
     this.storeId,
+    this.moduleId,
+    this.status,
     this.createdAt,
     this.updatedAt,
     this.isUsed = false,
@@ -68,6 +74,8 @@ class CouponModel {
     limit = json.parseInt('limit');
     data = json.parseString('data');
     storeId = json.parseInt('store_id');
+    moduleId = json.parseInt('module_id') ?? json.parseInt('moduleId');
+    status = json.parseInt('status');
     createdAt = json.parseString('created_at');
     updatedAt = json.parseString('updated_at');
     final Map<String, dynamic>? storeMap = json.parseMap('store');
@@ -99,6 +107,8 @@ class CouponModel {
     data['limit'] = limit;
     data['data'] = this.data;
     data['store_id'] = storeId;
+    data['module_id'] = moduleId;
+    data['status'] = status;
     data['created_at'] = createdAt;
     data['updated_at'] = updatedAt;
     data['is_used'] = isUsed;

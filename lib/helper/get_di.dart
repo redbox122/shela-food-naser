@@ -721,17 +721,27 @@ Future<Map<String, Map<String, String>>> init() async {
 
   // ======================================================================================================================
 
+  // ⚡ FIX: Register the full Qidha (Kaidha) chain with fenix: true so it can be
+  // revived after Get.offAllNamed() flushes non-permanent dependencies during
+  // module switching. Without fenix, opening /checkout directly (cart → checkout)
+  // threw "KaidhaSubscriptionController not found" because the registration had
+  // been flushed and could not be recreated. See also CheckoutController/Campaign.
   // تسجيل KaidhaSubRepositoryInterface أولاً
   Get.lazyPut<KaidhaSubRepositoryInterface>(
-      () => KaidhaSubRepository(apiClient: Get.find()));
+      () => KaidhaSubRepository(apiClient: Get.find()),
+      fenix: true);
 
   // ثم تسجيل kaidhaSub_ServiceInterface بناءً على الـ Repository المسجل
-  Get.lazyPut<kaidhaSub_ServiceInterface>(() => KaidhaSubService(
-      kaidhaSubRepositoryinterface: Get.find<KaidhaSubRepositoryInterface>()));
+  Get.lazyPut<kaidhaSub_ServiceInterface>(
+      () => KaidhaSubService(
+          kaidhaSubRepositoryinterface:
+              Get.find<KaidhaSubRepositoryInterface>()),
+      fenix: true);
 
   // وأخيرًا تسجيل KaidhaSubscriptionController
-  Get.lazyPut(() =>
-      KaidhaSubscriptionController(kaidhaSubServiceInterface: Get.find()));
+  Get.lazyPut(
+      () => KaidhaSubscriptionController(kaidhaSubServiceInterface: Get.find()),
+      fenix: true);
 
   // محفظه قديمة
 

@@ -1,7 +1,7 @@
 name: sixam_mart
 description: A Multi-vendor1 Food. Grocery, eCommerce, Pharmacy & Parcel service.
 publish_to: "none" #
-version: 3.9.9+187
+version: 3.9.8+186
 
 environment:
   sdk: ">=3.2.0 <4.0.0"
@@ -107,6 +107,7 @@ dependencies:
   collection: ^1.19.1
   equatable: ^2.0.7
   play_install_referrer: ^0.5.0
+  firebase_app_check: ^0.3.2+10
 dependency_overrides:
   collection: ^1.19.1
   web: ^1.1.0
@@ -144,3 +145,11 @@ flutter:
           weight: 700
         - asset: assets/font/Roboto-Black.ttf
           weight: 900
+    - family: Tajawal
+      fonts:
+        - asset: assets/font/Tajawal-Regular.ttf
+          weight: 400
+        - asset: assets/font/Tajawal-Medium.ttf
+          weight: 500
+        - asset: assets/font/Tajawal-Bold.ttf
+          weight: 700

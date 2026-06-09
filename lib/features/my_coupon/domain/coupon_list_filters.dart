@@ -10,13 +10,16 @@ bool couponIsExpiredByDate(CouponModel coupon) {
       return false;
     }
   }
+  // Per spec: a coupon is expired ONLY when expire_date exists AND is before
+  // today. A missing/empty/unparseable expire_date means "no expiry" → NOT
+  // expired (so it stays in the available list).
   final String? raw = coupon.expireDate;
   if (raw == null || raw.trim().isEmpty) {
-    return true;
+    return false;
   }
   final DateTime? expires = DateTime.tryParse(raw);
   if (expires == null) {
-    return true;
+    return false;
   }
   return expires.isBefore(DateTime.now());
 }

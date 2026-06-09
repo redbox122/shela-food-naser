@@ -218,17 +218,47 @@ class CouponRepository implements CouponRepositoryInterface {
   }
 
   Future<List<CouponModel>?> _getCouponList() async {
-    const String relativePath = AppConstants.couponUri;
+    // 🟢 BUILD MARKER (unconditional): if this line does NOT print at runtime,
+    // the device is running a STALE build — do a full clean rebuild + reinstall.
+    debugPrint('[MyCoupons][RUNTIME_VERSION] LIST_ALL_CACHEBUST_2026_06_07_B');
+    // ✅ FIX: MyCoupons must call /coupon/list/all — it returns global coupons
+    // (e.g. customer_id=["all"] like TEST30M6). /coupon/list returned an empty []
+    // for these because it only lists customer-assigned coupons.
+    // ✅ CACHE-BUST: append ?_t=<ms> so no URL-level cache (CDN/proxy/local) can
+    // ever serve a stale empty response for this endpoint.
+    final String cacheBuster = DateTime.now().millisecondsSinceEpoch.toString();
+    final String relativePath = '${AppConstants.couponListAllUri}?_t=$cacheBuster';
+    final Map<String, String> headers = apiClient.getHeader();
     if (kDebugMode) {
-      debugPrint('[MyCoupons][ENDPOINT] /api/v1/coupon/list');
-      debugPrint('[MyCoupons][METHOD] GET');
+      // 🔎 DIAGNOSTIC: exact endpoint + full URL + every relevant header.
+      debugPrint('[MyCoupons][ENDPOINT] $relativePath');
+      debugPrint('[MyCoupons][FULL_URL] ${apiClient.appBaseUrl}$relativePath');
+      debugPrint('[MyCoupons][METHOD] GET (useEtag=false → no If-None-Match, no-cache, cacheBust=$cacheBuster)');
       debugPrint(
-        '[MyCoupons][HEADERS] ${_maskMyCouponsHeaders(apiClient.getHeader())}',
+        '[MyCoupons][HDR] zoneId=${headers['zoneId'] ?? '(none)'} '
+        'zone-id=${headers['zone-id'] ?? '(none)'}',
+      );
+      debugPrint(
+        '[MyCoupons][HDR] moduleId=${headers['moduleId'] ?? '(none)'} '
+        'module-id=${headers['module-id'] ?? '(none)'}',
+      );
+      debugPrint(
+        '[MyCoupons][HDR] X-localization='
+        '${headers['X-localization'] ?? headers['x-localization'] ?? '(none)'}',
+      );
+      final String auth =
+          headers['Authorization'] ?? headers['authorization'] ?? '';
+      debugPrint(
+        '[MyCoupons][HDR] authorization='
+        '${auth.isEmpty ? '(none)' : '${auth.length > 16 ? auth.substring(0, 16) : auth}…'}',
+      );
+      debugPrint(
+        '[MyCoupons][HEADERS_ALL] ${_maskMyCouponsHeaders(headers)}',
       );
     }
     final Response response = await apiClient.getData(
       relativePath,
-      useEtag: false,
+      useEtag: false, // bypass ETag/If-None-Match so we never serve a stale empty []
       headers: _couponApplyNoCacheHeaders,
     );
     final dynamic rawBody = response.body;

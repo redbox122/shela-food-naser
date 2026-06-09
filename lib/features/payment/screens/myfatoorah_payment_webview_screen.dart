@@ -68,17 +68,57 @@ class _MyFatoorahPaymentWebViewScreenState
     }
   }
 
+  /// Back guard: a payment may be mid-processing, so confirm before leaving so
+  /// the user never thinks the order was lost. The order's real status is
+  /// re-verified by the checkout controller after this screen returns.
+  Future<void> _confirmExit() async {
+    // Gateway already redirected to success/error — just let it return.
+    if (_hasRedirected) {
+      Get.back(result: 'cancelled');
+      return;
+    }
+
+    debugPrint('[PaymentRecovery][BACK_DIALOG] shown');
+    final String? choice = await Get.dialog<String>(
+      AlertDialog(
+        title: const Text('الدفع قيد المعالجة'),
+        content: const Text(
+          'الرجوع الآن قد يترك الطلب غير مكتمل. يمكنك متابعة الحالة من طلباتي.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Get.back(result: 'stay'),
+            child: const Text('متابعة الدفع'),
+          ),
+          TextButton(
+            onPressed: () => Get.back(result: 'orders'),
+            child: const Text('الذهاب إلى طلباتي'),
+          ),
+        ],
+      ),
+      barrierDismissible: false,
+    );
+
+    if (choice == 'orders') {
+      debugPrint('[PaymentRecovery][BACK_DIALOG] choice=orders');
+      Get.back(result: 'go_to_orders');
+    } else {
+      // 'stay' (or dismissed) → remain in the WebView to continue paying.
+      debugPrint('[PaymentRecovery][BACK_DIALOG] choice=stay');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (didPop, result) {
-        if (!didPop) Get.back(result: 'cancelled');
+        if (!didPop) _confirmExit();
       },
       child: Scaffold(
         appBar: CustomAppBar(
           title: 'payment'.tr,
-          onBackPressed: () => Get.back(result: 'cancelled'),
+          onBackPressed: () => _confirmExit(),
         ),
         body: Stack(
           children: [

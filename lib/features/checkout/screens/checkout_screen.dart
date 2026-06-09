@@ -22,9 +22,15 @@ import 'package:sixam_mart/features/checkout/domain/models/payment_flow_state.da
 import 'package:sixam_mart/features/checkout/widgets/payment_method_bottom_sheet.dart';
 import 'package:sixam_mart/features/store/domain/models/store_model.dart';
 import 'package:sixam_mart/features/wallet_kaidha_subscription/controllers/kaidhaSub_controller.dart';
+import 'package:sixam_mart/features/wallet_kaidha_subscription/domain/reposotories/kaidhaSub_repository.dart';
+import 'package:sixam_mart/features/wallet_kaidha_subscription/domain/reposotories/kaidhaSub_repository_interface.dart';
+import 'package:sixam_mart/features/wallet_kaidha_subscription/domain/services/kaidhaSub_service.dart';
+import 'package:sixam_mart/features/wallet_kaidha_subscription/domain/services/kaidhaSub_service_interface.dart';
+import 'package:sixam_mart/api/api_client.dart';
 import 'package:sixam_mart/helper/address_helper.dart';
 import 'package:sixam_mart/helper/auth_helper.dart';
 import 'package:sixam_mart/helper/date_converter.dart';
+import 'package:sixam_mart/helper/module_helper.dart';
 import 'package:sixam_mart/helper/price_converter.dart';
 import 'package:sixam_mart/helper/responsive_helper.dart';
 import 'package:sixam_mart/helper/route_helper.dart';
@@ -48,6 +54,51 @@ import 'package:flutter/services.dart';
 import '../../../common/widgets/loading/loading.dart';
 import '../../my_coupon/controllers/my_coupon_controller.dart';
 
+/// Safely resolves the [KaidhaSubscriptionController] (Qidha wallet) for the
+/// checkout flow.
+///
+/// Checkout can be opened directly (cart → /checkout) without first visiting
+/// the Menu/Profile screens, and a prior `Get.offAllNamed` may have flushed the
+/// dependency graph. Rather than crashing with "controller not found", this
+/// helper lazily (re)registers the full Qidha chain — repository → service →
+/// controller — when any link is missing, then returns the live instance.
+///
+/// Returns `null` only if registration unexpectedly fails, so callers must keep
+/// Qidha wallet loading optional and never block checkout on it.
+KaidhaSubscriptionController? _resolveKaidhaController() {
+  try {
+    if (Get.isRegistered<KaidhaSubscriptionController>()) {
+      return Get.find<KaidhaSubscriptionController>();
+    }
+
+    // Rebuild the chain defensively. Each link is guarded so we don't clobber
+    // an existing registration, mirroring the global setup in get_di.dart.
+    if (!Get.isRegistered<KaidhaSubRepositoryInterface>()) {
+      Get.lazyPut<KaidhaSubRepositoryInterface>(
+          () => KaidhaSubRepository(apiClient: Get.find<ApiClient>()),
+          fenix: true);
+    }
+    if (!Get.isRegistered<kaidhaSub_ServiceInterface>()) {
+      Get.lazyPut<kaidhaSub_ServiceInterface>(
+          () => KaidhaSubService(
+              kaidhaSubRepositoryinterface:
+                  Get.find<KaidhaSubRepositoryInterface>()),
+          fenix: true);
+    }
+    Get.lazyPut<KaidhaSubscriptionController>(
+        () => KaidhaSubscriptionController(
+            kaidhaSubServiceInterface: Get.find<kaidhaSub_ServiceInterface>()),
+        fenix: true);
+
+    return Get.find<KaidhaSubscriptionController>();
+  } catch (e) {
+    // Never crash checkout because the optional Qidha wallet failed to resolve.
+    appLogger.error(
+        '⚠️ CheckoutScreen: Failed to resolve KaidhaSubscriptionController', e);
+    return null;
+  }
+}
+
 class CheckoutScreen extends StatefulWidget {
   final List<CartModel?>? cartList;
   final bool fromCart;
@@ -62,7 +113,8 @@ class CheckoutScreen extends StatefulWidget {
   CheckoutScreenState createState() => CheckoutScreenState();
 }
 
-class CheckoutScreenState extends State<CheckoutScreen> {
+class CheckoutScreenState extends State<CheckoutScreen>
+    with WidgetsBindingObserver {
   final ScrollController _scrollController = ScrollController();
   final JustTheController tooltipController1 = JustTheController();
   final JustTheController tooltipController2 = JustTheController();
@@ -147,6 +199,29 @@ class CheckoutScreenState extends State<CheckoutScreen> {
     _resolveDataFromArguments();
 
     initCall();
+
+    // 🔁 On checkout open, only do TTL cleanup of any stale pending-payment
+    // context — never auto-recover or warn about an unrelated/old order.
+    WidgetsBinding.instance.addObserver(this);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      Get.find<CheckoutController>().recoverPendingPaymentIfAny(
+        trigger: PaymentRecoveryTrigger.checkoutOpen,
+      );
+    });
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    // 🔁 On app resume (e.g. returning after backgrounding during the MyFatoorah
+    // WebView), re-verify the pending payment — but only when the stored context
+    // belongs to THIS checkout session's order (validated inside the method).
+    if (state == AppLifecycleState.resumed && mounted) {
+      Get.find<CheckoutController>().recoverPendingPaymentIfAny(
+        trigger: PaymentRecoveryTrigger.appResume,
+      );
+    }
   }
 
   /// Resolve storeId and cartList from Get.arguments if widget values are null
@@ -354,15 +429,37 @@ class CheckoutScreenState extends State<CheckoutScreen> {
 
       await Get.find<CouponController>().getCouponList();
 
+      // 🔁 Revalidate any applied coupon when checkout opens (module/store/zone
+      // or subtotal may have changed since it was applied in the cart).
+      final CartController cartForCoupon = Get.find<CartController>();
+      Get.find<CouponController>().revalidateAppliedCoupon(
+        cartSubtotal: cartForCoupon.subTotal,
+        currentModuleId: ModuleHelper.getCacheModule()?.id,
+        currentStoreId: cartForCoupon.storeId,
+        reason: 'open_checkout',
+      );
+
       if (Get.find<AddressController>().addressList == null) {
         await Get.find<AddressController>().getAddressList();
       }
 
       // Load Qidha wallet data with force-refresh to bypass stale ETag/304 cache.
-      debugPrint('🔄 Loading Qidha wallet data (forceRefresh=true)...');
-      await Get.find<KaidhaSubscriptionController>()
-          .get_Wallet_Kaidh(forceRefresh: true);
-      debugPrint('✅ Qidha wallet data loaded successfully');
+      // Optional/non-blocking: checkout must still work if the Qidha controller
+      // can't be resolved or the wallet API is unavailable.
+      final KaidhaSubscriptionController? kaidhaForWallet =
+          _resolveKaidhaController();
+      if (kaidhaForWallet != null) {
+        debugPrint('🔄 Loading Qidha wallet data (forceRefresh=true)...');
+        try {
+          await kaidhaForWallet.get_Wallet_Kaidh(forceRefresh: true);
+          debugPrint('✅ Qidha wallet data loaded successfully');
+        } catch (e) {
+          debugPrint('⚠️ Qidha wallet load failed (non-blocking): $e');
+        }
+      } else {
+        debugPrint(
+            '⚠️ Qidha controller unavailable — skipping wallet load (non-blocking)');
+      }
     }
 
     // ✅ FIX: Only initialize cart data ONCE (guards against multiple initCall)
@@ -502,6 +599,7 @@ class CheckoutScreenState extends State<CheckoutScreen> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     super.dispose();
 
     guestContactPersonNameController.dispose();
@@ -517,8 +615,16 @@ class CheckoutScreenState extends State<CheckoutScreen> {
     final bool guestCheckoutPermission = AuthHelper.isGuestLoggedIn() &&
         (configModel?.guestCheckoutStatus ?? false);
     final bool isLoggedIn = AuthHelper.isLoggedIn();
+    // Safe resolve — (re)registers the Qidha chain if a route flush removed it,
+    // so opening /checkout directly never crashes with "controller not found".
     final KaidhaSubscriptionController kaidhaSubController =
-        Get.find<KaidhaSubscriptionController>();
+        _resolveKaidhaController() ??
+            Get.put<KaidhaSubscriptionController>(
+              KaidhaSubscriptionController(
+                  kaidhaSubServiceInterface:
+                      Get.find<kaidhaSub_ServiceInterface>()),
+              permanent: true,
+            );
 
     return Scaffold(
       appBar: CustomAppBar(title: 'checkout'.tr),
@@ -1323,8 +1429,11 @@ class CheckoutScreenState extends State<CheckoutScreen> {
               onPressed: controller.acceptTerms && !controller.isLoading
                   ? () async {
                       if (!controller.tryStartPlaceOrder()) {
+                        debugPrint(
+                            '[Checkout][Pay] pay button clicked — ignored (already in progress)');
                         return;
                       }
+                      debugPrint('[Checkout][Pay] pay button clicked');
                       HapticFeedback.lightImpact();
                       if (controller.isPaymentFlowInProgress) {
                         // Recover from stale flow state after failed/aborted attempts.
@@ -1766,8 +1875,35 @@ class CheckoutScreenState extends State<CheckoutScreen> {
                               return;
                             }
 
+                            // 🔁 FINAL coupon guard before order: never submit a
+                            // stale coupon_discount_amount / coupon_code. Revalidate
+                            // against the latest cart/context; if anything changed,
+                            // abort so totals rebuild and the user re-confirms.
                             final CouponController couponForOrder =
                                 Get.find<CouponController>();
+                            final CouponRevalidationResult couponRevalidation =
+                                couponForOrder.revalidateAppliedCoupon(
+                              // Product subtotal only (no delivery/tax/tips/fees).
+                              cartSubtotal:
+                                  Get.find<CartController>().subTotal,
+                              currentModuleId:
+                                  ModuleHelper.getCacheModule()?.id,
+                              currentStoreId: checkoutController.store?.id,
+                              reason: 'place_order',
+                            );
+                            debugPrint(
+                              '[Coupon][PLACE_ORDER_COUPON_STATE] '
+                              'result=$couponRevalidation '
+                              'code=${couponForOrder.coupon?.code} '
+                              'discount=${couponForOrder.discount} '
+                              'hasApplied=${couponForOrder.hasAppliedCoupon}',
+                            );
+                            if (couponRevalidation !=
+                                CouponRevalidationResult.unchanged) {
+                              showCustomSnackBar(
+                                  'تم تحديث الكوبون، يرجى مراجعة الإجمالي وإعادة تأكيد الطلب');
+                              return; // finally resets loading + lock; UI rebuilds
+                            }
                             final bool hasOrderCoupon =
                                 couponForOrder.hasAppliedCoupon;
                             final String? orderCouponCode = hasOrderCoupon
@@ -1891,6 +2027,22 @@ class CheckoutScreenState extends State<CheckoutScreen> {
                               password: guestPasswordController.text,
                             );
 
+                            // 🛡️ FINAL totals guard before ANY order/payment
+                            // request (wallet_qidha / wallet / digital_payment /
+                            // MyFatoorah). Blocks invalid/zero/negative/NaN/inf
+                            // totals and bad coupon discounts; compares coupon
+                            // against product subtotal only.
+                            if (!checkoutController.guardCheckoutTotals(
+                              payableTotal: total,
+                              orderAmount:
+                                  placeOrderBody.orderAmount ?? total,
+                              productSubtotal:
+                                  Get.find<CartController>().subTotal,
+                              couponDiscount: orderCouponDiscountAmount,
+                            )) {
+                              return; // finally resets loading + lock; UI rebuilds
+                            }
+
                             // Step 1: Create Order
                             if (selectedPaymentIndex == 0) {
                               final w =
@@ -1932,7 +2084,7 @@ class CheckoutScreenState extends State<CheckoutScreen> {
                             final String paymentResult =
                                 await checkoutController.processPayment(
                               context,
-                              Get.find<KaidhaSubscriptionController>(),
+                              kaidhaSubController,
                               Get.find<ProfileController>(),
                               checkoutController.store!.zoneId,
                               maxCodOrderAmount,

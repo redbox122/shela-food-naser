@@ -806,6 +806,30 @@ class OrderController extends GetxController implements GetxService {
       {String? guestId}) async {
     debugPrint(
         '[OrderCancel] controller cancelOrder start orderId=$orderID reason=$cancelReason');
+    // 🔎 DIAGNOSTIC: Show the backend-provided cancel reasons (id + text) next to
+    // the value actually being submitted. The submit dialog currently sends the
+    // reason TEXT (from a hardcoded Arabic list); this log reveals whether that
+    // text matches ANY backend reason id/text — a likely cause of "not found".
+    final List<CancellationData> loadedReasons =
+        _orderCancelReasons ?? <CancellationData>[];
+    final String submitted = (cancelReason ?? '').trim();
+    final int? submittedAsId = int.tryParse(submitted);
+    bool matchesBackendText = false;
+    bool matchesBackendId = false;
+    debugPrint('───────── [OrderCancel][REASON_DIAG] ─────────');
+    debugPrint('  • submitted reason : "$cancelReason"');
+    debugPrint(
+        '  • submitted is numeric id? ${submittedAsId != null} (parsed=$submittedAsId)');
+    debugPrint('  • backend reasons  : ${loadedReasons.length}');
+    for (final CancellationData r in loadedReasons) {
+      debugPrint(
+          '      - id=${r.id} | userType=${r.userType} | status=${r.status} | reason="${r.reason}"');
+      if ((r.reason ?? '').trim() == submitted) matchesBackendText = true;
+      if (submittedAsId != null && r.id == submittedAsId) matchesBackendId = true;
+    }
+    debugPrint('  • matches a backend reason TEXT : $matchesBackendText');
+    debugPrint('  • matches a backend reason ID   : $matchesBackendId');
+    debugPrint('──────────────────────────────────────────────');
     _isLoading = true;
     update();
     bool success = false;

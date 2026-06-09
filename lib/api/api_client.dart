@@ -1059,6 +1059,60 @@ class ApiClient extends GetxService {
     }
   }
 
+  /// Whether a thrown Dio error for [uri] is the benign place-order case where
+  /// the backend returned a non-2xx (e.g. 403) but the body still carries a
+  /// usable order id together with duplicate_prevented=true or a
+  /// payment_pending/unpaid state. Such responses are recovered downstream
+  /// (fallback client + createOrder()), so they should not be logged as errors.
+  /// Returns false for genuine failures (no usable order id), so real errors
+  /// are still logged.
+  bool _isUsablePendingOrderDioError(String uri, Object error) {
+    try {
+      if (!uri.contains(AppConstants.placeOrderUri)) {
+        return false;
+      }
+      if (error is! dio_pkg.DioException) {
+        return false;
+      }
+
+      final dynamic rawBody = error.response?.data;
+      Map<String, dynamic>? bodyMap;
+      if (rawBody is Map<String, dynamic>) {
+        bodyMap = rawBody;
+      } else if (rawBody is String && rawBody.trim().isNotEmpty) {
+        final dynamic decoded = jsonDecode(rawBody);
+        if (decoded is Map<String, dynamic>) {
+          bodyMap = decoded;
+        }
+      }
+      if (bodyMap == null) {
+        return false;
+      }
+
+      final String orderId =
+          (bodyMap['order_id'] ?? bodyMap['orderId'] ?? bodyMap['id'] ?? '')
+              .toString()
+              .trim();
+      if (orderId.isEmpty) {
+        return false;
+      }
+
+      final bool duplicatePrevented = bodyMap['duplicate_prevented'] == true;
+      final String statusStr =
+          (bodyMap['status'] ?? bodyMap['order_status'] ?? '')
+              .toString()
+              .toLowerCase();
+      final String paymentStatusStr =
+          (bodyMap['payment_status'] ?? '').toString().toLowerCase();
+      final bool isPendingPayment =
+          statusStr == 'payment_pending' || paymentStatusStr == 'unpaid';
+
+      return duplicatePrevented || isPendingPayment;
+    } catch (_) {
+      return false;
+    }
+  }
+
   Future<Response<dynamic>> postData(String uri, dynamic body,
       {Map<String, String>? headers,
       int? timeout,
@@ -1138,7 +1192,12 @@ class ApiClient extends GetxService {
           );
         } catch (e) {
           stopwatch.stop();
-          if (!uri.contains('registration-activity')) {
+          // The secure client throws on non-2xx (e.g. the place-order 403 that
+          // still carries a usable payment_pending/duplicate_prevented order).
+          // That case is handled downstream by createOrder() via the fallback
+          // client, so don't log it as an error here — only log genuine errors.
+          if (!uri.contains('registration-activity') &&
+              !_isUsablePendingOrderDioError(uri, e)) {
             appLogger.logApiCallError('POST', uri, e.toString(),
                 duration: stopwatch.elapsed);
           }

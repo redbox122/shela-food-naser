@@ -26,6 +26,7 @@ import 'package:sixam_mart/common/widgets/custom_image.dart';
 import 'package:sixam_mart/common/widgets/custom_dialog.dart';
 import 'package:sixam_mart/common/widgets/custom_snackbar.dart';
 import 'package:sixam_mart/common/widgets/footer_view.dart';
+import 'package:sixam_mart/features/checkout/controllers/checkout_controller.dart';
 import 'package:sixam_mart/features/checkout/widgets/offline_success_dialog.dart';
 import 'package:sixam_mart/features/order/widgets/cancellation_dialogue_widget.dart';
 import 'package:sixam_mart/features/order/widgets/order_info_widget.dart';
@@ -787,6 +788,38 @@ class OrderDetailsScreenState extends State<OrderDetailsScreen> {
                                   ?.whenComplete(() {
                                 _startApiCall();
                               });
+                            },
+                          ),
+                        )
+                      : const SizedBox(),
+                  // Explicit, user-initiated payment recovery for an unpaid
+                  // DIGITAL/MyFatoorah order (e.g. app was killed during the
+                  // WebView). Shown when the order is 'payment_pending', OR
+                  // 'pending' with payment_status 'unpaid'. Only for
+                  // digital_payment — never wallet_qidha / wallet / COD.
+                  ((order.orderStatus == 'payment_pending' ||
+                              (order.orderStatus == 'pending' &&
+                                  order.paymentStatus == 'unpaid')) &&
+                          order.paymentMethod == 'digital_payment')
+                      ? Expanded(
+                          child: CustomButton(
+                            buttonText: 'تحقق من حالة الدفع',
+                            margin: const EdgeInsets.all(
+                                Dimensions.paddingSizeSmall),
+                            onPressed: () async {
+                              final MyFatoorahPaymentResult result =
+                                  await Get.find<CheckoutController>()
+                                      .checkOrderPaymentStatusExplicit(
+                                order.id!,
+                                contactNumber: widget.contactNumber,
+                              );
+                              // Refresh this order's details after the check so
+                              // the UI reflects the latest status.
+                              debugPrint(
+                                  '[PaymentRecovery][EXPLICIT_ORDER_REFRESH] '
+                                  'orderId=${order.id} result=$result');
+                              if (!mounted) return;
+                              _loadData(Get.context!, true);
                             },
                           ),
                         )

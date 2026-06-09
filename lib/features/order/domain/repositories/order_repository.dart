@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
 import 'package:image_picker/image_picker.dart';
@@ -65,12 +66,37 @@ class OrderRepository implements OrderRepositoryInterface {
     if (AuthHelper.isGuestLoggedIn() || guestId != null) {
       data.addAll({'guest_id': guestId ?? AuthHelper.getGuestId()});
     }
+    // 🔎 DIAGNOSTIC: Log the EXACT request being sent for order cancellation.
+    // Helps determine whether Flutter sends a wrong order_id/reason field or the
+    // backend route/controller returns "not found".
+    debugPrint('═══════════════ [OrderCancel][REQUEST] ═══════════════');
+    debugPrint('  • endpoint (relative): ${AppConstants.orderCancelUri}');
     debugPrint(
-        '[OrderCancel] cancel request uri=${AppConstants.orderCancelUri} body=$data');
+        '  • endpoint (full)    : ${apiClient.appBaseUrl}${AppConstants.orderCancelUri}');
+    debugPrint(
+        '  • transport method   : POST (Laravel method-spoof _method=${data['_method']})');
+    debugPrint('  • order_id           : ${data['order_id']}');
+    debugPrint(
+        '  • reason (value sent): "${data['reason']}" (type=${reason.runtimeType}, isNumericId=${int.tryParse(reason) != null})');
+    debugPrint('  • guest_id           : ${data['guest_id'] ?? '(none)'}');
+    debugPrint('  • full body          : ${jsonEncode(data)}');
+    debugPrint('══════════════════════════════════════════════════════');
+
     final Response response =
         await apiClient.postData(AppConstants.orderCancelUri, data);
-    debugPrint(
-        '[OrderCancel] cancel response status=${response.statusCode} bodyType=${response.body.runtimeType}');
+
+    String prettyBody;
+    try {
+      prettyBody = jsonEncode(response.body);
+    } catch (_) {
+      prettyBody = response.body.toString();
+    }
+    debugPrint('═══════════════ [OrderCancel][RESPONSE] ══════════════');
+    debugPrint('  • status code   : ${response.statusCode}');
+    debugPrint('  • status text   : ${response.statusText}');
+    debugPrint('  • body type     : ${response.body.runtimeType}');
+    debugPrint('  • full body     : $prettyBody');
+    debugPrint('══════════════════════════════════════════════════════');
     if (response.body is Map<String, dynamic>) {
       final Map<String, dynamic> map = response.body as Map<String, dynamic>;
       String? resolvedMessage;
