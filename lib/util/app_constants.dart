@@ -117,6 +117,12 @@ class AppConstants {
   static const String resendOtpUri = '/api/v1/auth/send-otp-again';
   static const String loginUri = '/api/v1/auth/customer-login';
   static const String verifyLoginOtpUri = '/api/v1/auth/verify-login-otp';
+
+  // ===== Passwordless auth (v2): phone + OTP =====
+  static const String sendOtpV2Uri = '/api/v2/auth/send-otp';
+  static const String verifyOtpV2Uri = '/api/v2/auth/verify-otp';
+  static const String registerV2Uri = '/api/v2/auth/register';
+
   static const String tokenUri = '/api/v1/customer/cm-firebase-token';
   static const String placeOrderUri = '/api/v1/customer/order/place';
   static const String processPaymentUri =

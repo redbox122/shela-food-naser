@@ -38,7 +38,12 @@ import 'package:sixam_mart/features/store/domain/models/store_model.dart';
 import 'package:sixam_mart/features/address/screens/add_address_screen.dart';
 import 'package:sixam_mart/features/address/screens/address_screen.dart';
 import 'package:sixam_mart/features/auth/screens/delivery_man_registration_screen.dart';
+// ignore: unused_import
 import 'package:sixam_mart/features/auth/screens/sign_in_screen.dart';
+import 'package:sixam_mart/features/auth/screens/welcome_screen.dart';
+import 'package:sixam_mart/features/auth/screens/phone_login_screen.dart';
+import 'package:sixam_mart/features/auth/screens/otp_verification_screen.dart';
+import 'package:sixam_mart/features/auth/screens/create_account_screen.dart';
 import 'package:sixam_mart/features/auth/screens/sign_up_screen.dart';
 import 'package:sixam_mart/features/auth/screens/store_registration_screen.dart';
 import 'package:sixam_mart/features/category/screens/category_screen.dart';
@@ -125,6 +130,10 @@ class RouteHelper {
   static const String splash = '/splash';
   static const String language = '/language';
   static const String onBoarding = '/on-boarding';
+  static const String welcome = '/welcome';
+  static const String phoneLogin = '/phone-login';
+  static const String otpVerification = '/otp-verification';
+  static const String createAccount = '/create-account';
   static const String signIn = '/sign-in';
   static const String signUp = '/sign-up';
   static const String verification = '/verification';
@@ -237,6 +246,10 @@ class RouteHelper {
 
   static String getLanguageRoute(String page) => '$language?page=$page';
   static String getOnBoardingRoute() => onBoarding;
+  static String getWelcomeRoute() => welcome;
+  static String getPhoneLoginRoute() => phoneLogin;
+  static String getOtpVerificationRoute() => otpVerification;
+  static String getCreateAccountRoute() => createAccount;
   static String getSignInRoute(String page) => '$signIn?page=$page';
   static String getSignUpRoute() => signUp;
 
@@ -698,19 +711,46 @@ class RouteHelper {
               child: OnBoardingScreen(),
             )),
     GetPage(
+        name: welcome,
+        page: () => const PageTracker(
+              pageName: 'WelcomeScreen',
+              child: WelcomeScreen(),
+            )),
+    GetPage(
+        name: phoneLogin,
+        page: () => const PageTracker(
+              pageName: 'PhoneLoginScreen',
+              child: PhoneLoginScreen(),
+            )),
+    GetPage(
+        name: otpVerification,
+        page: () {
+          final args = Get.arguments;
+          final Map<String, dynamic> data =
+              args is Map<String, dynamic> ? args : <String, dynamic>{};
+          return PageTracker(
+            pageName: 'OtpVerificationScreen',
+            child: OtpVerificationScreen(
+              phone: data['phone']?.toString() ?? '',
+              cooldownSeconds: data['cooldown'] is int ? data['cooldown'] as int : 120,
+              expiresInSeconds: data['expires'] is int ? data['expires'] as int : 600,
+            ),
+          );
+        }),
+    GetPage(
+        name: createAccount,
+        page: () => const PageTracker(
+              pageName: 'CreateAccountScreen',
+              child: CreateAccountScreen(),
+            )),
+    // Passwordless flow: every sign-in entry point now opens the new Welcome
+    // screen. The legacy SignInScreen widget is kept for the upcoming cleanup
+    // phase but is no longer routed to.
+    GetPage(
         name: signIn,
-        page: () => PageTracker(
-              pageName: 'SignInScreen',
-              child: SignInScreen(
-                exitFromApp: Get.parameters['page'] == signUp ||
-                    Get.parameters['page'] == splash ||
-                    Get.parameters['page'] == onBoarding,
-                backFromThis: Get.parameters['page'] != splash &&
-                    Get.parameters['page'] != onBoarding,
-                fromNotification: Get.parameters['page'] == notification,
-                fromResetPassword: Get.parameters['page'] == resetPassword ||
-                    Get.parameters['page'] == 'from-reset-password',
-              ),
+        page: () => const PageTracker(
+              pageName: 'WelcomeScreen',
+              child: WelcomeScreen(),
             )),
 
     GetPage(

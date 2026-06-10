@@ -305,7 +305,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                           })
                                         : const SizedBox(),
                                     SizedBox(height: isLoggedIn ? Dimensions.paddingSizeSmall : 0),
-                                    isLoggedIn && Get.find<SplashController>().configModel!.centralizeLoginSetup!.manualLoginStatus!
+                                    isLoggedIn && (Get.find<SplashController>().configModel?.centralizeLoginSetup?.manualLoginStatus ?? false)
                                         ? ProfileButtonWidget(
                                             icon: Icons.lock,
                                             title: 'change_password'.tr,
@@ -315,7 +315,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                         : const SizedBox(),
                                     SizedBox(
                                         height: isLoggedIn &&
-                                                Get.find<SplashController>().configModel!.centralizeLoginSetup!.manualLoginStatus!
+                                                (Get.find<SplashController>().configModel?.centralizeLoginSetup?.manualLoginStatus ?? false)
                                             ? Dimensions.paddingSizeSmall
                                             : 0),
                                     isLoggedIn

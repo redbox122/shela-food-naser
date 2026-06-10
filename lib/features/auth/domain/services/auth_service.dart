@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
 import 'package:sixam_mart/common/models/response_model.dart';
 import 'package:sixam_mart/features/auth/domain/models/auth_response_model.dart';
+import 'package:sixam_mart/features/auth/domain/models/otp_auth_models.dart';
 import 'package:sixam_mart/features/auth/domain/models/signup_body_model.dart';
 import 'package:sixam_mart/features/auth/domain/models/social_log_in_body.dart';
 import 'package:sixam_mart/features/auth/domain/reposotories/auth_repository_interface.dart';
@@ -78,6 +79,102 @@ class AuthService implements AuthServiceInterface {
     } else {
       return ResponseModel(false, response.statusText);
     }
+  }
+
+  // ===== Passwordless auth (v2) =====
+
+  Map<String, dynamic> _asMap(Response response) =>
+      (response.body is Map<String, dynamic>)
+          ? response.body as Map<String, dynamic>
+          : <String, dynamic>{};
+
+  /// Persist token + user payload from a v2 success body (verify-otp existing
+  /// user, or register). Reuses the legacy token storage so the rest of the app
+  /// keeps working unchanged.
+  Future<void> _handleV2AuthSuccess(Map<String, dynamic> responseBody) async {
+    final String token = responseBody['token']?.toString() ?? '';
+    if (token.isNotEmpty) {
+      await authRepositoryInterface.saveUserToken(token);
+      await authRepositoryInterface.updateToken();
+      await authRepositoryInterface.clearSharedPrefGuestId();
+    }
+    _updateUserDataFromLoginResponse(responseBody);
+  }
+
+  @override
+  Future<OtpSendResult> sendOtp({required String phone}) async {
+    final Response response =
+        await authRepositoryInterface.sendOtpV2(phone: phone);
+    final Map<String, dynamic> body = _asMap(response);
+    if (response.statusCode == 200 && body['success'] == true) {
+      return OtpSendResult.fromJson(body);
+    }
+    return OtpSendResult.failure(
+      body['message']?.toString() ?? response.statusText,
+      errorCode: body['code']?.toString(),
+    );
+  }
+
+  @override
+  Future<OtpVerifyResult> verifyOtp(
+      {required String phone, required String otp}) async {
+    final Response response =
+        await authRepositoryInterface.verifyOtpV2(phone: phone, otp: otp);
+    final Map<String, dynamic> body = _asMap(response);
+    if (response.statusCode == 200 && body['success'] == true) {
+      final OtpVerifyResult result = OtpVerifyResult.fromJson(body);
+      if (result.isExisted) {
+        await _handleV2AuthSuccess(body);
+      }
+      return result;
+    }
+    return OtpVerifyResult.failure(
+      body['message']?.toString() ?? response.statusText,
+      errorCode: body['code']?.toString(),
+    );
+  }
+
+  @override
+  Future<ResponseModel> registerV2({
+    required String name,
+    String? email,
+    required String phone,
+    required String registrationToken,
+    String? refCode,
+  }) async {
+    debugPrint('[REGISTER_V2] phone=$phone tokenLen=${registrationToken.length}'
+        ' name="$name" email="${email ?? ''}"');
+    final Response response = await authRepositoryInterface.registerV2(
+      name: name,
+      email: email,
+      phone: phone,
+      registrationToken: registrationToken,
+      refCode: refCode,
+    );
+    final Map<String, dynamic> body = _asMap(response);
+    debugPrint('[REGISTER_V2][RESPONSE] status=${response.statusCode} '
+        'body=${response.body}');
+    if (response.statusCode == 200 && body['success'] == true) {
+      await authRepositoryInterface.clearQrReferralInstallToken();
+      await _handleV2AuthSuccess(body);
+      // Build a fully-verified auth response so the post-login cart transfer
+      // path (in AuthController) triggers like a normal login.
+      final AuthResponseModel authResponse = AuthResponseModel(
+        token: body['token']?.toString(),
+        isPhoneVerified: true,
+        isEmailVerified: true,
+        isPersonalInfo: true,
+      );
+      return ResponseModel(true, authResponse.token ?? '',
+          authResponseModel: authResponse);
+    }
+    // Surface the backend code/message so the screen can show a real reason.
+    final String? code = body['code']?.toString();
+    final String? message = body['message']?.toString();
+    return ResponseModel(
+      false,
+      code ?? message ?? response.statusText,
+    );
   }
 
   @override
