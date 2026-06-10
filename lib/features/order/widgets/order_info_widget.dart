@@ -1114,14 +1114,16 @@ class OrderInfoWidget extends StatelessWidget {
                                 )
                               : const SizedBox(),
                           !isGuestLoggedIn &&
-                                  (Get.find<SplashController>()
-                                          .configModel!
-                                          .refundActiveStatus! &&
+                                  ((Get.find<SplashController>()
+                                              .configModel
+                                              ?.refundActiveStatus ??
+                                          false) &&
                                       order.orderStatus == 'delivered' &&
                                       !parcel &&
                                       (parcel ||
-                                          (orderController
-                                                  .orderDetails!.isNotEmpty &&
+                                          ((orderController
+                                                      .orderDetails?.isNotEmpty ??
+                                                  false) &&
                                               orderController.orderDetails![0]
                                                       .itemCampaignId ==
                                                   null)))
