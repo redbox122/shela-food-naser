@@ -242,7 +242,7 @@ class SearchController extends GetxController implements GetxService {
     update();
   }
 
-  void setStore(bool isStore) {
+  void setStore(bool isStore, {bool canUpdate = true}) {
     // If switching modes, clear the opposite mode's result text to force re-search
     if (_isStore != isStore) {
       if (isStore) {
@@ -254,7 +254,9 @@ class SearchController extends GetxController implements GetxService {
       }
     }
     _isStore = isStore;
-    update();
+    if (canUpdate) {
+      update();
+    }
   }
 
   void setSearchMode(bool isSearchMode, {bool canUpdate = true}) {

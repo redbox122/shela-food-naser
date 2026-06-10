@@ -45,6 +45,8 @@ class SearchScreenState extends State<SearchScreen>
   late bool _isLoggedIn;
 
   Timer? _debounceTimer;
+  // Live search: filter results as the user types (debounced), no Enter needed.
+  Timer? _liveSearchTimer;
   static const Duration _debounceDelay = Duration(milliseconds: 400);
   bool _showSuggestion = false;
   bool _isLoadingSuggestions = false;
@@ -149,13 +151,31 @@ class SearchScreenState extends State<SearchScreen>
     });
   }
 
-  void _actionSearch(bool isStore, String? queryText, bool fromHome) {
+  /// Schedules a debounced live search so results filter as the user types,
+  /// without needing to press Enter. Keeps the keyboard focused so typing can
+  /// continue uninterrupted.
+  void _scheduleLiveSearch(
+      String text, search.SearchController searchController) {
+    _liveSearchTimer?.cancel();
+    final String query = text.trim();
+    if (query.isEmpty) return;
+    _liveSearchTimer = Timer(_debounceDelay, () {
+      if (!mounted) return;
+      if (_SearchController.text.trim() != query) return;
+      _actionSearch(searchController.isStore, query, false, keepFocus: true);
+    });
+  }
+
+  void _actionSearch(bool isStore, String? queryText, bool fromHome,
+      {bool keepFocus = false}) {
     if (queryText != null && queryText.isNotEmpty) {
       if (_lastSearchResultsQuery != queryText) {
         _storeVisibleItemCount.clear();
       }
       _showSuggestion = false;
-      _searchFocusNode.unfocus();
+      if (!keepFocus) {
+        _searchFocusNode.unfocus();
+      }
       if (kDebugMode) {
         appLogger.debug(
             '🔍 Search triggered: $queryText, isStore: $isStore, fromHome: $fromHome');
@@ -163,18 +183,20 @@ class SearchScreenState extends State<SearchScreen>
 
       final searchController = Get.find<search.SearchController>();
 
-      // Set store mode first to update UI immediately
-      searchController.setStore(isStore);
+      // Update store mode + exit search mode WITHOUT rebuilding yet, so the UI
+      // doesn't flash the stale "no results" state for one frame before the
+      // loading state is set. searchData() below sets isLoading=true and rebuilds.
+      searchController.setStore(isStore, canUpdate: false);
       debugPrint(
           '[SEARCH_FETCH_START] query=$queryText selectedType=${isStore ? 'stores' : 'items'}');
 
       // Exit search mode so results can be displayed
-      searchController.setSearchMode(false);
+      searchController.setSearchMode(false, canUpdate: false);
 
-      // Trigger search (will search both items and stores in parallel)
+      // Trigger search (sets loading state synchronously, then fetches).
       searchController.searchData(query: queryText, fromHome: fromHome);
 
-      // Force UI update
+      // Force UI update (now reflects the loading state, not the stale one).
       setState(() {});
     }
   }
@@ -739,7 +761,10 @@ class SearchScreenState extends State<SearchScreen>
                             _searchSuggestions(text);
                             searchController.setSearchText(text);
                             if (text.trim().isEmpty) {
+                              _liveSearchTimer?.cancel();
                               _handleQueryClear();
+                            } else {
+                              _scheduleLiveSearch(text, searchController);
                             }
                             setState(() {});
                           },
@@ -898,7 +923,10 @@ class SearchScreenState extends State<SearchScreen>
                             _searchSuggestions(text);
                             searchController.setSearchText(text);
                             if (text.trim().isEmpty) {
+                              _liveSearchTimer?.cancel();
                               _handleQueryClear();
+                            } else {
+                              _scheduleLiveSearch(text, searchController);
                             }
                             setState(() {});
                           },
@@ -2199,6 +2227,7 @@ class SearchScreenState extends State<SearchScreen>
   @override
   void dispose() {
     _debounceTimer?.cancel();
+    _liveSearchTimer?.cancel();
     _tabController?.dispose();
     _searchFocusNode.dispose();
     _focusAnimationController.dispose();
