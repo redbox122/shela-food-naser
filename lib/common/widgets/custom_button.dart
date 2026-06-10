@@ -15,8 +15,15 @@ class CustomButton extends StatelessWidget {
   final IconData? icon;
   final Color? color;
   final Color? textColor;
+  /// Background color used when the button is disabled (no [onPressed] / loading).
+  /// Defaults to the theme's [ThemeData.disabledColor].
+  final Color? disabledColor;
   final bool isLoading;
   final bool isBold;
+  /// Optional font family override (e.g. 'Tajawal' for the auth screens).
+  final String? fontFamily;
+  /// Optional line-height multiplier for the label.
+  final double? textHeight;
   const CustomButton(
       {super.key,
       this.onPressed,
@@ -30,15 +37,18 @@ class CustomButton extends StatelessWidget {
       this.icon,
       this.color,
       this.textColor,
+      this.disabledColor,
       this.isLoading = false,
-      this.isBold = true});
+      this.isBold = true,
+      this.fontFamily,
+      this.textHeight});
 
   @override
   Widget build(BuildContext context) {
     final bool isDisabled = isLoading || onPressed == null;
     final ButtonStyle flatButtonStyle = TextButton.styleFrom(
       backgroundColor: isDisabled
-          ? Theme.of(context).disabledColor
+          ? (disabledColor ?? Theme.of(context).disabledColor)
           : transparent
               ? Colors.transparent
               : color ?? Theme.of(context).primaryColor,
@@ -81,16 +91,12 @@ class CustomButton extends StatelessWidget {
                             : const SizedBox(),
                         Text(buttonText,
                             textAlign: TextAlign.center,
-                            style: isBold
-                                ? robotoBold.copyWith(
-                                    color: textColor ?? (transparent ? Theme.of(context).primaryColor : Colors.white),
-                                    fontSize: fontSize ?? Dimensions.fontSizeMedim,
-                                  )
-                                : robotoRegular.copyWith(
-                                    color: textColor ?? (transparent ? Theme.of(context).primaryColor : Colors.white),
-                                    fontSize: fontSize ?? Dimensions.fontSizeMedim,
-                                  )
-                        ),
+                            style: (isBold ? robotoBold : robotoRegular).copyWith(
+                              color: textColor ?? (transparent ? Theme.of(context).primaryColor : Colors.white),
+                              fontSize: fontSize ?? Dimensions.fontSizeMedim,
+                              fontFamily: fontFamily,
+                              height: textHeight,
+                            )),
                 ]
                 ),
               ),

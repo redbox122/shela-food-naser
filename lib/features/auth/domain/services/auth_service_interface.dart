@@ -1,9 +1,21 @@
 import 'package:get/get_connect/http/src/response/response.dart';
 import 'package:sixam_mart/common/models/response_model.dart';
+import 'package:sixam_mart/features/auth/domain/models/otp_auth_models.dart';
 import 'package:sixam_mart/features/auth/domain/models/signup_body_model.dart';
 import 'package:sixam_mart/features/auth/domain/models/social_log_in_body.dart';
 
 abstract class AuthServiceInterface {
+  // ===== Passwordless auth (v2) =====
+  Future<OtpSendResult> sendOtp({required String phone});
+  Future<OtpVerifyResult> verifyOtp({required String phone, required String otp});
+  Future<ResponseModel> registerV2({
+    required String name,
+    String? email,
+    required String phone,
+    required String registrationToken,
+    String? refCode,
+  });
+
   bool isSharedPrefNotificationActive();
   //Future<ResponseModel> registration(SignUpBodyModel signUpBody, bool isCustomerVerificationOn);
   Future<ResponseModel> registration(SignUpBodyModel signUpBody);

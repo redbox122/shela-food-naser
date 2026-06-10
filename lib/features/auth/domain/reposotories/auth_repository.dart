@@ -222,6 +222,68 @@ class AuthRepository implements AuthRepositoryInterface {
     );
   }
 
+  // ===== Passwordless auth (v2) =====
+
+  @override
+  Future<Response> sendOtpV2({required String phone}) async {
+    return await apiClient.postData(
+      AppConstants.sendOtpV2Uri,
+      {'phone': phone},
+      handleError: false,
+    );
+  }
+
+  @override
+  Future<Response> verifyOtpV2(
+      {required String phone, required String otp}) async {
+    final Map<String, dynamic> data = {'phone': phone, 'otp': otp};
+    final String guestId = getSharedPrefGuestId();
+    if (_shouldAttachGuestId(guestId)) {
+      data['guest_id'] = guestId;
+    }
+    return await apiClient.postData(
+      AppConstants.verifyOtpV2Uri,
+      data,
+      handleError: false,
+    );
+  }
+
+  @override
+  Future<Response> registerV2({
+    required String name,
+    String? email,
+    required String phone,
+    required String registrationToken,
+    String? refCode,
+  }) async {
+    final Map<String, dynamic> data = {
+      'name': name,
+      'phone': phone,
+      'registration_token': registrationToken,
+    };
+    if (email != null && email.isNotEmpty) {
+      data['email'] = email;
+    }
+    if (refCode != null && refCode.isNotEmpty) {
+      data['ref_code'] = refCode;
+    }
+    // QR / vendor referral captured from install-referrer or a landing page.
+    final String? qrReferralToken = _qrReferralTokenStorage.getStoredToken();
+    if (qrReferralToken != null && qrReferralToken.isNotEmpty) {
+      data['referral_token'] = qrReferralToken;
+      debugPrint('[QR_REFERRAL_REGISTER_V2_ATTACHED] token=$qrReferralToken');
+    }
+    final String guestId = getSharedPrefGuestId();
+    if (_shouldAttachGuestId(guestId)) {
+      data['guest_id'] = guestId;
+    }
+    return await apiClient.postData(
+      AppConstants.registerV2Uri,
+      data,
+      handleError: false,
+    );
+  }
+
   @override
   Future<Response> otpLogin(
       {required String phone,

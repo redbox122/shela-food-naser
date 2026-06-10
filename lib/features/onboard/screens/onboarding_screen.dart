@@ -3,7 +3,7 @@ import 'package:get/get.dart';
 import 'package:sixam_mart/features/auth/controllers/auth_controller.dart';
 import 'package:sixam_mart/features/splash/controllers/splash_controller.dart';
 import 'package:sixam_mart/features/onboard/controllers/onboard_controller.dart';
-import 'package:sixam_mart/features/location/controllers/location_controller.dart';
+import 'package:sixam_mart/helper/route_helper.dart';
 import 'package:sixam_mart/features/onboard/widgets/onboarding_background.dart';
 import 'package:sixam_mart/features/onboard/widgets/onboarding_page.dart';
 import 'package:sixam_mart/features/onboard/widgets/onboarding_progress_button.dart';
@@ -59,18 +59,12 @@ class _OnBoardingScreenState extends State<OnBoardingScreen> {
     }
   }
 
-  Future<void> _finishOnboarding() async {
+  void _finishOnboarding() {
+    // After onboarding we land on the passwordless welcome screen. The guest
+    // session is only created when the user explicitly chooses "Continue as
+    // Guest" there — no auto guest login here anymore.
     Get.find<SplashController>().disableIntro();
-    try {
-      await Get.find<AuthController>().guestLogin();
-    } catch (e) {
-      debugPrint('Error during guest login: $e');
-    }
-    if (!mounted) {
-      return;
-    }
-    Get.find<LocationController>()
-        .navigateToLocationScreen(context, 'onboarding', offNamed: true);
+    Get.offAllNamed(RouteHelper.getWelcomeRoute());
   }
 
   void _onNextTapped(bool isLast) {

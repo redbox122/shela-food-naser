@@ -211,8 +211,8 @@ class MenuDrawerState extends State<MenuDrawer>
                       if (Get.context != null && ResponsiveHelper.isDesktop(Get.context!)) {
                         Get.offAllNamed(RouteHelper.getInitialRoute());
                       } else {
-                        Get.offAllNamed(
-                            RouteHelper.getSignInRoute(RouteHelper.splash));
+                        // Passwordless flow: logout lands on the Welcome screen.
+                        Get.offAllNamed(RouteHelper.getWelcomeRoute());
                       }
                     }),
                 useSafeArea: false);

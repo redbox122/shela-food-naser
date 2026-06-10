@@ -1116,8 +1116,10 @@ class _MenuScreenState extends State<MenuScreen> {
                                           // Ensure data is loaded before navigation
                                           await _ensureDataLoadedBeforeNavigation();
 
+                                          // Passwordless flow: after logout land
+                                          // on the Welcome entry screen.
                                           await Get.offAllNamed(
-                                              RouteHelper.getInitialRoute());
+                                              RouteHelper.getWelcomeRoute());
                                         }),
                                     useSafeArea: false);
                               } else {

@@ -16,6 +16,17 @@ abstract class AuthRepositoryInterface extends RepositoryInterface {
   Future<Response> otpLogin({required String phone, required String otp, required String loginType, required String verified});
   Future<Response> verifyLoginOtp({required String phone, required String otp});
 
+  // ===== Passwordless auth (v2) =====
+  Future<Response> sendOtpV2({required String phone});
+  Future<Response> verifyOtpV2({required String phone, required String otp});
+  Future<Response> registerV2({
+    required String name,
+    String? email,
+    required String phone,
+    required String registrationToken,
+    String? refCode,
+  });
+
   Future<Response> resend_Otp({required String phone});
 
   Future<Response> updatePersonalInfo(

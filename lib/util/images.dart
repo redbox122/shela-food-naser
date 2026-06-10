@@ -3,6 +3,8 @@
 class Images {
   static const String logo = 'assets/image/logo.png';
 
+  static const String shellaLogo = 'assets/image/shella_logo.png';
+
   static const String logo_gif = 'assets/image/logo.gif';
 
   static const String placeholder = 'assets/image/placeholder.jpg';
@@ -24,6 +26,9 @@ class Images {
   static const String sar = 'assets/image/sar.png';
 
   static const String shella_bag = 'assets/image/shella_bag.png';
+  static const String checkbox_notactivate =
+      'assets/image/checkbox_notactivate.png';
+  static const String checkbox_activate = 'assets/image/checkbox_activate.png';
   static const String Blured_effect_1 = 'assets/image/Blured_effect_1.png';
   static const String Blured_effect_2 = 'assets/image/Blured_effect_2.png';
   static const String Blured_effect_3 = 'assets/image/Blured_effect_3.png';

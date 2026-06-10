@@ -341,6 +341,13 @@ bool _shouldHideForRoute(String route) {
     RouteHelper.profile,
     RouteHelper.updateProfile,
     RouteHelper.payment,
+    // Passwordless auth flow — no cart bubble on these screens.
+    RouteHelper.welcome,
+    RouteHelper.phoneLogin,
+    RouteHelper.otpVerification,
+    RouteHelper.createAccount,
+    RouteHelper.signIn,
+    RouteHelper.signUp,
   };
   return hiddenPaths.contains(path);
 }

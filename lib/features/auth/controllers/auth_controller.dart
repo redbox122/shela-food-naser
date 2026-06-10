@@ -14,6 +14,7 @@ import 'package:sixam_mart/features/splash/controllers/splash_controller.dart';
 import 'package:sixam_mart/features/profile/controllers/profile_controller.dart';
 import 'package:sixam_mart/features/auth/domain/models/social_log_in_body.dart';
 import 'package:sixam_mart/features/auth/domain/models/signup_body_model.dart';
+import 'package:sixam_mart/features/auth/domain/models/otp_auth_models.dart';
 import 'package:sixam_mart/features/auth/domain/services/auth_service_interface.dart';
 import 'package:sixam_mart/features/verification/screens/verification_screen.dart';
 import 'package:sixam_mart/helper/auth_helper.dart';
@@ -107,6 +108,72 @@ class AuthController extends GetxController implements GetxService {
     debugPrint('\x1B[32m  /${phone}  \x1B[0m');
 
     // Don't set _isLoading = false here - let _transferGuestCartToUser handle it
+    return responseModel;
+  }
+
+  // ===========================================================================
+  // Passwordless auth (v2): phone + OTP
+  // ===========================================================================
+
+  /// Phone captured during the OTP flow (kept so the Create Account screen can
+  /// show it locked) and the one-time registration token from verify-otp.
+  String _otpPhone = '';
+  String get otpPhone => _otpPhone;
+  String _registrationToken = '';
+  String get registrationToken => _registrationToken;
+
+  Future<OtpSendResult> sendOtp({required String phone}) async {
+    _isLoading = true;
+    update();
+    final OtpSendResult result =
+        await authServiceInterface.sendOtp(phone: phone);
+    if (result.success) {
+      _otpPhone = phone;
+    }
+    _isLoading = false;
+    update();
+    return result;
+  }
+
+  Future<OtpVerifyResult> verifyOtp(
+      {required String phone, required String otp}) async {
+    _isLoading = true;
+    update();
+    final OtpVerifyResult result =
+        await authServiceInterface.verifyOtp(phone: phone, otp: otp);
+    if (result.success && result.isExisted) {
+      // Token already stored by the service — run the shared post-login setup
+      // (guest cart transfer + profile load).
+      _postAuthSuccessSetup();
+    } else {
+      if (result.success && !result.isExisted) {
+        _otpPhone = phone;
+        _registrationToken = result.registrationToken ?? '';
+      }
+      _isLoading = false;
+      update();
+    }
+    return result;
+  }
+
+  Future<ResponseModel> registerV2({
+    required String name,
+    String? email,
+    required String phone,
+    required String registrationToken,
+    String? refCode,
+  }) async {
+    _isLoading = true;
+    update();
+    final ResponseModel responseModel = await authServiceInterface.registerV2(
+      name: name,
+      email: email,
+      phone: phone,
+      registrationToken: registrationToken,
+      refCode: refCode,
+    );
+    _getUserAndCartData(responseModel);
+    // Loading is cleared by _getUserAndCartData / _postAuthSuccessSetup.
     return responseModel;
   }
 
@@ -209,41 +276,48 @@ class AuthController extends GetxController implements GetxService {
         responseModel.authResponseModel != null &&
         responseModel.authResponseModel!.isPhoneVerified! &&
         responseModel.authResponseModel!.isPersonalInfo!) {
-      debugPrint('✅ Login successful - starting guest cart transfer process');
-
-      // ⚡ PERFORMANCE FIX: Clear loading state immediately for instant UI update
-      // Cart transfer will happen in background without blocking navigation
-      _isLoading = false;
-      update();
-
-      // Transfer guest cart after login
-      // Run in background - don't await to avoid blocking UI
-      final String guestId = AuthHelper.getGuestId();
-      _transferGuestCartToUser(guestId);
-      
-      // ⚡ PERFORMANCE: User info is already set from login response in AuthService
-      // Only call getUserInfo if it wasn't set (fallback for backward compatibility)
-      final profileController = Get.find<ProfileController>();
-      if (kDebugMode) {
-        appLogger.debug('🔍 AuthController: Checking if user info needs to be loaded...');
-        appLogger.debug('   - userInfoModel: ${profileController.userInfoModel != null ? 'SET (${profileController.userInfoModel?.fName} ${profileController.userInfoModel?.lName})' : 'NULL'}');
-      }
-      
-      if (profileController.userInfoModel == null) {
-        if (kDebugMode) {
-          appLogger.debug('🔄 AuthController: User info not set from login - calling getUserInfo()...');
-        }
-        profileController.getUserInfo();
-      } else {
-        if (kDebugMode) {
-          appLogger.debug('⏭️ AuthController: User info already set from login - skipping getUserInfo()');
-        }
-      }
+      _postAuthSuccessSetup();
     } else {
       debugPrint('❌ Login failed or incomplete - skipping guest cart transfer');
       // Set loading to false if login failed
       _isLoading = false;
       update();
+    }
+  }
+
+  /// Shared post-authentication setup: clear loading, transfer the guest cart
+  /// in the background, and lazily load the user profile. Used by both the
+  /// legacy login paths and the new passwordless (v2) flow.
+  void _postAuthSuccessSetup() {
+    debugPrint('✅ Auth successful - starting guest cart transfer process');
+
+    // ⚡ PERFORMANCE FIX: Clear loading state immediately for instant UI update
+    // Cart transfer will happen in background without blocking navigation
+    _isLoading = false;
+    update();
+
+    // Transfer guest cart after login
+    // Run in background - don't await to avoid blocking UI
+    final String guestId = AuthHelper.getGuestId();
+    _transferGuestCartToUser(guestId);
+
+    // ⚡ PERFORMANCE: User info is already set from login response in AuthService
+    // Only call getUserInfo if it wasn't set (fallback for backward compatibility)
+    final profileController = Get.find<ProfileController>();
+    if (kDebugMode) {
+      appLogger.debug('🔍 AuthController: Checking if user info needs to be loaded...');
+      appLogger.debug('   - userInfoModel: ${profileController.userInfoModel != null ? 'SET (${profileController.userInfoModel?.fName} ${profileController.userInfoModel?.lName})' : 'NULL'}');
+    }
+
+    if (profileController.userInfoModel == null) {
+      if (kDebugMode) {
+        appLogger.debug('🔄 AuthController: User info not set from login - calling getUserInfo()...');
+      }
+      profileController.getUserInfo();
+    } else {
+      if (kDebugMode) {
+        appLogger.debug('⏭️ AuthController: User info already set from login - skipping getUserInfo()');
+      }
     }
   }
 
@@ -263,7 +337,8 @@ class AuthController extends GetxController implements GetxService {
       // Also set the cart controller's transfer flag
       cartController.setTransferringGuestCart(true);
       debugPrint('🔄 Starting guest cart merge after login (background)...');
-      showCustomSnackBar('restoring_cart'.tr, isError: false, showDuration: 2);
+      // Cart transfer happens silently in the background — the cart simply
+      // appears inside the app once merged (no "restoring cart" popup).
 
       bool mergeSuccess = false;
 
