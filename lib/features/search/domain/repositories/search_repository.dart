@@ -236,7 +236,7 @@ class SearchRepository implements SearchRepositoryInterface {
   Future<List<PopularCategoryModel?>?> getTrendingCategories() async {
     List<PopularCategoryModel?>? categoryList;
     // Get trending categories from last 24 hours
-    final String endpoint =
+    const String endpoint =
         '${AppConstants.searchPopularCategoriesUri}?trending=true&hours=24';
     _logSearchRequest(endpoint: endpoint, method: 'GET');
     final response = await apiClient.getData(
@@ -306,6 +306,7 @@ class SearchRepository implements SearchRepositoryInterface {
     required String method,
     int? moduleId,
   }) {
+    if (!kDebugMode) return;
     final Map<String, String> headers = apiClient.getHeader();
     final String? moduleFromHeader =
         headers[AppConstants.moduleId] ?? headers['module-id'];
@@ -320,6 +321,7 @@ class SearchRepository implements SearchRepositoryInterface {
   }
 
   void _logSearchResponse(Response<dynamic> response) {
+    if (!kDebugMode) return;
     debugPrint('[Search][STATUS] ${response.statusCode}');
     debugPrint('[Search][RAW_TYPE] ${response.body.runtimeType}');
     final String rawBody = _truncateBody(response.body);

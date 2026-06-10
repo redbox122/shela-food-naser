@@ -1,5 +1,6 @@
 
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kDebugMode;
 import 'dart:convert';
 import 'package:sixam_mart/features/category/domain/models/category_model.dart';
 import 'package:sixam_mart/features/splash/controllers/splash_controller.dart';
@@ -138,6 +139,14 @@ class SearchController extends GetxController implements GetxService {
   int? get fallbackCategoriesModuleId => _fallbackCategoriesModuleId;
 
   // ===================================================================================================================
+
+  // Lightweight, release-safe perf logging for the search flow.
+  // Guarded by kDebugMode so no string building / IO happens in release.
+  void _perf(String stage, [String extra = '']) {
+    if (kDebugMode) {
+      debugPrint('[SearchPerf][$stage]${extra.isEmpty ? '' : ' $extra'}');
+    }
+  }
 
   void set_Price(bool value) {
     _isPriceAscending = value;
@@ -411,6 +420,10 @@ class SearchController extends GetxController implements GetxService {
 
     // If we need to search, perform both searches in parallel
     if (needItemSearch || needStoreSearch) {
+      _perf('QUERY_START', 'q=$normalizedQuery item=$needItemSearch store=$needStoreSearch');
+      // أثناء وجود استعلام بحث نشط لا نطلب أقسام الاكتشاف
+      // (suggested / popular / trending) — تُطلب فقط عند تفريغ البحث.
+      _perf('SKIP_DISCOVERY_DURING_QUERY', 'q=$normalizedQuery');
       _isLoading = true;
       _hasError = false;
       _searchHomeText = normalizedQuery;
@@ -485,6 +498,7 @@ class SearchController extends GetxController implements GetxService {
         _isLoading = false;
         debugPrint('[Search][DONE] loading=false');
         debugPrint('[Search][FINALLY] loading=false');
+        _perf('UI_UPDATE', 'items=$itemCount stores=$storeCount error=$_hasError');
         update();
       }
     }
@@ -500,11 +514,13 @@ class SearchController extends GetxController implements GetxService {
         _searchItemList = [];
         _allItemList = [];
 
+        _perf('API_DONE', 'type=items status=200');
+
         // جلب العناصر
         final List<Item> items = ItemModel.fromJson(response.body as Map<String, dynamic>).items ?? [];
-        debugPrint('[Search][PARSED_COUNT] type=items count=${items.length}');
 
         // ✅ ترتيب حسب السعر (تصاعدي أو تنازلي)
+        // قائمة صغيرة (≤ limit) فالفرز رخيص على خيط الواجهة.
         items.sort((a, b) {
           final double priceA = a.price ?? 0;
           final double priceB = b.price ?? 0;
@@ -518,11 +534,9 @@ class SearchController extends GetxController implements GetxService {
         _searchItemList!.addAll(items);
         _allItemList!.addAll(items);
 
-        // ✅ طباعة اختبارية للتأكد من الترتيب
-        debugPrint('=== Sorted Prices ===');
-        for (final item in items) {
-          debugPrint('${item.name} - ${item.price}');
-        }
+        // ⚡ تمت إزالة حلقة الطباعة لكل منتج ("=== Sorted Prices ===")
+        // التي كانت تطبع كل عنصر على خيط الواجهة وتسبب تقطيع الإطارات.
+        _perf('PARSE_DONE', 'type=items count=${items.length}');
         return true;
       } else {
         debugPrint(
@@ -555,11 +569,11 @@ class SearchController extends GetxController implements GetxService {
         _storeResultText = query;
         _searchStoreList = [];
         _allStoreList = [];
+        _perf('API_DONE', 'type=stores status=200');
         final storeModel = StoreModel.fromJson(response.body as Map<String, dynamic>);
         _searchStoreList!.addAll(storeModel.stores!);
         _allStoreList!.addAll(storeModel.stores!);
-        debugPrint(
-            '[Search][PARSED_COUNT] type=stores count=${_searchStoreList!.length}');
+        _perf('PARSE_DONE', 'type=stores count=${_searchStoreList!.length}');
         return true;
       } else {
         debugPrint(

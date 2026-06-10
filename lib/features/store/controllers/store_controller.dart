@@ -4037,38 +4037,60 @@ class StoreController extends GetxController implements GetxService {
   //   ===============================
   Future<void> getStoreSearch(SearchFilterModel searchFiltermodel) async {
     _isSearching = true;
+    _hasStoreSearchError = false;
     _storeSearchItemModel = null;
     update();
 
-    // 🟡 استدعاء API
-    final Response response =
-        await storeServiceInterface.get_new_search_filtera(
-      search_filterModel: searchFiltermodel,
-    );
+    if (kDebugMode) {
+      debugPrint('[SearchPerf][QUERY_START] storeFilter');
+    }
 
-    debugPrint('✅ API call completed, status: ${response.statusCode}');
+    try {
+      // 🟡 استدعاء API
+      final Response response =
+          await storeServiceInterface.get_new_search_filtera(
+        search_filterModel: searchFiltermodel,
+      );
 
-    if (response.statusCode == 200) {
-      final storeSearchItemModel =
-          ItemModel.fromJson(response.body as Map<String, dynamic>);
-
-      // ✅ ترتيب العناصر قبل الحفظ
-      final List<Item>? items = storeSearchItemModel.items;
-      if (items != null) {
-        items.sort((a, b) {
-          final double priceA = a.price ?? 0;
-          final double priceB = b.price ?? 0;
-          return _isPriceAscending
-              ? priceA.compareTo(priceB)
-              : priceB.compareTo(priceA);
-        });
+      if (kDebugMode) {
+        debugPrint('[SearchPerf][API_DONE] storeFilter status=${response.statusCode}');
       }
 
-      // 🟢 حفظ النموذج بعد الترتيب
-      _storeSearchItemModel = ItemModel(items: items);
+      if (response.statusCode == 200) {
+        final storeSearchItemModel =
+            ItemModel.fromJson(response.body as Map<String, dynamic>);
+
+        // ✅ ترتيب العناصر قبل الحفظ (قائمة صغيرة، فرز رخيص بلا طباعة لكل عنصر)
+        final List<Item>? items = storeSearchItemModel.items;
+        if (items != null) {
+          items.sort((a, b) {
+            final double priceA = a.price ?? 0;
+            final double priceB = b.price ?? 0;
+            return _isPriceAscending
+                ? priceA.compareTo(priceB)
+                : priceB.compareTo(priceA);
+          });
+        }
+
+        // 🟢 حفظ النموذج بعد الترتيب
+        _storeSearchItemModel = ItemModel(items: items);
+        if (kDebugMode) {
+          debugPrint('[SearchPerf][PARSE_DONE] storeFilter count=${items?.length ?? 0}');
+        }
+      } else {
+        _hasStoreSearchError = true;
+      }
+    } catch (e) {
+      _hasStoreSearchError = true;
+      if (kDebugMode) {
+        debugPrint('❌ StoreController.getStoreSearch: $e');
+      }
     }
 
     _isSearching = false;
+    if (kDebugMode) {
+      debugPrint('[SearchPerf][UI_UPDATE] storeFilter error=$_hasStoreSearchError');
+    }
     update();
   }
 
