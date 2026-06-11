@@ -15,14 +15,11 @@ class CustomButton extends StatelessWidget {
   final IconData? icon;
   final Color? color;
   final Color? textColor;
-  /// Background color used when the button is disabled (no [onPressed] / loading).
-  /// Defaults to the theme's [ThemeData.disabledColor].
+
   final Color? disabledColor;
   final bool isLoading;
   final bool isBold;
-  /// Optional font family override (e.g. 'Tajawal' for the auth screens).
   final String? fontFamily;
-  /// Optional line-height multiplier for the label.
   final double? textHeight;
   const CustomButton(
       {super.key,
@@ -52,7 +49,8 @@ class CustomButton extends StatelessWidget {
           : transparent
               ? Colors.transparent
               : color ?? Theme.of(context).primaryColor,
-      minimumSize: Size(width != null ? width! : Dimensions.webMaxWidth, height != null ? height! : 50),
+      minimumSize: Size(width != null ? width! : Dimensions.webMaxWidth,
+          height != null ? height! : 50),
       padding: EdgeInsets.zero,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(radius),
@@ -69,39 +67,54 @@ class CustomButton extends StatelessWidget {
                 style: flatButtonStyle,
                 child: isLoading
                     ? Center(
-                        child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                          const SizedBox(
-                            height: 15,
-                            width: 15,
-                            child: CircularProgressIndicator(
-                              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                              strokeWidth: 2,
-                            ),
-                          ),
-                          const SizedBox(width: Dimensions.paddingSizeSmall),
-                          Text('loading'.tr, style: robotoMedium.copyWith(color: Colors.white)),
-                        ]),
+                        child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              const SizedBox(
+                                height: 15,
+                                width: 15,
+                                child: CircularProgressIndicator(
+                                  valueColor: AlwaysStoppedAnimation<Color>(
+                                      Colors.white),
+                                  strokeWidth: 2,
+                                ),
+                              ),
+                              const SizedBox(
+                                  width: Dimensions.paddingSizeSmall),
+                              Text('loading'.tr,
+                                  style: robotoMedium.copyWith(
+                                      color: Colors.white)),
+                            ]),
                       )
-                    : Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                        icon != null
-                            ? Padding(
-                                padding: const EdgeInsets.only(right: Dimensions.paddingSizeExtraSmall),
-                                child: Icon(icon, color: transparent ? Theme.of(context).primaryColor : Theme.of(context).cardColor),
-                              )
-                            : const SizedBox(),
-                        Text(buttonText,
-                            textAlign: TextAlign.center,
-                            style: (isBold ? robotoBold : robotoRegular).copyWith(
-                              color: textColor ?? (transparent ? Theme.of(context).primaryColor : Colors.white),
-                              fontSize: fontSize ?? Dimensions.fontSizeMedim,
-                              fontFamily: fontFamily,
-                              height: textHeight,
-                            )),
-                ]
-                ),
+                    : Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                            icon != null
+                                ? Padding(
+                                    padding: const EdgeInsets.only(
+                                        right:
+                                            Dimensions.paddingSizeExtraSmall),
+                                    child: Icon(icon,
+                                        color: transparent
+                                            ? Theme.of(context).primaryColor
+                                            : Theme.of(context).cardColor),
+                                  )
+                                : const SizedBox(),
+                            Text(buttonText,
+                                textAlign: TextAlign.center,
+                                style: (isBold ? robotoBold : robotoRegular)
+                                    .copyWith(
+                                  color: textColor ??
+                                      (transparent
+                                          ? Theme.of(context).primaryColor
+                                          : Colors.white),
+                                  fontSize:
+                                      fontSize ?? Dimensions.fontSizeMedim,
+                                  fontFamily: fontFamily,
+                                  height: textHeight,
+                                )),
+                          ]),
               ),
-            )
-        )
-    );
+            )));
   }
 }
