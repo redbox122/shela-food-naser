@@ -39,6 +39,9 @@ class ApiChecker {
         debugPrint(
           '🔒 ApiChecker: 401 received for critical endpoint ($uri) - triggering logout',
         );
+        debugPrint(
+          '[AuthLogout][REASON] reason=real_401 endpoint=$uri',
+        );
       }
 
       Get.find<AuthController>()
@@ -161,7 +164,24 @@ class ApiChecker {
       if (kDebugMode) {
         debugPrint('❌ ApiChecker: Error during auth-deferred refresh: $e');
       }
+      // 🔐 FALSE-LOGOUT GUARD: auth_deferred is a transient HTTP 200 handshake,
+      // not a real 401. A refresh error (e.g. right after hot restart, before
+      // the FCM/device token is ready) must NOT drop a still-valid session.
+      if (AuthHelper.isLoggedIn()) {
+        if (kDebugMode) {
+          debugPrint(
+            '[AuthLogout][SKIPPED] reason=auth_deferred_refresh_error endpoint=$uri '
+            '— saved token still present, keeping session',
+          );
+        }
+        return;
+      }
       try {
+        if (kDebugMode) {
+          debugPrint(
+            '[AuthLogout][REASON] reason=auth_deferred_refresh_error_no_token endpoint=$uri',
+          );
+        }
         await Get.find<AuthController>().clearSharedData(removeToken: false);
         Get.find<FavouriteController>().removeFavourite();
         Get.offAllNamed<void>(
@@ -184,6 +204,24 @@ class ApiChecker {
     if (kDebugMode) {
       debugPrint(
         '[AuthRetry] Exhausted auth-deferred retries path=$uri',
+      );
+    }
+    // 🔐 FALSE-LOGOUT GUARD: `auth_deferred` is an HTTP 200 handshake, NOT a real
+    // 401/unauthenticated. If a valid saved token still exists (the typical case
+    // right after a Hot Restart), keep the user signed in — a genuine
+    // invalidation will surface later as a real 401 and be handled by checkApi().
+    if (AuthHelper.isLoggedIn()) {
+      if (kDebugMode) {
+        debugPrint(
+          '[AuthLogout][SKIPPED] reason=auth_deferred_exhausted endpoint=$uri '
+          '— saved token still present, keeping session',
+        );
+      }
+      return;
+    }
+    if (kDebugMode) {
+      debugPrint(
+        '[AuthLogout][REASON] reason=auth_deferred_exhausted_no_token endpoint=$uri',
       );
     }
     try {

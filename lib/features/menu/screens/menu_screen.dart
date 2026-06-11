@@ -812,17 +812,18 @@ class _MenuScreenState extends State<MenuScreen> {
                                           )
                                         : const SizedBox(),
 
-                                    // Send Funds button - only for logged in users
-                                    (isLoggedIn &&
-                                            !AuthHelper.isGuestLoggedIn())
-                                        ? PortionWidget(
-                                            icon: Images.sendMoneyIcon,
-                                            title: 'send_funds'.tr,
-                                            hideDivider: true,
-                                            route:
-                                                RouteHelper.getSendFundsRoute(),
-                                          )
-                                        : const SizedBox(),
+                                    // Send Funds button - HIDDEN per request (do not display)
+                                    // (isLoggedIn &&
+                                    //         !AuthHelper.isGuestLoggedIn())
+                                    //     ? PortionWidget(
+                                    //         icon: Images.sendMoneyIcon,
+                                    //         title: 'send_funds'.tr,
+                                    //         hideDivider: true,
+                                    //         route:
+                                    //             RouteHelper.getSendFundsRoute(),
+                                    //       )
+                                    //     : const SizedBox(),
+                                    const SizedBox(),
                                   ]),
                                 )
                               ]),

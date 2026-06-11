@@ -371,7 +371,14 @@ class _AllStoreScreenState extends State<AllStoreScreen> {
                                           .showRestaurantText!
                                       ? 'no_restaurant_available'.tr
                                       : 'no_store_available'.tr,
-                              stores: sortedStores,
+                              // While the first fetch is in flight and we have no
+                              // stores yet, pass null so ItemsView shows the
+                              // loading shimmer instead of flashing the empty
+                              // "no restaurants available" state for one frame.
+                              stores: (storeController.isLoading &&
+                                      sortedStores.isEmpty)
+                                  ? null
+                                  : sortedStores,
                             ),
                           if (isAllPage &&
                               !hasReachedEnd &&

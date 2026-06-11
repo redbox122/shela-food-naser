@@ -210,11 +210,22 @@ class StoreRepository implements StoreRepositoryInterface {
         ? '-filters_${cacheFilterParams.join('_')}'
         : '';
 
+    // 🔑 Separate cache by zone so one zone's store list never bleeds into
+    // another after switching location/zone. (moduleId, storeType, filterBy,
+    // offset, limit, filters and coordinates are already part of the key.)
+    String zoneHash = '';
+    final List<int>? zoneIdsForCache =
+        AddressHelper.getUserAddressFromSharedPref()?.zoneIds;
+    if (zoneIdsForCache != null && zoneIdsForCache.isNotEmpty) {
+      final List<int> sortedZones = List<int>.from(zoneIdsForCache)..sort();
+      zoneHash = '-zone_${sortedZones.join('_')}';
+    }
+
     // 🔒 PHASE 3: Use limit parameter (default to 12 if not provided)
     final effectiveLimit = limit ?? 12;
-    const cacheSchemaVersion = 'store_cache_v3';
+    const cacheSchemaVersion = 'store_cache_v4';
     final String cacheId =
-        '${AppConstants.storeUri}/$filterBy?store_type=$storeType&offset=$offset&limit=$effectiveLimit$filterParam-$moduleId$locationHash$filterCacheKey-$cacheSchemaVersion';
+        '${AppConstants.storeUri}/$filterBy?store_type=$storeType&offset=$offset&limit=$effectiveLimit$filterParam-$moduleId$zoneHash$locationHash$filterCacheKey-$cacheSchemaVersion';
 
     switch (source) {
       case DataSourceEnum.client:
@@ -362,10 +373,29 @@ class StoreRepository implements StoreRepositoryInterface {
                 '   - longitude in headers: ${nonNullHeaders.containsKey(AppConstants.longitude)}');
           }
 
+          final String mainUrl =
+              '${AppConstants.storeUri}/$filterBy?store_type=$storeType&offset=$offset&limit=$effectiveLimit$filterParam$filterQueryString';
+          if (kDebugMode) {
+            debugPrint(
+                '[StoreList][REQUEST] uri=$mainUrl etag=enabled '
+                'module=${headers[AppConstants.moduleId] ?? headers['module-id']} '
+                'zone=${headers[AppConstants.zoneId] ?? headers['zone-id']} '
+                'lat=${headers[AppConstants.latitude]} lng=${headers[AppConstants.longitude]} '
+                'filterBy=$filterBy storeType=$storeType offset=$offset limit=$effectiveLimit nearby=$shouldUseNearbyFilter');
+          }
           Response response = await apiClient.getData(
-            '${AppConstants.storeUri}/$filterBy?store_type=$storeType&offset=$offset&limit=$effectiveLimit$filterParam$filterQueryString',
+            mainUrl,
             headers: headers,
           );
+          if (kDebugMode) {
+            final int rawCount = (response.body is Map &&
+                    (response.body as Map)['stores'] is List)
+                ? ((response.body as Map)['stores'] as List).length
+                : 0;
+            debugPrint(
+                '[StoreList][RAW_RESPONSE] status=${response.statusCode} '
+                'totalSize=${(response.body is Map) ? (response.body as Map)['total_size'] : 'n/a'} rawStores=$rawCount');
+          }
 
           if (kDebugMode && AppConstants.enableVerboseLogs) {
             appLogger.debug(
@@ -373,32 +403,41 @@ class StoreRepository implements StoreRepositoryInterface {
             appLogger.debug(
                 '   📦 SECTION 3 API REPO - Response body type: ${response.body.runtimeType}');
           }
-          // ⚡ TASK 4: Pagination Retry Logic - Backend pagination bug with filter=nearby
-          // If we get 0 stores but totalSize > 0, retry without the nearby filter
-          // This ensures the user sees *something* instead of a blank screen
-          if (response.statusCode == 200 &&
+          // ⚡ TASK 4: Pagination Retry Logic - Backend bug with filter=nearby.
+          // If the nearby filter returns 0 stores on this 200 response — whether
+          // total_size is 0 OR > 0 — retry once WITHOUT filter=nearby so the user
+          // sees the same stores Home shows (Home does not use filter=nearby).
+          // (Previously this only fired when total_size > 0, so a nearby response
+          // with total_size=0 / 0 stores fell through and showed the empty state.)
+          final bool nearbyReturnedEmpty = response.statusCode == 200 &&
               shouldUseNearbyFilter &&
               offset >= 1 &&
               response.body is Map &&
-              ((response.body as Map)['stores'] as List?)?.isEmpty == true &&
-              ((response.body as Map)['total_size'] as int?) != null &&
-              ((response.body as Map)['total_size'] as int) > 0) {
+              (((response.body as Map)['stores'] as List?)?.isEmpty ?? true);
+          if (nearbyReturnedEmpty) {
+            final dynamic nearbyTotalSize =
+                (response.body as Map)['total_size'];
             if (kDebugMode) {
               appLogger.warning(
-                  '⚠️ TASK 4: Backend pagination bug detected: filter=nearby returned 0 stores for offset=$offset, totalSize=${((response.body as Map)['total_size'] as int)}');
-              appLogger.debug(
-                  '   🔄 Retrying without filter=nearby to ensure user sees *something*...');
+                  '⚠️ TASK 4: filter=nearby returned 0 stores for offset=$offset, totalSize=$nearbyTotalSize');
+              debugPrint(
+                  '[StoreList] retry_without_nearby reason=nearby_empty');
             }
             // Retry without filter=nearby
             response = await apiClient.getData(
               '${AppConstants.storeUri}/$filterBy?store_type=$storeType&offset=$offset&limit=$effectiveLimit$filterQueryString',
               headers: headers,
             );
-            if (kDebugMode && response.body is Map) {
-              final retryStoresCount =
-                  ((response.body as Map)['stores'] as List?)?.length ?? 0;
+            if (kDebugMode) {
+              final int retryStoresCount = (response.body is Map &&
+                      (response.body as Map)['stores'] is List)
+                  ? ((response.body as Map)['stores'] as List).length
+                  : 0;
               appLogger.info(
                   '   ✅ TASK 4: Retry result: $retryStoresCount stores (without filter=nearby)');
+              debugPrint(
+                  '[StoreList][RAW_RESPONSE_RETRY] status=${response.statusCode} '
+                  'totalSize=${(response.body is Map) ? (response.body as Map)['total_size'] : 'n/a'} rawStores=$retryStoresCount');
             }
           }
 
@@ -505,6 +544,32 @@ class StoreRepository implements StoreRepositoryInterface {
                     '✅ StoreRepository: Loaded ${storeModel.stores!.length} stores for module $currentModuleId (filtered from $originalCount)');
                 debugPrint(
                     '   📊 Preserving totalSize: ${storeModel.totalSize} (for pagination) - filtered stores in this page: ${storeModel.stores!.length}');
+                debugPrint(
+                    '[StoreList][CLIENT_FILTER] before=$originalCount after=${storeModel.stores!.length} reason=module');
+              }
+            }
+
+            // 🔧 VIEW-ALL FALLBACK: /stores/get-stores/all can return 0 stores for
+            // a module/zone where Home's /stores/popular DOES return stores
+            // (backend discrepancy). On the first page, if get-stores/all is
+            // empty, reuse the exact source Home uses so "رؤية الكل" shows the
+            // same restaurants instead of an empty state.
+            if (offset == 1 &&
+                (storeModel.stores == null || storeModel.stores!.isEmpty)) {
+              if (kDebugMode) {
+                debugPrint(
+                    '[StoreList] get_stores_all_empty -> fallback_to_popular type=$storeType');
+              }
+              final List<Store>? popularStores = await _getPopularStoreList(
+                  storeType,
+                  source: DataSourceEnum.client);
+              if (popularStores != null && popularStores.isNotEmpty) {
+                storeModel.stores = popularStores;
+                storeModel.totalSize = popularStores.length;
+                if (kDebugMode) {
+                  debugPrint(
+                      '[StoreList] fallback_to_popular stores=${popularStores.length} final_source=popular');
+                }
               }
             }
 
@@ -545,20 +610,78 @@ class StoreRepository implements StoreRepositoryInterface {
               }
             }
 
-            if (storeModel == null) {
+            final int cachedStoreCount = storeModel?.stores?.length ?? 0;
+            if (kDebugMode) {
+              debugPrint('[StoreCache] 304_cache_hit stores_count=$cachedStoreCount');
+            }
+
+            // 🔧 Treat an empty/zero cache on 304 as a cache MISS. An empty Hive
+            // entry must never be shown as the final result — that is what caused
+            // "no restaurants available" on /stores?page=all even though Home had
+            // stores. Force a fresh, ETag-less fetch instead.
+            if (storeModel == null || cachedStoreCount == 0) {
               if (kDebugMode) {
                 debugPrint(
-                    '⚠️ StoreRepository: 304 received but no module cache found - forcing fresh fetch');
+                    '⚠️ StoreRepository: 304 with empty/missing cache - forcing fresh fetch');
+                debugPrint(
+                    '[StoreCache] empty_cache_on_304 -> force_refresh_no_etag');
               }
               if (currentModuleId != null) {
                 await HiveHomeCacheService().clearModuleCache(currentModuleId);
               }
               final String freshUrl =
                   '${AppConstants.storeUri}/$filterBy?store_type=$storeType&offset=$offset&limit=$effectiveLimit$filterParam$filterQueryString';
+              if (kDebugMode) {
+                debugPrint(
+                    '[StoreList][REQUEST] uri=$freshUrl etag=disabled '
+                    'module=$currentModuleId filterBy=$filterBy storeType=$storeType '
+                    'offset=$offset limit=$effectiveLimit nearby=$shouldUseNearbyFilter');
+              }
               // Clear ETag to avoid repeated 304 when cache is missing
               await HiveHomeCacheService().clearETagForUri(freshUrl);
-              final Response freshResponse =
+              Response freshResponse =
                   await apiClient.getData(freshUrl, useEtag: false);
+              int rawFreshCount = (freshResponse.body is Map &&
+                      (freshResponse.body as Map)['stores'] is List)
+                  ? ((freshResponse.body as Map)['stores'] as List).length
+                  : 0;
+              if (kDebugMode) {
+                debugPrint(
+                    '[StoreList][RAW_RESPONSE] status=${freshResponse.statusCode} '
+                    'totalSize=${(freshResponse.body is Map) ? (freshResponse.body as Map)['total_size'] : 'n/a'} rawStores=$rawFreshCount');
+              }
+
+              // 🔧 Mirror the main path's TASK 4 logic: if the food "nearby"
+              // filter returns 0 stores (backend nearby/pagination quirk), retry
+              // once WITHOUT filter=nearby so /stores?page=all shows the same
+              // stores Home shows. Without this retry the fresh fetch could stay
+              // at 0 and re-show the empty state.
+              if (freshResponse.statusCode == 200 &&
+                  shouldUseNearbyFilter &&
+                  rawFreshCount == 0) {
+                final String noNearbyUrl =
+                    '${AppConstants.storeUri}/$filterBy?store_type=$storeType&offset=$offset&limit=$effectiveLimit$filterQueryString';
+                if (kDebugMode) {
+                  debugPrint(
+                      '[StoreList][REQUEST] retry_without_nearby uri=$noNearbyUrl etag=disabled');
+                }
+                await HiveHomeCacheService().clearETagForUri(noNearbyUrl);
+                final Response retryResp =
+                    await apiClient.getData(noNearbyUrl, useEtag: false);
+                final int retryCount = (retryResp.body is Map &&
+                        (retryResp.body as Map)['stores'] is List)
+                    ? ((retryResp.body as Map)['stores'] as List).length
+                    : 0;
+                if (kDebugMode) {
+                  debugPrint(
+                      '[StoreList][RAW_RESPONSE] retry_without_nearby status=${retryResp.statusCode} rawStores=$retryCount');
+                }
+                if (retryResp.statusCode == 200 && retryCount > 0) {
+                  freshResponse = retryResp;
+                  rawFreshCount = retryCount;
+                }
+              }
+
               if (freshResponse.statusCode == 200 &&
                   freshResponse.body is Map<String, dynamic>) {
                 storeModel = StoreModel.fromJson(
@@ -574,6 +697,8 @@ class StoreRepository implements StoreRepositoryInterface {
                   if (kDebugMode) {
                     debugPrint(
                         '✅ StoreRepository: Fresh stores filtered for module $currentModuleId: ${storeModel.stores!.length} (from $originalCount)');
+                    debugPrint(
+                        '[StoreList][CLIENT_FILTER] before=$originalCount after=${storeModel.stores!.length} reason=module');
                   }
                 }
                 // Cache repaired data for next 304
@@ -591,6 +716,13 @@ class StoreRepository implements StoreRepositoryInterface {
             debugPrint(
                 '❌ Stores API returned ${response.statusCode}, using fallback');
             storeModel = await _getFallbackStoreList(offset);
+          }
+          if (kDebugMode) {
+            final String finalSource = statusCode == 200
+                ? 'api'
+                : (statusCode == 304 ? 'cache_or_refresh' : 'fallback');
+            debugPrint(
+                '[StoreList] final_source=$finalSource totalSize=${storeModel?.totalSize ?? 0} stores=${storeModel?.stores?.length ?? 0}');
           }
         } catch (e) {
           debugPrint('❌ Stores API failed: $e, using fallback');
@@ -755,10 +887,18 @@ class StoreRepository implements StoreRepositoryInterface {
                 '   🔍 SECTION 2 API REPO - Before module filter: ${popularStoreList.length} stores');
           }
           // ⚠️ CRITICAL: Client-side filtering by module ID
+          final int popularRawCount = popularStoreList.length;
           popularStoreList = _filterStoresByModule(popularStoreList);
           if (kDebugMode && AppConstants.enableVerboseLogs) {
             appLogger.debug(
                 '   ✅ SECTION 2 API REPO - After module filter: ${popularStoreList.length} stores');
+          }
+          if (kDebugMode) {
+            debugPrint(
+                '[HomeStores][SOURCE] uri=${AppConstants.popularStoreUri}?type=$type '
+                'total=$popularRawCount count=${popularStoreList.length} module=$moduleId '
+                'zone=${headers[AppConstants.zoneId] ?? headers['zone-id']} '
+                'lat=${headers[AppConstants.latitude]} lng=${headers[AppConstants.longitude]}');
           }
 
           // Cache the filtered results

@@ -101,10 +101,13 @@ class _MyFatoorahPaymentWebViewScreenState
 
     if (choice == 'orders') {
       debugPrint('[PaymentRecovery][BACK_DIALOG] choice=orders');
+      debugPrint('[QidhaRepayDialog] action=go_to_orders');
       Get.back(result: 'go_to_orders');
     } else {
       // 'stay' (or dismissed) → remain in the WebView to continue paying.
+      // Only "متابعة الدفع" continues the MyFatoorah flow.
       debugPrint('[PaymentRecovery][BACK_DIALOG] choice=stay');
+      debugPrint('[QidhaRepayDialog] action=continue_payment');
     }
   }
 

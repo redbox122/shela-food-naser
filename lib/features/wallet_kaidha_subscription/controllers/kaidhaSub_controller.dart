@@ -1711,6 +1711,13 @@ class KaidhaSubscriptionController extends GetxController
       if (webResult == 'cancelled') {
         return 'cancelled';
       }
+      // User chose "الذهاب إلى طلباتي" from the payment back-guard dialog.
+      // This is a navigation choice, NOT a payment failure — surface it as a
+      // distinct result so the caller navigates instead of showing an error.
+      if (webResult == 'go_to_orders') {
+        debugPrint('[QidhaRepayDialog] action=go_to_orders');
+        return 'go_to_orders';
+      }
       return 'error';
     } catch (error, stackTrace) {
       debugPrint(
@@ -1796,6 +1803,17 @@ class KaidhaSubscriptionController extends GetxController
         update();
         return;
       }
+      // Navigation-only choice: user tapped "الذهاب إلى طلباتي". This is NOT a
+      // payment failure — clear loading, skip the failure toast, and go to
+      // the orders screen directly.
+      if (noOrderResult == 'go_to_orders') {
+        debugPrint(
+            '[QidhaRepayDialog] skipped_payment_failure_toast=true reason=user_chose_orders');
+        _isLoading = false;
+        update();
+        Get.toNamed<void>(RouteHelper.getOrderRoute());
+        return;
+      }
       isPaymentSuccessful = noOrderResult == 'success';
       isPaymentCancelled = noOrderResult == 'cancelled';
     } else {
@@ -1815,7 +1833,7 @@ class KaidhaSubscriptionController extends GetxController
       if (isPaymentCancelled) {
         showCustomSnackBar('تم إلغاء عملية الدفع', isError: false);
       } else {
-        showCustomSnackBar('فشلت عملية الشحن قم بالمحاولة ثانيا ');
+        showCustomSnackBar('فشلت عملية الدفع، حاول مرة أخرى');
       }
       _isLoading = false;
       update();

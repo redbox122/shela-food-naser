@@ -2783,7 +2783,13 @@ class CheckoutController extends GetxController implements GetxService {
             debugPrint(
                 '\x1B[32m[Payment][Qidha] success order=$_currentOrderId\x1B[0m');
             paymentSucceeded = true;
-            await kaidhaSubController.get_Wallet_Kaidh(); // Refresh balance
+            // forceRefresh: true bypasses the "full wallet already set" cache
+            // guard so the new usedBalance/availableBalance is fetched and the
+            // Menu/Profile Qidha badge updates immediately (no need to open the
+            // Qidha screen and come back). get_Wallet_Kaidh() ends with an
+            // update() that rebuilds the menu's GetBuilder<KaidhaSubscriptionController>.
+            await kaidhaSubController.get_Wallet_Kaidh(
+                forceRefresh: true); // Refresh balance from API
           } else {
             debugPrint(
                 '\x1B[33m[Payment][Qidha] failed status=$statusCode\x1B[0m');

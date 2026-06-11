@@ -1030,6 +1030,8 @@ class StoreController extends GetxController implements GetxService {
         if (kDebugMode) {
           debugPrint(
               '📊 StoreController: Initial load (allStoreModel) - totalSize: ${storeModel.totalSize}, stores: ${storeModel.stores?.length ?? 0}');
+          debugPrint(
+              '[StoreList][HOME_COMPARE] homeStores=${_popularStoreList?.length ?? 0} allStores=${storeModel.stores?.length ?? 0}');
           if (hasCachedData &&
               storeModel.stores != null &&
               storeModel.stores!.isNotEmpty) {

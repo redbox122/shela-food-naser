@@ -47,7 +47,11 @@ class SecureTokenStorage {
   static const int _maxRotationCount = 100; // Maximum token rotations
   
   // Token expiration settings
-  static const Duration _defaultTokenExpiry = Duration(hours: 24);
+  // ⚠️ This is a LOCAL safety window only — the backend (Passport) token is
+  // valid for ~1 year. A short local expiry (previously 24h) made getToken()
+  // self-destruct a still-valid token and force a false logout. Keep this well
+  // beyond the backend lifetime so only a real 401 invalidates the session.
+  static const Duration _defaultTokenExpiry = Duration(days: 365);
   static const Duration _rotationThreshold = Duration(hours: 12);
   
   // Secure key storage

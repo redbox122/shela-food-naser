@@ -135,12 +135,18 @@ class ApiClient extends GetxService {
       // 🔧 FIX: ALWAYS check secure storage first (even if legacy token exists)
       // Secure token is the source of truth and may be more up-to-date after hot restart
       final secureToken = await SecureTokenStorage.getToken();
+      if (kDebugMode) {
+        debugPrint(
+            '[AuthStartup] secure_token_exists=${secureToken != null && secureToken.isNotEmpty}');
+      }
       if (secureToken != null && secureToken.isNotEmpty) {
         token = secureToken;
 
         if (kDebugMode) {
           debugPrint(
               '✅ ApiClient: Token loaded from secure storage (priority over legacy)');
+          debugPrint(
+              '[AuthStartup] token loaded into API client (source=secure_storage)');
         }
 
         // Update headers with the secure token
@@ -187,6 +193,8 @@ class ApiClient extends GetxService {
         token = legacyToken;
         if (kDebugMode) {
           debugPrint('⚠️ ApiClient: Using legacy token (secure storage empty)');
+          debugPrint(
+              '[AuthStartup] token loaded into API client (source=legacy_storage)');
         }
         // Update headers with legacy token
         AddressModel? addressModel;
