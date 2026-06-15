@@ -861,15 +861,17 @@ class RouteHelper {
       name: main,
       page: () => getRoute(
         DashboardScreen(
+          // 🎨 REDESIGN: 5-tab nav — home / cart / discounts / order / profile
           pageIndex: Get.parameters['page'] == 'home'
               ? 0
-              : Get.parameters['page'] == 'favourite'
+              : Get.parameters['page'] == 'cart'
                   ? 1
-                  : Get.parameters['page'] == 'cart'
+                  : Get.parameters['page'] == 'discounts'
                       ? 2
                       : Get.parameters['page'] == 'order'
                           ? 3
-                          : Get.parameters['page'] == 'menu'
+                          : Get.parameters['page'] == 'profile' ||
+                                  Get.parameters['page'] == 'menu'
                               ? 4
                               : 0,
         ),

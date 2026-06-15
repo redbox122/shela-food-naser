@@ -47,12 +47,16 @@ class NotificationController extends GetxController implements GetxService {
           _hasNotification =
               _notificationList!.length != getSeenNotificationCount();
 
+          // Badge = there are notifications the user hasn't opened the page for
+          // yet (count exceeds the last-seen count). Opening the notifications
+          // page saves seenCount = length, which clears the badge.
+          final int seenCount = getSeenNotificationCount() ?? 0;
           final bool hasUnreadNotifications =
-              _notificationList!.any((notification) => notification.status == 0);
+              _notificationList!.length > seenCount;
           hasUnread.value = hasUnreadNotifications;
           if (kDebugMode) {
             appLogger.debug(
-                '[NotificationController] hasUnread=$hasUnreadNotifications unread=${_notificationList!.where((n) => n.status == 0).length}');
+                '[NotificationController] hasUnread=$hasUnreadNotifications count=${_notificationList!.length} seen=$seenCount');
           }
         } else {
           _notificationList = <NotificationModel>[];

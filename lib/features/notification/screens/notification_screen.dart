@@ -82,6 +82,12 @@ class _NotificationScreenState extends State<NotificationScreen> {
                 if (notificationController.notificationList != null) {
                   notificationController.saveSeenNotificationCount(
                       notificationController.notificationList!.length);
+                  // Opening the notifications page clears the unread badge.
+                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                    if (notificationController.hasUnread.value) {
+                      notificationController.hasUnread.value = false;
+                    }
+                  });
                 }
                 if (notificationController.hasError) {
                   return ErrorStateView(

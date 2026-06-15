@@ -1,38 +1,30 @@
 import 'dart:async';
 import 'dart:io';
 import 'package:expandable_bottom_sheet/expandable_bottom_sheet.dart';
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
-import 'package:animated_bottom_navigation_bar/animated_bottom_navigation_bar.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:sixam_mart/features/rental_module/common/widgets/taxi_cart_widget.dart';
 import 'package:sixam_mart/features/dashboard/widgets/store_registration_success_bottom_sheet.dart';
 import 'package:sixam_mart/features/home/controllers/home_controller.dart';
 import 'package:sixam_mart/features/location/controllers/location_controller.dart';
 import 'package:sixam_mart/features/splash/controllers/splash_controller.dart';
 import 'package:sixam_mart/features/order/controllers/order_controller.dart';
 import 'package:sixam_mart/features/order/domain/models/order_model.dart';
-import 'package:sixam_mart/features/address/screens/address_screen.dart';
 import 'package:sixam_mart/features/auth/controllers/auth_controller.dart';
-import 'package:sixam_mart/features/parcel/controllers/parcel_controller.dart';
-import 'package:sixam_mart/features/rental_module/rental_cart_screen/taxi_cart_screen.dart';
-import 'package:sixam_mart/features/rental_module/rental_favourite/screens/vehicle_favourite_screen.dart';
 import 'package:sixam_mart/helper/auth_helper.dart';
 import 'package:sixam_mart/helper/responsive_helper.dart';
-import 'package:sixam_mart/helper/route_helper.dart';
 import 'package:sixam_mart/helper/taxi_helper.dart';
 import 'package:sixam_mart/util/app_constants.dart';
 import 'package:sixam_mart/util/dimensions.dart';
-import 'package:sixam_mart/common/widgets/cart_widget.dart';
 import 'package:sixam_mart/common/widgets/custom_snackbar.dart';
-import 'package:sixam_mart/features/dashboard/widgets/parcel_bottom_sheet_widget.dart';
-import 'package:sixam_mart/features/favourite/screens/favourite_screen.dart';
-import 'package:sixam_mart/features/favourite/controllers/favourite_controller.dart';
 import 'package:sixam_mart/features/home/screens/home_screen.dart';
 import 'package:sixam_mart/features/home/screens/multi_module/multi_module_home_screen.dart';
 import 'package:sixam_mart/features/home/screens/module_home_router_screen.dart';
-import 'package:sixam_mart/features/menu/screens/menu_screen.dart';
 import 'package:sixam_mart/features/order/screens/order_screen.dart';
+import 'package:sixam_mart/features/cart/screens/cart_screen.dart';
+import 'package:sixam_mart/features/discount/screens/discount_screen.dart';
+import 'package:sixam_mart/features/profile/screens/profile_screen.dart';
+import 'package:sixam_mart/features/dashboard/widgets/home_bottom_nav_bar.dart';
+import 'package:sixam_mart/util/images.dart';
 import 'package:sixam_mart/common/models/module_model.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
@@ -105,12 +97,13 @@ class DashboardScreenState extends State<DashboardScreen> {
     _pageController = PageController(initialPage: widget.pageIndex);
     // ⚡ TASK 2: Conditional initialization - use MultiModuleHomeScreen if multiple modules exist
     // This prevents legacy HomeScreen from being initialized when MultiModuleHomeScreen is active
+    // 🎨 REDESIGN: 5-tab nav — Home / Cart / Discounts / Orders / Profile
     _screens = [
       _buildHomeRoot(),
-      const FavouriteScreen(),
-      const SizedBox(),
+      const CartScreen(fromNav: true),
+      const DiscountScreen(),
       const OrderScreen(),
-      const MenuScreen()
+      const ProfileScreen(),
     ];
 
     // ⚡ PERF FIX: Preload other modules AFTER splash completes.
@@ -362,27 +355,37 @@ class DashboardScreenState extends State<DashboardScreen> {
 
               // ⚡ TASK 2: Conditional initialization - use MultiModuleHomeScreen if multiple modules exist
               // This prevents legacy HomeScreen from being initialized when MultiModuleHomeScreen is active
+              // 🎨 REDESIGN: 5-tab nav — Home / Cart / Discounts / Orders / Profile
               _screens = [
                 _buildHomeRoot(),
-                isParcel
-                    ? const AddressScreen(fromDashboard: true)
-                    : isTaxi
-                        ? const VehicleFavouriteScreen()
-                        : const FavouriteScreen(),
-                const SizedBox(),
+                const CartScreen(fromNav: true),
+                const DiscountScreen(),
                 OrderScreen(index: isTaxi ? 1 : 0),
-                const MenuScreen()
+                const ProfileScreen(),
               ];
 
-              // Map page index to nav bar index (0,1,3,4 -> 0,1,2,3)
-              final int navBarIndex =
-                  _pageIndex < 2 ? _pageIndex : _pageIndex - 1;
-
-              final iconList = <IconData>[
-                Icons.home_outlined,
-                isParcel ? Icons.location_on_outlined : Icons.favorite_border,
-                Icons.list_alt,
-                Icons.more_horiz,
+              const navItems = <HomeNavBarItem>[
+                HomeNavBarItem(
+                    icon: Images.home_v2,
+                    activeIcon: Images.home_v2_active,
+                    label: 'nav_home'),
+                HomeNavBarItem(
+                    icon: Images.bag_v2,
+                    activeIcon: Images.bag_v2_active,
+                    label: 'nav_cart',
+                    isCart: true),
+                HomeNavBarItem(
+                    icon: Images.discount_shape_v2,
+                    activeIcon: Images.discount_shape_v2_active,
+                    label: 'nav_discounts'),
+                HomeNavBarItem(
+                    icon: Images.receipt_ext_v2,
+                    activeIcon: Images.receipt_ext_v2_active,
+                    label: 'nav_orders'),
+                HomeNavBarItem(
+                    icon: Images.profile_v2,
+                    activeIcon: Images.profile_v2_active,
+                    label: 'nav_profile'),
               ];
 
               final bool showBottomChrome =
@@ -444,139 +447,21 @@ class DashboardScreenState extends State<DashboardScreen> {
                         )
                       : const SizedBox(),
                 ),
-                floatingActionButton: !showBottomChrome
-                    ? null
-                    : FloatingActionButton(
-                        // 🔥 FIX: Add unique heroTag to prevent "multiple heroes" error
-                        // This ensures each FloatingActionButton has a unique tag for hero animations
-                        heroTag: null,
-                        backgroundColor: Theme.of(context).primaryColor,
-                        shape: const CircleBorder(),
-                        child: isTaxiWithCache
-                            ? TaxiCartWidget(
-                                color: Theme.of(context).colorScheme.onPrimary,
-                                size: 22,
-                              )
-                            : isParcel
-                                ? Icon(
-                                    CupertinoIcons.add,
-                                    size: 28,
-                                    color:
-                                        Theme.of(context).colorScheme.onPrimary,
-                                  )
-                                : CartWidget(
-                                    color:
-                                        Theme.of(context).colorScheme.onPrimary,
-                                    size: 22,
-                                  ),
-                        onPressed: () {
-                          // Handle cart navigation
-                          if (isParcel) {
-                            showModalBottomSheet(
-                              context: context,
-                              isScrollControlled: true,
-                              backgroundColor: Colors.transparent,
-                              builder: (con) => ParcelBottomSheetWidget(
-                                parcelCategoryList: Get.find<ParcelController>()
-                                    .parcelCategoryList,
-                              ),
-                            );
-                          } else if (isTaxiWithCache) {
-                            Get.to(() => const TaxiCartScreen());
-                          } else {
-                            Get.toNamed(RouteHelper.getCartRoute());
-                          }
-                        },
-                      ),
-                floatingActionButtonLocation:
-                    FloatingActionButtonLocation.centerDocked,
+                // 🎨 REDESIGN: No centre FAB — cart is now a regular tab.
+                floatingActionButton: null,
                 bottomNavigationBar: !showBottomChrome
                     ? null
-                    : GetBuilder<FavouriteController>(
-                        builder: (FavouriteController favController) {
-                          final int favCount =
-                              (favController.wishItemList?.length ?? 0) +
-                                  (favController.wishStoreList?.length ?? 0);
-                          final String favBadgeText =
-                              favCount > 99 ? '99+' : favCount.toString();
-                          final bool showFavBadge = !isParcel && favCount > 0;
-                          return SafeArea(
-                            top: false,
-                            left: false,
-                            right: false,
-                            minimum: EdgeInsets.zero,
-                            child: AnimatedBottomNavigationBar.builder(
-                              itemCount: iconList.length,
-                              tabBuilder: (int index, bool isActive) {
-                                final Color iconColor = isActive
-                                    ? Theme.of(context).primaryColor
-                                    : Theme.of(context)
-                                        .colorScheme
-                                        .onSurface
-                                        .withValues(alpha: 0.55);
-                                final bool isFavTab = !isParcel && index == 1;
-                                return SizedBox(
-                                  width: 28,
-                                  height: 28,
-                                  child: Stack(
-                                    clipBehavior: Clip.none,
-                                    children: <Widget>[
-                                      Center(
-                                        child: Icon(iconList[index],
-                                            size: 28, color: iconColor),
-                                      ),
-                                      if (isFavTab && showFavBadge)
-                                        Positioned.fill(
-                                          child: Center(
-                                            child: Text(
-                                              favBadgeText,
-                                              textAlign: TextAlign.center,
-                                              style: TextStyle(
-                                                color: Theme.of(context)
-                                                    .colorScheme
-                                                    .error,
-                                                fontSize: 9,
-                                                fontWeight: FontWeight.w700,
-                                              ),
-                                            ),
-                                          ),
-                                        ),
-                                    ],
-                                  ),
-                                );
-                              },
-                              activeIndex: navBarIndex,
-                              gapLocation: GapLocation.center,
-                              notchSmoothness: NotchSmoothness.softEdge,
-                              leftCornerRadius: 0,
-                              rightCornerRadius: 0,
-                              backgroundColor:
-                                  Theme.of(context).colorScheme.surface,
-                              shadow: BoxShadow(
-                                offset: const Offset(0, 1),
-                                blurRadius: 12,
-                                spreadRadius: 0.5,
-                                color: Theme.of(context)
-                                    .shadowColor
-                                    .withValues(alpha: 0.16),
-                              ),
-                              onTap: (int index) {
-                                if (index == 0) {
-                                  Get.offAll<dynamic>(
-                                      () => MultiModuleHomeScreen(
-                                            key: ValueKey(
-                                                'multi_${Get.find<SplashController>().selectedModule.value?.id}'),
-                                            showBottomNavigation: false,
-                                          ));
-                                  return;
-                                }
-                                final int pageIndex =
-                                    index < 2 ? index : index + 1;
-                                _setPage(pageIndex);
-                              },
-                            ),
-                          );
-                        },
+                    : HomeBottomNavBar(
+                        items: navItems
+                            .map((item) => HomeNavBarItem(
+                                  icon: item.icon,
+                                  activeIcon: item.activeIcon,
+                                  label: item.label.tr,
+                                  isCart: item.isCart,
+                                ))
+                            .toList(),
+                        currentIndex: _pageIndex,
+                        onTap: _setPage,
                       ),
               );
             },
