@@ -4,7 +4,6 @@ import 'package:sixam_mart/features/home/widgets/views/category_view.dart';
 import 'package:sixam_mart/features/home/widgets/views/top_restaurants_view.dart';
 import 'package:sixam_mart/features/home/widgets/views/promotional_banner_view.dart';
 import 'package:sixam_mart/features/store/controllers/store_controller.dart';
-import 'package:sixam_mart/features/home/widgets/banner_view.dart';
 import 'package:sixam_mart/features/banner/controllers/banner_controller.dart';
 import 'package:sixam_mart/features/category/controllers/category_controller.dart';
 import 'package:sixam_mart/features/home/controllers/home_controller.dart';
@@ -419,39 +418,10 @@ class _FoodHomeScreenState extends State<FoodHomeScreen> {
                     // 1. Categories - ⚡ BUSINESS SETTINGS: Use backend flags as source of truth
                     // 2. Banners - ⚡ BUSINESS SETTINGS: Use backend flags as source of truth
                     // ⚡ TASK 2: Defensive UI guard - check registration before access
-                    !Get.isRegistered<BannerController>()
-                        ? const SizedBox.shrink()
-                        : GetBuilder<BannerController>(
-                            id: 'banner_section', // ⚡ TASK 1: Prevents rebuild storms
-                            builder: (bannerController) {
-                              final isEnabled = settings == null ||
-                                  (settings.bannersSection?.toString() == '1' ||
-                                      (settings.bannersSection is int &&
-                                          settings.bannersSection == 1));
-                              final hasFeaturedBanners =
-                                  bannerController.featuredBannerList != null &&
-                                      bannerController
-                                          .featuredBannerList!.isNotEmpty;
-                              final hasRegularBanners =
-                                  bannerController.bannerImageList != null &&
-                                      bannerController
-                                          .bannerImageList!.isNotEmpty;
-                              final hasData =
-                                  hasFeaturedBanners || hasRegularBanners;
-
-                              // Show if enabled in business_settings AND has data
-                              return (isEnabled && hasData)
-                                  ? const Column(
-                                      children: [
-                                        BannerView(isFeatured: true),
-                                        SizedBox(
-                                            height:
-                                                Dimensions.paddingSizeDefault),
-                                      ],
-                                    )
-                                  : const SizedBox.shrink();
-                            },
-                          ),
+                    // 🎨 REDESIGN: Banner moved to the top of HomeScreen (above
+                    // services), so the module-level banner is hidden here to
+                    // avoid showing it twice.
+                    const SizedBox.shrink(),
                     // ⚡ TASK 2: Defensive UI guard - check registration before access
                     !Get.isRegistered<CategoryController>()
                         ? const CategoryShimmer()

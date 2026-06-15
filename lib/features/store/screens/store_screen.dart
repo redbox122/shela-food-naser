@@ -258,11 +258,11 @@ class _StoreScreenState extends State<StoreScreen> {
 
           // Only show error if both storeController.store AND widget.store are null
           if (displayStore == null || displayStore.name == null) {
-            final bool isBootstrapLoading =
-                (storeController.isLoading || storeController.isLoadingStoreDetails) &&
-                    widget.store?.id != null &&
-                    widget.store!.id! > 0;
-            if (isBootstrapLoading) {
+            // No error code yet → still loading (initial fetch / module switch).
+            // Show the loading state instead of flashing the error screen.
+            final bool hasRealError =
+                storeController.storeErrorStatusCode != null;
+            if (!hasRealError) {
               return const Center(
                 child: LoadingWidget(messageKey: 'loading', showMessage: true),
               );

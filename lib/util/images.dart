@@ -44,7 +44,36 @@ class Images {
   static const String Exclusive_discounts =
       'assets/image/Exclusive_discounts.png';
 
+  // bottome navbar
+  static const String profile_v2 = 'assets/image/profile_v2.png';
+  static const String profile_v2_active = 'assets/image/profile_v2_active.png';
+  static const String receipt_ext_v2 = 'assets/image/receipt-text_v2.png';
+  static const String receipt_ext_v2_active =
+      'assets/image/receipt-text_v2_active.png';
+  static const String discount_shape_v2 = 'assets/image/discount-shape_v2.png';
+  static const String discount_shape_v2_active =
+      'assets/image/discount-shape_v2_active.png';
+  static const String bag_v2 = 'assets/image/bag_v2.png';
+  static const String bag_v2_active = 'assets/image/bag_v2_active.png';
+  static const String home_v2 = 'assets/image/home_v2.png';
+  static const String home_v2_active = 'assets/image/home_v2_active.png';
+
+  // home header icons
+  static const String search = 'assets/image/search.png';
+  static const String truck_v2 = 'assets/image/truck_v2.png';
+  static const String time_v2 = 'assets/image/time_v2.png';
+  static const String star_v2 = 'assets/image/star_v2.png';
+  static const String bell = 'assets/image/bell.png';
+  static const String search_v2 = 'assets/image/search_v2.png';
+  static const String trash = 'assets/image/trash.png';
+  static const String location_v2 = 'assets/image/location_v2.png';
+  static const String unread_notification =
+      'assets/image/unread_notification.png';
+
   static const String restaurantMarker = 'assets/image/restaurant_marker.png';
+  static const String pharmacy = 'assets/image/pharmacy.png';
+  static const String restaurants = 'assets/image/resturants.png';
+  static const String Market = 'assets/image/Market.png';
   static const String deliveryManMarker =
       'assets/image/delivery_man_marker.png';
   static const String user = 'assets/image/user.png';

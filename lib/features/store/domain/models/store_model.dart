@@ -48,6 +48,7 @@ class StoreModel {
 class Store {
   int? id;
   String? name;
+  String? description;
   String? phone;
   String? email;
   String? logoFullUrl;
@@ -113,6 +114,7 @@ class Store {
   Store({
     this.id,
     this.name,
+    this.description,
     this.phone,
     this.email,
     this.logoFullUrl,
@@ -177,6 +179,7 @@ class Store {
     // ⚡ TASK 1: TYPE-SAFE PARSING - Explicit type conversions
     id = json.parseInt('id');
     name = json.parseString('name');
+    description = json.parseString('description');
     phone = json.parseString('phone');
     email = json.parseString('email');
     // Prefer logo_full_url (complete URL from server) over logo (may be filename-only)

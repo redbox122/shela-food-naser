@@ -101,6 +101,12 @@ Future<void> main() async {
         return; // swallow — errorWidget in CustomImage handles the UI
       }
     }
+    // 🔎 TEMP DIAGNOSTIC: surface the offending widget + creation location for
+    // layout overflow errors (remove after diagnosing).
+    if (kDebugMode &&
+        details.exception.toString().contains('overflowed')) {
+      FlutterError.presentError(details);
+    }
     logger_package.logger.e(
       "Flutter Error: ${details.exception}",
       error: details.exception,
@@ -579,7 +585,8 @@ class _MyAppState extends State<MyApp> {
                       return const SizedBox();
                     },
                   ),
-                  const GlobalStickyCartOverlay(),
+                  // 🎨 REDESIGN: floating cart button removed — the cart count
+                  // now shows as a badge on the bottom nav bar.
                 ],
               ),
             ),
