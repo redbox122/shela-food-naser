@@ -94,3 +94,6 @@ WhatsApp Image*.jpg
 # ─── ملفات اختبار مؤقتة ───
 test_*.dart
 fetch_*.dart
+
+# Local API keys (Google Maps, Facebook, MyFatoorah)
+env.json
