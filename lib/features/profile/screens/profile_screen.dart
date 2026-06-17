@@ -320,6 +320,28 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                             : 0),
                                     isLoggedIn
                                         ? ProfileButtonWidget(
+                                            icon: Icons.logout,
+                                            title: 'logout'.tr,
+                                            onTap: () {
+                                              Get.dialog(
+                                                  ConfirmationDialog(
+                                                    icon: Images.support,
+                                                    description: 'are_you_sure_to_logout'.tr,
+                                                    isLogOut: true,
+                                                    onYesPressed: () async {
+                                                      profileController.clearUserInfo();
+                                                      await Get.find<AuthController>().socialLogout();
+                                                      await Get.find<AuthController>().clearSharedData();
+                                                      await Get.offAllNamed(RouteHelper.getWelcomeRoute());
+                                                    },
+                                                  ),
+                                                  useSafeArea: false);
+                                            },
+                                          )
+                                        : const SizedBox(),
+                                    SizedBox(height: isLoggedIn ? Dimensions.paddingSizeSmall : 0),
+                                    isLoggedIn
+                                        ? ProfileButtonWidget(
                                             icon: Icons.delete,
                                             title: 'delete_account'.tr,
                                             iconImage: Images.profileDelete,

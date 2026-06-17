@@ -14,7 +14,6 @@ import 'package:sixam_mart/util/styles.dart';
 import 'package:sixam_mart/common/widgets/custom_app_bar.dart';
 import 'package:sixam_mart/common/widgets/custom_image.dart';
 import 'package:sixam_mart/common/widgets/footer_view.dart';
-import 'package:sixam_mart/common/widgets/no_data_screen.dart';
 import 'package:sixam_mart/common/widgets/error_state_view.dart';
 import 'package:sixam_mart/common/widgets/not_logged_in_screen.dart';
 import 'package:sixam_mart/features/notification/widgets/notification_dialog_widget.dart';
@@ -377,10 +376,37 @@ class _NotificationScreenState extends State<NotificationScreen> {
                               ),
                             ),
                           )
-                        : NoDataScreen(
-                            text: 'no_notifications'.tr,
-                            subtitle: 'no_notifications_subtitle'.tr,
-                            showFooter: true)
+                        : Center(
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Image.asset(
+                                  Images.no_notification,
+                                  width: 241,
+                                  height: 210,
+                                  fit: BoxFit.contain,
+                                  errorBuilder: (_, __, ___) =>
+                                      const SizedBox.shrink(),
+                                ),
+                                const SizedBox(height: 16),
+                                Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 40),
+                                  child: Text(
+                                    'no_notifications'.tr,
+                                    textAlign: TextAlign.center,
+                                    style: const TextStyle(
+                                      fontFamily: 'Tajawal',
+                                      fontWeight: FontWeight.w700,
+                                      fontSize: 16,
+                                      height: 1.4,
+                                      color: Color(0xFF121C19),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          )
                     : const Center(child: CircularProgressIndicator());
               })
             : NotLoggedInScreen(callBack: (value) {

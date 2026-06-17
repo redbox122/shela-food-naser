@@ -7,28 +7,27 @@ import 'package:sixam_mart/util/app_constants.dart';
 import 'package:sixam_mart/util/dimensions.dart';
 import 'package:sixam_mart/util/images.dart';
 
-/// Home promotional banner rail.
+/// 🎨 REDESIGN (Market): promotional banner rail.
 ///
-/// Self-fetches the *global* featured banners (GET /api/v1/banners?featured=1)
-/// using a fixed module (id 3), independent of the currently-selected module —
-/// so the rail shows the same promo banners on every module's home, even ones
-/// that have no banners configured of their own (e.g. pharmacy).
-class HomeBannerView extends StatefulWidget {
-  const HomeBannerView({super.key});
+/// Wired to `GET /api/v1/offers/active`, scoped to the market (grocery) module
+/// via the moduleId header. Shows the active offer banners as a paged rail.
+class MarketBannerSection extends StatefulWidget {
+  final int? moduleId;
 
-  /// Banners live under module 3; the feed is global across modules.
+  const MarketBannerSection({super.key, this.moduleId});
+
+  /// The banner/offers feed is sourced from a fixed module (id 3), independent
+  /// of the market's grocery module.
   static const int _bannerModuleId = 3;
 
-  // Banner image ratio (width/height). Match the designed banner ratio so
-  // `contain` fills the card with no gaps while showing the full image.
-  static const double _aspectRatio = 613 / 289;
+  // Banner image ratio (width/height); matches the market design spec (322×125).
+  static const double _aspectRatio = 322 / 125;
 
   @override
-  State<HomeBannerView> createState() => _HomeBannerViewState();
+  State<MarketBannerSection> createState() => _MarketBannerSectionState();
 }
 
-class _HomeBannerViewState extends State<HomeBannerView> {
-  // viewportFraction < 1 makes the next banner peek on the trailing edge.
+class _MarketBannerSectionState extends State<MarketBannerSection> {
   final PageController _controller = PageController(viewportFraction: 0.9);
   int _current = 0;
   List<String> _images = const [];
@@ -52,26 +51,26 @@ class _HomeBannerViewState extends State<HomeBannerView> {
       return;
     }
     try {
-      // Scope to module 3 via the moduleId header; zoneId/auth come from the
-      // client defaults.
+      // Banners (with images) live in /api/v1/banners — /offers/active returns
+      // offers without a banner image. Scope to module 3 via the moduleId
+      // header; zoneId/auth come from the client defaults.
       final response = await Get.find<ApiClient>().getData(
         '${AppConstants.bannerUri}?featured=1',
         headers: {
           AppConstants.localizationKey: 'ar',
-          AppConstants.moduleId: HomeBannerView._bannerModuleId.toString(),
+          AppConstants.moduleId:
+              MarketBannerSection._bannerModuleId.toString(),
         },
         useEtag: false,
       );
       if (!mounted) return;
       final dynamic body = response.body;
-      // Merge banners + campaigns; tolerate a bare list too.
+      // Merge featured banners + campaigns; tolerate a bare list too.
       final List raw = body is List
           ? body
           : (body is Map)
               ? [
-                  ...(body['banners'] is List
-                      ? body['banners'] as List
-                      : const []),
+                  ...(body['banners'] is List ? body['banners'] as List : const []),
                   ...(body['campaigns'] is List
                       ? body['campaigns'] as List
                       : const []),
@@ -105,7 +104,7 @@ class _HomeBannerViewState extends State<HomeBannerView> {
       child: Column(
         children: [
           AspectRatio(
-            aspectRatio: HomeBannerView._aspectRatio,
+            aspectRatio: MarketBannerSection._aspectRatio,
             child: PageView.builder(
               controller: _controller,
               padEnds: false,
@@ -156,8 +155,6 @@ class _HomeBannerViewState extends State<HomeBannerView> {
   }
 
   Widget _buildSkeleton(BuildContext context) {
-    // Mirror the real banner layout (90% main card + peek of the next + dots)
-    // so the skeleton → banner transition is a single, jump-free phase.
     return Padding(
       padding: const EdgeInsets.symmetric(
         horizontal: Dimensions.paddingSizeDefault,
@@ -168,56 +165,15 @@ class _HomeBannerViewState extends State<HomeBannerView> {
             Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.08),
         highlightColor:
             Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.03),
-        child: Column(
-          children: [
-            AspectRatio(
-              aspectRatio: HomeBannerView._aspectRatio,
-              child: Row(
-                children: [
-                  // Main card (right in RTL) — matches viewportFraction 0.9.
-                  Expanded(
-                    flex: 9,
-                    child: Padding(
-                      padding: const EdgeInsets.only(
-                          right: Dimensions.paddingSizeSmall),
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                      ),
-                    ),
-                  ),
-                  // Peek of the next banner (left).
-                  Expanded(
-                    flex: 1,
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
+        child: AspectRatio(
+          aspectRatio: MarketBannerSection._aspectRatio,
+          child: Container(
+            margin: const EdgeInsets.only(right: Dimensions.paddingSizeSmall),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
             ),
-            const SizedBox(height: Dimensions.paddingSizeSmall),
-            // Dots indicator skeleton.
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: List.generate(3, (i) {
-                return Container(
-                  margin: const EdgeInsets.symmetric(horizontal: 3),
-                  height: 6,
-                  width: i == 0 ? 16 : 6,
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(3),
-                  ),
-                );
-              }),
-            ),
-          ],
+          ),
         ),
       ),
     );
