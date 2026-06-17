@@ -519,7 +519,10 @@ class AuthController extends GetxController implements GetxService {
   }
 
   String getUserToken() {
-    return authServiceInterface.getUserToken();
+    final token = authServiceInterface.getUserToken();
+    // TODO: temporary debug logging — remove before release
+    debugPrint('🔑 USER TOKEN: $token');
+    return token;
   }
 
   Future<void> updateZone() async {

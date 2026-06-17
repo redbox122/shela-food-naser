@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:sixam_mart/features/home/screens/market_screen.dart';
 import 'package:sixam_mart/features/home/screens/module_storefront_screen.dart';
 import 'package:sixam_mart/util/app_constants.dart';
 import 'package:sixam_mart/util/dimensions.dart';
@@ -95,8 +96,12 @@ class HomeServicesGrid extends StatelessWidget {
                     imageAsset: Images.Market,
                     fill: const Color(0xFFE7F7EA),
                     labelColor: const Color(0xFF1F7A35),
-                    onTap: () =>
-                        _openService('the_market'.tr, AppConstants.grocery),
+                    onTap: () => Get.to<void>(
+                      () => MarketScreen(
+                        title: 'the_market'.tr,
+                        moduleType: AppConstants.grocery,
+                      ),
+                    ),
                   ),
                 ),
               ],

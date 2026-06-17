@@ -18,7 +18,7 @@ import 'package:sixam_mart/util/styles.dart';
 class HomeCurrentOffersSection extends StatefulWidget {
   const HomeCurrentOffersSection({super.key});
 
-  static const double _railHeight = 178;
+  static const double _railHeight = 152;
   static const double _cardWidth = 151;
 
   @override
@@ -313,7 +313,7 @@ class _OfferCard extends StatelessWidget {
                             Text(
                               _description,
                               textAlign: TextAlign.right,
-                              maxLines: 2,
+                              maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: const TextStyle(
                                 fontFamily: 'Tajawal',

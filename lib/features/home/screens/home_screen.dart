@@ -182,7 +182,7 @@ class _HomeScreenState extends State<HomeScreen> {
               '🏗️ [Module-First] HomeScreen: Module is null - showing skeleton (defensive layer)');
         }
         return Scaffold(
-          backgroundColor: Theme.of(context).colorScheme.surface,
+          backgroundColor: Color(0xffFFFFFF),
           body: Center(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,

@@ -29,6 +29,11 @@ class Images {
   static const String checkbox_notactivate =
       'assets/image/checkbox_notactivate.png';
   static const String checkbox_activate = 'assets/image/checkbox_activate.png';
+  static const String radio_active = 'assets/image/component_actine.png';
+  static const String radio_not_active =
+      'assets/image/component_not_actine.png';
+  static const String background_category =
+      'assets/image/background_category.png';
   static const String Blured_effect_1 = 'assets/image/Blured_effect_1.png';
   static const String Blured_effect_2 = 'assets/image/Blured_effect_2.png';
   static const String Blured_effect_3 = 'assets/image/Blured_effect_3.png';
@@ -46,6 +51,10 @@ class Images {
 
   // bottome navbar
   static const String profile_v2 = 'assets/image/profile_v2.png';
+  static const String arrow_back_ios_new =
+      'assets/image/arrow_back_ios_new.png';
+  static const String heart_v2 = 'assets/image/heart_v2.png';
+  static const String no_notification = 'assets/image/no_notification.png';
   static const String profile_v2_active = 'assets/image/profile_v2_active.png';
   static const String receipt_ext_v2 = 'assets/image/receipt-text_v2.png';
   static const String receipt_ext_v2_active =
@@ -54,6 +63,31 @@ class Images {
   static const String discount_shape_v2_active =
       'assets/image/discount-shape_v2_active.png';
   static const String bag_v2 = 'assets/image/bag_v2.png';
+  static const String not_found = 'assets/image/not_found.png';
+  // Store-screen category tile backgrounds (cycled by index).
+  static const List<String> categoryBackgrounds = [
+    'assets/image/back_1.png',
+    'assets/image/back_2.png',
+    'assets/image/back_3.png',
+    'assets/image/back_4.png',
+    'assets/image/back_5.png',
+    'assets/image/back_6.png',
+  ];
+  static const String truck_delivery_v2 = 'assets/image/truck_delivery_v2.png';
+  // Market store-filter chip icons (idle / active pairs).
+  static const String filter_offers = 'assets/image/offers_disactive.png';
+  static const String filter_offers_active = 'assets/image/offers_active.png';
+  static const String filter_star = 'assets/image/star_disactive.png';
+  static const String filter_star_active = 'assets/image/star_active.png';
+  static const String filter_qidha = 'assets/image/quidha_disactive.png';
+  static const String filter_qidha_active = 'assets/image/quidha_active.png';
+  static const String filter_car = 'assets/image/car_disactive.png';
+  static const String filter_car_active = 'assets/image/car_active.png';
+  static const String filter_cart = 'assets/image/shopping_cart_disactive.png';
+  static const String filter_cart_active =
+      'assets/image/shopping_cart_active.png';
+  static const String filter_time = 'assets/image/time_v2.png';
+  static const String filter_time_active = 'assets/image/time_v2_active.png';
   static const String bag_v2_active = 'assets/image/bag_v2_active.png';
   static const String home_v2 = 'assets/image/home_v2.png';
   static const String home_v2_active = 'assets/image/home_v2_active.png';
