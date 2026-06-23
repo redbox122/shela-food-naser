@@ -449,6 +449,11 @@ class CartController extends GetxController implements GetxService {
   bool get serverCartListReplaceInProgress => _serverCartListReplaceInProgress;
   String? _lastAddToCartErrorCode;
   String? _lastAddToCartErrorMessage;
+
+  /// Error code from the most recent [addToCartOnline] (e.g. `different_store`,
+  /// `cart_item_limit`, `store_closed`) — null on success. Callers use it to
+  /// react (e.g. show the clear-cart dialog on a different-store rejection).
+  String? get lastAddToCartErrorCode => _lastAddToCartErrorCode;
   bool _forceServerTruthOnNextCartSync = false;
   static const Set<String> _finalBusinessRejectionCodes = <String>{
     'store_busy',

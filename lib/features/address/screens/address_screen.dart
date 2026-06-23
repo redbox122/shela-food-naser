@@ -38,7 +38,7 @@ class _AddressScreenState extends State<AddressScreen> {
 
   void initCall() {
     if (AuthHelper.isLoggedIn()) {
-      Get.find<AddressController>().getAddressList();
+      Get.find<AddressController>().getAddressListV2();
     }
   }
 
@@ -78,7 +78,7 @@ class _AddressScreenState extends State<AddressScreen> {
           child: isLoggedIn
               ? RefreshIndicator(
                   onRefresh: () async {
-                    await addressController.getAddressList();
+                    await addressController.getAddressListV2();
                   },
                   child: SingleChildScrollView(
                     controller: scrollController,
@@ -99,7 +99,7 @@ class _AddressScreenState extends State<AddressScreen> {
                                 (addressController.hasError && !addressController.isLoading)
                                     ? ErrorStateView(
                                         onRetry: () {
-                                          addressController.getAddressList();
+                                          addressController.getAddressListV2();
                                         },
                                       )
                                     : addressController.addressList != null
@@ -174,7 +174,7 @@ class _AddressScreenState extends State<AddressScreen> {
                                                                 description: 'you_want_to_delete_this_location'.tr,
                                                                 onYesPressed: () {
                                                                   addressController
-                                                                      .deleteUserAddressByID(
+                                                                      .deleteAddressV2(
                                                                           addressController.addressList![index].id, index)
                                                                       .then((response) {
                                                                     Get.back();

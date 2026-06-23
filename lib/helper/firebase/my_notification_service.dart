@@ -269,9 +269,18 @@ class NotificationService {
   }
 
   Future<void> _getDeviceToken() async {
-    final String? token = await _firebaseMessaging.getToken();
-    if (kDebugMode) {
-      SecureLog.logRedactedToken('fcm device token=${SecureLog.maskToken(token)}');
+    try {
+      final String? token = await _firebaseMessaging.getToken();
+      if (kDebugMode) {
+        SecureLog.logRedactedToken(
+            'fcm device token=${SecureLog.maskToken(token)}');
+      }
+    } catch (e) {
+      // SERVICE_NOT_AVAILABLE شائع عند ضعف الشبكة أو غياب Google Play Services.
+      // لا نوقف التدفّق — سيُجلب الـ token لاحقاً عبر onTokenRefresh.
+      if (kDebugMode) {
+        debugPrint('🔔 NotificationService: getToken failed (سيُعاد لاحقاً): $e');
+      }
     }
   }
 

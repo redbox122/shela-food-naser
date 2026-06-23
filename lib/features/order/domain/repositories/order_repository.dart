@@ -229,9 +229,11 @@ class OrderRepository implements OrderRepositoryInterface {
         '${AppConstants.runningOrderListUri}?offset=$offset&limit=${fromDashboard ? 50 : 10}';
     debugPrint(
         '[OrderRepo] GET running uri=$uri baseUrl=${apiClient.appBaseUrl}');
+    // Show the customer's orders across ALL modules (not just the selected one).
     final Response response = await apiClient.getData(
       uri,
       useEtag: false,
+      omitModuleId: true,
     );
     debugPrint(
         '[OrderRepo] running status=${response.statusCode} bodyType=${response.body.runtimeType}');
@@ -250,9 +252,11 @@ class OrderRepository implements OrderRepositoryInterface {
         '${AppConstants.historyOrderListUri}?offset=$offset&limit=10';
     debugPrint(
         '[OrderRepo] GET history uri=$uri baseUrl=${apiClient.appBaseUrl}');
+    // Show the customer's orders across ALL modules (not just the selected one).
     final Response response = await apiClient.getData(
       uri,
       useEtag: false,
+      omitModuleId: true,
     );
     debugPrint(
         '[OrderRepo] history status=${response.statusCode} bodyType=${response.body.runtimeType}');

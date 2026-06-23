@@ -33,7 +33,7 @@ class NoDataScreen extends StatelessWidget {
               fromAddress
                   ? Images.address
                   : isCart
-                      ? Images.emptyCart
+                      ? Images.empty_cart
                       : Images.noDataFound,
               width: MediaQuery.of(context).size.height * 0.15,
               height: MediaQuery.of(context).size.height * 0.15,

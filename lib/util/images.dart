@@ -108,6 +108,13 @@ class Images {
   static const String pharmacy = 'assets/image/pharmacy.png';
   static const String restaurants = 'assets/image/resturants.png';
   static const String Market = 'assets/image/Market.png';
+  // "خدماتنا" services-grid icons.
+  static const String neighborhoodMarkets = 'assets/image/aswaq.png';
+  static const String cafes = 'assets/image/coffe.png';
+  static const String pickupDelivery = 'assets/image/send_recive.png';
+  // "اكتشف خدمات أكثر" home promo banner.
+  static const String exploreService = 'assets/image/explor_service.png';
+  static const String deistination_v2 = 'assets/image/deistination_v2.png';
   static const String deliveryManMarker =
       'assets/image/delivery_man_marker.png';
   static const String user = 'assets/image/user.png';
@@ -124,7 +131,7 @@ class Images {
   static const String support = 'assets/image/support.png';
   static const String terms = 'assets/image/terms.png';
   static const String emptyBox = 'assets/image/empty_box.png';
-  static const String emptyCart = 'assets/image/empty_cart.png';
+  static const String empty_cart = 'assets/image/empty_cart.png';
   static const String guest = 'assets/image/guest.png';
   static const String profileBg = 'assets/image/profile_bg.png';
   static const String warning = 'assets/image/warning.png';
@@ -137,12 +144,15 @@ class Images {
   static const String forgot = 'assets/image/forgot.png';
   static const String pickMarker = 'assets/image/pick_marker.png';
   static const String house = 'assets/image/house.png';
+  static const String aswaq = 'assets/image/aswaq.png';
   static const String tracking = 'assets/image/tracking.png';
   static const String myLocationMarker = 'assets/image/my_location_marker.png';
   static const String userMarker = 'assets/image/user_marker.png';
   static const String maintenance = 'assets/image/maintenance.png';
   static const String noInternet = 'assets/image/no_internet.png';
   static const String google = 'assets/image/google.png';
+  static const String send_recive = 'assets/image/send_recive.png';
+  static const String coffe = 'assets/image/coffe.png';
   static const String facebook = 'assets/image/facebook.png';
   static const String restaurantJoin = 'assets/image/restaurant_join.png';
   static const String deliveryManJoin = 'assets/image/delivery_man_join.png';
@@ -397,6 +407,17 @@ class Images {
 
   static const String orderUnselect = 'assets/image/order_unselect.png';
   static const String orderSelect = 'assets/image/order_select.png';
+  // 🎨 REDESIGN: order-details status illustrations (تفاصيل الطلب hero).
+  static const String orderProccedImage = 'assets/image/order_procced.png';
+  static const String onTheWayImage = 'assets/image/on_the_way.png';
+  // 🎨 REDESIGN: "طلباتي" empty-state illustration.
+  static const String noOrders = 'assets/image/no_orders.png';
+  // 🎨 REDESIGN: calendar icon used in the orders filter date field.
+  static const String calender = 'assets/image/calender.png';
+  // 🎨 REDESIGN: orders filter button icon — candle-1 idle, candle-2 when a
+  // filter is applied.
+  static const String filterCandle = 'assets/image/candle-1.png';
+  static const String filterCandleActive = 'assets/image/candle-2.png';
   static const String menu = 'assets/image/menu.png';
   static const String messageUnselect = 'assets/image/message_unselect.png';
   static const String messageSelect = 'assets/image/message_select.png';
@@ -533,5 +554,10 @@ class Images {
   static const String mapIconMinimised = 'assets/json/map-picker-2.json';
 
   static const String serves = 'assets/image/serves.png';
+  static const String trash_v2 = 'assets/image/trash_v2.png';
+  static const String forward_v2 = 'assets/image/forward_v2.png';
   static const String giving = 'assets/image/giving.png';
+  static const String office_building = 'assets/image/office_building.png';
+  static const String villa = 'assets/image/villa.png';
+  static const String apartment = 'assets/image/apartment.png';
 }

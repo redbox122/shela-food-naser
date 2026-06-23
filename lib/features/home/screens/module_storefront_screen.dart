@@ -11,10 +11,14 @@ class ModuleStorefrontScreen extends StatelessWidget {
   final String title;
   final String moduleType;
 
+  /// Module id this service loads its data from (e.g. restaurants = 3).
+  final int? moduleId;
+
   const ModuleStorefrontScreen({
     super.key,
     required this.title,
     required this.moduleType,
+    this.moduleId,
   });
 
   @override

@@ -1,51 +1,53 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:sixam_mart/features/home/screens/home_search_screen.dart';
 import 'package:sixam_mart/features/home/widgets/home_current_offers_section.dart';
 import 'package:sixam_mart/features/home/widgets/home_top_notice_strip.dart';
 import 'package:sixam_mart/features/home/widgets/market/market_banner_section.dart';
 import 'package:sixam_mart/features/home/widgets/market/market_brands_section.dart';
 import 'package:sixam_mart/features/home/widgets/market/market_categories_section.dart';
-import 'package:sixam_mart/features/home/widgets/market/market_recent_orders_section.dart';
 import 'package:sixam_mart/features/home/widgets/market/market_stores_section.dart';
-import 'package:sixam_mart/features/home/screens/home_search_screen.dart';
 import 'package:sixam_mart/util/dimensions.dart';
+import 'package:sixam_mart/util/images.dart';
 
-/// 🎨 REDESIGN: "شاشة الماركت" — the grocery-module storefront opened from the
-/// "ماركت" service tile on the home screen.
+/// 🎨 REDESIGN: "أسواق الحي" — the neighborhood-markets storefront opened from
+/// the "أسواق الحي" service tile on the home screen.
 ///
-/// Self-contained: each section fetches its own data scoped to the grocery
-/// module (via [_groceryModuleId]) without switching the app's active module,
-/// so returning to the home screen leaves it untouched.
-class MarketScreen extends StatefulWidget {
-  /// Title shown in the header (e.g. "الماركت").
+/// A module storefront (notice → categories → banner → brands → offers →
+/// stores) scoped to the neighborhood-markets module so it surfaces its own
+/// stores and data.
+///
+/// Self-contained: each section fetches its own data scoped to
+/// [_neighborhoodModuleId] without switching the app's active module, so
+/// returning to the home screen leaves it untouched.
+class NeighborhoodMarketsScreen extends StatefulWidget {
+  /// Title shown in the header (e.g. "أسواق الحي").
   final String title;
 
   /// Module type carried from the service tile (expected: `grocery`).
   final String moduleType;
 
-  const MarketScreen({
+  const NeighborhoodMarketsScreen({
     super.key,
     required this.title,
     required this.moduleType,
   });
 
   @override
-  State<MarketScreen> createState() => _MarketScreenState();
+  State<NeighborhoodMarketsScreen> createState() =>
+      _NeighborhoodMarketsScreenState();
 }
 
-class _MarketScreenState extends State<MarketScreen> {
+class _NeighborhoodMarketsScreenState extends State<NeighborhoodMarketsScreen> {
   /// Shared selected store-category — single source of truth for the top
   /// categories rail, the "فئة المتاجر" filter chip, and the stores list.
   int? _selectedCategoryId;
 
-  /// The market module id. The market ("هايبر شله") is module 3 — the same
-  /// module the banner and brands already use. Resolving by moduleType
-  /// ('grocery') returns the wrong module (restaurants) / null, so the market
-  /// stores list comes back empty of real data; module 3 returns the actual
-  /// market stores (e.g. هايبر شلة, id 1) with full details.
-  static const int _marketModuleId = 3;
+  /// The neighborhood-markets ("أسواق الحي") module id. Drives every section's
+  /// data fetch (categories / banner / brands / stores).
+  static const int _neighborhoodModuleId = 7;
 
-  int? get _groceryModuleId => _marketModuleId;
+  int? get _moduleId => _neighborhoodModuleId;
 
   void _selectCategory(int? id) {
     if (id == _selectedCategoryId) return;
@@ -54,13 +56,13 @@ class _MarketScreenState extends State<MarketScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final int? moduleId = _groceryModuleId;
+    final int? moduleId = _moduleId;
 
     return Scaffold(
-      backgroundColor: Color(0xFFFFFFFF),
+      backgroundColor: const Color(0xFFFFFFFF),
       body: Column(
         children: [
-          _MarketHeader(title: widget.title),
+          _Header(title: widget.title),
           Expanded(
             child: CustomScrollView(
               physics: const AlwaysScrollableScrollPhysics(),
@@ -74,27 +76,25 @@ class _MarketScreenState extends State<MarketScreen> {
                     moduleId: moduleId,
                     selectedId: _selectedCategoryId,
                     onSelect: _selectCategory,
+                    singleRow: true,
                   ),
                 ),
 
                 // Browse sections — hidden once a category is selected so the
                 // screen collapses to categories + filters + filtered stores.
                 if (_selectedCategoryId == null) ...[
-                  // Promotional banner — /api/v1/banners (grocery-scoped).
+                  // Promotional banner — /api/v1/banners (module-scoped).
                   SliverToBoxAdapter(
                     child: MarketBannerSection(moduleId: moduleId),
                   ),
 
-                  // "العروض الحالية" — reused cross-module offers rail.
-                  const SliverToBoxAdapter(child: HomeCurrentOffersSection()),
-
-                  // "الطلبات السابقة" — recent orders as logo cards.
-                  const SliverToBoxAdapter(child: MarketRecentOrdersSection()),
-
-                  // "أشهر العلامات التجارية" — /api/v2/brands (grocery-scoped).
+                  // "أشهر العلامات التجارية" — /api/v2/brands (module-scoped).
                   SliverToBoxAdapter(
                     child: MarketBrandsSection(moduleId: moduleId),
                   ),
+
+                  // "العروض الحالية" — reused cross-module offers rail.
+                  const SliverToBoxAdapter(child: HomeCurrentOffersSection()),
                 ],
 
                 // "المتاجر" — filter chips + stores filtered by the category.
@@ -103,6 +103,7 @@ class _MarketScreenState extends State<MarketScreen> {
                     moduleId: moduleId,
                     categoryId: _selectedCategoryId,
                     onCategoryChanged: _selectCategory,
+                    storeCoverHeader: true,
                   ),
                 ),
 
@@ -120,10 +121,10 @@ class _MarketScreenState extends State<MarketScreen> {
 
 /// Header row: back chevron (RTL leading/right), centered title, search icon
 /// (RTL trailing/left).
-class _MarketHeader extends StatelessWidget {
+class _Header extends StatelessWidget {
   final String title;
 
-  const _MarketHeader({required this.title});
+  const _Header({required this.title});
 
   @override
   Widget build(BuildContext context) {
@@ -138,7 +139,7 @@ class _MarketHeader extends StatelessWidget {
           children: [
             // Back (RTL: on the right, chevron points right). No background.
             _CircleIconButton(
-              icon: Icons.arrow_back_ios_new,
+              image: Images.arrow_back_ios_new,
               onTap: () => Get.back<void>(),
               showBackground: false,
             ),
@@ -157,7 +158,7 @@ class _MarketHeader extends StatelessWidget {
             ),
             // Search (RTL: on the left).
             _CircleIconButton(
-              icon: Icons.search,
+              image: Images.search,
               onTap: () => Get.to<void>(() => const HomeSearchScreen()),
             ),
           ],
@@ -168,14 +169,14 @@ class _MarketHeader extends StatelessWidget {
 }
 
 class _CircleIconButton extends StatelessWidget {
-  final IconData icon;
+  final String image;
   final VoidCallback onTap;
 
   /// When false, the icon shows with no grey circle background.
   final bool showBackground;
 
   const _CircleIconButton({
-    required this.icon,
+    required this.image,
     required this.onTap,
     this.showBackground = true,
   });
@@ -190,7 +191,14 @@ class _CircleIconButton extends StatelessWidget {
         onTap: onTap,
         child: Padding(
           padding: const EdgeInsets.all(8),
-          child: Icon(icon, size: 22, color: const Color(0xFF121C19)),
+          child: Image.asset(
+            image,
+            width: 22,
+            height: 22,
+            fit: BoxFit.contain,
+            color: const Color(0xFF121C19),
+            errorBuilder: (_, __, ___) => const SizedBox(width: 22, height: 22),
+          ),
         ),
       ),
     );

@@ -161,8 +161,6 @@ class VerificationRepository implements VerificationRepositoryInterface {
 
   @override
   Future<ResponseModel> verifyToken(String? phone, String token) async {
-    debugPrint('\x1B[32m  /$token \x1B[0m');
-
     final Response response = await apiClient.postData(
         AppConstants.verifyTokenUri, {'phone': phone, 'reset_token': token});
     if (response.statusCode == 200 || response.statusCode == 201) {

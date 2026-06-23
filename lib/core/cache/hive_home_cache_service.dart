@@ -1589,6 +1589,41 @@ class HiveHomeCacheService {
     }
   }
 
+  /// 🔄 APP UPGRADE: Wipe ALL Hive-backed cache from disk.
+  ///
+  /// Hive holds only disposable cache here (app config, module list, per-module
+  /// home data, zone cache, cart cache, and the last-selected module id). The
+  /// auth token and saved address live in SharedPreferences and are NOT touched,
+  /// so wiping Hive on an app upgrade is safe and reproduces a fresh-install
+  /// state for the home layout without logging the user out.
+  Future<void> wipeForUpgrade() async {
+    try {
+      if (!_isInitialized) {
+        await initialize();
+      }
+      // Close every box we currently hold so the on-disk files can be deleted.
+      for (final box in _openLazyBoxes.values) {
+        try {
+          if (box.isOpen) {
+            await box.close();
+          }
+        } catch (_) {
+          // Ignore individual close failures — deleteFromDisk handles the rest.
+        }
+      }
+      _openLazyBoxes.clear();
+      await Hive.deleteFromDisk();
+      if (kDebugMode) {
+        debugPrint(
+            '🗑️ HiveHomeCacheService: All Hive cache wiped for app upgrade');
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('⚠️ HiveHomeCacheService: wipeForUpgrade failed - $e');
+      }
+    }
+  }
+
   /// Load last known zone ID and coordinates from session config
   /// ⚡ PERFORMANCE: LazyBox + JSON decoding in isolate (0ms load time)
   Future<Map<String, dynamic>?> loadLastKnownZone() async {

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:shimmer/shimmer.dart';
+import 'package:skeletonizer/skeletonizer.dart';
 import 'package:sixam_mart/api/api_client.dart';
 import 'package:sixam_mart/common/widgets/custom_image.dart';
 import 'package:sixam_mart/features/home/screens/market_store_screen.dart';
@@ -22,11 +22,15 @@ class MarketStoresSection extends StatefulWidget {
   /// Reports a category chosen from the in-section "فئة المتاجر" dropdown.
   final ValueChanged<int?>? onCategoryChanged;
 
+  /// Opens tapped stores with the cover-image header (used by أسواق الحي only).
+  final bool storeCoverHeader;
+
   const MarketStoresSection({
     super.key,
     this.moduleId,
     this.categoryId,
     this.onCategoryChanged,
+    this.storeCoverHeader = false,
   });
 
   static const int _limit = 20;
@@ -243,35 +247,38 @@ class _MarketStoresSectionState extends State<MarketStoresSection> {
               itemCount: _items.length,
               separatorBuilder: (_, __) =>
                   const SizedBox(height: Dimensions.paddingSizeSmall),
-              itemBuilder: (_, i) => _StoreCard(store: _items[i]),
+              itemBuilder: (_, i) => _StoreCard(
+                store: _items[i],
+                coverHeader: widget.storeCoverHeader,
+              ),
             ),
         ],
       ),
     );
   }
 
+  /// Skeleton bones rendered from the real [_StoreCard] layout with dummy data,
+  /// so the loading state matches the live store cards exactly.
   Widget _buildSkeleton(BuildContext context) {
-    return Shimmer.fromColors(
-      baseColor:
-          Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.08),
-      highlightColor:
-          Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.03),
-      child: Column(
-        children: List.generate(
-          3,
-          (_) => Container(
-            margin: const EdgeInsets.only(
-              left: Dimensions.paddingSizeDefault,
-              right: Dimensions.paddingSizeDefault,
-              bottom: Dimensions.paddingSizeSmall,
-            ),
-            height: 150,
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(Dimensions.radiusLarge),
-            ),
-          ),
-        ),
+    final _Store dummy = _Store(
+      id: 0,
+      name: 'اسم المتجر',
+      logo: '',
+      rating: 4.5,
+      freeDelivery: true,
+      deliveryTime: '30-40 min',
+      deliveryFee: 10,
+    );
+    return Skeletonizer(
+      child: ListView.separated(
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        padding: const EdgeInsets.symmetric(
+            horizontal: Dimensions.paddingSizeDefault),
+        itemCount: 3,
+        separatorBuilder: (_, __) =>
+            const SizedBox(height: Dimensions.paddingSizeSmall),
+        itemBuilder: (_, __) => _StoreCard(store: dummy),
       ),
     );
   }
@@ -279,8 +286,9 @@ class _MarketStoresSectionState extends State<MarketStoresSection> {
 
 class _StoreCard extends StatelessWidget {
   final _Store store;
+  final bool coverHeader;
 
-  const _StoreCard({required this.store});
+  const _StoreCard({required this.store, this.coverHeader = false});
 
   @override
   Widget build(BuildContext context) {
@@ -296,6 +304,7 @@ class _StoreCard extends StatelessWidget {
           rating: store.rating,
           freeDelivery: store.freeDelivery,
           deliveryTime: store.deliveryTime,
+          useCoverHeader: coverHeader,
         ),
       ),
       child: Container(

@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:shimmer/shimmer.dart';
+import 'package:skeletonizer/skeletonizer.dart';
 import 'package:sixam_mart/api/api_client.dart';
 import 'package:sixam_mart/common/widgets/custom_image.dart';
+import 'package:sixam_mart/features/home/screens/market_store_screen.dart';
 import 'package:sixam_mart/helper/route_helper.dart';
 import 'package:sixam_mart/util/app_constants.dart';
 import 'package:sixam_mart/util/dimensions.dart';
@@ -20,9 +21,8 @@ class MarketBrandsSection extends StatefulWidget {
   /// Brands feed is sourced from module 3 (the grocery module returns none).
   static const int _marketModuleId = 3;
 
-  /// Card design size (209×76) — taller now that it shows store delivery info.
-  static const double _cardWidth = 209;
-  static const double _cardHeight = 76;
+  /// Logo-only design: each brand is a circular logo chip in a single row.
+  static const double _logoSize = 64;
 
   @override
   State<MarketBrandsSection> createState() => _MarketBrandsSectionState();
@@ -146,29 +146,24 @@ class _MarketBrandsSectionState extends State<MarketBrandsSection> {
             ),
           ),
           const SizedBox(height: Dimensions.paddingSizeSmall),
-          // Horizontal scroll with two rows (2 cards stacked per column).
-          SizedBox(
-            height: MarketBrandsSection._cardHeight * 2 + _rowGap,
-            child: ListView.separated(
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(
-                  horizontal: Dimensions.paddingSizeDefault),
-              itemCount: _loading ? 3 : (_items.length / 2).ceil(),
-              separatorBuilder: (_, __) => const SizedBox(width: _rowGap),
-              itemBuilder: (_, col) {
-                final int first = col * 2;
-                final int second = first + 1;
-                return SizedBox(
-                  width: MarketBrandsSection._cardWidth,
-                  child: Column(
-                    children: [
-                      _cell(context, first),
-                      const SizedBox(height: _rowGap),
-                      _cell(context, second),
-                    ],
-                  ),
-                );
-              },
+          // Single horizontal row of circular brand logos — all brands, scroll.
+          // While loading, Skeletonizer bones dummy logo chips.
+          Skeletonizer(
+            enabled: _loading,
+            child: SizedBox(
+              height: MarketBrandsSection._logoSize,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                physics: _loading
+                    ? const NeverScrollableScrollPhysics()
+                    : const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.symmetric(
+                    horizontal: Dimensions.paddingSizeDefault),
+                itemCount: _loading ? 6 : _items.length,
+                separatorBuilder: (_, __) => const SizedBox(width: _rowGap),
+                itemBuilder: (_, index) =>
+                    _BrandLogo(brand: _loading ? _dummyBrand : _items[index]),
+              ),
             ),
           ),
         ],
@@ -176,165 +171,64 @@ class _MarketBrandsSectionState extends State<MarketBrandsSection> {
     );
   }
 
-  static const double _rowGap = 8;
+  static const double _rowGap = 12;
 
-  Widget _cell(BuildContext context, int index) {
-    if (_loading) return _buildSkeletonCard(context);
-    if (index >= _items.length) {
-      // Keep the column balanced when the last one has a single brand.
-      return const SizedBox(height: MarketBrandsSection._cardHeight);
+  /// Placeholder brand used to render skeleton logo chips.
+  static final _Brand _dummyBrand = _Brand(id: 0, name: 'علامة', image: '');
+}
+
+/// Logo-only brand chip: a circular logo inside a bordered container. Tapping
+/// opens the brand's store storefront (falling back to its items list).
+class _BrandLogo extends StatelessWidget {
+  final _Brand brand;
+
+  const _BrandLogo({required this.brand});
+
+  void _open() {
+    final int? storeId = brand.storeId;
+    if (storeId == null) {
+      Get.toNamed(
+        RouteHelper.getBrandsItemScreen(brand.id ?? 0, brand.name ?? ''),
+      );
+      return;
     }
-    return SizedBox(
-      height: MarketBrandsSection._cardHeight,
-      child: _BrandCard(brand: _items[index]),
-    );
-  }
-
-  Widget _buildSkeletonCard(BuildContext context) {
-    return Shimmer.fromColors(
-      baseColor:
-          Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.08),
-      highlightColor:
-          Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.03),
-      child: Container(
-        height: MarketBrandsSection._cardHeight,
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(4),
-        ),
+    Get.to<void>(
+      () => MarketStoreScreen(
+        storeId: storeId,
+        name: brand.storeName ?? brand.name,
+        logo: brand.image,
+        rating: brand.rating,
+        freeDelivery: brand.freeDelivery,
+        deliveryTime: brand.deliveryTime,
       ),
     );
   }
-}
-
-class _BrandCard extends StatelessWidget {
-  final _Brand brand;
-
-  const _BrandCard({required this.brand});
-
-  String _fmt(double v) =>
-      v == v.roundToDouble() ? v.toStringAsFixed(0) : v.toStringAsFixed(2);
 
   @override
   Widget build(BuildContext context) {
-    final radius = BorderRadius.circular(4);
-    final bool hasStoreInfo = (brand.deliveryTime?.isNotEmpty ?? false) ||
-        brand.freeDelivery ||
-        brand.deliveryFee > 0;
+    const double size = MarketBrandsSection._logoSize;
     return InkWell(
-      borderRadius: radius,
-      onTap: () => Get.toNamed(
-        RouteHelper.getBrandsItemScreen(brand.id ?? 0, brand.name ?? ''),
-      ),
+      borderRadius: BorderRadius.circular(size / 2),
+      onTap: _open,
       child: Container(
+        width: size,
+        height: size,
         padding: const EdgeInsets.all(6),
         decoration: BoxDecoration(
           color: Theme.of(context).cardColor,
-          borderRadius: radius,
+          shape: BoxShape.circle,
           border: Border.all(color: const Color(0xFFE6E8EC)),
         ),
-        // RTL row: logo square leads on the right, info on the left.
-        child: Row(
-          textDirection: TextDirection.rtl,
-          children: [
-            ClipRRect(
-              borderRadius: BorderRadius.circular(4),
-              child: CustomImage(
-                image: brand.image ?? '',
-                width: 48,
-                height: 48,
-                fit: BoxFit.cover,
-                placeholder: Images.placeholder,
-              ),
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  // Brand name.
-                  Text(
-                    brand.name ?? '',
-                    textAlign: TextAlign.right,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontFamily: 'Tajawal',
-                      fontWeight: FontWeight.w600,
-                      fontSize: 13,
-                      height: 1.2,
-                      color: Color(0xFF121C19),
-                    ),
-                  ),
-                  if (hasStoreInfo) ...[
-                    const SizedBox(height: 5),
-                    _storeInfoRow(context),
-                  ],
-                ],
-              ),
-            ),
-          ],
+        child: ClipOval(
+          child: CustomImage(
+            image: brand.image ?? '',
+            width: size,
+            height: size,
+            fit: BoxFit.cover,
+            placeholder: Images.placeholder,
+          ),
         ),
       ),
-    );
-  }
-
-  /// Delivery fee (or free-delivery) + delivery time, with leading icons.
-  Widget _storeInfoRow(BuildContext context) {
-    return Row(
-      children: [
-        Image.asset(
-          Images.truck_delivery_v2,
-          width: 13,
-          height: 13,
-          errorBuilder: (_, __, ___) => Icon(
-            Icons.delivery_dining,
-            size: 13,
-            color: Theme.of(context).hintColor,
-          ),
-        ),
-        const SizedBox(width: 3),
-        Text(
-          brand.freeDelivery ? 'free_delivery'.tr : _fmt(brand.deliveryFee),
-          style: const TextStyle(
-            fontFamily: 'Tajawal',
-            fontWeight: FontWeight.w500,
-            fontSize: 12,
-            height: 27 / 12,
-            color: Color(0xFF121C19),
-          ),
-        ),
-        if (brand.deliveryTime?.isNotEmpty ?? false) ...[
-          const SizedBox(width: 8),
-          Image.asset(
-            Images.time_v2,
-            width: 13,
-            height: 13,
-            errorBuilder: (_, __, ___) => Icon(
-              Icons.access_time,
-              size: 13,
-              color: Theme.of(context).hintColor,
-            ),
-          ),
-          const SizedBox(width: 3),
-          Flexible(
-            child: Text(
-              brand.deliveryTime!,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              softWrap: false,
-              style: const TextStyle(
-                fontFamily: 'Tajawal',
-                fontWeight: FontWeight.w500,
-                fontSize: 12,
-                height: 27 / 12,
-                color: Color(0xFF121C19),
-              ),
-            ),
-          ),
-        ],
-      ],
     );
   }
 }

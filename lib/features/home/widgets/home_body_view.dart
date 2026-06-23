@@ -7,10 +7,10 @@ import 'package:sixam_mart/features/home/widgets/akhdamni/akhdamni_flow_section.
 import 'package:sixam_mart/features/home/widgets/flattened_module_content.dart';
 import 'package:sixam_mart/features/home/widgets/home_banner_view.dart';
 import 'package:sixam_mart/features/home/widgets/home_current_offers_section.dart';
+import 'package:sixam_mart/features/home/widgets/home_discover_banner_view.dart';
 import 'package:sixam_mart/features/home/widgets/home_reorder_section.dart';
 import 'package:sixam_mart/features/home/widgets/home_services_grid.dart';
 import 'package:sixam_mart/features/home/widgets/home_top_notice_strip.dart';
-import 'package:sixam_mart/features/home/widgets/module_view.dart';
 import 'package:sixam_mart/features/rental_module/home/screens/taxi_home_screen.dart';
 import 'package:sixam_mart/features/splash/controllers/splash_controller.dart';
 import 'package:sixam_mart/helper/responsive_helper.dart';
@@ -67,30 +67,33 @@ class HomeBodyView extends StatelessWidget {
                   // 🎨 REDESIGN: "العروض الحالية" offers rail
                   const SliverToBoxAdapter(child: HomeCurrentOffersSection()),
 
+                  // 🎨 REDESIGN: "اكتشف خدمات أكثر" promo banner (343×96)
+                  const SliverToBoxAdapter(child: HomeDiscoverBannerView()),
+
                   // 🎨 REDESIGN: "أعد طلبك" recent orders
                   const SliverToBoxAdapter(child: HomeReorderSection()),
 
-                  // Module-specific content (taxi only; other modules' legacy
-                  // content is intentionally hidden in the redesign).
+                  // Module-specific content (taxi only; the legacy multi-module
+                  // list and other modules' legacy content are intentionally
+                  // hidden in the redesign — navigation lives in
+                  // HomeServicesGrid).
                   SliverToBoxAdapter(
                     child: FlattenedModuleContent(
-                      moduleWidget: !showMobileModule
-                          ? GetBuilder<AkhdamniFlowController>(
-                              builder: (akhdamniController) {
-                                if (akhdamniController.isFlowActive) {
-                                  return const AkhdamniFlowSection();
-                                }
-                                return Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    isTaxi
-                                        ? TaxiHomeScreen()
-                                        : const SizedBox.shrink(),
-                                  ],
-                                );
-                              },
-                            )
-                          : ModuleView(splashController: splashController),
+                      moduleWidget: GetBuilder<AkhdamniFlowController>(
+                        builder: (akhdamniController) {
+                          if (akhdamniController.isFlowActive) {
+                            return const AkhdamniFlowSection();
+                          }
+                          return Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              isTaxi
+                                  ? TaxiHomeScreen()
+                                  : const SizedBox.shrink(),
+                            ],
+                          );
+                        },
+                      ),
                     ),
                   ),
                 ],

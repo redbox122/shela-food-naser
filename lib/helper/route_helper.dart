@@ -12,6 +12,10 @@ import 'package:sixam_mart/features/business/screens/subscription_payment_screen
 import 'package:sixam_mart/features/business/screens/subscription_success_or_failed_screen.dart';
 import 'package:sixam_mart/features/chat/domain/models/order_chat_model.dart';
 import 'package:sixam_mart/features/location/screens/my_Location.dart';
+import 'package:sixam_mart/features/location/screens/select_location_screen.dart';
+import 'package:sixam_mart/features/address/screens/address_details_screen.dart';
+import 'package:sixam_mart/features/address/screens/delivery_addresses_screen.dart';
+import 'package:sixam_mart/features/address/domain/models/check_zone_model.dart';
 import 'package:sixam_mart/features/search/controllers/search_controller.dart';
 import 'package:sixam_mart/features/search/domain/repositories/search_repository.dart';
 import 'package:sixam_mart/features/search/domain/repositories/search_repository_interface.dart';
@@ -141,6 +145,9 @@ class RouteHelper {
   static const String accessLocation = '/access-location';
   static const String pickMap = '/pick-map';
   static const String my_Location = '/my_Location';
+  static const String selectLocation = '/select-location';
+  static const String addressDetails = '/address-details';
+  static const String deliveryAddresses = '/delivery-addresses';
 
   static const String interest = '/interest';
   static const String main = '/main';
@@ -315,6 +322,13 @@ class RouteHelper {
 
   static String getPickMapRoute(String? page, bool canRoute) =>
       '$pickMap?page=$page&route=${canRoute.toString()}';
+
+  static String getSelectLocationRoute({String? page}) =>
+      '$selectLocation?page=${page ?? ''}';
+
+  static String getAddressDetailsRoute() => addressDetails;
+
+  static String getDeliveryAddressesRoute() => deliveryAddresses;
 
   static String getMy_LocationRoute(String? page, bool canRoute) =>
       '$my_Location?page=$page&route=${canRoute.toString()}';
@@ -837,6 +851,33 @@ class RouteHelper {
         }),
 
     GetPage(
+        name: selectLocation,
+        page: () => SelectLocationScreen(
+              route: Get.parameters['page']?.isNotEmpty == true
+                  ? Get.parameters['page']
+                  : null,
+            )),
+
+    GetPage(
+        name: deliveryAddresses,
+        page: () => const DeliveryAddressesScreen()),
+
+    GetPage(
+        name: addressDetails,
+        page: () {
+          final args = Get.arguments;
+          final Map<String, dynamic> data =
+              args is Map<String, dynamic> ? args : const {};
+          return AddressDetailsScreen(
+            latitude: (data['latitude'] as num?)?.toDouble(),
+            longitude: (data['longitude'] as num?)?.toDouble(),
+            zone: data['zone'] is CheckZoneModel
+                ? data['zone'] as CheckZoneModel
+                : null,
+          );
+        }),
+
+    GetPage(
         name: my_Location,
         page: () {
           final PickMapScreen? pickMapScreen = Get.arguments as PickMapScreen?;
@@ -861,14 +902,14 @@ class RouteHelper {
       name: main,
       page: () => getRoute(
         DashboardScreen(
-          // 🎨 REDESIGN: 5-tab nav — home / cart / discounts / order / profile
+          // 🎨 REDESIGN: 5-tab nav — home / cart / order / discounts / profile
           pageIndex: Get.parameters['page'] == 'home'
               ? 0
               : Get.parameters['page'] == 'cart'
                   ? 1
-                  : Get.parameters['page'] == 'discounts'
+                  : Get.parameters['page'] == 'order'
                       ? 2
-                      : Get.parameters['page'] == 'order'
+                      : Get.parameters['page'] == 'discounts'
                           ? 3
                           : Get.parameters['page'] == 'profile' ||
                                   Get.parameters['page'] == 'menu'

@@ -17,9 +17,9 @@ import 'package:sixam_mart/util/app_constants.dart';
 import 'package:sixam_mart/util/dimensions.dart';
 import 'package:sixam_mart/common/widgets/custom_snackbar.dart';
 import 'package:sixam_mart/features/home/screens/home_screen.dart';
-import 'package:sixam_mart/features/home/screens/multi_module/multi_module_home_screen.dart';
 import 'package:sixam_mart/features/home/screens/module_home_router_screen.dart';
 import 'package:sixam_mart/features/order/screens/order_screen.dart';
+import 'package:sixam_mart/features/order/screens/my_orders_screen.dart';
 import 'package:sixam_mart/features/cart/screens/cart_screen.dart';
 import 'package:sixam_mart/features/discount/screens/discount_screen.dart';
 import 'package:sixam_mart/features/profile/screens/profile_screen.dart';
@@ -102,7 +102,7 @@ class DashboardScreenState extends State<DashboardScreen> {
       _buildHomeRoot(),
       const CartScreen(fromNav: true),
       const DiscountScreen(),
-      const OrderScreen(),
+      const MyOrdersScreen(),
       const ProfileScreen(),
     ];
 
@@ -258,25 +258,19 @@ class DashboardScreenState extends State<DashboardScreen> {
   Widget _buildHomeRoot() {
     return Obx(() {
       final splashController = Get.find<SplashController>();
-      final moduleListLength = splashController.moduleList?.length ?? 0;
       final selectedModuleId =
           splashController.selectedModule.value?.id ?? widget.moduleId;
-      final bool showMultiModuleScreen =
-          splashController.selectedModule.value == null &&
-              splashController.module == null &&
-              moduleListLength > 1;
 
-      return showMultiModuleScreen
-          ? MultiModuleHomeScreen(
-              key: ValueKey('multi_$selectedModuleId'),
-              showBottomNavigation: false,
+      // 🎨 REDESIGN: the home tab no longer uses the legacy module-first
+      // MultiModuleHomeScreen. When no module is selected we land directly on
+      // the unified new HomeScreen (greeting + services grid + offers); module
+      // selection happens by tapping a service tile, not by swapping the home.
+      return selectedModuleId != null
+          ? ModuleHomeRouterScreen(
+              key: ValueKey('module_home_$selectedModuleId'),
+              moduleId: selectedModuleId,
             )
-          : selectedModuleId != null
-              ? ModuleHomeRouterScreen(
-                  key: ValueKey('module_home_$selectedModuleId'),
-                  moduleId: selectedModuleId,
-                )
-              : const HomeScreen();
+          : const HomeScreen();
     });
   }
 
@@ -356,11 +350,16 @@ class DashboardScreenState extends State<DashboardScreen> {
               // ⚡ TASK 2: Conditional initialization - use MultiModuleHomeScreen if multiple modules exist
               // This prevents legacy HomeScreen from being initialized when MultiModuleHomeScreen is active
               // 🎨 REDESIGN: 5-tab nav — Home / Cart / Discounts / Orders / Profile
+              // 🎨 REDESIGN: 5-tab nav — Home / Cart / Orders / Discounts / Profile
               _screens = [
                 _buildHomeRoot(),
                 const CartScreen(fromNav: true),
+                // 🎨 REDESIGN: taxi keeps the legacy trips tabs; everyone else
+                // gets the redesigned "طلباتي" screen.
+                isTaxi
+                    ? const OrderScreen(index: 1)
+                    : const MyOrdersScreen(),
                 const DiscountScreen(),
-                OrderScreen(index: isTaxi ? 1 : 0),
                 const ProfileScreen(),
               ];
 
@@ -375,13 +374,13 @@ class DashboardScreenState extends State<DashboardScreen> {
                     label: 'nav_cart',
                     isCart: true),
                 HomeNavBarItem(
-                    icon: Images.discount_shape_v2,
-                    activeIcon: Images.discount_shape_v2_active,
-                    label: 'nav_discounts'),
-                HomeNavBarItem(
                     icon: Images.receipt_ext_v2,
                     activeIcon: Images.receipt_ext_v2_active,
                     label: 'nav_orders'),
+                HomeNavBarItem(
+                    icon: Images.discount_shape_v2,
+                    activeIcon: Images.discount_shape_v2_active,
+                    label: 'nav_discounts'),
                 HomeNavBarItem(
                     icon: Images.profile_v2,
                     activeIcon: Images.profile_v2_active,
@@ -440,7 +439,7 @@ class DashboardScreenState extends State<DashboardScreen> {
                               _hideRunningOrdersBarTemporarily(reversOrder);
                             },
                             onOrderTap: () {
-                              _setPage(3);
+                              _setPage(2);
                               orderController.showRunningOrders();
                             },
                           ),
@@ -473,11 +472,8 @@ class DashboardScreenState extends State<DashboardScreen> {
 
   void _setPage(int pageIndex) {
     setState(() {
-      // Don't navigate to page 2 (cart) - it's handled separately
-      if (pageIndex != 2) {
-        _pageController!.jumpToPage(pageIndex);
-        _pageIndex = pageIndex;
-      }
+      _pageController!.jumpToPage(pageIndex);
+      _pageIndex = pageIndex;
     });
   }
 

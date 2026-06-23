@@ -154,7 +154,11 @@ class AuthService implements AuthServiceInterface {
     final Map<String, dynamic> body = _asMap(response);
     debugPrint('[REGISTER_V2][RESPONSE] status=${response.statusCode} '
         'body=${response.body}');
-    if (response.statusCode == 200 && body['success'] == true) {
+    // The register endpoint returns 201 (Created) on success; older builds only
+    // accepted 200, which silently dropped the token (account created but user
+    // left logged-out, and the guest-cart migration unseen). Accept both.
+    if ((response.statusCode == 200 || response.statusCode == 201) &&
+        body['success'] == true) {
       await authRepositoryInterface.clearQrReferralInstallToken();
       await _handleV2AuthSuccess(body);
       // Build a fully-verified auth response so the post-login cart transfer
