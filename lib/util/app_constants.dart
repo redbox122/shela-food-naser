@@ -154,6 +154,14 @@ class AppConstants {
   static const String addressListUri = '/api/v1/customer/address/list';
   static const String zoneUri = '/api/v1/config/get-zone-id';
   static const String checkZoneUri = '/api/v1/zone/check';
+  // 🎨 REDESIGN: new address flow — validates a map point AND returns the
+  // parsed address parts (city / region / street) in one call.
+  static const String checkZoneV2Uri = '/api/v2/address/check-zone';
+  static const String addAddressV2Uri = '/api/v2/address/add';
+  static const String addressListV2Uri = '/api/v2/address/list';
+  static const String addressDetailsV2Uri = '/api/v2/address/details/'; // + id
+  static const String deleteAddressV2Uri = '/api/v2/address/'; // + id (DELETE)
+  static const String updateAddressV2Uri = '/api/v2/address/'; // + id (PUT)
   static const String removeAddressUri =
       '/api/v1/customer/address/delete?address_id=';
   static const String addAddressUri = '/api/v1/customer/address/add';
@@ -368,6 +376,16 @@ class AppConstants {
   static const String updateCartUri = '/api/v1/customer/cart/update';
   static const String removeAllCartUri = '/api/v1/customer/cart/remove';
   static const String removeItemCartUri = '/api/v1/customer/cart/remove-item';
+
+  /// Cart v2 — used ONLY for the Market module (module 3). The v2 payload is a
+  /// flat, lightweight item shape (no variations/add-ons), so restaurants and
+  /// other modules keep using the v1 endpoints above. See [CartRepository].
+  static const int marketModuleId = 3;
+  static const String getCartListV2Uri = '/api/v2/cart';
+  static const String addCartV2Uri = '/api/v2/cart/add';
+  static const String updateCartV2Uri = '/api/v2/cart/update';
+  static const String removeItemCartV2Uri = '/api/v2/cart/item';
+  static const String clearCartV2Uri = '/api/v2/cart/clear';
 
   ///taxi
   static const String getTopRatedCarsUri = '/api/v1/rental/vehicle/top-rated';

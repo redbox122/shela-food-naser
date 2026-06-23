@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:shimmer/shimmer.dart';
+import 'package:skeletonizer/skeletonizer.dart';
 import 'package:sixam_mart/api/api_client.dart';
 import 'package:sixam_mart/common/widgets/custom_image.dart';
 import 'package:sixam_mart/util/app_constants.dart';
@@ -160,17 +160,16 @@ class _MarketBannerSectionState extends State<MarketBannerSection> {
         horizontal: Dimensions.paddingSizeDefault,
         vertical: Dimensions.paddingSizeExtraSmall,
       ),
-      child: Shimmer.fromColors(
-        baseColor:
-            Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.08),
-        highlightColor:
-            Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.03),
-        child: AspectRatio(
-          aspectRatio: MarketBannerSection._aspectRatio,
-          child: Container(
-            margin: const EdgeInsets.only(right: Dimensions.paddingSizeSmall),
-            decoration: BoxDecoration(
-              color: Colors.white,
+      child: Skeletonizer(
+        child: Padding(
+          padding: const EdgeInsets.only(right: Dimensions.paddingSizeSmall),
+          child: AspectRatio(
+            aspectRatio: MarketBannerSection._aspectRatio,
+            // A plain decorated Container is treated by Skeletonizer as a
+            // "container" and painted with its real color (no shimmer), so it
+            // would be invisible on a white background. `Bone` always paints
+            // the shimmer shader, so the banner placeholder is actually visible.
+            child: Bone(
               borderRadius: BorderRadius.circular(16),
             ),
           ),

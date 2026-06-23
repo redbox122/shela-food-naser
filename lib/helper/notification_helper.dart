@@ -63,7 +63,7 @@ class NotificationHelper {
             NotificationType.order: () {
               if (AuthHelper.isGuestLoggedIn()) {
                 Get.to(() =>
-                    const DashboardScreen(pageIndex: 3));
+                    const DashboardScreen(pageIndex: 2));
               } else {
                 Get.toNamed(RouteHelper.getOrderDetailsRoute(
                     int.parse(payload.orderId.toString()),

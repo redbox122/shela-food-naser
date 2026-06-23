@@ -1,4 +1,3 @@
-
 import 'dart:io';
 import 'dart:convert';
 import 'dart:async';
@@ -29,10 +28,8 @@ import 'package:sixam_mart/util/images.dart';
 import 'package:sixam_mart/util/styles.dart';
 import 'package:sixam_mart/common/widgets/custom_button.dart';
 import 'package:sixam_mart/common/widgets/custom_snackbar.dart';
-import 'package:sixam_mart/common/widgets/confirmation_dialog.dart';
 import 'package:sixam_mart/common/widgets/footer_view.dart';
 import 'package:sixam_mart/common/widgets/item_widget.dart';
-import 'package:sixam_mart/common/widgets/no_data_screen.dart';
 import 'package:sixam_mart/common/widgets/web_constrained_box.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -41,7 +38,6 @@ import 'package:sixam_mart/common/widgets/error_state_view.dart';
 import 'package:sixam_mart/common/widgets/global_sticky_cart_overlay.dart';
 import 'package:sixam_mart/features/cart/widgets/web_cart_items_widget.dart';
 import 'package:sixam_mart/features/home/screens/home_screen.dart';
-import '../../my_coupon/controllers/my_coupon_controller.dart';
 import 'package:sixam_mart/helper/auth_helper.dart';
 import 'package:sixam_mart/features/auth/widgets/auth_dialog_widget.dart';
 import 'package:geolocator/geolocator.dart';
@@ -163,6 +159,8 @@ class CartColors {
   static const cardShadow = Color(0x14333333); // Subtle shadow
   static const orange = Color(0xFFFA9D2B); // Orange for prices and buttons
   static const white = Color(0xFFFFFFFF);
+  static const green200 =
+      Color(0xFFB7E0C2); // primary/200 — light green for the +/- icons
 }
 
 class CartScreen extends StatefulWidget {
@@ -224,7 +222,8 @@ class _CartScreenState extends State<CartScreen> with RouteAware {
       if (!mounted) {
         return;
       }
-      final bool isCartRouteCurrent = ModalRoute.of(context)?.isCurrent ?? false;
+      final bool isCartRouteCurrent =
+          ModalRoute.of(context)?.isCurrent ?? false;
       StickyCartNavSession.setCartScreenVisibleForOverlay(isCartRouteCurrent);
     });
     // Cart may stay in widget tree while OTP/login routes are on top.
@@ -471,91 +470,93 @@ class _CartScreenState extends State<CartScreen> with RouteAware {
           }
         },
         child: Scaffold(
-        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-        appBar: _buildModernHeader(),
-        endDrawerEnableOpenDragGesture: false,
-        body: SafeArea(
-          top: false,
-          bottom: true,
-          left: false,
-          right: false,
-          minimum: EdgeInsets.zero,
-          child: GetBuilder<StoreController>(builder: (storeController) {
-          // #region agent log
-          _writeDebugLog(
-              'cart_screen.dart:280',
-              'GetBuilder StoreController rebuild',
-              {
-                'storeId': storeController.store?.id,
-                'storeTax': storeController.store?.tax,
-                'hasStore': storeController.store != null,
-              },
-              'C');
-          // #endregion
-          // 🔥 PHASE 2.2: Split GetBuilder into IDs for partial rebuilds
-          // Main GetBuilder for loading state only
-          return GetBuilder<CartController>(
-              id: 'cart_loading', // Only rebuilds on loading state changes
-              builder: (cartController) {
-                // Show loading indicator while cart data is being loaded
-                if (cartController.isLoading) {
-                  return const Center(child: CircularProgressIndicator());
-                } else if (cartController.cartList.isNotEmpty) {
-                  return Column(children: [
-                    Expanded(
-                      child: SingleChildScrollView(
-                        controller: scrollController,
-                        padding: ResponsiveHelper.isDesktop(context)
-                            ? const EdgeInsets.only(
-                                top: Dimensions.paddingSizeSmall)
-                            : const EdgeInsets.fromLTRB(
-                                16, 16, 16, 0), // Remove bottom padding
-                        child: FooterView(
-                          child: SizedBox(
-                            width: Dimensions.webMaxWidth,
-                            child: Column(children: [
-                              Row(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  ResponsiveHelper.isDesktop(context)
-                                      ? WebCardItemsWidget(
-                                          cartList: cartController.cartList)
-                                      : Expanded(
-                                          flex: 7,
-                                          child: Column(
-                                              crossAxisAlignment:
-                                                  CrossAxisAlignment.start,
-                                              children: [
-                                                WebConstrainedBox(
-                                                  dataLength: cartController
-                                                      .cartList.length,
-                                                  child: Column(
-                                                    crossAxisAlignment:
-                                                        CrossAxisAlignment
-                                                            .start,
-                                                    children: [
-                                                      // 🔥 PHASE 2.2: Cart Items Section with ID
-                                                      GetBuilder<
-                                                          CartController>(
-                                                        id: 'cart_items', // Only rebuilds when items change
-                                                        builder:
-                                                            (cartController) {
-                                                          return Column(
-                                                            children:
-                                                                cartController
-                                                                    .cartList
-                                                                    .asMap()
-                                                                    .entries
-                                                            .map(
-                                                                        (entry) {
-                                                              final int index =
-                                                                  entry.key;
-                                                              final CartModel
-                                                                  cart =
-                                                                  entry.value;
-                                                              final List<AddOns>
-                                                                  safeAddOns =
-                                                                  index <
+          backgroundColor: CartColors.white,
+          appBar: _buildModernHeader(),
+          endDrawerEnableOpenDragGesture: false,
+          body: SafeArea(
+            top: false,
+            bottom: true,
+            left: false,
+            right: false,
+            minimum: EdgeInsets.zero,
+            child: GetBuilder<StoreController>(builder: (storeController) {
+              // #region agent log
+              _writeDebugLog(
+                  'cart_screen.dart:280',
+                  'GetBuilder StoreController rebuild',
+                  {
+                    'storeId': storeController.store?.id,
+                    'storeTax': storeController.store?.tax,
+                    'hasStore': storeController.store != null,
+                  },
+                  'C');
+              // #endregion
+              // 🔥 PHASE 2.2: Split GetBuilder into IDs for partial rebuilds
+              // Main GetBuilder for loading state only
+              return GetBuilder<CartController>(
+                  id: 'cart_loading', // Only rebuilds on loading state changes
+                  builder: (cartController) {
+                    // Show loading indicator while cart data is being loaded
+                    if (cartController.isLoading) {
+                      return const Center(child: CircularProgressIndicator());
+                    } else if (cartController.cartList.isNotEmpty) {
+                      return Column(children: [
+                        Expanded(
+                          child: SingleChildScrollView(
+                            controller: scrollController,
+                            padding: ResponsiveHelper.isDesktop(context)
+                                ? const EdgeInsets.only(
+                                    top: Dimensions.paddingSizeSmall)
+                                : const EdgeInsets.fromLTRB(
+                                    16, 16, 16, 0), // Remove bottom padding
+                            child: FooterView(
+                              child: SizedBox(
+                                width: Dimensions.webMaxWidth,
+                                child: Column(children: [
+                                  Row(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      ResponsiveHelper.isDesktop(context)
+                                          ? WebCardItemsWidget(
+                                              cartList: cartController.cartList)
+                                          : Expanded(
+                                              flex: 7,
+                                              child: Column(
+                                                  crossAxisAlignment:
+                                                      CrossAxisAlignment.start,
+                                                  children: [
+                                                    WebConstrainedBox(
+                                                      dataLength: cartController
+                                                          .cartList.length,
+                                                      child: Column(
+                                                        crossAxisAlignment:
+                                                            CrossAxisAlignment
+                                                                .start,
+                                                        children: [
+                                                          // 🔥 PHASE 2.2: Cart Items Section with ID
+                                                          GetBuilder<
+                                                              CartController>(
+                                                            id: 'cart_items', // Only rebuilds when items change
+                                                            builder:
+                                                                (cartController) {
+                                                              return Column(
+                                                                children:
+                                                                    cartController
+                                                                        .cartList
+                                                                        .asMap()
+                                                                        .entries
+                                                                        .map(
+                                                                            (entry) {
+                                                                  final int
+                                                                      index =
+                                                                      entry.key;
+                                                                  final CartModel
+                                                                      cart =
+                                                                      entry
+                                                                          .value;
+                                                                  final List<
+                                                                      AddOns> safeAddOns = index <
                                                                           cartController
                                                                               .addOnsList
                                                                               .length
@@ -563,9 +564,7 @@ class _CartScreenState extends State<CartScreen> with RouteAware {
                                                                               .addOnsList[
                                                                           index]
                                                                       : <AddOns>[];
-                                                              final bool
-                                                                  safeIsAvailable =
-                                                                  index <
+                                                                  final bool safeIsAvailable = index <
                                                                           cartController
                                                                               .availableList
                                                                               .length
@@ -573,432 +572,401 @@ class _CartScreenState extends State<CartScreen> with RouteAware {
                                                                               .availableList[
                                                                           index]
                                                                       : true;
-                                                              return Padding(
-                                                                padding: const EdgeInsets
-                                                                    .symmetric(
-                                                                    horizontal:
-                                                                        16,
-                                                                    vertical:
-                                                                        8),
-                                                                child:
-                                                                    _ModernCartItemCard(
-                                                                  cart: cart,
-                                                                  cartIndex:
-                                                                      index,
-                                                                  addOns:
-                                                                      safeAddOns,
-                                                                  isAvailable:
-                                                                      safeIsAvailable,
-                                                                  cartController:
-                                                                      cartController,
-                                                                ),
+                                                                  return Padding(
+                                                                    padding: const EdgeInsets
+                                                                        .symmetric(
+                                                                        vertical:
+                                                                            8),
+                                                                    child:
+                                                                        _ModernCartItemCard(
+                                                                      cart:
+                                                                          cart,
+                                                                      cartIndex:
+                                                                          index,
+                                                                      addOns:
+                                                                          safeAddOns,
+                                                                      isAvailable:
+                                                                          safeIsAvailable,
+                                                                      cartController:
+                                                                          cartController,
+                                                                    ),
+                                                                  );
+                                                                }).toList(),
                                                               );
-                                                            }).toList(),
-                                                          );
-                                                        },
+                                                            },
+                                                          ),
+
+                                                          // Removed "add more items" button per request
+
+                                                          // Extra packaging widget
+                                                          if (!ResponsiveHelper
+                                                              .isDesktop(
+                                                                  context))
+                                                            ExtraPackagingWidget(
+                                                                cartController:
+                                                                    cartController),
+
+                                                          // Suggested items
+                                                          if (!ResponsiveHelper
+                                                              .isDesktop(
+                                                                  context))
+                                                            suggestedItemView(
+                                                                cartController
+                                                                    .cartList),
+                                                        ],
                                                       ),
-
-                                                      // Removed "add more items" button per request
-
-                                                      // Extra packaging widget
-                                                      if (!ResponsiveHelper
-                                                          .isDesktop(context))
-                                                        ExtraPackagingWidget(
-                                                            cartController:
-                                                                cartController),
-
-                                                      // Suggested items
-                                                      if (!ResponsiveHelper
-                                                          .isDesktop(context))
-                                                        suggestedItemView(
-                                                            cartController
-                                                                .cartList),
-                                                    ],
-                                                  ),
-                                                ),
-                                              ]),
-                                        ),
-                                  // Desktop pricing view
+                                                    ),
+                                                  ]),
+                                            ),
+                                      // Desktop pricing view
+                                      ResponsiveHelper.isDesktop(context)
+                                          ? Expanded(
+                                              flex: 4,
+                                              child: cartController.cartList
+                                                          .isNotEmpty &&
+                                                      cartController.cartList[0]
+                                                              .item !=
+                                                          null
+                                                  ? pricingView(
+                                                      cartController,
+                                                      cartController
+                                                          .cartList[0].item!)
+                                                  : const SizedBox())
+                                          : const SizedBox(),
+                                    ],
+                                  ),
+                                  // Web suggested items
                                   ResponsiveHelper.isDesktop(context)
-                                      ? Expanded(
-                                          flex: 4,
-                                          child: cartController
-                                                      .cartList.isNotEmpty &&
-                                                  cartController
-                                                          .cartList[0].item !=
-                                                      null
-                                              ? pricingView(
-                                                  cartController,
-                                                  cartController
-                                                      .cartList[0].item!)
-                                              : const SizedBox())
+                                      ? const SizedBox() // WebSuggestedItemViewWidget pending
                                       : const SizedBox(),
-                                ],
+                                ]),
                               ),
-                              // Web suggested items
-                              ResponsiveHelper.isDesktop(context)
-                                  ? const SizedBox() // WebSuggestedItemViewWidget pending
-                                  : const SizedBox(),
-                            ]),
+                            ),
                           ),
                         ),
-                      ),
-                    ),
 
-                    // Order summary from touese design - now static, no expandable
-                    if (!ResponsiveHelper.isDesktop(context))
-                      Container(
-                        width: context.width,
-                        decoration: BoxDecoration(
-                          color: Theme.of(context).cardColor,
-                          borderRadius: const BorderRadius.only(
-                              topLeft:
-                                  Radius.circular(Dimensions.radiusDefault),
-                              topRight:
-                                  Radius.circular(Dimensions.radiusDefault)),
-                        ),
-                        child: Column(children: [
-                          Container(
-                            padding: const EdgeInsets.only(
-                              left: Dimensions.paddingSizeSmall,
-                              right: Dimensions.paddingSizeSmall,
-                              top: Dimensions.paddingSizeSmall,
-                            ),
-                            decoration: BoxDecoration(
-                              color: Theme.of(context).cardColor,
-                              borderRadius: const BorderRadius.only(
-                                  topLeft:
-                                      Radius.circular(Dimensions.radiusDefault),
-                                  topRight: Radius.circular(
-                                      Dimensions.radiusDefault)),
-                            ),
-                            child: Column(children: [
-                              // Promo / applied coupon (rebuilds with CouponController)
-                              const _CartPromoSection(),
-
-                              const SizedBox(height: 12),
-
-                              // 🔥 PHASE 2.2: Cart Summary Section with ID
-                              // Only rebuilds when totals change (subTotal, tax, etc.)
-                              GetBuilder<CartController>(
-                                id: 'cart_summary',
-                                builder: (cartController) {
-                                  final double effectiveTaxPercent =
-                                      _resolveCartTaxPercent(storeController
-                                              .store?.tax ??
+                        // Minimal order summary matching the new design:
+                        // a minimum-order pill (when below threshold) + total row.
+                        if (!ResponsiveHelper.isDesktop(context))
+                          GetBuilder<CartController>(
+                            id: 'cart_summary',
+                            builder: (cartController) {
+                              final double effectiveTaxPercent =
+                                  _resolveCartTaxPercent(
+                                      storeController.store?.tax ??
                                           (cartController.cartList.isNotEmpty
                                               ? cartController
                                                   .cartList.first.item?.tax
                                               : null));
-                                  final bool taxIncluded =
-                                      Get.find<SplashController>()
-                                              .configModel!
-                                              .taxIncluded ==
-                                          1;
-                                  return GetBuilder<CouponController>(
-                                      builder: (CouponController couponCtrl) {
-                                    final double couponDisc =
-                                        couponCtrl.discount ?? 0.0;
-                                    final bool couponFree =
-                                        couponCtrl.freeDelivery;
-                                    if (kDebugMode &&
-                                        (couponDisc > 0 || couponFree)) {
-                                      final double taxPreview =
-                                          _calculateCartTaxAmount(
-                                        cartController.subTotal,
-                                        effectiveTaxPercent,
-                                        taxIncluded,
-                                      );
-                                      final double addCh =
-                                          Get.find<SplashController>()
-                                                  .configModel!
-                                                  .additionalChargeStatus!
-                                              ? Get.find<SplashController>()
-                                                  .configModel!
-                                                  .additionCharge!
-                                              : 0;
-                                      final double totalBefore = cartController
-                                              .subTotal +
-                                          (taxIncluded ? 0 : taxPreview) +
-                                          addCh;
-                                      final double totalAfter = totalBefore -
-                                          couponDisc;
-                                      debugPrint(
-                                        '[Coupon][STATE] appliedCouponCode=${couponCtrl.coupon?.code} '
-                                        'couponDiscount=$couponDisc totalBefore=$totalBefore totalAfter=$totalAfter',
-                                      );
-                                    }
-                                    return Column(children: [
-                                    // Modern summary rows with actual app price calculations
-                                    _ModernSummaryRow(
-                                      label: 'subtotal'.tr,
-                                      value: PriceConverter.convertPrice2(
-                                        cartController.itemPrice,
-                                        textStyle: robotoRegular,
+                              final bool taxIncluded =
+                                  Get.find<SplashController>()
+                                          .configModel!
+                                          .taxIncluded ==
+                                      1;
+                              final double minimumOrder =
+                                  storeController.store?.minimumOrder ?? 0;
+                              final bool belowMinimum = minimumOrder > 0 &&
+                                  cartController.subTotal < minimumOrder;
+                              final int itemCount =
+                                  cartController.cartList.length;
+
+                              return Container(
+                                width: context.width,
+                                padding:
+                                    const EdgeInsets.fromLTRB(16, 14, 16, 8),
+                                child: Stack(
+                                  clipBehavior: Clip.none,
+                                  alignment: AlignmentDirectional.topStart,
+                                  children: [
+                                  // Total row — pushed down so the minimum-order
+                                  // pill rests on its top edge (the pill is ~35px
+                                  // tall, so this offset keeps it above the bar
+                                  // instead of sinking into the total text).
+                                  Container(
+                                    width: double.infinity,
+                                    margin: EdgeInsets.only(
+                                        top: belowMinimum ? 28 : 0),
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 16, vertical: 14),
+                                    decoration: const BoxDecoration(
+                                      color: Color(0xFFF4F5F5),
+                                      // Border only on the right + left sides.
+                                      border: Border.symmetric(
+                                        vertical: BorderSide(
+                                          color: CartColors.divider,
+                                          width: 1,
+                                        ),
                                       ),
                                     ),
-                                    const _DividerLine(),
-
-                                    // Taxes row - using proper tax calculation
-                                    _ModernSummaryRow(
-                                      label:
-                                          '${'taxes'.tr} (${_formatPercent(effectiveTaxPercent)})',
-                                      value: _calculateCartTax(
-                                        cartController.subTotal,
-                                        effectiveTaxPercent,
-                                        taxIncluded,
-                                        cartController.cartList,
-                                      ),
-                                    ),
-                                    const _DividerLine(),
-
-                                    // App fee (service fee) row - shown if enabled
-                                    if (Get.find<SplashController>()
-                                            .configModel!
-                                            .additionalChargeStatus! &&
-                                        Get.find<SplashController>()
-                                                .configModel!
-                                                .additionCharge !=
-                                            null &&
-                                        Get.find<SplashController>()
-                                                .configModel!
-                                                .additionCharge! >
-                                            0) ...[
-                                      _ModernSummaryRow(
-                                        label: 'service_fee'.tr,
-                                        value: PriceConverter.convertPrice2(
-                                          Get.find<SplashController>()
-                                              .configModel!
-                                              .additionCharge!,
-                                          prefixText: '(+) ',
-                                          textStyle: robotoRegular,
-                                        ),
-                                      ),
-                                      const _DividerLine(),
-                                    ],
-
-                                    if (couponDisc > 0.0001) ...[
-                                      _ModernSummaryRow(
-                                        label: couponCtrl.coupon
-                                                    ?.discountType ==
-                                                'percent'
-                                            ? '${'coupon_discount'.tr} (${_formatPercent(couponCtrl.coupon?.discount)})'
-                                            : 'coupon_discount'.tr,
-                                        value: PriceConverter.convertPrice2(
-                                          couponDisc,
-                                          prefixText: '(-) ',
-                                          textStyle: robotoRegular,
-                                        ),
-                                      ),
-                                      const _DividerLine(),
-                                    ] else if (couponFree) ...[
-                                      _ModernSummaryRow(
-                                        label: 'coupon_discount'.tr,
-                                        value: Text(
-                                          'free_delivery'.tr,
-                                          style: robotoRegular,
-                                        ),
-                                      ),
-                                      const _DividerLine(),
-                                    ],
-
-                                    // Total row with item count and actual calculations
-                                    _ModernSummaryRow(
-                                      label: 'total'.tr,
-                                      value: _calculateCartTotal(
-                                        context,
-                                        subTotal: cartController.subTotal,
-                                        taxPercent: effectiveTaxPercent,
-                                        taxIncluded: taxIncluded,
-                                        cartList: cartController.cartList,
-                                        couponDiscount: couponDisc,
-                                      ),
-                                      isTotal: true,
-                                    ),
-
-                                    // Minimum order warning
-                                    if (storeController.store != null &&
-                                        storeController.store!.minimumOrder! >
-                                            0 &&
-                                        cartController.subTotal <
-                                            storeController
-                                                .store!.minimumOrder!)
-                                      Container(
-                                        margin: const EdgeInsets.only(top: 8),
-                                        padding: const EdgeInsets.all(12),
-                                        decoration: BoxDecoration(
-                                          color: Colors.orange
-                                              .withValues(alpha: 0.1),
-                                          borderRadius:
-                                              BorderRadius.circular(8),
-                                          border: Border.all(
-                                              color: Colors.orange
-                                                  .withValues(alpha: 0.3)),
-                                        ),
-                                        child: Directionality(
-                                          textDirection: _isRTL
-                                              ? TextDirection.rtl
-                                              : TextDirection.ltr,
-                                          child: Row(
-                                            children: [
-                                              const Icon(
-                                                Icons.info_outline,
-                                                color: Colors.orange,
-                                                size: 16,
-                                              ),
-                                              const SizedBox(width: 8),
-                                              Expanded(
-                                                child: Row(
-                                                  mainAxisSize:
-                                                      MainAxisSize.min,
-                                                  children: [
-                                                    Text(
-                                                      'minimum_order_amount_is'
-                                                          .tr,
-                                                      style: robotoRegular
-                                                          .copyWith(
-                                                        color:
-                                                            Colors.orange[700],
-                                                        fontSize: 12,
-                                                      ),
-                                                    ),
-                                                    const SizedBox(width: 4),
-                                                    Directionality(
-                                                      textDirection:
-                                                          TextDirection.ltr,
-                                                      child: PriceConverter
-                                                          .convertPrice2(
-                                                        storeController.store!
-                                                            .minimumOrder!,
-                                                        textStyle: robotoRegular
-                                                            .copyWith(
-                                                          color: Colors
-                                                              .orange[700],
-                                                          fontSize: 12,
-                                                        ),
-                                                      ),
-                                                    ),
-                                                  ],
-                                                ),
-                                              ),
-                                            ],
+                                    child: Row(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        Text(
+                                          '${'cart_grand_total'.tr} ($itemCount)',
+                                          style: const TextStyle(
+                                            fontFamily: 'Tajawal',
+                                            color: CartColors.dark,
+                                            fontSize: 16,
+                                            fontWeight: FontWeight.w600,
+                                            height: 1.6,
                                           ),
                                         ),
-                                      ),
-
-                                    const SizedBox(
-                                        height:
-                                            Dimensions.paddingSizeExtraLarge),
-                                  ]);
-                                  });
-                                },
-                              ),
-                            ]),
-                          ),
-                        ]),
-                      ),
-
-                    // 🔥 PHASE 2.2: Checkout Button with ID
-                    // Only rebuilds when totals or checkout-related data changes
-                    ResponsiveHelper.isDesktop(context)
-                        ? const SizedBox.shrink()
-                        : GetBuilder<CartController>(
-                            id: 'cart_checkout',
-                            builder: (cartController) {
-                              return _ModernPaymentButton(
-                                cartController: cartController,
-                                availableList: cartController.availableList,
+                                        DefaultTextStyle(
+                                          style: const TextStyle(
+                                            fontFamily: 'Tajawal',
+                                            color: CartColors.dark,
+                                            fontSize: 17,
+                                            fontWeight: FontWeight.w700,
+                                          ),
+                                          child: _calculateCartTotal(
+                                            context,
+                                            subTotal: cartController.subTotal,
+                                            taxPercent: effectiveTaxPercent,
+                                            taxIncluded: taxIncluded,
+                                            cartList: cartController.cartList,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  // Minimum-order pill: at the start (right in
+                                  // RTL), overlapping the total bar's top edge.
+                                  if (belowMinimum)
+                                    PositionedDirectional(
+                                      top: 0,
+                                      start: 0,
+                                      child: _MinimumOrderPill(
+                                          minimumOrder: minimumOrder),
+                                    ),
+                                ]),
                               );
                             },
                           ),
-                  ]);
-                } else {
-                  if (cartController.hasCartError) {
-                    return ErrorStateView(
-                      onRetry: () {
-                        cartController.getCartDataOnline(forceRefresh: true);
-                      },
-                    );
-                  }
 
-                  return NoDataScreen(
-                    isCart: true,
-                    text: '',
-                    subtitle: 'cart_empty_subtitle'.tr,
-                    showFooter: true,
-                  );
-                }
-              });
-        }),
-        ),
+                        // 🔥 PHASE 2.2: Checkout Button with ID
+                        // Only rebuilds when totals or checkout-related data changes
+                        ResponsiveHelper.isDesktop(context)
+                            ? const SizedBox.shrink()
+                            : GetBuilder<CartController>(
+                                id: 'cart_checkout',
+                                builder: (cartController) {
+                                  return _ModernPaymentButton(
+                                    cartController: cartController,
+                                    availableList: cartController.availableList,
+                                  );
+                                },
+                              ),
+                      ]);
+                    } else {
+                      if (cartController.hasCartError) {
+                        return ErrorStateView(
+                          onRetry: () {
+                            cartController.getCartDataOnline(
+                                forceRefresh: true);
+                          },
+                        );
+                      }
+
+                      return _EmptyCartView(isRTL: _isRTL);
+                    }
+                  });
+            }),
+          ),
         ),
       ),
     );
   }
 
-  /// Modern header matching the touese design exactly
+  /// Clean white header matching the new design.
+  /// Back arrow (leading, only when pushed), centered title, and a red
+  /// "Clear cart" text action (only when the cart has items).
   PreferredSizeWidget _buildModernHeader() {
     return AppBar(
       elevation: 0,
-      backgroundColor: CartColors.green,
+      scrolledUnderElevation: 0,
+      shadowColor: Colors.transparent,
+      backgroundColor: CartColors.white,
+      surfaceTintColor: CartColors.white,
       centerTitle: true,
       automaticallyImplyLeading: false,
-      toolbarHeight: 80, // Exact height from touese
-      systemOverlayStyle: SystemUiOverlayStyle.light, // white status icons
-      leading: IconButton(
-        icon: Icon(
-          _isRTL ? Icons.arrow_back_ios_rounded : Icons.arrow_back_ios_rounded,
-          color: CartColors.white,
-          size: 20,
-        ),
-        onPressed: _popCartScreen,
-        tooltip: _isRTL ? 'رجوع' : 'Back',
-      ),
-      title: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Icon(Icons.shopping_cart_outlined,
-              color: CartColors.white, size: 24),
-          const SizedBox(width: 8),
-          Text(
-            _isRTL ? 'السلة' : 'My Cart',
-            style: const TextStyle(
-              color: CartColors.white,
-              fontWeight: FontWeight.w700,
-              fontSize: 22,
+      toolbarHeight: 60,
+      systemOverlayStyle: SystemUiOverlayStyle.dark, // dark status icons
+      leading: widget.fromNav
+          ? null
+          : IconButton(
+              icon: Icon(
+                _isRTL
+                    ? Icons.arrow_back_ios_rounded
+                    : Icons.arrow_forward_ios_rounded,
+                color: CartColors.dark,
+                size: 20,
+              ),
+              onPressed: _popCartScreen,
+              tooltip: _isRTL ? 'رجوع' : 'Back',
             ),
-          ),
-        ],
+      title: Text(
+        _isRTL ? 'السلّة' : 'My Cart',
+        textAlign: TextAlign.center,
+        style: const TextStyle(
+          fontFamily: 'Tajawal',
+          color: CartColors.dark,
+          fontWeight: FontWeight.w700,
+          fontSize: 18,
+          height: 1.6,
+        ),
       ),
       actions: [
         GetBuilder<CartController>(
           id: 'cart_count',
           builder: (cartController) {
-            return IconButton(
-              tooltip: _isRTL ? 'افراغ السلة' : 'Clear cart',
-              icon: const Icon(Icons.delete_outline, color: CartColors.white),
-              onPressed: () {
-                if (cartController.cartList.isEmpty) {
-                  showCustomSnackBar('cart_is_empty'.tr);
-                  return;
-                }
-                Get.dialog<void>(
-                  ConfirmationDialog(
-                    icon: Images.warning,
-                    description: 'are_you_sure'.tr,
-                    onYesPressed: () async {
-                      Get.back<void>();
-                      await cartController.clearCartList();
-                    },
-                  ),
-                  useSafeArea: false,
-                );
-              },
+            if (cartController.cartList.isEmpty) {
+              return const SizedBox(width: Dimensions.paddingSizeSmall);
+            }
+            return TextButton(
+              onPressed: () => _showClearCartSheet(cartController),
+              style: TextButton.styleFrom(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: Dimensions.paddingSizeDefault),
+                minimumSize: Size.zero,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+              child: Text(
+                'clear_cart'.tr,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontFamily: 'Tajawal',
+                  color: const Color(0xFFE53935),
+                  fontWeight: FontWeight.w700,
+                  fontSize: Dimensions.fontSizeDefault,
+                  height: 1.6,
+                ),
+              ),
             );
           },
         ),
-        const SizedBox(width: Dimensions.paddingSizeSmall),
       ],
+    );
+  }
+
+  /// Bottom sheet asking the user to confirm clearing the whole cart.
+  void _showClearCartSheet(CartController cartController) {
+    if (cartController.cartList.isEmpty) {
+      showCustomSnackBar('cart_is_empty'.tr);
+      return;
+    }
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (sheetContext) {
+        return Directionality(
+          textDirection: _isRTL ? TextDirection.rtl : TextDirection.ltr,
+          child: Container(
+            decoration: BoxDecoration(
+              color: Theme.of(sheetContext).cardColor,
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(24),
+                topRight: Radius.circular(24),
+              ),
+            ),
+            padding: EdgeInsets.fromLTRB(
+                20, 12, 20, 20 + MediaQuery.of(sheetContext).padding.bottom),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Center(
+                  child: Container(
+                    width: 44,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: CartColors.divider,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 22),
+                Text(
+                  'clear_cart_question'.tr,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    fontFamily: 'Tajawal',
+                    color: Color(0xFFE53935),
+                    fontWeight: FontWeight.w700,
+                    fontSize: 18,
+                    height: 1.6,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  'clear_cart_warning'.tr,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    fontFamily: 'Tajawal',
+                    color: CartColors.dark,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 18,
+                    height: 1.6,
+                  ),
+                ),
+                const SizedBox(height: 24),
+                SizedBox(
+                  height: 52,
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: CartColors.green,
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                    ),
+                    onPressed: () async {
+                      Navigator.of(sheetContext).pop();
+                      await cartController.clearCartList();
+                    },
+                    child: Text(
+                      'clear_cart_confirm'.tr,
+                      style: const TextStyle(
+                        fontFamily: 'Tajawal',
+                        fontWeight: FontWeight.w700,
+                        fontSize: 16,
+                        height: 1.6,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                SizedBox(
+                  height: 52,
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFFF4F5F5),
+                      foregroundColor: CartColors.dark,
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                    ),
+                    onPressed: () => Navigator.of(sheetContext).pop(),
+                    child: Text(
+                      'cancel'.tr,
+                      style: const TextStyle(
+                        fontFamily: 'Tajawal',
+                        color: CartColors.dark,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 16,
+                        height: 1.6,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 
@@ -1335,51 +1303,6 @@ class _CartScreenState extends State<CartScreen> with RouteAware {
     }
   }
 
-  /// Calculate tax for cart display using discounted prices
-  Widget _calculateCartTax(double subTotal, double? taxPercent,
-      bool taxIncluded, List<CartModel> cartList) {
-    // #region agent log
-    _writeDebugLog(
-        'cart_screen.dart:981',
-        '_calculateCartTax called',
-        {
-          'subTotal': subTotal,
-          'taxPercent': taxPercent,
-          'taxIncluded': taxIncluded,
-          'cartListLength': cartList.length,
-        },
-        'A');
-    // #endregion
-
-    if (taxPercent == null || taxPercent == 0) {
-      final result =
-          PriceConverter.convertPrice2(0.0, textStyle: robotoRegular);
-      // #region agent log
-      _writeDebugLog('cart_screen.dart:985',
-          '_calculateCartTax returning 0 (no tax)', {}, 'A');
-      // #endregion
-      return result;
-    }
-
-    final calculatedTax = PriceConverter.toFixed(
-        _calculateCartTaxAmount(subTotal, taxPercent, taxIncluded));
-    // #region agent log
-    _writeDebugLog(
-        'cart_screen.dart:993',
-        '_calculateCartTax calculated value',
-        {
-          'calculatedTax': calculatedTax,
-          'taxIncluded': taxIncluded,
-        },
-        'A');
-    // #endregion
-
-    return PriceConverter.convertPrice2(
-      calculatedTax,
-      textStyle: robotoRegular,
-    );
-  }
-
   double _calculateCartTaxAmount(
       double subTotal, double? taxPercent, bool taxIncluded) {
     final double effectiveTaxPercent = _resolveCartTaxPercent(taxPercent);
@@ -1398,14 +1321,6 @@ class _CartScreenState extends State<CartScreen> with RouteAware {
       return 15;
     }
     return storeTaxPercent;
-  }
-
-  String _formatPercent(double? value) {
-    if (value == null) return '0%';
-    final bool isWhole = value % 1 == 0;
-    return isWhole
-        ? '${value.toStringAsFixed(0)}%'
-        : '${value.toStringAsFixed(2)}%';
   }
 
   /// Calculate total for cart display using same logic as checkout
@@ -1466,6 +1381,7 @@ class _CartScreenState extends State<CartScreen> with RouteAware {
     return PriceConverter.convertPrice2(
       total,
       textStyle: TextStyle(
+        fontFamily: 'Tajawal',
         color: totalColor,
         fontSize: 18,
         fontWeight: FontWeight.w700,
@@ -1492,625 +1408,235 @@ class _ModernCartItemCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final bool isRTL = Get.locale?.languageCode == 'ar';
     final item = cart.item;
     final String itemName = (item?.name ?? 'item'.tr).trim();
+    final String description = (item?.description ?? '').trim();
     final String storeName = (item?.storeName ?? '').trim();
+    final String subtitle = description.isNotEmpty ? description : storeName;
     final String? imageUrl = item?.imageFullUrl;
     final int quantity = cart.quantity ?? 1;
 
-    return Stack(
-      children: [
-        Container(
-          width: double.infinity,
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(12),
-            boxShadow: const [
-              BoxShadow(
-                color: CartColors.cardShadow,
-                blurRadius: 14,
-                offset: Offset(0, 6),
-              ),
-            ],
-          ),
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 14),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Keep image on the *left* by forcing this Row LTR only
-                Directionality(
-                  textDirection: TextDirection.ltr,
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(8),
-                        child: Container(
-                          width: 90,
-                          height: 86,
-                          color: const Color(0xFFF6F6F6),
-                          child: SmartImage(
-                            url: imageUrl ?? '',
-                            height: 86,
-                            width: 90,
-                            cacheWidth: 300,
-                            cacheHeight: 300,
-                            fit: BoxFit.cover,
-                            errorWidget: const Icon(
-                              Icons.image_not_supported_outlined,
-                              color: CartColors.light,
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: Directionality(
-                          textDirection:
-                              isRTL ? TextDirection.rtl : TextDirection.ltr,
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const SizedBox(height: 2),
-                              Text(
-                                itemName.split(' ').take(5).join(' ') +
-                                    (itemName.split(' ').length > 5
-                                        ? '  ...'
-                                        : ''),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
-                                  color: CartColors.dark,
-                                  fontWeight: FontWeight.w800,
-                                  fontSize: 22,
-                                ),
-                              ),
-                              const SizedBox(height: 8),
-                              if (storeName.isNotEmpty)
-                                Text(
-                                  storeName,
-                                  style: const TextStyle(
-                                    color: CartColors.light,
-                                    fontSize: 15,
-                                    height: 1.2,
-                                  ),
-                                ),
-                              const SizedBox(height: 10),
-                              Align(
-                                alignment: isRTL
-                                    ? Alignment.centerRight
-                                    : Alignment.centerLeft,
-                                child: PriceConverter.convertPrice2(
-                                  cart.price,
-                                  textStyle: const TextStyle(
-                                    color: CartColors.orange,
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.w800,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 12),
-                // Quantity line
-                Directionality(
-                  textDirection: TextDirection.ltr,
-                  child: Row(
-                    children: [
-                      _RoundMinus(
-                        onTap: () {
-                          // 🔥 BUG FIX: Use cart_id instead of index (safe, index-independent)
-                          if (cart.id != null) {
-                            if (quantity > 1) {
-                              cartController.setQuantityById(false, cart.id!,
-                                  cart.stock, cart.quantityLimit);
-                            } else {
-                              // When quantity is 1, remove the item completely
-                              cartController.removeFromCartById(cart.id!,
-                                  item: cart.item,
-                                  reason: 'quantity_decrement');
-                            }
-                          } else {
-                            // Fallback for items without cart_id
-                            if (cart.quantity! > 1) {
-                              // ignore: deprecated_member_use_from_same_package
-                              cartController.setQuantity(false, cartIndex,
-                                  cart.stock, cart.quantityLimit);
-                            } else {
-                              // ignore: deprecated_member_use_from_same_package
-                              cartController.removeFromCart(cartIndex,
-                                  item: cart.item);
-                            }
-                          }
-                        },
-                      ),
-                      const SizedBox(width: 10),
-                      Text(
-                        '${cart.quantity}',
-                        style: const TextStyle(
-                          color: CartColors.dark,
-                          fontSize: 22,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      _RoundPlus(
-                        onTap: () {
-                          // 🔥 BUG FIX: Guard cartList[0] access before accessing moduleId
-                          if (cartController.cartList.isNotEmpty &&
-                              cartController.cartList[0].item?.moduleId !=
-                                  null) {
-                            cartController.forcefullySetModule(context,
-                                cartController.cartList[0].item!.moduleId!);
-                          }
-                          // 🔥 BUG FIX: Use cart_id instead of index (safe, index-independent)
-                          if (cart.id != null) {
-                            cartController.setQuantityById(
-                                true, cart.id!, cart.stock, cart.quantityLimit);
-                          } else {
-                            // Fallback for items without cart_id
-                            // ignore: deprecated_member_use_from_same_package
-                            cartController.setQuantity(true, cartIndex,
-                                cart.stock, cart.quantityLimit);
-                          }
-                        },
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-        // Close button on the (visual) right
-        PositionedDirectional(
-          top: 10,
-          end: 10,
-          child: _CloseDot(
-            onTap: () {
-              // 🔥 BUG FIX: Use cart_id instead of index (safe, index-independent)
-              if (cart.id != null) {
-                cartController.removeFromCartById(cart.id!,
-                    item: cart.item, reason: 'close_button');
-              } else {
-                // Fallback for items without cart_id
-                // ignore: deprecated_member_use_from_same_package
-                cartController.removeFromCart(cartIndex, item: cart.item);
-              }
-            },
-          ),
-        ),
-      ],
-    );
-  }
-}
+    // Original price + discount, using the same rule as the rest of the app so
+    // the strikethrough original and the discounted price both render.
+    final double? basePrice = item?.price;
+    final double? discount =
+        (item?.storeDiscount ?? 0) == 0 ? item?.discount : item?.storeDiscount;
+    final String? discountType =
+        (item?.storeDiscount ?? 0) == 0 ? item?.discountType : 'percent';
 
-/// Modern minus button from touese design
-class _RoundMinus extends StatelessWidget {
-  const _RoundMinus({required this.onTap});
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return InkResponse(
-      onTap: onTap,
-      radius: 28,
-      child: Container(
-        width: 44,
-        height: 44,
-        decoration: BoxDecoration(
-          color: Colors.white,
-          shape: BoxShape.circle,
-          border: Border.all(color: CartColors.orange, width: 3),
-        ),
-        child: const Center(
-          child: Icon(Icons.remove, color: CartColors.orange, size: 22),
-        ),
-      ),
-    );
-  }
-}
-
-/// Modern plus button from touese design
-class _RoundPlus extends StatelessWidget {
-  const _RoundPlus({required this.onTap});
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return InkResponse(
-      onTap: onTap,
-      radius: 28,
-      child: Container(
-        width: 44,
-        height: 44,
-        decoration: const BoxDecoration(
-          color: CartColors.orange,
-          shape: BoxShape.circle,
-        ),
-        child: const Center(
-          child: Icon(Icons.add, color: Colors.white, size: 24),
-        ),
-      ),
-    );
-  }
-}
-
-/// Close button from touese design
-class _CloseDot extends StatelessWidget {
-  const _CloseDot({required this.onTap});
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return InkResponse(
-      onTap: onTap,
-      radius: 18,
-      child: Container(
-        width: 28,
-        height: 28,
-        decoration: BoxDecoration(
-          color: Colors.white,
-          shape: BoxShape.circle,
-          boxShadow: const [
-            BoxShadow(
-              color: Color(0x14000000),
-              blurRadius: 8,
-              offset: Offset(0, 2),
-            ),
-          ],
-          border: Border.all(color: CartColors.divider),
-        ),
-        child: const Center(
-          child: Icon(Icons.close, color: CartColors.dark, size: 18),
-        ),
-      ),
-    );
-  }
-}
-
-String _formatPercentForCoupon(double? value) {
-  if (value == null) {
-    return '0%';
-  }
-  final bool isWhole = value % 1 == 0;
-  return isWhole
-      ? '${value.toStringAsFixed(0)}%'
-      : '${value.toStringAsFixed(2)}%';
-}
-
-/// Promo input or applied-coupon summary (cart السلة).
-class _CartPromoSection extends StatefulWidget {
-  const _CartPromoSection();
-
-  @override
-  State<_CartPromoSection> createState() => _CartPromoSectionState();
-}
-
-class _CartPromoSectionState extends State<_CartPromoSection> {
-  final TextEditingController _couponInputController = TextEditingController();
-
-  @override
-  void dispose() {
-    _couponInputController.dispose();
-    super.dispose();
-  }
-
-  void _executeClearCoupon(CouponController couponController) {
-    couponController.removeCouponData(true);
-    Get.find<CartController>().update(['cart_summary']);
-    if (kDebugMode) {
-      debugPrint(
-        '[Coupon][UI_REBUILD] inputVisible=true discountRowVisible=false (cart promo cleared)',
-      );
-    }
-  }
-
-  void _applyPromoCode(CouponController couponController) {
-    final String entered = _couponInputController.text.trim();
-    if (kDebugMode) {
-      debugPrint('[Coupon][INPUT] controllerText=$entered');
-    }
-    if (entered.isEmpty) {
-      showCustomSnackBar('enter_a_coupon_code'.tr);
-      return;
-    }
-    final CartController cartController = Get.find<CartController>();
-    final double orderAmount = cartController.subTotal;
-    couponController
-        .applyCoupon(
-      entered,
-      orderAmount,
-      15.0,
-      Get.find<StoreController>().store?.id,
-    )
-        .then((double? _) {
-      if (!mounted) {
-        return;
-      }
-      final CouponController cc = Get.find<CouponController>();
-      if (cc.hasAppliedCoupon) {
-        showCustomSnackBar('coupon_applied_successfully'.tr, isError: false);
-        _couponInputController.clear();
-        cartController.update(['cart_summary']);
-        if (kDebugMode) {
-          debugPrint(
-            '[Coupon][UI_REBUILD] inputVisible=${!cc.hasAppliedCoupon} discountRowVisible=${cc.hasAppliedCoupon}',
-          );
+    void decrement() {
+      if (cart.id != null) {
+        if (quantity > 1) {
+          cartController.setQuantityById(
+              false, cart.id!, cart.stock, cart.quantityLimit);
+        } else {
+          // When quantity is 1, remove the item completely.
+          cartController.removeFromCartById(cart.id!,
+              item: cart.item, reason: 'quantity_decrement');
         }
+      } else if (quantity > 1) {
+        // ignore: deprecated_member_use_from_same_package
+        cartController.setQuantity(
+            false, cartIndex, cart.stock, cart.quantityLimit);
+      } else {
+        // ignore: deprecated_member_use_from_same_package
+        cartController.removeFromCart(cartIndex, item: cart.item);
       }
-    }).catchError((Object error) {
-      if (!mounted) {
-        return;
+    }
+
+    void increment() {
+      if (cartController.cartList.isNotEmpty &&
+          cartController.cartList[0].item?.moduleId != null) {
+        cartController.forcefullySetModule(
+            context, cartController.cartList[0].item!.moduleId!);
       }
-      showCustomSnackBar('coupon_error_invalid_code'.tr);
-    });
-  }
+      if (cart.id != null) {
+        cartController.setQuantityById(
+            true, cart.id!, cart.stock, cart.quantityLimit);
+      } else {
+        // ignore: deprecated_member_use_from_same_package
+        cartController.setQuantity(
+            true, cartIndex, cart.stock, cart.quantityLimit);
+      }
+    }
 
-  @override
-  Widget build(BuildContext context) {
-    final bool isRTL = Get.locale?.languageCode == 'ar';
-    return GetBuilder<CouponController>(
-      builder: (CouponController couponController) {
-        if (couponController.hasAppliedCoupon) {
-          return _AppliedCartCouponSummary(
-            controller: couponController,
-            onClear: () => _executeClearCoupon(couponController),
-          );
-        }
-        return Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-          child: Container(
-            height: 64,
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: CartColors.divider),
-            ),
-            child: Row(
-              children: [
-                const SizedBox(width: 16),
-                Expanded(
-                  child: TextField(
-                    controller: _couponInputController,
-                    textAlign: isRTL ? TextAlign.right : TextAlign.left,
-                    textDirection:
-                        isRTL ? TextDirection.rtl : TextDirection.ltr,
-                    decoration: InputDecoration(
-                      border: InputBorder.none,
-                      hintText: isRTL ? 'برومو كود' : 'promo_code'.tr,
-                      hintStyle: const TextStyle(
-                        color: CartColors.light,
-                        fontSize: 18,
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Padding(
-                  padding: const EdgeInsetsDirectional.only(end: 10),
-                  child: InkWell(
-                    onTap: () => _applyPromoCode(couponController),
-                    borderRadius: BorderRadius.circular(28),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 22,
-                        vertical: 10,
-                      ),
-                      decoration: BoxDecoration(
-                        color: CartColors.green,
-                        borderRadius: BorderRadius.circular(28),
-                      ),
-                      child: couponController.isLoading
-                          ? const SizedBox(
-                              width: 20,
-                              height: 20,
-                              child: CircularProgressIndicator(
-                                valueColor: AlwaysStoppedAnimation<Color>(
-                                  Colors.white,
-                                ),
-                                strokeWidth: 2,
-                              ),
-                            )
-                          : Text(
-                              isRTL ? 'إدخال' : 'apply'.tr,
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 20,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
-}
-
-class _AppliedCartCouponSummary extends StatelessWidget {
-  const _AppliedCartCouponSummary({
-    required this.controller,
-    required this.onClear,
-  });
-
-  final CouponController controller;
-  final VoidCallback onClear;
-
-  @override
-  Widget build(BuildContext context) {
-    final bool isRTL = Get.locale?.languageCode == 'ar';
-    final String code = controller.coupon?.code ?? '';
-    final double discountAmount = controller.discount ?? 0.0;
-    final bool isPercent = controller.coupon?.discountType == 'percent';
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: CartColors.divider),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Icon(
-                  Icons.local_offer_outlined,
-                  color: CartColors.green,
-                  size: 22,
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        '${'applied_coupon_code_label'.tr}: $code',
-                        style: robotoMedium.copyWith(
-                          fontSize: 15,
-                          color: CartColors.dark,
-                        ),
-                        textAlign: isRTL ? TextAlign.right : TextAlign.left,
-                      ),
-                      if (isPercent && controller.coupon?.discount != null) ...[
-                        const SizedBox(height: 6),
-                        Text(
-                          '${'coupon_discount_percent_label'.tr}: ${_formatPercentForCoupon(controller.coupon?.discount)}',
-                          style: robotoRegular.copyWith(
-                            fontSize: 14,
-                            color: CartColors.light,
-                          ),
-                          textAlign: isRTL ? TextAlign.right : TextAlign.left,
-                        ),
-                      ],
-                      if (discountAmount > 0.0001) ...[
-                        const SizedBox(height: 6),
-                        Text(
-                          '${'coupon_discount_amount_label'.tr}: (-) ${PriceConverter.convertPrice(discountAmount)}',
-                          style: robotoRegular.copyWith(
-                            fontSize: 14,
-                            color: CartColors.dark,
-                          ),
-                          textAlign: isRTL ? TextAlign.right : TextAlign.left,
-                        ),
-                      ] else if (controller.freeDelivery) ...[
-                        const SizedBox(height: 6),
-                        Text(
-                          'free_delivery'.tr,
-                          style: robotoRegular.copyWith(
-                            fontSize: 14,
-                            color: CartColors.green,
-                          ),
-                          textAlign: isRTL ? TextAlign.right : TextAlign.left,
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                TextButton(
-                  onPressed: onClear,
-                  child: Text(
-                    'change_coupon_code'.tr,
-                    style: robotoMedium.copyWith(
-                      fontSize: 13,
-                      color: CartColors.green,
-                    ),
-                  ),
-                ),
-                TextButton(
-                  onPressed: onClear,
-                  child: Text(
-                    'remove'.tr,
-                    style: robotoMedium.copyWith(
-                      fontSize: 13,
-                      color: CartColors.light,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
+    return Container(
+      width: double.infinity,
+      height: 100,
+      decoration: BoxDecoration(
+        color: CartColors.white,
+        borderRadius: BorderRadius.circular(16),
       ),
-    );
-  }
-}
-
-/// Divider line from touese design
-class _DividerLine extends StatelessWidget {
-  const _DividerLine();
-
-  @override
-  Widget build(BuildContext context) {
-    final Color lineColor = Theme.of(context).brightness == Brightness.dark
-        ? Theme.of(context).colorScheme.outline.withValues(alpha: 0.5)
-        : CartColors.divider;
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: Divider(color: lineColor, height: 24, thickness: 1),
-    );
-  }
-}
-
-/// Modern summary row from touese design
-class _ModernSummaryRow extends StatelessWidget {
-  const _ModernSummaryRow({
-    required this.label,
-    required this.value,
-    this.isTotal = false,
-  });
-
-  final String label;
-  final Widget value;
-  final bool isTotal;
-
-  @override
-  Widget build(BuildContext context) {
-    final Color textColor = Theme.of(context).colorScheme.onSurface;
-    final labelStyle = TextStyle(
-      color: textColor,
-      fontSize: isTotal ? 18 : 17,
-      fontWeight: isTotal ? FontWeight.w700 : FontWeight.w600,
-    );
-    final valueStyle = TextStyle(
-      color: textColor,
-      fontSize: isTotal ? 18 : 17,
-      fontWeight: isTotal ? FontWeight.w700 : FontWeight.w600,
-    );
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 12),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text(label, style: labelStyle),
-          DefaultTextStyle(
-            style: valueStyle,
-            child: value,
+          // Product image — start side (right in RTL), in a bordered box.
+          Center(
+            child: Container(
+              width: 70,
+              height: 70,
+              decoration: BoxDecoration(
+                color: const Color(0xFFF3F4F4),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: CartColors.divider),
+              ),
+              clipBehavior: Clip.antiAlias,
+              child: SmartImage(
+                url: imageUrl ?? '',
+                width: 70,
+                height: 70,
+                cacheWidth: 200,
+                cacheHeight: 200,
+                fit: BoxFit.cover,
+                errorWidget: const Icon(
+                  Icons.image_not_supported_outlined,
+                  color: CartColors.light,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          // Product details — name at the top (up to 2 lines), price pushed to
+          // the bottom so the name has room to show fully.
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    itemName,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontFamily: 'Tajawal',
+                      color: CartColors.dark,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 14,
+                      height: 1.4,
+                    ),
+                  ),
+                  if (subtitle.isNotEmpty) ...[
+                    const SizedBox(height: 3),
+                    Text(
+                      subtitle,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontFamily: 'Tajawal',
+                        color: CartColors.light,
+                        fontSize: 12,
+                        height: 1.2,
+                      ),
+                    ),
+                  ],
+                  const Spacer(),
+                  Align(
+                    alignment: AlignmentDirectional.centerStart,
+                    child: Directionality(
+                      // RTL so the SAR symbol sits to the left of the price.
+                      textDirection: TextDirection.rtl,
+                      child: PriceConverter.convertPrice2(
+                        basePrice,
+                        discount: discount,
+                        discountType: discountType,
+                        textStyle: const TextStyle(
+                          fontFamily: 'Tajawal',
+                          color: CartColors.dark,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                          height: 1.2,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(width: 10),
+          // Quantity stepper — end side (left in RTL), lowered to sit near the
+          // bottom (aligned with the price).
+          Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: Align(
+              alignment: Alignment.bottomCenter,
+              widthFactor: 1,
+              child: _GreenQtyStepper(
+                quantity: quantity,
+                onMinus: decrement,
+                onPlus: increment,
+              ),
+            ),
           ),
         ],
       ),
+    );
+  }
+}
+
+/// Green quantity stepper pill ( −  qty  + ) used on the cart item card.
+class _GreenQtyStepper extends StatelessWidget {
+  const _GreenQtyStepper({
+    required this.quantity,
+    required this.onMinus,
+    required this.onPlus,
+  });
+
+  final int quantity;
+  final VoidCallback onMinus;
+  final VoidCallback onPlus;
+
+  @override
+  Widget build(BuildContext context) {
+    // Forced LTR so minus stays on the left and plus on the right regardless
+    // of the app's text direction.
+    return Directionality(
+      textDirection: TextDirection.ltr,
+      child: Container(
+        width: 104,
+        height: 40,
+        padding: const EdgeInsets.symmetric(horizontal: 8),
+        decoration: BoxDecoration(
+          color: CartColors.green,
+          borderRadius: BorderRadius.circular(74.55),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            _StepBtn(icon: Icons.remove, onTap: onMinus),
+            Text(
+              '$quantity',
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontFamily: 'Tajawal',
+                color: Colors.white,
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
+                height: 1.0,
+              ),
+            ),
+            _StepBtn(icon: Icons.add, onTap: onPlus),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _StepBtn extends StatelessWidget {
+  const _StepBtn({required this.icon, required this.onTap});
+
+  final IconData icon;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkResponse(
+      onTap: onTap,
+      radius: 20,
+      child: Icon(icon, color: CartColors.green200, size: 22),
     );
   }
 }
@@ -2131,145 +1657,119 @@ class _ModernPaymentButton extends StatelessWidget {
 
     return Container(
       width: Dimensions.webMaxWidth,
-      padding: const EdgeInsets.all(Dimensions.paddingSizeSmall),
+      padding: const EdgeInsets.fromLTRB(16, 4, 16, 22),
       decoration: BoxDecoration(
         color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(
             ResponsiveHelper.isDesktop(context) ? Dimensions.radiusDefault : 0),
       ),
       child: GetBuilder<StoreController>(builder: (storeController) {
-        return Column(
-          children: [
-            // Primary CTA
-            SizedBox(
-              height: 54,
-              width: double.infinity,
-              child: ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: CartColors.green,
-                  foregroundColor: Colors.white,
-                  elevation: 0,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                ),
-                onPressed: () async {
-                  if (cartController.cartList.isEmpty) {
+        final double minimumOrder = storeController.store?.minimumOrder ?? 0;
+        final bool belowMinimum =
+            minimumOrder > 0 && cartController.subTotal < minimumOrder;
+
+        return SizedBox(
+          height: 54,
+          width: double.infinity,
+          child: ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor:
+                  belowMinimum ? const Color(0xFFE8E8E8) : CartColors.green,
+              foregroundColor:
+                  belowMinimum ? const Color(0xFF545454) : Colors.white,
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(14),
+              ),
+            ),
+            onPressed: () async {
+              // Below the store minimum: keep the button tappable but
+              // surface a clear message and block navigation to checkout.
+              if (belowMinimum) {
+                showCustomSnackBar(
+                    '${'minimum_order_amount_is'.tr} ${PriceConverter.convertPrice(minimumOrder)}');
+                return;
+              }
+              if (cartController.cartList.isEmpty) {
+                return;
+              }
+
+              final firstItem = cartController.cartList.first.item;
+              if (firstItem == null) return;
+
+              if (!(firstItem.scheduleOrder ?? false) &&
+                  availableList.contains(false)) {
+                showCustomSnackBar('one_or_more_product_unavailable'.tr);
+              } else {
+                final bool isLocationValid =
+                    await _CartScreenState.validateLocationForCheckout();
+
+                // ✅ إصلاح مشكلة Context Gap
+                if (!context.mounted) return;
+
+                if (!isLocationValid) {
+                  return;
+                }
+
+                if (Get.find<SplashController>().module == null) {
+                  if (cartController.cartList.isEmpty ||
+                      cartController.cartList[0].item?.moduleId == null) {
                     return;
                   }
 
-                  final firstItem = cartController.cartList.first.item;
-                  if (firstItem == null) return;
-
-                  if (!(firstItem.scheduleOrder ?? false) &&
-                      availableList.contains(false)) {
-                    showCustomSnackBar('one_or_more_product_unavailable'.tr);
-                  } else {
-                    final double subTotal = cartController.subTotal;
-                    final double minimumOrder =
-                        storeController.store?.minimumOrder ?? 0;
-
-                    if (minimumOrder > 0 && subTotal < minimumOrder) {
-                      showCustomSnackBar(
-                          '${'minimum_order_amount_is'.tr} ${PriceConverter.convertPrice(minimumOrder)}');
-                      return;
-                    }
-
-                    final bool isLocationValid =
-                        await _CartScreenState.validateLocationForCheckout();
-
-                    // ✅ إصلاح مشكلة Context Gap
-                    if (!context.mounted) return;
-
-                    if (!isLocationValid) {
-                      return;
-                    }
-
-                    if (Get.find<SplashController>().module == null) {
-                      if (cartController.cartList.isEmpty ||
-                          cartController.cartList[0].item?.moduleId == null) {
-                        return;
-                      }
-
-                      int i = 0;
-                      for (i = 0;
-                          i < Get.find<SplashController>().moduleList!.length;
-                          i++) {
-                        if (cartController.cartList[0].item!.moduleId ==
-                            Get.find<SplashController>().moduleList![i].id) {
-                          break;
-                        }
-                      }
-                      Get.find<SplashController>().setModule(
-                          Get.find<SplashController>().moduleList![i]);
-
-                      // ✅ إصلاح مشكلة Context Gap هنا أيضاً
-                      if (context.mounted) {
-                        HomeScreen.loadData(context, true);
-                      }
-                    }
-                    final bool isLoggedIn = AuthHelper.isLoggedIn();
-
-                    if (!isLoggedIn) {
-                      if (ResponsiveHelper.isDesktop(context)) {
-                        await Get.dialog<void>(
-                          const Center(
-                              child: AuthDialogWidget(
-                                  exitFromApp: false, backFromThis: true)),
-                          barrierDismissible: false,
-                        );
-                        if (!context.mounted) return;
-                      } else {
-                        // ✅ إضافة <void>
-                        await Get.toNamed<void>(
-                            RouteHelper.getSignInRoute(Get.currentRoute));
-                        if (!context.mounted) return;
-                      }
-                      return;
-                    } else {
-                      await _navigateToCheckoutWithLoading(
-                        context,
-                        cartController,
-                      );
+                  int i = 0;
+                  for (i = 0;
+                      i < Get.find<SplashController>().moduleList!.length;
+                      i++) {
+                    if (cartController.cartList[0].item!.moduleId ==
+                        Get.find<SplashController>().moduleList![i].id) {
+                      break;
                     }
                   }
-                },
-                child: Text(
-                  isRTL ? 'الدفع' : 'confirm_delivery_details'.tr,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w700,
-                    fontSize: 18,
-                  ),
-                ),
+                  Get.find<SplashController>()
+                      .setModule(Get.find<SplashController>().moduleList![i]);
+
+                  // ✅ إصلاح مشكلة Context Gap هنا أيضاً
+                  if (context.mounted) {
+                    HomeScreen.loadData(context, true);
+                  }
+                }
+                final bool isLoggedIn = AuthHelper.isLoggedIn();
+
+                if (!isLoggedIn) {
+                  if (ResponsiveHelper.isDesktop(context)) {
+                    await Get.dialog<void>(
+                      const Center(
+                          child: AuthDialogWidget(
+                              exitFromApp: false, backFromThis: true)),
+                      barrierDismissible: false,
+                    );
+                    if (!context.mounted) return;
+                  } else {
+                    // ✅ إضافة <void>
+                    await Get.toNamed<void>(
+                        RouteHelper.getSignInRoute(Get.currentRoute));
+                    if (!context.mounted) return;
+                  }
+                  return;
+                } else {
+                  await _navigateToCheckoutWithLoading(
+                    context,
+                    cartController,
+                  );
+                }
+              }
+            },
+            child: Text(
+              isRTL ? 'الدفع' : 'confirm_delivery_details'.tr,
+              style: TextStyle(
+                fontFamily: 'Tajawal',
+                fontWeight: FontWeight.w700,
+                fontSize: Dimensions.fontSizeDefault,
+                height: 1.6,
               ),
             ),
-            const SizedBox(height: 10),
-            // Secondary CTA
-            SizedBox(
-              height: 44,
-              width: double.infinity,
-              child: OutlinedButton(
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: Theme.of(context).colorScheme.onSurface,
-                  side: BorderSide(
-                    color: Theme.of(context).colorScheme.outline,
-                  ),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-                onPressed: _popCartScreen,
-                child: Text(
-                  'complete_shopping'.tr,
-                  style: TextStyle(
-                    fontWeight: FontWeight.w600,
-                    fontSize: 14,
-                    color: Theme.of(context).colorScheme.onSurface,
-                  ),
-                ),
-              ),
-            ),
-          ],
+          ),
         );
       }),
     );
@@ -2476,6 +1976,108 @@ class CheckoutButton extends StatelessWidget {
           ],
         );
       }),
+    );
+  }
+}
+
+/// Small cream pill warning the user that the cart is below the store's
+/// minimum order amount (shown just above the total in the new design).
+class _MinimumOrderPill extends StatelessWidget {
+  const _MinimumOrderPill({required this.minimumOrder});
+
+  final double minimumOrder;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+      decoration: const BoxDecoration(
+        color: Color(0xFFFFF4E0),
+        // Rounded on the TOP corners only; the flat bottom sits on the bar.
+        borderRadius: BorderRadius.only(
+          topLeft: Radius.circular(16),
+          topRight: Radius.circular(16),
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.info, color: CartColors.dark, size: 16),
+          const SizedBox(width: 6),
+          Flexible(
+            child: Text(
+              '${'minimum_order_amount_is'.tr} ${PriceConverter.convertPrice(minimumOrder)}',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.right,
+              style: const TextStyle(
+                fontFamily: 'Tajawal',
+                color: CartColors.dark,
+                fontSize: 14,
+                fontWeight: FontWeight.w700,
+                height: 1.2,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Empty cart placeholder matching the new design: illustration, title and a
+/// short hint. Used when the cart has no items.
+class _EmptyCartView extends StatelessWidget {
+  const _EmptyCartView({required this.isRTL});
+
+  final bool isRTL;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 32),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Image.asset(
+              Images.empty_cart,
+              width: 254,
+              height: 275,
+              fit: BoxFit.contain,
+              errorBuilder: (_, __, ___) => const Icon(
+                Icons.shopping_cart_outlined,
+                size: 120,
+                color: CartColors.light,
+              ),
+            ),
+            const SizedBox(height: 24),
+            Text(
+              'cart_empty_title'.tr,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontFamily: 'Tajawal',
+                color: CartColors.dark,
+                fontSize: 18,
+                fontWeight: FontWeight.w800,
+                height: 1.6,
+              ),
+            ),
+            const SizedBox(height: 10),
+            Text(
+              'cart_empty_message'.tr,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontFamily: 'Tajawal',
+                color: CartColors.dark,
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
+                height: 1.6,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

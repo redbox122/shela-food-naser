@@ -12,8 +12,10 @@ import 'package:sixam_mart/features/home/widgets/home_top_notice_strip.dart';
 import 'package:sixam_mart/features/home/widgets/home_header.dart';
 import 'package:sixam_mart/features/home/widgets/home_services_grid.dart';
 import 'package:sixam_mart/features/home/widgets/home_current_offers_section.dart';
+import 'package:sixam_mart/features/home/widgets/home_discover_banner_view.dart';
 import 'package:sixam_mart/features/home/widgets/home_reorder_section.dart';
 import 'package:sixam_mart/features/home/widgets/akhdamni/akhdamni_flow_section.dart';
+import 'package:sixam_mart/features/home/widgets/shop_home_skeleton.dart';
 import 'package:sixam_mart/features/location/controllers/location_controller.dart';
 import 'package:sixam_mart/features/store/controllers/store_controller.dart';
 import 'package:sixam_mart/features/splash/controllers/splash_controller.dart';
@@ -30,7 +32,6 @@ import 'package:sixam_mart/common/widgets/web_menu_bar.dart';
 import 'package:sixam_mart/features/home/screens/web_new_home_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:sixam_mart/features/home/widgets/module_view.dart';
 import 'package:sixam_mart/features/home/widgets/flattened_module_content.dart';
 import 'package:sixam_mart/features/parcel/screens/parcel_category_screen.dart';
 import 'package:sixam_mart/common/cache/loading_state_manager.dart';
@@ -80,6 +81,10 @@ class _HomeScreenState extends State<HomeScreen> {
   Timer? _deferredLoadTimer;
   bool _deferredLoadQueued = false;
   int? _lastConnectivityRecoveryModuleId;
+
+  // 🩹 SELF-HEAL: guards the one-shot module resolution kicked off when the
+  // home is entered with no module selected (e.g. straight after login).
+  bool _resolvingModule = false;
 
   // ⚡ Cache-First Fix: Track if first load completed
   static bool _hasLoadedOnce = false;
@@ -170,6 +175,51 @@ class _HomeScreenState extends State<HomeScreen> {
     scrollController.dispose();
   }
 
+  /// 🩹 SELF-HEAL: ensures a module is selected so the unified home can render.
+  /// Resolves in order: existing cached/single module (via resolveInitialModule),
+  /// then a sensible default (module 3 or the first available). Without this,
+  /// entering the home with no module selected (e.g. right after login) leaves
+  /// the build guard stuck on an infinite "loading" spinner.
+  Future<void> _ensureModuleSelected(SplashController splashController) async {
+    if (_resolvingModule || splashController.selectedModule.value != null) {
+      return;
+    }
+    _resolvingModule = true;
+    try {
+      List<ModuleModel>? list = splashController.moduleList;
+      if (list == null || list.isEmpty) {
+        await splashController.getModules();
+        list = splashController.moduleList;
+      }
+      if (splashController.selectedModule.value != null) return;
+      if (list == null || list.isEmpty) return;
+
+      // Try cached / single-module resolution first.
+      await splashController.resolveInitialModule(list);
+      if (splashController.selectedModule.value != null) {
+        // resolveInitialModule sets the Rx directly without notifying the
+        // GetBuilder — force a rebuild so the home renders immediately.
+        splashController.update();
+        return;
+      }
+
+      // Multiple modules and no cached choice → fall back to a default so the
+      // unified home still renders (module can be switched from the home).
+      final int? defaultId = splashController.getDefaultModuleId();
+      ModuleModel? def;
+      for (final m in list) {
+        if (m.id == defaultId) {
+          def = m;
+          break;
+        }
+      }
+      def ??= list.first;
+      await splashController.setModule(def); // setModule() calls update()
+    } finally {
+      _resolvingModule = false;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return GetBuilder<SplashController>(builder: (splashController) {
@@ -177,28 +227,21 @@ class _HomeScreenState extends State<HomeScreen> {
       // This is a safety net - Route Guard should prevent this, but defense in depth
       final selectedModule = splashController.selectedModule.value;
       if (selectedModule == null && splashController.module == null) {
+        // 🩹 SELF-HEAL: instead of spinning forever, resolve a module (cached /
+        // single / sensible default) so the unified home can render. This is
+        // what unsticks the loader users hit straight after login, where the
+        // post-OTP navigation lands on the dashboard without a selected module.
+        WidgetsBinding.instance.addPostFrameCallback(
+            (_) => _ensureModuleSelected(splashController));
         if (kDebugMode) {
           debugPrint(
-              '🏗️ [Module-First] HomeScreen: Module is null - showing skeleton (defensive layer)');
+              '🏗️ [Module-First] HomeScreen: Module is null - resolving module (self-heal)');
         }
-        return Scaffold(
+        // Show the home skeleton (shimmer) while the module self-heals, instead
+        // of a spinner + "loading" text.
+        return const Scaffold(
           backgroundColor: Color(0xffFFFFFF),
-          body: Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                CircularProgressIndicator(
-                  valueColor: AlwaysStoppedAnimation<Color>(
-                      Theme.of(context).primaryColor),
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  'loading'.tr,
-                  style: Theme.of(context).textTheme.bodyMedium,
-                ),
-              ],
-            ),
-          ),
+          body: SafeArea(child: ShopHomeSkeleton()),
         );
       }
 
@@ -270,25 +313,11 @@ class _HomeScreenState extends State<HomeScreen> {
           debugPrint(
               '[Cache-First] HomeScreen: Module is null - showing skeleton');
         }
-        // Show skeleton while waiting for module selection
+        // Show the home skeleton (shimmer) while waiting for module selection
+        // instead of a spinner, so the loading state matches the rest of the app.
         return Scaffold(
           backgroundColor: Theme.of(context).colorScheme.surface,
-          body: Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                CircularProgressIndicator(
-                  valueColor: AlwaysStoppedAnimation<Color>(
-                      Theme.of(context).primaryColor),
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  'loading'.tr,
-                  style: Theme.of(context).textTheme.bodyMedium,
-                ),
-              ],
-            ),
-          ),
+          body: const SafeArea(child: ShopHomeSkeleton()),
         );
       }
 
@@ -327,10 +356,6 @@ class _HomeScreenState extends State<HomeScreen> {
         }
       }
 
-      final bool showMobileModule = !ResponsiveHelper.isDesktop(context) &&
-          splashController.module == null &&
-          splashController.configModel!.module == null &&
-          !showMultiModuleScreen;
 
       // Use config module as fallback if module is null
       final ModuleModel? currentModule =
@@ -425,6 +450,11 @@ class _HomeScreenState extends State<HomeScreen> {
                                     child: HomeCurrentOffersSection(),
                                   ),
 
+                                  // 🎨 REDESIGN: "اكتشف خدمات أكثر" promo banner (343×96)
+                                  const SliverToBoxAdapter(
+                                    child: HomeDiscoverBannerView(),
+                                  ),
+
                                   // 🎨 REDESIGN: "أعد طلبك" recent orders
                                   const SliverToBoxAdapter(
                                     child: HomeReorderSection(),
@@ -435,40 +465,35 @@ class _HomeScreenState extends State<HomeScreen> {
                                   const SliverToBoxAdapter(
                                       child: SizedBox.shrink()),
 
-                                  // Module-specific home screens content
+                                  // Module-specific home screens content.
+                                  // 🎨 REDESIGN: the legacy multi-module list
+                                  // (ModuleView) is no longer shown — service
+                                  // navigation lives in HomeServicesGrid. Only
+                                  // the taxi flow / Akhdamni flow render here.
                                   SliverToBoxAdapter(
                                     child: FlattenedModuleContent(
                                       // ⚡ TASK 1: Flattened widget tree
-                                      moduleWidget: !showMobileModule
-                                          ? GetBuilder<AkhdamniFlowController>(
-                                              builder: (akhdamniController) {
-                                                if (akhdamniController
-                                                    .isFlowActive) {
-                                                  return const AkhdamniFlowSection();
-                                                }
-                                                return Column(
-                                                  crossAxisAlignment:
-                                                      CrossAxisAlignment.start,
-                                                  children: [
-                                                    // 🎨 REDESIGN: Legacy module
-                                                    // content (categories, brands,
-                                                    // offers/discounts, products,
-                                                    // banners, top stores) is hidden
-                                                    // for every module except taxi —
-                                                    // the home shows only its new
-                                                    // redesign sections. These will
-                                                    // live elsewhere later.
-                                                    isTaxi
-                                                        ? TaxiHomeScreen()
-                                                        : const SizedBox
-                                                            .shrink(),
-                                                  ],
-                                                );
-                                              },
-                                            )
-                                          : ModuleView(
-                                              splashController:
-                                                  splashController),
+                                      moduleWidget:
+                                          GetBuilder<AkhdamniFlowController>(
+                                        builder: (akhdamniController) {
+                                          if (akhdamniController.isFlowActive) {
+                                            return const AkhdamniFlowSection();
+                                          }
+                                          return Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: [
+                                              // Legacy module content (categories,
+                                              // brands, offers, products, banners,
+                                              // top stores) is hidden for every
+                                              // module except taxi.
+                                              isTaxi
+                                                  ? TaxiHomeScreen()
+                                                  : const SizedBox.shrink(),
+                                            ],
+                                          );
+                                        },
+                                      ),
                                     ),
                                   ),
 

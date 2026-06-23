@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:sixam_mart/features/address/widgets/address_selection_sheet.dart';
 import 'package:sixam_mart/features/location/controllers/location_controller.dart';
 import 'package:sixam_mart/features/splash/controllers/splash_controller.dart';
 import 'package:sixam_mart/helper/address_helper.dart';
@@ -37,8 +38,7 @@ class HomeTopNoticeStrip extends StatelessWidget {
             return _NoticePill(
               label: 'place_your_address_to_discover_services'.tr,
               trailingIcon: Icons.chevron_right,
-              onTap: () =>
-                  locationController.navigateToLocationScreen(context, 'home'),
+              onTap: showAddressSelectionSheet,
             );
           }
 
@@ -46,6 +46,7 @@ class HomeTopNoticeStrip extends StatelessWidget {
             return _NoticePill(
               label: 'join_us_and_enjoy_shilla_services'.tr,
               trailingIcon: Icons.chevron_right,
+              // "Join us" → guests must sign in first (address APIs need auth).
               onTap: () => Get.toNamed(RouteHelper.getSignInRoute('home')),
             );
           }
@@ -58,8 +59,7 @@ class HomeTopNoticeStrip extends StatelessWidget {
           return _NoticePill(
             label: locationText,
             image: Images.location_v2,
-            onTap: () =>
-                locationController.navigateToLocationScreen(context, 'home'),
+            onTap: showAddressSelectionSheet,
           );
         },
       ),
@@ -95,9 +95,10 @@ class _NoticePill extends StatelessWidget {
         alignment: AlignmentDirectional.centerStart,
         child: Material(
           color: fill,
-          borderRadius: BorderRadius.circular(Dimensions.radiusExtraLarge),
+          // Fully-rounded (stadium / pill) ends.
+          borderRadius: BorderRadius.circular(10),
           child: InkWell(
-            borderRadius: BorderRadius.circular(Dimensions.radiusExtraLarge),
+            borderRadius: BorderRadius.circular(10),
             onTap: onTap,
             child: Padding(
               padding: const EdgeInsets.symmetric(

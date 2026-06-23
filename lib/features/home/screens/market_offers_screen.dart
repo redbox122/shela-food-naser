@@ -1,19 +1,17 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
-import 'package:shimmer/shimmer.dart';
+import 'package:palette_generator/palette_generator.dart';
 import 'package:sixam_mart/api/api_client.dart';
-import 'package:sixam_mart/common/widgets/custom_image.dart';
-import 'package:sixam_mart/features/cart/controllers/cart_controller.dart';
-import 'package:sixam_mart/features/checkout/domain/models/place_order_body_model.dart';
 import 'package:sixam_mart/features/home/screens/home_search_screen.dart';
-import 'package:sixam_mart/features/home/screens/market_product_screen.dart';
-import 'package:sixam_mart/features/splash/controllers/splash_controller.dart';
-import 'package:sixam_mart/helper/route_helper.dart';
+import 'package:sixam_mart/features/home/widgets/market/offers/market_offers_body.dart';
+import 'package:sixam_mart/features/home/widgets/market/offers/market_offers_branded_header.dart';
+import 'package:sixam_mart/features/home/widgets/market/offers/market_offers_cart_search_bar.dart';
+import 'package:sixam_mart/features/home/widgets/market/offers/market_offers_header.dart';
+import 'package:sixam_mart/features/home/widgets/market/offers/market_offers_models.dart';
+import 'package:sixam_mart/features/home/widgets/market/offers/market_offers_tabs_bar.dart';
 import 'package:sixam_mart/util/app_constants.dart';
-import 'package:sixam_mart/util/dimensions.dart';
-import 'package:sixam_mart/util/images.dart';
-import 'package:sixam_mart/util/styles.dart';
 
 /// 🎨 REDESIGN (Market): store category / "Best Offers" screen.
 ///
@@ -22,6 +20,9 @@ import 'package:sixam_mart/util/styles.dart';
 /// returns `sub_categories` — each a second-bar tab carrying its own embedded
 /// products (first page) plus `total_products`/`has_more`. Normal categories
 /// and Best Offers share the same structure; only `is_discount_category` differs.
+///
+/// This screen owns the data + accent logic; the visual pieces live under
+/// `widgets/market/offers/` (header, tabs bar, body, product card, models).
 class MarketOffersScreen extends StatefulWidget {
   final String title;
   final int moduleId;
@@ -32,186 +33,126 @@ class MarketOffersScreen extends StatefulWidget {
   /// Category id within the store: a numeric id (as a string) or "offers".
   final String? categoryId;
 
+  /// Store name + logo shown in the header (e.g. "الوليمة" / "سلوجان الشركة").
+  final String? storeName;
+  final String? storeLogo;
+
+  /// Store cover image shown behind the header band (matches the design).
+  final String? storeCover;
+
+  /// When true the screen is opened from a store/section "see more" or logo tap:
+  /// it shows a branded cover + logo + name header and ONLY the sub-category
+  /// strip (no categories top bar). When false (a category tile tap) it shows
+  /// the two-level categories + sub-categories browser.
+  final bool brandedHeader;
+
+  /// Products the caller already loaded (e.g. a featured-store section). Used as
+  /// a fallback when the store-category fetch returns nothing: a cross-module
+  /// featured store (a restaurant opened via "منتجات من متجر آخر") has no market
+  /// "offers" category, so `/categories/offers` comes back empty even though the
+  /// caller already holds the products to show.
+  final List<OfferProduct> presetProducts;
+
   const MarketOffersScreen({
     super.key,
     this.title = '',
     this.moduleId = 3,
     this.storeId,
     this.categoryId,
+    this.storeName,
+    this.storeLogo,
+    this.storeCover,
+    this.brandedHeader = false,
+    this.presetProducts = const [],
   });
 
   @override
   State<MarketOffersScreen> createState() => _MarketOffersScreenState();
 }
 
-/// Product row returned inside a sub_category:
-/// `{ id, name, full_image_url, price, discounted_price, discount_percentage }`.
-class _OfferProduct {
-  final int? id;
-  final String? name;
-  final String? image;
-  final double price;
-  final double discountedPrice;
-  final double discountPercentage;
-
-  _OfferProduct({
-    this.id,
-    this.name,
-    this.image,
-    this.price = 0,
-    this.discountedPrice = 0,
-    this.discountPercentage = 0,
-  });
-
-  static double _d(dynamic v) =>
-      v == null ? 0 : (double.tryParse(v.toString()) ?? 0);
-
-  factory _OfferProduct.fromJson(Map<String, dynamic> j) => _OfferProduct(
-        id: int.tryParse('${j['id']}'),
-        name: j['name']?.toString(),
-        image: (j['full_image_url'] ?? j['image_full_url'] ?? j['image'])
-            ?.toString(),
-        price: _d(j['price']),
-        discountedPrice: _d(j['discounted_price']),
-        discountPercentage: _d(j['discount_percentage']),
-      );
-
-  bool get hasDiscount => discountedPrice > 0 && price > discountedPrice;
-
-  double get shownPrice => hasDiscount ? discountedPrice : price;
-
-  /// Discount percentage for the "-X%" badge.
-  int get discountPercent {
-    if (discountPercentage > 0) return discountPercentage.round();
-    if (hasDiscount) return (((price - discountedPrice) / price) * 100).round();
-    return 0;
-  }
-}
-
-/// One second-bar tab = a sub_category with its embedded first page of products.
-class _SubCat {
-  final String id;
-  final String name;
-  final List<_OfferProduct> products;
-  final int total;
-  final bool hasMore;
-
-  const _SubCat({
-    required this.id,
-    required this.name,
-    this.products = const [],
-    this.total = 0,
-    this.hasMore = false,
-  });
-
-  factory _SubCat.fromJson(Map<String, dynamic> j) => _SubCat(
-        id: j['id']?.toString() ?? '',
-        name: j['name']?.toString() ?? '',
-        products: (j['products'] is List)
-            ? (j['products'] as List)
-                .whereType<Map>()
-                .map((e) => _OfferProduct.fromJson(Map<String, dynamic>.from(e)))
-                .toList()
-            : const [],
-        total: int.tryParse('${j['total_products']}') ?? 0,
-        hasMore: j['has_more'] == true,
-      );
-}
-
-/// Top-bar store category: `{ id, name, is_discount_category }` from
-/// `GET /api/v2/stores/{store_id}/categories`.
-class _StoreCat {
-  final String id;
-  final String name;
-  final bool isDiscount;
-  const _StoreCat(
-      {required this.id, required this.name, this.isDiscount = false});
-
-  factory _StoreCat.fromJson(Map<String, dynamic> j) => _StoreCat(
-        id: j['id']?.toString() ?? '',
-        name: j['name']?.toString() ?? '',
-        isDiscount: j['is_discount_category'] == true,
-      );
-}
-
-// ─── Cart helpers ────────────────────────────────────────────────────────────
-
-/// Units of [id] currently in the cart.
-int _offerCartQty(int? id) {
-  if (id == null || !Get.isRegistered<CartController>()) return 0;
-  int q = 0;
-  for (final c in Get.find<CartController>().cartList) {
-    if (c.item?.id == id) q += c.quantity ?? 0;
-  }
-  return q;
-}
-
-int? _offerCartLineId(int? id) {
-  if (id == null || !Get.isRegistered<CartController>()) return null;
-  for (final c in Get.find<CartController>().cartList) {
-    if (c.item?.id == id) return c.id;
-  }
-  return null;
-}
-
-/// Scope the cart to the product's module. The active module may differ
-/// (e.g. the app sits on restaurants/6 while browsing the market/3); the cart
-/// keys its cache on the *cache* module, so both the request header
-/// ([setModuleHeaderOnly]) and the cache module ([setCacheModuleOnly]) must be
-/// aligned — otherwise the cart desyncs (saves under the wrong module).
-Future<void> _ensureModule(int moduleId) async {
-  if (!Get.isRegistered<SplashController>()) return;
-  final sc = Get.find<SplashController>();
-  final list = sc.moduleList;
-  if (list == null) return;
-  for (final m in list) {
-    if (m.id == moduleId) {
-      if (sc.module?.id != moduleId) await sc.setModuleHeaderOnly(m);
-      await sc.setCacheModuleOnly(m);
-      return;
-    }
-  }
-}
-
-Future<void> _addOfferToCart(_OfferProduct p, int? storeId, int moduleId) async {
-  if (p.id == null || !Get.isRegistered<CartController>()) return;
-  await _ensureModule(moduleId);
-  final cart = OnlineCart(null, p.id, null, p.shownPrice.toString(), '', [], [],
-      1, [], [], [], 'Item',
-      storeId: storeId);
-  // Silent add: the card's stepper + floating badge reflect the new count.
-  await Get.find<CartController>().addToCartOnline(cart);
-}
-
-Future<void> _decOfferFromCart(_OfferProduct p) async {
-  final lineId = _offerCartLineId(p.id);
-  if (lineId == null || !Get.isRegistered<CartController>()) return;
-  final cart = Get.find<CartController>();
-  if (_offerCartQty(p.id) <= 1) {
-    await cart.removeFromCartById(lineId);
-  } else {
-    await cart.setQuantityById(false, lineId, 9999, 0);
-  }
-}
-
 class _MarketOffersScreenState extends State<MarketOffersScreen> {
   final ScrollController _scroll = ScrollController();
 
-  // Top bar: store categories (Best Offers + others).
-  List<_StoreCat> _cats = const [];
-  int _selectedCat = -1;
+  // Two-level navigation: the green top bar lists the store's categories; the
+  // tapped one's sub_categories become the white second bar AND the stacked
+  // titled sections in the body. The second bar scrolls the body to a section.
+  List<SubCat> _subs = const [];
 
-  // Second bar + content: the selected category's sub_categories, each rendered
-  // as a stacked titled section. The pills scroll to their section.
-  List<_SubCat> _subs = const [];
-  final Map<int, GlobalKey> _sectionKeys = {};
+  /// One GlobalKey per sub_category section, so the second-bar tabs can scroll
+  /// the body to the matching section.
+  List<GlobalKey> _sectionKeys = const [];
   int _selectedTab = 0;
   bool _loadingDetail = true;
+
+  /// Top-bar store categories and the index of the selected (tapped) one.
+  List<StoreCat> _cats = const [];
+  int _selectedCat = 0;
+
+  /// Second-bar labels: one per sub_category.
+  List<String> get _tabLabels => _subs.map((s) => s.name).toList();
+
+  /// Theme accent derived from the store logo (palette_generator); the brand's
+  /// green band, tabs, pills, buttons and section titles all tint to it.
+  Color _accent = const Color(0xFF1F7A35);
+
+  /// Memoize the accent per logo URL so re-opening doesn't recompute it.
+  static final Map<String, Color> _accentCache = {};
+
+  /// CDN requires a User-Agent (see [CustomImage]); reuse it so the palette
+  /// reads the same bytes as the rendered logo.
+  static const Map<String, String> _cdnHeaders = {
+    'User-Agent': 'Mozilla/5.0 (Linux; Android 10; Mobile) AppleWebKit/537.36',
+    'Accept': 'image/webp,image/apng,image/*,*/*;q=0.8',
+    'Accept-Language': 'en-US,en;q=0.9',
+  };
+
+  /// Pale accent for the selected pill fill.
+  Color get _accentPale => Color.lerp(_accent, Colors.white, 0.88)!;
 
   @override
   void initState() {
     super.initState();
+    _resolveAccent();
     WidgetsBinding.instance.addPostFrameCallback((_) => _init());
+  }
+
+  Future<void> _resolveAccent() async {
+    final url = widget.storeLogo;
+    if (url == null || url.isEmpty) return;
+
+    final cached = _accentCache[url];
+    if (cached != null) {
+      setState(() => _accent = cached);
+      return;
+    }
+
+    try {
+      final palette = await PaletteGenerator.fromImageProvider(
+        CachedNetworkImageProvider(url, headers: _cdnHeaders),
+        size: const Size(80, 80),
+        maximumColorCount: 8,
+      );
+      final raw = palette.vibrantColor?.color ??
+          palette.dominantColor?.color ??
+          palette.darkVibrantColor?.color ??
+          palette.mutedColor?.color;
+      if (raw == null || !mounted) return;
+      final color = _readableDark(raw);
+      _accentCache[url] = color;
+      setState(() => _accent = color);
+    } catch (_) {
+      // Keep the green fallback on any failure.
+    }
+  }
+
+  /// Darken a colour just enough that white text stays readable on top of it.
+  Color _readableDark(Color c) {
+    final hsl = HSLColor.fromColor(c);
+    final l = hsl.lightness > 0.45 ? 0.40 : hsl.lightness;
+    return hsl
+        .withLightness(l)
+        .withSaturation(hsl.saturation < 0.35 ? 0.35 : hsl.saturation)
+        .toColor();
   }
 
   @override
@@ -235,13 +176,18 @@ class _MarketOffersScreenState extends State<MarketOffersScreen> {
           : widget.categoryId!;
 
   Future<void> _init() async {
-    await _fetchCats();
-    final id = _selectedCat >= 0 ? _cats[_selectedCat].id : _initialCatId;
-    await _fetchDetail(id);
+    // The branded (store "see more") mode has no categories top bar, so it only
+    // needs the selected category's sub_categories.
+    if (widget.brandedHeader) {
+      await _fetchDetail(_initialCatId);
+      return;
+    }
+    await Future.wait([_fetchCategories(), _fetchDetail(_initialCatId)]);
   }
 
-  /// Top bar: the store's categories, pre-selecting the requested one.
-  Future<void> _fetchCats() async {
+  /// Load the store's full category list for the green top bar and preselect the
+  /// category the screen was opened on.
+  Future<void> _fetchCategories() async {
     final api = _api;
     if (api == null || widget.storeId == null) return;
     try {
@@ -254,29 +200,53 @@ class _MarketOffersScreenState extends State<MarketOffersScreen> {
       final dynamic body = response.body;
       final List raw = body is List
           ? body
-          : (body is Map && body['data'] is List
+          : (body is Map && body['data'] is List)
               ? body['data'] as List
-              : const []);
+              : (body is Map && body['categories'] is List)
+                  ? body['categories'] as List
+                  : const [];
       final cats = raw
           .whereType<Map>()
-          .map((e) => _StoreCat.fromJson(Map<String, dynamic>.from(e)))
+          .map((e) => StoreCat.fromJson(Map<String, dynamic>.from(e)))
           .toList();
-      int sel = cats.indexWhere((c) => c.id == _initialCatId);
-      if (sel < 0) sel = 0;
+      int idx = cats.indexWhere((c) => c.id == _initialCatId);
+      if (idx < 0 && _initialCatId == 'offers') {
+        idx = cats.indexWhere((c) => c.isDiscount);
+      }
       setState(() {
         _cats = cats;
-        _selectedCat = cats.isEmpty ? -1 : sel;
+        _selectedCat = idx < 0 ? 0 : idx;
       });
     } catch (_) {
-      // Top bar is optional; ignore failures.
+      // Top bar is optional; without it the screen still shows the second bar.
     }
   }
 
   /// Load one category's sub_categories (each carries its embedded products).
+  /// One synthetic section wrapping the caller-supplied [presetProducts], used
+  /// when the store-category fetch yields nothing (e.g. a cross-module featured
+  /// store with no market "offers" category).
+  List<SubCat> _presetSubs() => widget.presetProducts.isEmpty
+      ? const []
+      : [
+          SubCat(
+            id: 'all',
+            name: widget.title,
+            products: widget.presetProducts,
+          ),
+        ];
+
+  void _applySubs(List<SubCat> subs) {
+    _subs = subs;
+    _sectionKeys = List.generate(subs.length, (_) => GlobalKey());
+    _selectedTab = 0;
+    _loadingDetail = false;
+  }
+
   Future<void> _fetchDetail(String catId) async {
     final api = _api;
     if (api == null || widget.storeId == null) {
-      if (mounted) setState(() => _loadingDetail = false);
+      if (mounted) setState(() => _applySubs(_presetSubs()));
       return;
     }
     if (mounted) setState(() => _loadingDetail = true);
@@ -293,46 +263,42 @@ class _MarketOffersScreenState extends State<MarketOffersScreen> {
           : const [];
       final subs = raw
           .whereType<Map>()
-          .map((e) => _SubCat.fromJson(Map<String, dynamic>.from(e)))
+          .map((e) => SubCat.fromJson(Map<String, dynamic>.from(e)))
           .where((s) => s.products.isNotEmpty)
           .toList();
-      setState(() {
-        _subs = subs;
-        _selectedTab = 0;
-        _sectionKeys
-          ..clear()
-          ..addEntries(
-              List.generate(subs.length, (i) => MapEntry(i, GlobalKey())));
-        _loadingDetail = false;
-      });
+      // Fall back to the caller's products when the category has nothing.
+      setState(() => _applySubs(subs.isNotEmpty ? subs : _presetSubs()));
     } catch (_) {
-      if (mounted) setState(() => _loadingDetail = false);
+      if (mounted) setState(() => _applySubs(_presetSubs()));
     }
   }
 
-  /// Switching the top category reloads its sub_category sections.
-  void _onCatTap(int i) {
-    if (i == _selectedCat) return;
-    setState(() {
-      _selectedCat = i;
-      _subs = const [];
-      _selectedTab = 0;
-    });
-    _fetchDetail(_cats[i].id);
-  }
-
-  /// Tapping a sub_category pill scrolls to its stacked section.
+  /// Tapping a sub_category tab scrolls the body to its titled section.
   void _onTabTap(int i) {
     setState(() => _selectedTab = i);
-    final ctx = _sectionKeys[i]?.currentContext;
+    final ctx = (i >= 0 && i < _sectionKeys.length)
+        ? _sectionKeys[i].currentContext
+        : null;
     if (ctx != null) {
       Scrollable.ensureVisible(
         ctx,
         duration: const Duration(milliseconds: 300),
-        curve: Curves.easeInOut,
+        curve: Curves.easeOut,
         alignment: 0.0,
       );
+    } else if (_scroll.hasClients) {
+      _scroll.animateTo(0,
+          duration: const Duration(milliseconds: 250), curve: Curves.easeOut);
     }
+  }
+
+  /// Tapping a top-bar category loads its sub_categories (Best Offers uses the
+  /// "offers" id; every other category uses its own id).
+  void _onCatTap(int i) {
+    if (i == _selectedCat) return;
+    setState(() => _selectedCat = i);
+    final c = _cats[i];
+    _fetchDetail(c.isDiscount ? 'offers' : c.id);
   }
 
   @override
@@ -344,611 +310,73 @@ class _MarketOffersScreenState extends State<MarketOffersScreen> {
         statusBarBrightness: Brightness.dark,
       ),
       child: Scaffold(
-        backgroundColor: const Color(0xFFF5F6F8),
-        body: Column(
+        // Branded store "see more" → clean white background (no grey). The
+        // category browser keeps the subtle grey to separate its sections.
+        backgroundColor:
+            widget.brandedHeader ? Colors.white : const Color(0xFFF5F6F8),
+        body: Stack(
           children: [
-            // Green band fills behind the status bar; SafeArea pads the content.
-            Container(
-              color: const Color(0xFF1F7A35),
-              child: SafeArea(
-                bottom: false,
-                child: Column(
-                  children: [
-                    _header(),
-                    if (_cats.isNotEmpty) _topBar(),
-                  ],
-                ),
-              ),
-            ),
-            // Second bar (sub_category pills) on a white strip.
-            if (!_loadingDetail && _subs.isNotEmpty) _tabsBar(),
-            Expanded(child: _body()),
-          ],
-        ),
-        floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
-        floatingActionButton: const _CartSearchBar(),
-      ),
-    );
-  }
-
-  Widget _header() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(
-        horizontal: Dimensions.paddingSizeSmall,
-        vertical: Dimensions.paddingSizeSmall,
-      ),
-      child: Row(
-        children: [
-          InkWell(
-            onTap: () => Get.back<void>(),
-            customBorder: const CircleBorder(),
-            child: const Padding(
-              padding: EdgeInsets.all(6),
-              child: Icon(Icons.arrow_back_ios_new,
-                  size: 20, color: Colors.white),
-            ),
-          ),
-          const Spacer(),
-        ],
-      ),
-    );
-  }
-
-  /// Top green row: store categories; the active one is underlined.
-  Widget _topBar() {
-    return SizedBox(
-      height: 40,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(
-            horizontal: Dimensions.paddingSizeDefault),
-        itemCount: _cats.length,
-        separatorBuilder: (_, __) => const SizedBox(width: 16),
-        itemBuilder: (_, i) {
-          final bool selected = i == _selectedCat;
-          return GestureDetector(
-            onTap: () => _onCatTap(i),
-            child: Center(
-              child: _CaretTab(label: _cats[i].name, selected: selected),
-            ),
-          );
-        },
-      ),
-    );
-  }
-
-  /// Second row: sub_category pills (scroll-to-section) on white.
-  Widget _tabsBar() {
-    return Container(
-      height: 52,
-      color: Colors.white,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(
-            horizontal: Dimensions.paddingSizeDefault),
-        itemCount: _subs.length,
-        separatorBuilder: (_, __) => const SizedBox(width: 8),
-        itemBuilder: (_, i) {
-          final bool selected = i == _selectedTab;
-          return GestureDetector(
-            onTap: () => _onTabTap(i),
-            child: Center(
-              child: _PillTab(label: _subs[i].name, selected: selected),
-            ),
-          );
-        },
-      ),
-    );
-  }
-
-  /// Stacked sections: each sub_category = green title + a 3-col products grid.
-  Widget _body() {
-    if (_loadingDetail) return _gridSkeleton();
-    if (_subs.isEmpty) return _emptyState('no_data_available'.tr);
-
-    final List<Widget> children = [];
-    for (int i = 0; i < _subs.length; i++) {
-      final sub = _subs[i];
-      if (sub.products.isEmpty) continue;
-      children.add(
-        Padding(
-          key: _sectionKeys[i],
-          padding: const EdgeInsets.fromLTRB(
-            Dimensions.paddingSizeDefault,
-            Dimensions.paddingSizeDefault,
-            Dimensions.paddingSizeDefault,
-            8,
-          ),
-          child: Text(
-            sub.name,
-            textAlign: TextAlign.right,
-            style: const TextStyle(
-              fontFamily: 'Tajawal',
-              fontWeight: FontWeight.w700,
-              fontSize: 16,
-              color: Color(0xFF1F7A35),
-            ),
-          ),
-        ),
-      );
-      children.add(
-        GridView.builder(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          padding: const EdgeInsets.symmetric(
-            horizontal: Dimensions.paddingSizeDefault,
-          ),
-          itemCount: sub.products.length,
-          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 3,
-            mainAxisSpacing: 12,
-            crossAxisSpacing: 10,
-            childAspectRatio: 104 / 130,
-          ),
-          itemBuilder: (_, j) => _OfferProductCard(
-            product: sub.products[j],
-            storeId: widget.storeId,
-            moduleId: widget.moduleId,
-          ),
-        ),
-      );
-    }
-
-    if (children.isEmpty) return _emptyState('no_data_available'.tr);
-
-    return ListView(
-      controller: _scroll,
-      padding: const EdgeInsets.only(bottom: Dimensions.paddingSizeLarge),
-      children: children,
-    );
-  }
-
-  Widget _emptyState(String text) {
-    return Center(
-      child: Text(
-        text,
-        style: const TextStyle(
-          fontFamily: 'Tajawal',
-          fontWeight: FontWeight.w500,
-          fontSize: 14,
-          color: Color(0xFF717885),
-        ),
-      ),
-    );
-  }
-
-  Widget _gridSkeleton() {
-    return GridView.builder(
-      padding: const EdgeInsets.all(Dimensions.paddingSizeDefault),
-      itemCount: 9,
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 3,
-        mainAxisSpacing: 12,
-        crossAxisSpacing: 10,
-        childAspectRatio: 104 / 130,
-      ),
-      itemBuilder: (_, __) => _skeletonCard(),
-    );
-  }
-
-  /// Product-card-shaped placeholder (image block + two name lines + price),
-  /// pulsing via Shimmer — mirrors [_OfferProductCard]'s layout.
-  Widget _skeletonCard() {
-    Widget block({double? width, required double height, double radius = 4}) =>
-        Container(
-          width: width,
-          height: height,
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(radius),
-          ),
-        );
-    return Shimmer.fromColors(
-      baseColor:
-          Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.10),
-      highlightColor:
-          Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.04),
-      child: Container(
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(6),
-          border: Border.all(color: const Color(0xFFEFEFF1)),
-        ),
-        clipBehavior: Clip.antiAlias,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            block(height: 64, radius: 0),
-            Padding(
-              padding: const EdgeInsets.all(6),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  block(height: 9),
-                  const SizedBox(height: 5),
-                  block(width: 60, height: 9),
-                  const SizedBox(height: 10),
-                  block(width: 42, height: 11),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-/// Top-bar category tab: when active, the label + a 2px underline are tinted
-/// #9DFCA3; otherwise dim white.
-class _CaretTab extends StatelessWidget {
-  final String label;
-  final bool selected;
-  const _CaretTab({required this.label, required this.selected});
-
-  static const Color _activeColor = Color(0xFF9DFCA3);
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.only(bottom: 5),
-      decoration: BoxDecoration(
-        border: Border(
-          bottom: BorderSide(
-            color: selected ? _activeColor : Colors.transparent,
-            width: 2,
-          ),
-        ),
-      ),
-      child: Text(
-        label,
-        style: TextStyle(
-          fontFamily: 'Tajawal',
-          fontWeight: FontWeight.w700,
-          fontSize: 16,
-          height: 1.0,
-          color: selected ? _activeColor : const Color(0xCCFFFFFF),
-        ),
-      ),
-    );
-  }
-}
-
-/// Outlined pill on white: active = light-green fill + green border/text,
-/// idle = white fill + light-grey border + grey text.
-class _PillTab extends StatelessWidget {
-  final String label;
-  final bool selected;
-  const _PillTab({required this.label, required this.selected});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
-      decoration: BoxDecoration(
-        color: selected ? const Color(0xFFEBFEEB) : Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: selected ? const Color(0xFF1F7A35) : const Color(0xFFE3E5EA),
-        ),
-      ),
-      child: Text(
-        label,
-        style: TextStyle(
-          fontFamily: 'Tajawal',
-          fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-          fontSize: 13,
-          height: 1.0,
-          color: selected ? const Color(0xFF1F7A35) : const Color(0xFF717885),
-        ),
-      ),
-    );
-  }
-}
-
-/// Compact product card (≈104×130): image with red "-X%" badge + add button,
-/// then name and price (struck original + discounted).
-class _OfferProductCard extends StatelessWidget {
-  final _OfferProduct product;
-  final int? storeId;
-  final int moduleId;
-  const _OfferProductCard({
-    required this.product,
-    this.storeId,
-    this.moduleId = 3,
-  });
-
-  String _fmt(double v) =>
-      v == v.roundToDouble() ? v.toStringAsFixed(0) : v.toStringAsFixed(2);
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      borderRadius: BorderRadius.circular(6),
-      onTap: () => MarketProductScreen.show(
-        itemId: product.id ?? 0,
-        storeId: storeId,
-        moduleId: moduleId,
-      ),
-      child: Container(
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(6),
-          border: Border.all(color: const Color(0xFFEFEFF1)),
-        ),
-        clipBehavior: Clip.antiAlias,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Stack(
+            Column(
               children: [
-                CustomImage(
-                  image: product.image ?? '',
-                  width: double.infinity,
-                  height: 64,
-                  fit: BoxFit.cover,
-                  placeholder: Images.placeholder,
-                ),
-                if (product.discountPercent > 0)
-                  Positioned(
-                    top: 0,
-                    right: 0,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 5, vertical: 2),
-                      decoration: const BoxDecoration(
-                        color: Color(0xFFE53935),
-                        borderRadius:
-                            BorderRadius.only(bottomLeft: Radius.circular(6)),
-                      ),
-                      child: Text(
-                        '-${product.discountPercent}%',
-                        style: const TextStyle(
-                          fontFamily: 'Tajawal',
-                          fontWeight: FontWeight.w700,
-                          fontSize: 9,
-                          color: Colors.white,
-                        ),
-                      ),
-                    ),
+                // Branded (store "see more"/logo) → cover + logo + name header,
+                // no categories top bar. Otherwise → solid accent band with the
+                // store-categories top bar.
+                if (widget.brandedHeader)
+                  MarketOffersBrandedHeader(
+                    accent: _accent,
+                    cover: widget.storeCover,
+                    logo: widget.storeLogo,
+                    name: widget.storeName ?? widget.title,
+                    slogan: widget.title,
+                    onBack: () => Get.back<void>(),
+                    onSearch: () =>
+                        Get.to<void>(() => const HomeSearchScreen()),
+                  )
+                else
+                  MarketOffersHeader(
+                    accent: _accent,
+                    cats: _cats,
+                    selectedCat: _selectedCat,
+                    onBack: () => Get.back<void>(),
+                    onCatTap: _onCatTap,
                   ),
-                Positioned(
-                  left: 4,
-                  bottom: 4,
-                  child: _AddControl(
-                    product: product,
-                    storeId: storeId,
-                    moduleId: moduleId,
+                // Single filter row: "كل المنتجات" + sub_category pills.
+                if (!_loadingDetail && _subs.isNotEmpty)
+                  MarketOffersTabsBar(
+                    labels: _tabLabels,
+                    selectedTab: _selectedTab,
+                    // Fixed brand green for the selected pill's text — the
+                    // category chips are not tinted by the store logo.
+                    accent: const Color(0xFF1F7A35),
+                    accentPale: _accentPale,
+                    onTabTap: _onTabTap,
+                  ),
+                Expanded(
+                  child: MarketOffersBody(
+                    loading: _loadingDetail,
+                    subs: _subs,
+                    sectionKeys: _sectionKeys,
+                    scrollController: _scroll,
+                    accent: _accent,
+                    storeId: widget.storeId,
+                    moduleId: widget.moduleId,
                   ),
                 ),
               ],
             ),
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.all(4),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      product.name ?? '',
-                      textAlign: TextAlign.right,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontFamily: 'Tajawal',
-                        fontWeight: FontWeight.w500,
-                        fontSize: 9,
-                        height: 1.2,
-                        color: Color(0xFF121C19),
-                      ),
-                    ),
-                    const Spacer(),
-                    _price(product.shownPrice, bold: true),
-                    if (product.hasDiscount) _price(product.price, struck: true),
-                  ],
-                ),
+            // Floating cart half-pill, flush to the screen's right edge — cart
+            // only (no search; the header already carries search).
+            Positioned(
+              right: 0,
+              bottom: 120,
+              child: CartFab(
+                accent: _accent,
+                showSearch: false,
+                onSearch: () {},
               ),
             ),
           ],
         ),
-      ),
-    );
-  }
-
-  Widget _price(double value, {bool bold = false, bool struck = false}) {
-    final color = struck ? const Color(0xFF9AA0A6) : const Color(0xFF121C19);
-    return Directionality(
-      textDirection: TextDirection.ltr,
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Image.asset(
-            Images.sar,
-            width: struck ? 9 : 11,
-            height: struck ? 9 : 11,
-            color: color,
-            errorBuilder: (_, __, ___) => Text('﷼',
-                style: robotoBold.copyWith(fontSize: 9, color: color)),
-          ),
-          const SizedBox(width: 2),
-          Text(
-            _fmt(value),
-            style: TextStyle(
-              fontFamily: 'Tajawal',
-              fontWeight: struck ? FontWeight.w500 : FontWeight.w700,
-              fontSize: struck ? 9 : 11,
-              decoration: struck ? TextDecoration.lineThrough : null,
-              decorationColor: color,
-              color: color,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// Add button on a product card: a green "+" circle that becomes a green
-/// "- qty +" stepper once the item is in the cart.
-class _AddControl extends StatelessWidget {
-  final _OfferProduct product;
-  final int? storeId;
-  final int moduleId;
-  const _AddControl({
-    required this.product,
-    this.storeId,
-    this.moduleId = 3,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return GetBuilder<CartController>(
-      builder: (_) {
-        final int qty = _offerCartQty(product.id);
-        if (qty == 0) {
-          return Material(
-            color: const Color(0xFFD1FDD2),
-            shape: const CircleBorder(),
-            child: InkWell(
-              onTap: () => _addOfferToCart(product, storeId, moduleId),
-              customBorder: const CircleBorder(),
-              child: const Padding(
-                padding: EdgeInsets.all(5),
-                child: Icon(Icons.add, size: 18, color: Color(0xFF1F7A35)),
-              ),
-            ),
-          );
-        }
-        return Container(
-          height: 28,
-          decoration: BoxDecoration(
-            color: const Color(0xFF1F7A35),
-            borderRadius: BorderRadius.circular(16),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              _step(Icons.remove, () => _decOfferFromCart(product)),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 2),
-                child: Text(
-                  '$qty',
-                  style: const TextStyle(
-                    fontFamily: 'Tajawal',
-                    fontWeight: FontWeight.w700,
-                    fontSize: 13,
-                    color: Colors.white,
-                  ),
-                ),
-              ),
-              _step(Icons.add, () => _addOfferToCart(product, storeId, moduleId)),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _step(IconData icon, VoidCallback onTap) {
-    return InkWell(
-      onTap: onTap,
-      customBorder: const CircleBorder(),
-      child: Padding(
-        padding: const EdgeInsets.all(5),
-        child: Icon(icon, size: 16, color: Colors.white),
-      ),
-    );
-  }
-}
-
-/// Floating green pill (cart + search), shown once the cart has items.
-class _CartSearchBar extends StatelessWidget {
-  const _CartSearchBar();
-
-  @override
-  Widget build(BuildContext context) {
-    return GetBuilder<CartController>(
-      builder: (cartController) {
-        final int count = cartController.cartList.length;
-        if (count == 0) return const SizedBox.shrink();
-        return Container(
-          padding: const EdgeInsets.all(6),
-          decoration: BoxDecoration(
-            color: const Color(0xFF1F7A35),
-            borderRadius: BorderRadius.circular(32),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.20),
-                blurRadius: 10,
-                offset: const Offset(0, 4),
-              ),
-            ],
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              _FabIconButton(
-                icon: Icons.shopping_bag_outlined,
-                badge: count,
-                onTap: () => Get.toNamed(RouteHelper.getCartRoute()),
-              ),
-              const SizedBox(width: 6),
-              _FabIconButton(
-                icon: Icons.search,
-                onTap: () => Get.to<void>(() => const HomeSearchScreen()),
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-}
-
-class _FabIconButton extends StatelessWidget {
-  final IconData icon;
-  final int badge;
-  final VoidCallback onTap;
-  const _FabIconButton(
-      {required this.icon, this.badge = 0, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      customBorder: const CircleBorder(),
-      child: Stack(
-        clipBehavior: Clip.none,
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(8),
-            child: Icon(icon, size: 26, color: Colors.white),
-          ),
-          if (badge > 0)
-            Positioned(
-              top: 0,
-              right: 0,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
-                constraints: const BoxConstraints(minWidth: 16),
-                decoration: const BoxDecoration(
-                  color: Colors.white,
-                  shape: BoxShape.circle,
-                ),
-                child: Text(
-                  '$badge',
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    fontFamily: 'Tajawal',
-                    fontWeight: FontWeight.w700,
-                    fontSize: 10,
-                    height: 1.4,
-                    color: Color(0xFF1F7A35),
-                  ),
-                ),
-              ),
-            ),
-        ],
       ),
     );
   }

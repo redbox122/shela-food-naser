@@ -32,6 +32,7 @@ import 'package:sixam_mart/common/widgets/global_sticky_cart_overlay.dart';
 import 'package:sixam_mart/core/logger/app_logger.dart' as logger_package;
 import 'package:sixam_mart/core/cache/hive_home_cache_service.dart';
 import 'package:sixam_mart/core/cache/hive_migration_service.dart';
+import 'package:sixam_mart/core/cache/app_upgrade_cache_migration.dart';
 import 'package:sixam_mart/core/debug/leak_tracking_wrapper.dart';
 import 'package:flutter/foundation.dart';
 import 'helper/get_di.dart';
@@ -197,6 +198,13 @@ Future<Map<String, Map<String, String>>> _initEssentialOnly() async {
 
   // Only initialize the bare minimum needed for DI and routing
   final languages = await init();
+
+  // 🔄 APP UPGRADE: The first launch after an APK upgrade must clear stale
+  // layout/home cache (cached module selection, config, module list, home data)
+  // BEFORE any config/module is read, so the new design loads exactly like a
+  // fresh install. Auth token and saved address are preserved. No-op (single
+  // SharedPreferences read) on every normal launch once the version is recorded.
+  await AppUpgradeCacheMigration.runIfUpgraded();
 
   unawaited(
     QrReferralInstallReferrerService.captureFromInstallReferrer(

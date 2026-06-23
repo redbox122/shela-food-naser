@@ -660,6 +660,25 @@ class ApiClient extends GetxService {
     return publicPaths.any((path) => uri.contains(path));
   }
 
+  /// Total GET attempts for transient network failures. GET is idempotent, so
+  /// replaying it on a momentary drop is safe and hides brief outages from the
+  /// user (the "حدث خطأ ما" message) instead of surfacing them immediately.
+  static const int _maxGetAttempts = 3;
+
+  /// Delay before each retry: index 0 → before the 2nd attempt, etc.
+  static const List<Duration> _getRetryBackoff = [
+    Duration(milliseconds: 500),
+    Duration(milliseconds: 1200),
+  ];
+
+  /// A failure worth retrying for an idempotent GET: our internal
+  /// no-internet/timeout marker (statusCode 1) or a transient gateway status.
+  /// Real client errors (4xx) and ordinary 5xx are NOT retried.
+  bool _isTransientGetFailure(int? status) =>
+      status == 1 || status == 502 || status == 503 || status == 504;
+
+  /// Public GET with automatic retry + backoff on transient network failures.
+  /// Delegates each attempt to [_getDataAttempt] (the real request pipeline).
   Future<Response<dynamic>> getData(String uri,
       {Map<String, dynamic>? query,
       Map<String, String>? headers,
@@ -668,7 +687,57 @@ class ApiClient extends GetxService {
       Uri? newUri,
       bool useEtag = true,
       dio_pkg.CancelToken? cancelToken,
-      String? requestId}) async {
+      String? requestId,
+      bool omitModuleId = false}) async {
+    Response<dynamic> response = await _getDataAttempt(uri,
+        query: query,
+        headers: headers,
+        handleError: handleError,
+        changeBaseUrl: changeBaseUrl,
+        newUri: newUri,
+        useEtag: useEtag,
+        cancelToken: cancelToken,
+        requestId: requestId,
+        omitModuleId: omitModuleId);
+
+    for (int attempt = 2;
+        attempt <= _maxGetAttempts &&
+            _isTransientGetFailure(response.statusCode);
+        attempt++) {
+      // Never retry a request the caller already cancelled.
+      if (cancelToken?.isCancelled ?? false) break;
+
+      final Duration wait = _getRetryBackoff[attempt - 2];
+      if (kDebugMode) {
+        appLogger.warning(
+            '[ApiClient] GET transient failure (status=${response.statusCode}) — retry $attempt/$_maxGetAttempts after ${wait.inMilliseconds}ms | uri=$uri');
+      }
+      await Future<void>.delayed(wait);
+
+      response = await _getDataAttempt(uri,
+          query: query,
+          headers: headers,
+          handleError: handleError,
+          changeBaseUrl: changeBaseUrl,
+          newUri: newUri,
+          useEtag: useEtag,
+          cancelToken: cancelToken,
+          requestId: requestId,
+          omitModuleId: omitModuleId);
+    }
+    return response;
+  }
+
+  Future<Response<dynamic>> _getDataAttempt(String uri,
+      {Map<String, dynamic>? query,
+      Map<String, String>? headers,
+      bool handleError = true,
+      bool changeBaseUrl = false,
+      Uri? newUri,
+      bool useEtag = true,
+      dio_pkg.CancelToken? cancelToken,
+      String? requestId,
+      bool omitModuleId = false}) async {
     try {
       final fullUri = changeBaseUrl ? newUri!.toString() : uri;
       final bool isCouponApplyUri = fullUri.contains('/api/v1/coupon/apply');
@@ -694,6 +763,13 @@ class ApiClient extends GetxService {
       // ⚠️ CRITICAL: Merge custom headers with default headers to ensure moduleId is always included
       // Custom headers override defaults, but defaults provide moduleId, zoneId, etc.
       final Map<String, String> finalHeaders = _prepareFinalHeaders(headers);
+      // Caller wants results across ALL modules (e.g. the customer's full order
+      // list): strip the module-id header (and its alias) so the backend does
+      // not scope the response to the currently selected module.
+      if (omitModuleId) {
+        finalHeaders.remove(AppConstants.moduleId);
+        finalHeaders.remove('module-id');
+      }
       if (!effectiveUseEtag) {
         // Signal SecureHttpClient to skip ETag for this request
         finalHeaders['X-Disable-ETag'] = 'true';

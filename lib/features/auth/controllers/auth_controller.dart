@@ -345,11 +345,24 @@ class AuthController extends GetxController implements GetxService {
       if (guestId.isNotEmpty) {
         mergeSuccess = await cartController.mergeGuestCart(guestId);
       } else {
-        // Fallback path: if guest_id is missing, transfer local cart directly.
-        // This prevents cart loss after login when backend did not return/store guest_id.
+        // guest_id was already consumed/cleared — the v2 passwordless flow
+        // migrates the guest cart on the BACKEND during verify-otp/register.
+        // Refresh from the server first; only fall back to a local re-add if the
+        // server cart is genuinely empty. This avoids DOUBLING a cart the
+        // backend already migrated (a blind local re-add would increment the
+        // server quantities) while still preventing cart loss when no migration
+        // happened.
         debugPrint(
-            '⚠️ guestId is empty - using local cart transfer fallback after login');
-        await cartController.transferLocalCartToOnline();
+            'ℹ️ guestId empty after login - refreshing server cart before any local transfer');
+        await cartController.getCartDataOnline(forceRefresh: true);
+        if (cartController.cartList.isEmpty) {
+          debugPrint(
+              '⚠️ Server cart empty after login - using local transfer fallback');
+          await cartController.transferLocalCartToOnline();
+        } else {
+          debugPrint(
+              '✅ Server cart already populated (backend migrated) - skipping local transfer');
+        }
         mergeSuccess = true;
       }
 
@@ -453,21 +466,14 @@ class AuthController extends GetxController implements GetxService {
   }
 
   Future<bool> clearSharedData({bool removeToken = true}) async {
-    // 🏗️ MODULE-FIRST ARCHITECTURE: Do not clear module on logout
-    // Module selection persists across sessions
-    // User will select module again if needed through module selection screen
-    if (Get.context != null && !ResponsiveHelper.isDesktop(Get.context!)) {
-      // 🏗️ MODULE-FIRST: Clear selectedModule.value instead of setModule(null)
-      // This maintains architectural consistency
-      final splashController = Get.find<SplashController>();
-      splashController.selectedModule.value = null;
-      // Note: _module is a private field and is synced with selectedModule through getter
-      // Clearing selectedModule.value is sufficient - _module will be null through getter
-      
-      if (kDebugMode) {
-        debugPrint('🏗️ [Module-First] AuthController: Cleared module selection on logout');
-      }
-    }
+    // 🏗️ MODULE-FIRST ARCHITECTURE: Do NOT clear the selected module here.
+    // Module selection must persist across sessions (login / logout / token
+    // refresh / 401 recovery). Previously this method set
+    // `selectedModule.value = null`, which (a) contradicted this very comment,
+    // (b) bypassed SplashController's bootstrap protection against
+    // setModule(null), and (c) left HomeScreen's "module == null" guard stuck
+    // on an infinite loader after login and after any hot-restart-triggered
+    // logout. The module stays selected; only auth/session data is cleared.
 
     // Refresh cart data after logout to ensure consistency
     try {
@@ -519,10 +525,7 @@ class AuthController extends GetxController implements GetxService {
   }
 
   String getUserToken() {
-    final token = authServiceInterface.getUserToken();
-    // TODO: temporary debug logging — remove before release
-    debugPrint('🔑 USER TOKEN: $token');
-    return token;
+    return authServiceInterface.getUserToken();
   }
 
   Future<void> updateZone() async {

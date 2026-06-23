@@ -4,7 +4,9 @@ import 'package:geolocator/geolocator.dart';
 import 'package:sixam_mart/common/models/response_model.dart';
 import 'package:sixam_mart/features/splash/controllers/splash_controller.dart';
 import 'package:sixam_mart/features/address/domain/models/address_model.dart';
+import 'package:sixam_mart/features/address/domain/models/address_v2_model.dart';
 import 'package:sixam_mart/features/address/domain/services/address_service_interface.dart';
+import 'package:sixam_mart/features/address/domain/services/address_v2_api.dart';
 import 'package:sixam_mart/features/checkout/controllers/checkout_controller.dart';
 import 'package:sixam_mart/features/store/controllers/store_controller.dart';
 import 'package:sixam_mart/helper/address_helper.dart';
@@ -129,6 +131,60 @@ class AddressController extends GetxController implements GetxService {
     update();
     return responseModel;
   }
+
+  // ───────────────────────── v2 address flow ─────────────────────────
+  // Backed by the new /api/v2/address endpoints; reuses [_addressList] so the
+  // existing list UI keeps working with mapped models.
+
+  Future<void> getAddressListV2() async {
+    _isLoading = true;
+    _hasError = false;
+    update();
+    try {
+      final List<AddressV2Model> v2 = await AddressV2Api().list();
+      final List<AddressModel> mapped = v2.map(_mapV2ToAddress).toList()
+        ..sort((a, b) => (b.id ?? 0).compareTo(a.id ?? 0));
+      _addressList = mapped;
+      _allAddressList = List<AddressModel>.from(mapped);
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('⚠️ AddressController.getAddressListV2 failed: $e');
+      }
+      _hasError = true;
+      _addressList = <AddressModel>[];
+      _allAddressList = <AddressModel>[];
+    } finally {
+      _isLoading = false;
+      update();
+    }
+  }
+
+  Future<ResponseModel> deleteAddressV2(int? id, int index) async {
+    if (id == null) return ResponseModel(false, null);
+    _isLoading = true;
+    update();
+    final AddAddressV2Result result = await AddressV2Api().delete(id);
+    if (result.success &&
+        _addressList != null &&
+        index >= 0 &&
+        index < _addressList!.length) {
+      _addressList!.removeAt(index);
+    }
+    _isLoading = false;
+    update();
+    return ResponseModel(result.success, result.message);
+  }
+
+  AddressModel _mapV2ToAddress(AddressV2Model v) => AddressModel(
+        id: v.id,
+        addressType: v.addressLabel,
+        address: v.displayText,
+        latitude: v.latitude?.toString(),
+        longitude: v.longitude?.toString(),
+        streetNumber: v.streetName,
+        house: v.buildingNumber,
+        floor: v.floorNumber,
+      );
 
   Future<ResponseModel> _processSuccessResponse(ResponseModel responseModel, bool fromCheckout, int? storeZoneId) async {
     if (responseModel.isSuccess) {

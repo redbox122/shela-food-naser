@@ -1,5 +1,6 @@
 
 import 'dart:async';
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/widgets.dart';
@@ -1673,7 +1674,18 @@ class SplashController extends GetxController implements GetxService {
       _onRemoveLoader();
     } else {
       if (response.statusText == ApiClient.noInternetMessage) {
-        _hasConnection = false;
+        // `noInternetMessage` is also returned for transient API failures
+        // (timeouts / DNS / cold-start), not just a real offline device. Showing
+        // NoInternetScreen on those makes the wifi screen flash briefly before
+        // home loads. Only flip the flag when the device is GENUINELY offline.
+        final List<ConnectivityResult> connectivity =
+            await Connectivity().checkConnectivity();
+        final bool reallyOffline = !(connectivity
+                .contains(ConnectivityResult.wifi) ||
+            connectivity.contains(ConnectivityResult.mobile) ||
+            connectivity.contains(ConnectivityResult.ethernet) ||
+            connectivity.contains(ConnectivityResult.vpn));
+        _hasConnection = !reallyOffline;
       }
     }
     update();

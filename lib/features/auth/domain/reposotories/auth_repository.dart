@@ -271,7 +271,7 @@ class AuthRepository implements AuthRepositoryInterface {
     final String? qrReferralToken = _qrReferralTokenStorage.getStoredToken();
     if (qrReferralToken != null && qrReferralToken.isNotEmpty) {
       data['referral_token'] = qrReferralToken;
-      debugPrint('[QR_REFERRAL_REGISTER_V2_ATTACHED] token=$qrReferralToken');
+      debugPrint('[QR_REFERRAL_REGISTER_V2_ATTACHED] token=<redacted>');
     }
     final String guestId = getSharedPrefGuestId();
     if (_shouldAttachGuestId(guestId)) {
@@ -538,11 +538,12 @@ class AuthRepository implements AuthRepositoryInterface {
           final errorString = e.toString();
           if (errorString.contains('TOKEN_NOT_FOUND') ||
               errorString.contains('FirebaseApp') ||
-              errorString.contains('not initialized')) {
+              errorString.contains('not initialized') ||
+              errorString.contains('SERVICE_NOT_AVAILABLE')) {
             debugPrint(
-                '⚠️ AuthRepository: Firebase token loading failed - Firebase may not be initialized yet');
+                '⚠️ AuthRepository: Firebase token loading failed - Firebase may not be initialized yet or FCM is temporarily unavailable');
             debugPrint(
-                '   - This is expected during app startup if Firebase initializes after first frame');
+                '   - This is expected during app startup, on weak network, or without Google Play Services');
             debugPrint('   - Token will be retried when Firebase is ready');
           } else {
             debugPrint('❌ AuthRepository: Firebase token loading error: $e');

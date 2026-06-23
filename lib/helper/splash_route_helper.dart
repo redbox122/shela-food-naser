@@ -11,7 +11,6 @@ import 'package:sixam_mart/helper/auth_helper.dart';
 import 'package:sixam_mart/helper/route_helper.dart';
 import 'package:sixam_mart/util/app_constants.dart';
 import 'package:flutter/foundation.dart';
-import 'package:sixam_mart/features/home/screens/multi_module/multi_module_home_screen.dart';
 import 'package:sixam_mart/core/cache/hive_home_cache_service.dart';
 import 'package:sixam_mart/common/models/module_model.dart';
 import 'package:sixam_mart/common/utils/app_logger.dart';
@@ -203,11 +202,11 @@ void _navigateToMultiModuleHomeScreen() {
     debugPrint(
         '🟥 SPLASH ROUTE EXECUTED at ${DateTime.now()} - Navigating to MultiModuleHomeScreen');
   }
-  Get.offAll<dynamic>(
-    () => const MultiModuleHomeScreen(),
-    transition: Transition.fadeIn,
-    duration: const Duration(milliseconds: 300),
-  );
+  // 🎨 REDESIGN: land on the Dashboard (route '/') whose home tab is the new
+  // unified HomeScreen (greeting + services grid + offers), instead of the
+  // legacy module-first selection screen. Module selection now happens by
+  // tapping a service tile on the home.
+  Get.offAllNamed<dynamic>(RouteHelper.initial);
 }
 
 void route(BuildContext context,

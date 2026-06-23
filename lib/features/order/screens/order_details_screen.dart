@@ -20,7 +20,6 @@ import 'package:sixam_mart/util/dimensions.dart';
 import 'package:sixam_mart/util/images.dart';
 import 'package:sixam_mart/util/styles.dart';
 import 'package:sixam_mart/common/widgets/confirmation_dialog.dart';
-import 'package:sixam_mart/common/widgets/custom_app_bar.dart';
 import 'package:sixam_mart/common/widgets/custom_button.dart';
 import 'package:sixam_mart/common/widgets/custom_image.dart';
 import 'package:sixam_mart/common/widgets/custom_dialog.dart';
@@ -30,12 +29,13 @@ import 'package:sixam_mart/features/checkout/controllers/checkout_controller.dar
 import 'package:sixam_mart/features/checkout/widgets/offline_success_dialog.dart';
 import 'package:sixam_mart/features/order/widgets/cancellation_dialogue_widget.dart';
 import 'package:sixam_mart/features/order/widgets/order_info_widget.dart';
-import 'package:sixam_mart/features/review/screens/rate_review_screen.dart';
+import 'package:sixam_mart/features/order/widgets/order_details_redesign_view.dart';
 import 'package:sixam_mart/features/item/domain/models/item_model.dart';
 import 'package:sixam_mart/features/store/domain/models/store_model.dart';
 import 'package:sixam_mart/features/store/controllers/store_controller.dart';
 import 'package:sixam_mart/features/store/screens/store_screen.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 
 import '../../../common/widgets/loading/loading.dart';
@@ -236,15 +236,45 @@ class OrderDetailsScreenState extends State<OrderDetailsScreen> {
         return true;
       },
       child: Scaffold(
-        appBar: CustomAppBar(
-          title: 'order_details'.tr,
-          onBackPressed: () {
-            if (widget.fromNotification || widget.fromOfflinePayment) {
-              Get.offAllNamed(RouteHelper.getInitialRoute());
-            } else {
-              Get.back();
-            }
-          },
+        // 🎨 REDESIGN: clean white app bar (was the green CustomAppBar) to match
+        // the new order-details design.
+        appBar: AppBar(
+          backgroundColor: Colors.white,
+          surfaceTintColor: Colors.white,
+          elevation: 0.5,
+          centerTitle: true,
+          automaticallyImplyLeading: false,
+          systemOverlayStyle: const SystemUiOverlayStyle(
+            statusBarColor: Colors.transparent,
+            statusBarIconBrightness: Brightness.dark,
+            statusBarBrightness: Brightness.light,
+          ),
+          title: const Text(
+            'تفاصيل طلبك',
+            style: TextStyle(
+              fontFamily: 'Tajawal',
+              fontWeight: FontWeight.w700,
+              fontSize: 17,
+              color: Color(0xFF121C19),
+            ),
+          ),
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back_ios_new,
+                color: Color(0xFF121C19), size: 20),
+            onPressed: () {
+              if (widget.fromNotification || widget.fromOfflinePayment) {
+                Get.offAllNamed(RouteHelper.getInitialRoute());
+              } else {
+                Get.back();
+              }
+            },
+          ),
+          actions: const [
+            Padding(
+              padding: EdgeInsets.only(right: Dimensions.paddingSizeDefault),
+              child: Icon(Icons.bookmark_border, color: Color(0xFF121C19)),
+            ),
+          ],
         ),
         endDrawerEnableOpenDragGesture: false,
         backgroundColor: Theme.of(context).colorScheme.surface,
@@ -645,40 +675,22 @@ class OrderDetailsScreenState extends State<OrderDetailsScreen> {
                               : const SizedBox(),
                           ResponsiveHelper.isDesktop(context)
                               ? const SizedBox()
-                              : OrderInfoWidget(
+                              : OrderDetailsRedesignView(
                                   order: order,
-                                  ongoing: ongoing,
+                                  orderDetails: orderDetailsList,
                                   parcel: parcel,
-                                  prescriptionOrder: prescriptionOrder,
-                                  timerCancel: () => _timer?.cancel(),
-                                  startApiCall: () => _startApiCall(),
-                                  orderController: orderController,
-                                  showChatPermission: showChatPermission,
-                                ),
-                          ResponsiveHelper.isDesktop(context)
-                              ? const SizedBox()
-                              : OrderCalculationWidget(
-                                  orderController: orderController,
-                                  order: order,
-                                  ongoing: ongoing,
-                                  parcel: parcel,
-                                  prescriptionOrder: prescriptionOrder,
-                                  deliveryCharge: deliveryCharge,
+                                  taxIncluded: taxIncluded,
                                   itemsPrice: itemsPrice,
+                                  addOns: addOns,
+                                  deliveryCharge: deliveryCharge,
+                                  additionalCharge: additionalCharge,
+                                  extraPackagingCharge: extraPackagingCharge,
                                   discount: discount,
                                   couponDiscount: couponDiscount,
-                                  tax: tax,
-                                  addOns: addOns,
-                                  dmTips: dmTips,
-                                  taxIncluded: taxIncluded,
-                                  subTotal: subTotal,
-                                  total: total,
-                                  bottomView: const SizedBox(),
-                                  extraPackagingAmount: extraPackagingCharge,
                                   referrerBonusAmount: referrerBonusAmount,
-                                  additionalCharge: additionalCharge,
-                                  timerCancel: () => _timer?.cancel(),
-                                  startApiCall: () => _startApiCall(),
+                                  tax: tax,
+                                  dmTips: dmTips,
+                                  total: total,
                                 ),
                           if (_isFailedOrExpiredStatus(order.orderStatus))
                             _buildFailedOrderRecoverySection(
@@ -928,42 +940,9 @@ class OrderDetailsScreenState extends State<OrderDetailsScreen> {
                         color: Theme.of(context).primaryColor)),
               ),
             ),
-      !AuthHelper.isGuestLoggedIn() &&
-              (order.orderStatus == 'delivered' &&
-                  (parcel
-                      ? order.deliveryMan != null
-                      : (orderController.orderDetails!.isNotEmpty &&
-                          orderController.orderDetails![0].itemCampaignId ==
-                              null)))
-          ? Center(
-              child: Container(
-                width: Dimensions.webMaxWidth,
-                padding: ResponsiveHelper.isDesktop(context)
-                    ? null
-                    : const EdgeInsets.all(Dimensions.paddingSizeSmall),
-                child: CustomButton(
-                  buttonText: 'review'.tr,
-                  onPressed: () {
-                    final List<OrderDetailsModel> orderDetailsList = [];
-                    final List<int?> orderDetailsIdList = [];
-                    for (final orderDetail in orderController.orderDetails!) {
-                      if (!orderDetailsIdList
-                          .contains(orderDetail.itemDetails!.id)) {
-                        orderDetailsList.add(orderDetail);
-                        orderDetailsIdList.add(orderDetail.itemDetails!.id);
-                      }
-                    }
-                    Get.toNamed(RouteHelper.getReviewRoute(),
-                        arguments: RateReviewScreen(
-                          orderDetailsList: orderDetailsList,
-                          deliveryMan: order.deliveryMan,
-                          orderID: order.id,
-                        ));
-                  },
-                ),
-              ),
-            )
-          : const SizedBox(),
+      // 🎨 REDESIGN: review button removed for the completed order screen —
+      // the "أعد طلب الأوردر" action replaces it per the design.
+      const SizedBox(),
       (order.orderStatus == 'failed' &&
               Get.find<SplashController>().configModel!.cashOnDelivery!)
           ? Center(
