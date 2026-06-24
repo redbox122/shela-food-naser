@@ -106,7 +106,7 @@ class ProfessionalModuleStrip extends StatelessWidget {
           builder: (splashController) {
             final currentModule = splashController.module;
             final moduleList = splashController.moduleList ?? [];
-            const disabledModuleIds = <int>{7, 8};
+            const disabledModuleIds = <int>{7}; // id 8 (الصيدليات) enabled per request
             final sortedModules = [
               ...moduleList.where((m) => !disabledModuleIds.contains(m.id)),
               ...moduleList.where((m) => disabledModuleIds.contains(m.id)),

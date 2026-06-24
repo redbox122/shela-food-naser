@@ -16,7 +16,10 @@ class ModulesViewWidget extends StatelessWidget {
   Widget build(BuildContext context) {
     return GetBuilder<SplashController>(builder: (splashController) {
       final moduleList = splashController.moduleList;
-      const disabledModuleIds = <int>{7, 8};
+      // Coming-soon modules. id 8 (الصيدليات/pharmacy) enabled per request;
+      // id 7 (المحلات التجارية/grocery) stays disabled. Restaurants (6) and
+      // cafés (9) were already enabled.
+      const disabledModuleIds = <int>{7};
 
       final List<ModuleModel> fallbackModules = [
         ModuleModel(id: -1, moduleName: 'شيلا ماركت', moduleType: 'ecommerce'),
