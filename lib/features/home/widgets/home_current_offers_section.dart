@@ -13,7 +13,11 @@ import 'package:sixam_mart/util/images.dart';
 /// offer image, store logo, store name, offer description, and the original
 /// (struck) + discounted price.
 class HomeCurrentOffersSection extends StatefulWidget {
-  const HomeCurrentOffersSection({super.key});
+  /// When set, only this module's offers are shown (storefront screens).
+  /// Null → aggregate offers across all modules (multi-module home).
+  final int? moduleId;
+
+  const HomeCurrentOffersSection({super.key, this.moduleId});
 
   static const double _railHeight = 152;
   static const double _cardWidth = 155.5;
@@ -38,7 +42,7 @@ class _HomeCurrentOffersSectionState extends State<HomeCurrentOffersSection> {
   }
 
   Future<void> _fetch() async {
-    final all = await fetchCurrentOffers();
+    final all = await fetchCurrentOffers(moduleId: widget.moduleId);
     if (!mounted) return;
     setState(() {
       _offers = all;

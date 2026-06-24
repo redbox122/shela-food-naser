@@ -102,8 +102,10 @@ class _NeighborhoodMarketsScreenState extends State<NeighborhoodMarketsScreen> {
                     child: MarketBrandsSection(moduleId: brandsModuleId),
                   ),
 
-                  // "العروض الحالية" — reused cross-module offers rail.
-                  const SliverToBoxAdapter(child: HomeCurrentOffersSection()),
+                  // "العروض الحالية" — scoped to this screen's module so each
+                  // section shows only its own offers.
+                  SliverToBoxAdapter(
+                      child: HomeCurrentOffersSection(moduleId: moduleId)),
                 ],
 
                 // "المتاجر" — filter chips + stores filtered by the category.

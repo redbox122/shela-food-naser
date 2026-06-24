@@ -103,9 +103,19 @@ class OfferItem {
 
 /// Fetches current offers across every module (each request is module-scoped via
 /// the moduleId header) and merges them into one cross-module list.
-Future<List<OfferItem>> fetchCurrentOffers() async {
+Future<List<OfferItem>> fetchCurrentOffers({int? moduleId}) async {
   if (!Get.isRegistered<ApiClient>()) return const [];
   final api = Get.find<ApiClient>();
+
+  // Scoped to one module when provided (restaurants/cafés/pharmacy/shops show
+  // only their own offers); otherwise aggregate across all modules.
+  if (moduleId != null) {
+    try {
+      return await _fetchForModule(api, moduleId);
+    } catch (_) {
+      return const [];
+    }
+  }
 
   final modules = Get.isRegistered<SplashController>()
       ? Get.find<SplashController>().moduleList
