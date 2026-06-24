@@ -151,6 +151,94 @@ class _ProductSection extends StatelessWidget {
   }
 }
 
+/// Self-loading rail for one store category, rendered in the same green-header
+/// [_ProductSection] style. Fetches the category's products scoped to the store
+/// so every category shows as its own section.
+class _CategoryRail extends StatefulWidget {
+  final int storeId;
+  final int moduleId;
+  final _Category category;
+  final String? storeName;
+  final String? storeLogo;
+  final String? storeCover;
+  const _CategoryRail({
+    required this.storeId,
+    required this.moduleId,
+    required this.category,
+    this.storeName,
+    this.storeLogo,
+    this.storeCover,
+  });
+
+  @override
+  State<_CategoryRail> createState() => _CategoryRailState();
+}
+
+class _CategoryRailState extends State<_CategoryRail> {
+  List<_Product>? _products;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetch();
+  }
+
+  Future<void> _fetch() async {
+    List<_Product> result = const [];
+    try {
+      if (Get.isRegistered<ApiClient>()) {
+        // Use a valid (ecommerce) module for the header — the store's legacy
+        // moduleId (1) is rejected; store_id scopes the items to this store.
+        int? moduleId;
+        if (Get.isRegistered<SplashController>()) {
+          for (final m
+              in (Get.find<SplashController>().moduleList ?? const [])) {
+            if ((m.moduleType ?? '').toLowerCase() == 'ecommerce') {
+              moduleId = m.id;
+              break;
+            }
+          }
+        }
+        moduleId ??= widget.moduleId;
+        final r = await Get.find<ApiClient>().getData(
+          '/api/v1/categories/items/${widget.category.id}'
+          '?store_id=${widget.storeId}&offset=1&limit=10&type=all',
+          headers: {AppConstants.moduleId: moduleId.toString()},
+          useEtag: false,
+        );
+        final body = r.body;
+        final list = body is Map ? body['products'] : null;
+        if (list is List) {
+          result = list
+              .whereType<Map>()
+              .map((e) => _Product.fromJson(Map<String, dynamic>.from(e)))
+              .toList();
+        }
+      }
+    } catch (_) {}
+    if (mounted) setState(() => _products = result);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final products = _products;
+    if (products == null) {
+      return const SizedBox(height: Dimensions.paddingSizeSmall);
+    }
+    if (products.isEmpty) return const SizedBox.shrink();
+    return _ProductSection(
+      title: widget.category.name ?? '',
+      products: products,
+      storeId: widget.storeId,
+      moduleId: widget.moduleId,
+      categoryId: widget.category.rawId,
+      storeName: widget.storeName,
+      storeLogo: widget.storeLogo,
+      storeCover: widget.storeCover,
+    );
+  }
+}
+
 /// Featured section: a coloured header band with the store logo + slogan, then
 /// the product rail.
 class _FeaturedSectionView extends StatefulWidget {

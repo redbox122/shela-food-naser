@@ -216,8 +216,27 @@ class _MarketStoreScreenState extends State<MarketStoreScreen> {
                 ),
               ),
 
-            // Selected category's products.
-            if (d.categoryProducts.isNotEmpty)
+            // Category product rails. In the hyper storefront every category is
+            // shown as its own green-header section; other stores keep the
+            // single selected-category section.
+            if (widget.isHyperStorefront && _resolvedCategories.isNotEmpty)
+              SliverList(
+                delegate: SliverChildBuilderDelegate(
+                  (context, i) {
+                    final c = _resolvedCategories[i];
+                    return _CategoryRail(
+                      storeId: widget.storeId ?? 0,
+                      moduleId: widget.moduleId,
+                      category: c,
+                      storeName: d.name ?? widget.name,
+                      storeLogo: d.logo ?? widget.logo,
+                      storeCover: d.cover ?? widget.cover,
+                    );
+                  },
+                  childCount: _resolvedCategories.length,
+                ),
+              )
+            else if (d.categoryProducts.isNotEmpty)
               SliverToBoxAdapter(
                 child: _ProductSection(
                   title: d.categoryName ?? '',
