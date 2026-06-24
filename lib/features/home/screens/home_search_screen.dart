@@ -117,8 +117,13 @@ class _HomeSearchScreenState extends State<HomeSearchScreen> {
             ? Get.find<SplashController>().module?.id
             : null;
         final int? foodId = _moduleIdByType('food');
+        // Resolve a VALID search module: the live selected module is null in the
+        // multi-module home, and the hyper store passes a legacy moduleId (1)
+        // that the search index rejects. The market storefronts are ecommerce,
+        // so fall back to the ecommerce module — store_id does the real scoping.
+        final int? ecommerceId = _moduleIdByType('ecommerce');
         final int? scopeModuleId = storeScoped
-            ? (widget.moduleId ?? currentModuleId ?? foodId)
+            ? (ecommerceId ?? currentModuleId ?? widget.moduleId ?? foodId)
             : foodId;
         final r = await Get.find<ApiClient>().getData(
           '/api/v1/items/search?name=${Uri.encodeQueryComponent(text)}'
@@ -197,6 +202,12 @@ class _HomeSearchScreenState extends State<HomeSearchScreen> {
   }
 
   Future<void> _fetchModuleScoped() async {
+    // Store-scoped search hides the global discovery rails, so skip fetching
+    // the (global) most-searched keywords and brands entirely.
+    if (widget.storeId != null) {
+      if (mounted) setState(() => _loadingDiscovery = false);
+      return;
+    }
     if (!Get.isRegistered<ApiClient>()) return;
     final api = Get.find<ApiClient>();
 
@@ -281,8 +292,11 @@ class _HomeSearchScreenState extends State<HomeSearchScreen> {
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
                           _buildRecentSection(),
-                          _buildMostSearchedSection(),
-                          _buildBrandsSection(),
+                          // Global discovery rails are hidden for store-scoped
+                          // search (they list cross-store/restaurant content
+                          // that is irrelevant inside a single store).
+                          if (widget.storeId == null) _buildMostSearchedSection(),
+                          if (widget.storeId == null) _buildBrandsSection(),
                         ],
                       ),
                     ),

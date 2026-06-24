@@ -266,57 +266,5 @@ class _CategoryTile extends StatelessWidget {
   }
 }
 
-// ─── Category chips ──────────────────────────────────────────────────────────
-
-class _CategoryChips extends StatelessWidget {
-  final List<_Category> categories;
-  final int? selectedId;
-  final ValueChanged<int?> onSelect;
-
-  const _CategoryChips({
-    required this.categories,
-    required this.selectedId,
-    required this.onSelect,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      height: 64,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(
-            horizontal: Dimensions.paddingSizeDefault),
-        itemCount: categories.length,
-        separatorBuilder: (_, __) => const SizedBox(width: 10),
-        itemBuilder: (_, i) {
-          final c = categories[i];
-          final bool selected = c.id == selectedId;
-          return GestureDetector(
-            onTap: () => onSelect(selected ? null : c.id),
-            child: Container(
-              width: 60,
-              height: 60,
-              decoration: BoxDecoration(
-                color: const Color(0xFFEBFEEB),
-                shape: BoxShape.circle,
-                border: selected
-                    ? Border.all(color: const Color(0xFF1F7A35), width: 2)
-                    : null,
-              ),
-              clipBehavior: Clip.antiAlias,
-              padding: const EdgeInsets.all(8),
-              child: CustomImage(
-                image: c.image ?? '',
-                width: 60,
-                height: 60,
-                fit: BoxFit.contain,
-                placeholder: Images.placeholder,
-              ),
-            ),
-          );
-        },
-      ),
-    );
-  }
-}
+// ─── Category chips removed (redundant circular strip; the category grid
+// above already covers category navigation). ────────────────────────────────

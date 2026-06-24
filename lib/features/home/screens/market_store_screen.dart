@@ -92,7 +92,6 @@ class _MarketStoreScreenState extends State<MarketStoreScreen> {
   /// subset embedded in the main detail response).
   List<_Category> _categories = const [];
   bool _loading = true;
-  int? _selectedCategoryId;
 
   List<_Category> get _resolvedCategories {
     final base =
@@ -217,16 +216,6 @@ class _MarketStoreScreenState extends State<MarketStoreScreen> {
                 ),
               ),
 
-            // Sticky category filter chips.
-            if (_resolvedCategories.isNotEmpty)
-              SliverToBoxAdapter(
-                child: _CategoryChips(
-                  categories: _resolvedCategories,
-                  selectedId: _selectedCategoryId,
-                  onSelect: (id) => setState(() => _selectedCategoryId = id),
-                ),
-              ),
-
             // Selected category's products.
             if (d.categoryProducts.isNotEmpty)
               SliverToBoxAdapter(
@@ -243,12 +232,18 @@ class _MarketStoreScreenState extends State<MarketStoreScreen> {
               ),
 
             // Featured discounted products (with slogan + logo).
-            if (d.discounted != null && d.discounted!.products.isNotEmpty)
+            // Hidden in the hyper storefront — it must show only its own
+            // products, not cross-store (e.g. restaurant/McDonald's) sections.
+            if (!widget.isHyperStorefront &&
+                d.discounted != null &&
+                d.discounted!.products.isNotEmpty)
               SliverToBoxAdapter(
                   child: _FeaturedSectionView(section: d.discounted!)),
 
-            // Featured products from another store.
-            if (d.featured != null && d.featured!.products.isNotEmpty)
+            // Featured products from another store (hidden in hyper storefront).
+            if (!widget.isHyperStorefront &&
+                d.featured != null &&
+                d.featured!.products.isNotEmpty)
               SliverToBoxAdapter(
                   child: _FeaturedSectionView(section: d.featured!)),
           ],
