@@ -18,7 +18,6 @@ import 'package:sixam_mart/helper/auth_helper.dart';
 import 'package:sixam_mart/helper/responsive_helper.dart';
 import 'package:sixam_mart/helper/route_helper.dart';
 import 'package:sixam_mart/helper/firebase/my_notification_service.dart';
-import 'package:sixam_mart/theme/dark_theme.dart';
 import 'package:sixam_mart/theme/light_theme.dart';
 import 'package:sixam_mart/util/app_constants.dart';
 import 'package:sixam_mart/util/messages.dart';
@@ -538,7 +537,8 @@ class _MyAppState extends State<MyApp> {
       scrollBehavior: const MaterialScrollBehavior().copyWith(
         dragDevices: {PointerDeviceKind.mouse, PointerDeviceKind.touch},
       ),
-      theme: themeController.darkTheme ? dark() : light(),
+      // Dark mode removed — always use the light theme.
+      theme: light(),
       locale: localizeController.locale,
       translations: Messages(languages: widget.languages),
       fallbackLocale: Locale(

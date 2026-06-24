@@ -29,7 +29,7 @@ class MarketBrandsSection extends StatefulWidget {
 }
 
 /// Lightweight model for a row of the `/brands` response. The response now
-/// carries the store each brand resolves to (most map to هايبر شلة, id 1).
+/// carries the store each brand resolves to (most map to هايبر شله, id 1).
 class _Brand {
   final int? id;
   final String? name;
@@ -88,10 +88,13 @@ class _MarketBrandsSectionState extends State<MarketBrandsSection> {
       return;
     }
     try {
-      // Market brands are sourced from module 3 (passing the grocery module
-      // returns an empty list).
+      // Brands are scoped to the screen's module; only the market family has
+      // brands, so non-market modules (restaurants/cafés/pharmacy) return an
+      // empty list and the section hides itself.
+      final int brandModuleId =
+          widget.moduleId ?? MarketBrandsSection._marketModuleId;
       final response = await Get.find<ApiClient>().getData(
-        '/api/v2/brands?module_id=${MarketBrandsSection._marketModuleId}',
+        '/api/v2/brands?module_id=$brandModuleId',
         headers: const {
           AppConstants.localizationKey: 'ar',
         },

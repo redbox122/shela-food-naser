@@ -1,7 +1,6 @@
 import 'package:sixam_mart/features/auth/widgets/auth_dialog_widget.dart';
 import 'package:sixam_mart/features/profile/widgets/notification_status_change_bottom_sheet.dart';
 import 'package:sixam_mart/features/splash/controllers/splash_controller.dart';
-import 'package:sixam_mart/common/controllers/theme_controller.dart';
 import 'package:sixam_mart/features/profile/controllers/profile_controller.dart';
 import 'package:sixam_mart/features/auth/controllers/auth_controller.dart';
 import 'package:sixam_mart/helper/auth_helper.dart';
@@ -280,17 +279,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                           ])
                                         : const SizedBox(),
                                     const SizedBox(height: Dimensions.paddingSizeDefault),
-                                    GetBuilder<ThemeController>(
-                                      builder: (ThemeController themeController) {
-                                        return ProfileButtonWidget(
-                                          icon: Icons.tonality_outlined,
-                                          title: 'dark_mode'.tr,
-                                          isButtonActive: themeController.darkTheme,
-                                          onTap: themeController.toggleTheme,
-                                        );
-                                      },
-                                    ),
-                                    const SizedBox(height: Dimensions.paddingSizeSmall),
+                                    // Dark-mode toggle removed per request.
                                     isLoggedIn
                                         ? GetBuilder<AuthController>(builder: (authController) {
                                             return ProfileButtonWidget(

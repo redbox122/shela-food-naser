@@ -61,6 +61,11 @@ class _NeighborhoodMarketsScreenState extends State<NeighborhoodMarketsScreen> {
   @override
   Widget build(BuildContext context) {
     final int? moduleId = _moduleId;
+    // Brands only exist in the market family; for grocery/ecommerce show the
+    // market brands, otherwise the module's own (empty) list hides the rail.
+    final bool isMarketFamily =
+        widget.moduleType == 'grocery' || widget.moduleType == 'ecommerce';
+    final int? brandsModuleId = isMarketFamily ? 3 : moduleId;
 
     return Scaffold(
       backgroundColor: const Color(0xFFFFFFFF),
@@ -94,7 +99,7 @@ class _NeighborhoodMarketsScreenState extends State<NeighborhoodMarketsScreen> {
 
                   // "أشهر العلامات التجارية" — /api/v2/brands (module-scoped).
                   SliverToBoxAdapter(
-                    child: MarketBrandsSection(moduleId: moduleId),
+                    child: MarketBrandsSection(moduleId: brandsModuleId),
                   ),
 
                   // "العروض الحالية" — reused cross-module offers rail.
