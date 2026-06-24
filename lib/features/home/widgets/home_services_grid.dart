@@ -3,6 +3,8 @@ import 'package:get/get.dart';
 import 'package:sixam_mart/features/home/screens/market_store_screen.dart';
 import 'package:sixam_mart/features/home/screens/module_storefront_screen.dart';
 import 'package:sixam_mart/features/home/screens/neighborhood_markets_screen.dart';
+import 'package:sixam_mart/features/splash/controllers/splash_controller.dart';
+import 'package:sixam_mart/common/models/module_model.dart';
 import 'package:sixam_mart/util/app_constants.dart';
 import 'package:sixam_mart/util/dimensions.dart';
 import 'package:sixam_mart/util/images.dart';
@@ -43,6 +45,29 @@ class HomeServicesGrid extends StatelessWidget {
     );
   }
 
+  /// Select the real backend module by id and route to its home so the section
+  /// shows that module's own stores (e.g. restaurants=6, cafés=9, pharmacy=8).
+  /// Falls back to the placeholder storefront if the module list isn't ready.
+  void _openModule(
+      BuildContext context, int moduleId, String label, String moduleType) {
+    final SplashController splash = Get.find<SplashController>();
+    final List<ModuleModel>? modules = splash.moduleList;
+    ModuleModel? target;
+    if (modules != null) {
+      for (final ModuleModel m in modules) {
+        if (m.id == moduleId) {
+          target = m;
+          break;
+        }
+      }
+    }
+    if (target != null) {
+      splash.selectModule(target, context: context);
+    } else {
+      _openService(label, moduleType, moduleId: moduleId);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final List<_ServiceTile> rightColumn = [
@@ -51,7 +76,7 @@ class HomeServicesGrid extends StatelessWidget {
         imageAsset: Images.Market,
         fill: _greenFill,
         labelColor: _greenLabel,
-        // Opens the هايبر شلة store (store 1) — banner header + categories +
+        // Opens the هايبر شله store (store 1) — banner header + categories +
         // سلوجان الشركة sections. The store lives in module 1; the cart add is
         // module-scoped, so it must be opened with the store's real module
         // (passing the wrong module makes the add fail with `store_closed`).
@@ -86,22 +111,26 @@ class HomeServicesGrid extends StatelessWidget {
         imageAsset: Images.restaurants,
         fill: const Color(0xFFFFF1E7),
         labelColor: const Color(0xFFD17A2E),
+        // المطاعم → module id 6 (was incorrectly 3 = هايبر شله/ecommerce).
         onTap: () =>
-            _openService('the_restaurants'.tr, AppConstants.food, moduleId: 3),
+            _openModule(context, 6, 'the_restaurants'.tr, AppConstants.food),
       ),
       _ServiceTile(
         label: 'the_cafes'.tr,
         imageAsset: Images.cafes,
         fill: const Color(0xFFF6EFE7),
         labelColor: const Color(0xFF9B5E2E),
-        onTap: () => _openService('the_cafes'.tr, AppConstants.food),
+        // المقاهي → module id 9 (so it shows café stores, not all food).
+        onTap: () => _openModule(context, 9, 'the_cafes'.tr, AppConstants.food),
       ),
       _ServiceTile(
         label: 'the_pharmacy'.tr,
         imageAsset: Images.pharmacy,
         fill: const Color(0xFFE5FFFA),
         labelColor: const Color(0xFF1F8C7E),
-        onTap: () => _openService('the_pharmacy'.tr, AppConstants.pharmacy),
+        // الصيدلية → module id 8 (so it shows pharmacy stores).
+        onTap: () =>
+            _openModule(context, 8, 'the_pharmacy'.tr, AppConstants.pharmacy),
       ),
     ];
 

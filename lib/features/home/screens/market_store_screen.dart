@@ -53,8 +53,8 @@ class MarketStoreScreen extends StatefulWidget {
   final bool freeDelivery;
   final String? deliveryTime;
 
-  /// When true, this is the special "هايبر ماركت شلة" storefront: it shows the
-  /// fixed "هايبر ماركت شلة" title + the promotional banner. For every other
+  /// When true, this is the special "هايبر ماركت شله" storefront: it shows the
+  /// fixed "هايبر ماركت شله" title + the promotional banner. For every other
   /// store (opened from أسواق الحي, brands, etc.) this stays false, so the
   /// header shows the real store name and the banner is hidden.
   final bool isHyperStorefront;
@@ -183,13 +183,16 @@ class _MarketStoreScreenState extends State<MarketStoreScreen> {
               ),
             )
           else ...[
-            // Banner-style header: fixed "هايبر ماركت شلة" title only for the
+            // Banner-style header: fixed "هايبر ماركت شله" title only for the
             // hyper storefront; every other store shows its real name.
             SliverToBoxAdapter(
               child: _MarketTopHeader(
                 title: widget.isHyperStorefront
                     ? 'hyper_market_shella'.tr
                     : (d?.name ?? widget.name ?? ''),
+                // Scope in-store search to this store's products only.
+                storeId: widget.storeId,
+                moduleId: widget.moduleId,
               ),
             ),
             const SliverToBoxAdapter(child: HomeTopNoticeStrip()),

@@ -53,7 +53,11 @@ class _StoreBottomNav extends StatelessWidget {
 /// a search icon (RTL left) — replaces the cover/logo/rating header.
 class _MarketTopHeader extends StatelessWidget {
   final String title;
-  const _MarketTopHeader({required this.title});
+
+  /// Store/module the search should be scoped to (search only this store).
+  final int? storeId;
+  final int? moduleId;
+  const _MarketTopHeader({required this.title, this.storeId, this.moduleId});
 
   @override
   Widget build(BuildContext context) {
@@ -83,8 +87,10 @@ class _MarketTopHeader extends StatelessWidget {
                 ),
               ),
             ),
-            _iconBtn(Images.search_v2,
-                () => Get.to<void>(() => const HomeSearchScreen())),
+            _iconBtn(
+                Images.search_v2,
+                () => Get.to<void>(() =>
+                    HomeSearchScreen(storeId: storeId, moduleId: moduleId))),
           ],
         ),
       ),

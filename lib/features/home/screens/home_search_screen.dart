@@ -23,7 +23,15 @@ import 'package:sixam_mart/util/images.dart';
 /// module-scoped on the backend, so they're fetched against the food module
 /// (the richest) to stay populated regardless of the active module.
 class HomeSearchScreen extends StatefulWidget {
-  const HomeSearchScreen({super.key});
+  /// When set, the search (and filtering) is scoped to this store's products
+  /// only — used when opening search from inside a store (e.g. هايبر شلة).
+  final int? storeId;
+
+  /// Module used for the request header when store-scoped. Falls back to the
+  /// currently selected module, then the food module, when null.
+  final int? moduleId;
+
+  const HomeSearchScreen({super.key, this.storeId, this.moduleId});
 
   @override
   State<HomeSearchScreen> createState() => _HomeSearchScreenState();
@@ -99,17 +107,26 @@ class _HomeSearchScreenState extends State<HomeSearchScreen> {
     List<_SearchProduct> results = const [];
     try {
       if (Get.isRegistered<ApiClient>()) {
-        // The backend scopes search by the moduleId header. moduleId=0 is
-        // rejected by the secure client (403), so force a valid module (food)
-        // — restaurant items (pizza/shawarma) then show. TODO(backend): make
-        // /items/search ignore the module header for true cross-module search.
+        // The backend scopes search by the moduleId header (and by store_id when
+        // provided). moduleId=0 is rejected by the secure client (403), so we
+        // always send a valid module. When opened from inside a store we scope
+        // to that store's products via store_id; otherwise we fall back to the
+        // (food-module) cross-module behaviour.
+        final bool storeScoped = widget.storeId != null;
+        final int? currentModuleId = Get.isRegistered<SplashController>()
+            ? Get.find<SplashController>().module?.id
+            : null;
         final int? foodId = _moduleIdByType('food');
+        final int? scopeModuleId = storeScoped
+            ? (widget.moduleId ?? currentModuleId ?? foodId)
+            : foodId;
         final r = await Get.find<ApiClient>().getData(
           '/api/v1/items/search?name=${Uri.encodeQueryComponent(text)}'
           '&offset=1&limit=50'
-          '${foodId != null ? '&module_id=$foodId' : ''}',
-          headers: foodId != null
-              ? {AppConstants.moduleId: foodId.toString()}
+          '${storeScoped ? '&store_id=${widget.storeId}' : ''}'
+          '${scopeModuleId != null ? '&module_id=$scopeModuleId' : ''}',
+          headers: scopeModuleId != null
+              ? {AppConstants.moduleId: scopeModuleId.toString()}
               : null,
           useEtag: false,
         );
