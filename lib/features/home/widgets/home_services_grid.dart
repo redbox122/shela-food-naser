@@ -37,8 +37,8 @@ class HomeServicesGrid extends StatelessWidget {
   /// module's own stores.
   void _openModule(BuildContext context, ModuleModel module) {
     final String type = (module.moduleType ?? '').toLowerCase();
+    // هايبر شلة — single-store market storefront (store 1).
     if (type == AppConstants.ecommerce) {
-      // هايبر شلة — single-store market storefront (store 1).
       Get.to<void>(() => MarketStoreScreen(
             storeId: 1,
             moduleId: module.id ?? 1,
@@ -46,14 +46,15 @@ class HomeServicesGrid extends StatelessWidget {
           ));
       return;
     }
-    if (type == AppConstants.grocery) {
-      Get.to<void>(() => NeighborhoodMarketsScreen(
-            title: module.moduleName ?? 'neighborhood_markets'.tr,
-            moduleType: AppConstants.grocery,
-          ));
-      return;
-    }
-    Get.find<SplashController>().selectModule(module, context: context);
+    // Every other module (grocery / restaurants / cafés / pharmacy / new) opens
+    // the shared module storefront (categories → banner → brands → offers →
+    // stores) scoped to its own module, so its stores show — same design as
+    // المحلات التجارية.
+    Get.to<void>(() => NeighborhoodMarketsScreen(
+          title: module.moduleName ?? '',
+          moduleType: type,
+          moduleId: module.id ?? 0,
+        ));
   }
 
   bool _isMarketFamily(ModuleModel m) {

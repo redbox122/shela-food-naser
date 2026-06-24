@@ -24,13 +24,19 @@ class NeighborhoodMarketsScreen extends StatefulWidget {
   /// Title shown in the header (e.g. "أسواق الحي").
   final String title;
 
-  /// Module type carried from the service tile (expected: `grocery`).
+  /// Module type carried from the service tile (e.g. `grocery`, `food`,
+  /// `pharmacy`).
   final String moduleType;
+
+  /// Backend module id whose categories/banners/brands/stores are shown.
+  /// Defaults to the neighborhood-markets (grocery) module.
+  final int moduleId;
 
   const NeighborhoodMarketsScreen({
     super.key,
     required this.title,
     required this.moduleType,
+    this.moduleId = 7,
   });
 
   @override
@@ -43,11 +49,9 @@ class _NeighborhoodMarketsScreenState extends State<NeighborhoodMarketsScreen> {
   /// categories rail, the "فئة المتاجر" filter chip, and the stores list.
   int? _selectedCategoryId;
 
-  /// The neighborhood-markets ("أسواق الحي") module id. Drives every section's
-  /// data fetch (categories / banner / brands / stores).
-  static const int _neighborhoodModuleId = 7;
-
-  int? get _moduleId => _neighborhoodModuleId;
+  /// Backend module id (from the widget) driving every section's data fetch
+  /// (categories / banner / brands / stores).
+  int? get _moduleId => widget.moduleId;
 
   void _selectCategory(int? id) {
     if (id == _selectedCategoryId) return;
