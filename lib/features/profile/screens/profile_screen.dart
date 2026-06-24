@@ -236,7 +236,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                       color: Theme.of(context).cardColor),
                                   padding: const EdgeInsets.symmetric(
                                       horizontal: Dimensions.paddingSizeLarge, vertical: Dimensions.paddingSizeDefault),
-                                  child: Column(children: [
+                                  child: SingleChildScrollView(child: Column(children: [
                                     const SizedBox(height: Dimensions.paddingSizeLarge),
                                     (showWalletCard && isLoggedIn)
                                         ? Row(children: [
@@ -305,6 +305,51 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                           })
                                         : const SizedBox(),
                                     SizedBox(height: isLoggedIn ? Dimensions.paddingSizeSmall : 0),
+                                    // Restored feature shortcuts from the legacy menu (kept the new design).
+                                    if (isLoggedIn) ...[
+                                      ProfileButtonWidget(
+                                        iconImage: Images.walletIcon,
+                                        title: 'my_wallet'.tr,
+                                        onTap: () => Get.toNamed(RouteHelper.getWalletRoute()),
+                                      ),
+                                      const SizedBox(height: Dimensions.paddingSizeSmall),
+                                      ProfileButtonWidget(
+                                        iconImage: Images.KiadaWalletSubscription,
+                                        title: 'KiadaWallet_Subscription'.tr,
+                                        onTap: () => Get.toNamed(RouteHelper.getKaidhaWallet()),
+                                      ),
+                                      const SizedBox(height: Dimensions.paddingSizeSmall),
+                                      ProfileButtonWidget(
+                                        iconImage: Images.loyaltyIcon,
+                                        title: 'loyalty_points'.tr,
+                                        onTap: () => Get.toNamed(RouteHelper.getLoyaltyRoute()),
+                                      ),
+                                      const SizedBox(height: Dimensions.paddingSizeSmall),
+                                      ProfileButtonWidget(
+                                        iconImage: Images.couponIcon,
+                                        title: 'coupon'.tr,
+                                        onTap: () => Get.toNamed(RouteHelper.getCouponRoute()),
+                                      ),
+                                      const SizedBox(height: Dimensions.paddingSizeSmall),
+                                      ProfileButtonWidget(
+                                        iconImage: Images.statistics,
+                                        title: 'statistics'.tr,
+                                        onTap: () => Get.toNamed(RouteHelper.getStatistics()),
+                                      ),
+                                      const SizedBox(height: Dimensions.paddingSizeSmall),
+                                      ProfileButtonWidget(
+                                        iconImage: Images.referIcon,
+                                        title: 'refer_and_earn'.tr,
+                                        onTap: () => Get.toNamed(RouteHelper.getReferAndEarnRoute()),
+                                      ),
+                                      const SizedBox(height: Dimensions.paddingSizeSmall),
+                                      ProfileButtonWidget(
+                                        iconImage: Images.helpIcon,
+                                        title: 'help_and_support'.tr,
+                                        onTap: () => Get.toNamed(RouteHelper.getSupportRoute()),
+                                      ),
+                                      const SizedBox(height: Dimensions.paddingSizeSmall),
+                                    ],
                                     isLoggedIn && (Get.find<SplashController>().configModel?.centralizeLoginSetup?.manualLoginStatus ?? false)
                                         ? ProfileButtonWidget(
                                             icon: Icons.lock,
@@ -368,7 +413,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                       Text(AppConstants.appVersion.toStringAsFixed(2),
                                           style: robotoMedium.copyWith(fontSize: Dimensions.fontSizeExtraSmall)),
                                     ]),
-                                  ]),
+                                  ])),
                                 ),
                               )
                             ]),
