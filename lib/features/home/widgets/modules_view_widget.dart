@@ -19,7 +19,7 @@ class ModulesViewWidget extends StatelessWidget {
       // Coming-soon modules. id 8 (الصيدليات/pharmacy) enabled per request;
       // id 7 (المحلات التجارية/grocery) stays disabled. Restaurants (6) and
       // cafés (9) were already enabled.
-      const disabledModuleIds = <int>{7};
+      const disabledModuleIds = <int>{}; // dashboard controls module status
 
       final List<ModuleModel> fallbackModules = [
         ModuleModel(id: -1, moduleName: 'شيلا ماركت', moduleType: 'ecommerce'),

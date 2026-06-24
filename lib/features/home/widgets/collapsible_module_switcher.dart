@@ -117,7 +117,7 @@ class _CollapsibleModuleSwitcherState extends State<CollapsibleModuleSwitcher>
       builder: (splashController) {
         final currentModule = splashController.module;
         final moduleList = splashController.moduleList ?? [];
-        const disabledModuleIds = <int>{7}; // id 8 (الصيدليات) enabled per request
+        const disabledModuleIds = <int>{}; // dashboard controls module status
         final sortedModules = [
           ...moduleList.where((m) => !disabledModuleIds.contains(m.id)),
           ...moduleList.where((m) => disabledModuleIds.contains(m.id)),

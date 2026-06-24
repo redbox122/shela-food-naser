@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:sixam_mart/features/home/screens/market_store_screen.dart';
-import 'package:sixam_mart/features/home/screens/module_storefront_screen.dart';
 import 'package:sixam_mart/features/home/screens/neighborhood_markets_screen.dart';
 import 'package:sixam_mart/features/splash/controllers/splash_controller.dart';
 import 'package:sixam_mart/common/models/module_model.dart';
+import 'package:sixam_mart/common/widgets/custom_image.dart';
 import 'package:sixam_mart/util/app_constants.dart';
 import 'package:sixam_mart/util/dimensions.dart';
 import 'package:sixam_mart/util/images.dart';
@@ -25,165 +25,163 @@ class HomeServicesGrid extends StatelessWidget {
 
   // Left column tiles (3 of them). Right column tiles are taller (91) so the
   // two columns end at the same height: 2×91 + gap ≈ 3×58 + 2×gap.
-  static const double _tileHeight = 58;
-  static const double _tallTileHeight = 91;
+  static const double _tileHeight = 64;
   static const double _gap = Dimensions.paddingSizeSmall;
 
   // Greens shared by the market-family tiles (market / neighborhood / delivery).
   static const Color _greenFill = Color(0xFFE7F7EA);
   static const Color _greenLabel = Color(0xFF1F7A35);
 
-  // 🚧 TEMPORARY: open the per-service storefront screen (centered title for
-  // now; real design to come). [moduleType] is carried for the future screen.
-  void _openService(String label, String moduleType, {int? moduleId}) {
-    Get.to<void>(
-      () => ModuleStorefrontScreen(
-        title: label,
-        moduleType: moduleType,
-        moduleId: moduleId,
-      ),
-    );
+  /// Opens a module: market modules (ecommerce/grocery) go to their dedicated
+  /// storefront; every other module is selected so its home lists that
+  /// module's own stores.
+  void _openModule(BuildContext context, ModuleModel module) {
+    final String type = (module.moduleType ?? '').toLowerCase();
+    if (type == AppConstants.ecommerce) {
+      // هايبر شلة — single-store market storefront (store 1).
+      Get.to<void>(() => MarketStoreScreen(
+            storeId: 1,
+            moduleId: module.id ?? 1,
+            isHyperStorefront: true,
+          ));
+      return;
+    }
+    if (type == AppConstants.grocery) {
+      Get.to<void>(() => NeighborhoodMarketsScreen(
+            title: module.moduleName ?? 'neighborhood_markets'.tr,
+            moduleType: AppConstants.grocery,
+          ));
+      return;
+    }
+    Get.find<SplashController>().selectModule(module, context: context);
   }
 
-  /// Select the real backend module by id and route to its home so the section
-  /// shows that module's own stores (e.g. restaurants=6, cafés=9, pharmacy=8).
-  /// Falls back to the placeholder storefront if the module list isn't ready.
-  void _openModule(
-      BuildContext context, int moduleId, String label, String moduleType) {
-    final SplashController splash = Get.find<SplashController>();
-    final List<ModuleModel>? modules = splash.moduleList;
-    ModuleModel? target;
-    if (modules != null) {
-      for (final ModuleModel m in modules) {
-        if (m.id == moduleId) {
-          target = m;
-          break;
-        }
-      }
-    }
-    if (target != null) {
-      splash.selectModule(target, context: context);
-    } else {
-      _openService(label, moduleType, moduleId: moduleId);
-    }
+  bool _isMarketFamily(ModuleModel m) {
+    final t = (m.moduleType ?? '').toLowerCase();
+    return t == AppConstants.ecommerce || t == AppConstants.grocery;
   }
 
   @override
   Widget build(BuildContext context) {
-    final List<_ServiceTile> rightColumn = [
-      _ServiceTile(
-        label: 'hyper_market_shella'.tr,
-        imageAsset: Images.Market,
-        fill: _greenFill,
-        labelColor: _greenLabel,
-        // Opens the هايبر شله store (store 1) — banner header + categories +
-        // سلوجان الشركة sections. The store lives in module 1; the cart add is
-        // module-scoped, so it must be opened with the store's real module
-        // (passing the wrong module makes the add fail with `store_closed`).
-        onTap: () => Get.to<void>(
-          () => const MarketStoreScreen(
-            storeId: 1,
-            moduleId: 1,
-            isHyperStorefront: true,
-          ),
-        ),
-      ),
-      _ServiceTile(
-        label: 'neighborhood_markets'.tr,
-        imageAsset: Images.neighborhoodMarkets,
-        imageColor: const Color(0xFF4F9B5D),
-        fill: _greenFill,
-        labelColor: _greenLabel,
-        // Opens the neighborhood-markets storefront (same layout as the market
-        // screen, scoped to its own module), not the temporary placeholder.
-        onTap: () => Get.to<void>(
-          () => NeighborhoodMarketsScreen(
-            title: 'neighborhood_markets'.tr,
-            moduleType: AppConstants.grocery,
-          ),
-        ),
-      ),
-    ];
+    // Driven entirely by the dashboard's module list, so any module added or
+    // disabled in the dashboard reflects here automatically.
+    return GetBuilder<SplashController>(builder: (splash) {
+      final List<ModuleModel> modules = splash.moduleList ?? const [];
+      if (modules.isEmpty) return const SizedBox.shrink();
 
-    final List<_ServiceTile> leftColumn = [
-      _ServiceTile(
-        label: 'the_restaurants'.tr,
-        imageAsset: Images.restaurants,
-        fill: const Color(0xFFFFF1E7),
-        labelColor: const Color(0xFFD17A2E),
-        // المطاعم → module id 6 (was incorrectly 3 = هايبر شله/ecommerce).
-        onTap: () =>
-            _openModule(context, 6, 'the_restaurants'.tr, AppConstants.food),
-      ),
-      _ServiceTile(
-        label: 'the_cafes'.tr,
-        imageAsset: Images.cafes,
-        fill: const Color(0xFFF6EFE7),
-        labelColor: const Color(0xFF9B5E2E),
-        // المقاهي → module id 9 (so it shows café stores, not all food).
-        onTap: () => _openModule(context, 9, 'the_cafes'.tr, AppConstants.food),
-      ),
-      _ServiceTile(
-        label: 'the_pharmacy'.tr,
-        imageAsset: Images.pharmacy,
-        fill: const Color(0xFFE5FFFA),
-        labelColor: const Color(0xFF1F8C7E),
-        // الصيدلية → module id 8 (so it shows pharmacy stores).
-        onTap: () =>
-            _openModule(context, 8, 'the_pharmacy'.tr, AppConstants.pharmacy),
-      ),
-    ];
+      // Market-family modules on the RTL-right column; food/pharmacy/new
+      // modules on the left — preserving the current layout.
+      final List<ModuleModel> right = modules.where(_isMarketFamily).toList();
+      final List<ModuleModel> left =
+          modules.where((m) => !_isMarketFamily(m)).toList();
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(
-        horizontal: Dimensions.paddingSizeDefault,
-        vertical: Dimensions.paddingSizeSmall,
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'our_services'.tr,
-            textAlign: TextAlign.right,
-            style: const TextStyle(
-              fontFamily: 'Tajawal',
-              fontWeight: FontWeight.w700,
-              fontSize: 20,
-              height: 1.2,
-              color: _headlineColor,
+      return Padding(
+        padding: const EdgeInsets.symmetric(
+          horizontal: Dimensions.paddingSizeDefault,
+          vertical: Dimensions.paddingSizeSmall,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'our_services'.tr,
+              textAlign: TextAlign.right,
+              style: const TextStyle(
+                fontFamily: 'Tajawal',
+                fontWeight: FontWeight.w700,
+                fontSize: 20,
+                height: 1.2,
+                color: _headlineColor,
+              ),
             ),
-          ),
-          const SizedBox(height: Dimensions.paddingSizeSmall),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Right column: 2 tall tiles (91) — matches the left column's
-              // 3 standard tiles (58) so both columns end at the same height.
-              Expanded(child: _buildColumn(rightColumn, _tallTileHeight)),
-              const SizedBox(width: _gap),
-              Expanded(child: _buildColumn(leftColumn, _tileHeight)),
-            ],
+            const SizedBox(height: Dimensions.paddingSizeSmall),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(child: _buildColumn(context, right)),
+                const SizedBox(width: _gap),
+                Expanded(child: _buildColumn(context, left)),
+              ],
+            ),
+          ],
+        ),
+      );
+    });
+  }
+
+  Widget _buildColumn(BuildContext context, List<ModuleModel> modules) {
+    return Column(
+      children: [
+        for (int i = 0; i < modules.length; i++) ...[
+          if (i > 0) const SizedBox(height: _gap),
+          SizedBox(
+            height: _tileHeight,
+            child: _moduleTile(context, modules[i]),
           ),
         ],
-      ),
+      ],
     );
   }
 
-  Widget _buildColumn(List<_ServiceTile> tiles, double tileHeight) {
-    return Column(
-      children: [
-        for (int i = 0; i < tiles.length; i++) ...[
-          if (i > 0) const SizedBox(height: _gap),
-          SizedBox(height: tileHeight, child: tiles[i]),
-        ],
-      ],
+  /// Builds a tile for [module] — keeps the familiar asset/colours for the
+  /// known section types and falls back to the dashboard icon for new modules.
+  Widget _moduleTile(BuildContext context, ModuleModel module) {
+    final String type = (module.moduleType ?? '').toLowerCase();
+    final String name = module.moduleName ?? '';
+    final bool isCafe = name.contains('قهو') ||
+        name.contains('مقاه') ||
+        name.toLowerCase().contains('cafe');
+
+    String? asset;
+    Color? imageColor;
+    Color fill = _greenFill;
+    Color labelColor = _greenLabel;
+    switch (type) {
+      case AppConstants.ecommerce:
+        asset = Images.Market;
+        break;
+      case AppConstants.grocery:
+        asset = Images.neighborhoodMarkets;
+        imageColor = const Color(0xFF4F9B5D);
+        break;
+      case AppConstants.pharmacy:
+        asset = Images.pharmacy;
+        fill = const Color(0xFFE5FFFA);
+        labelColor = const Color(0xFF1F8C7E);
+        break;
+      case AppConstants.food:
+        if (isCafe) {
+          asset = Images.cafes;
+          fill = const Color(0xFFF6EFE7);
+          labelColor = const Color(0xFF9B5E2E);
+        } else {
+          asset = Images.restaurants;
+          fill = const Color(0xFFFFF1E7);
+          labelColor = const Color(0xFFD17A2E);
+        }
+        break;
+      default:
+        asset = null; // new/unknown module → use the dashboard icon.
+    }
+
+    return _ServiceTile(
+      label: name,
+      imageAsset: asset,
+      iconUrl: asset == null ? module.iconFullUrl : null,
+      imageColor: imageColor,
+      fill: fill,
+      labelColor: labelColor,
+      onTap: () => _openModule(context, module),
     );
   }
 }
 
 class _ServiceTile extends StatelessWidget {
   final String label;
-  final String imageAsset;
+
+  /// Local asset for a known section; null → use [iconUrl] (dashboard icon).
+  final String? imageAsset;
+  final String? iconUrl;
 
   /// Optional tint applied to the asset (used to recolour flat-icon assets).
   final Color? imageColor;
@@ -193,10 +191,11 @@ class _ServiceTile extends StatelessWidget {
 
   const _ServiceTile({
     required this.label,
-    required this.imageAsset,
     required this.fill,
     required this.labelColor,
     required this.onTap,
+    this.imageAsset,
+    this.iconUrl,
     this.imageColor,
   });
 
@@ -219,13 +218,24 @@ class _ServiceTile extends StatelessWidget {
           ),
           child: Row(
             children: [
-              Image.asset(
-                imageAsset,
+              SizedBox(
                 width: 50,
                 height: 50,
-                fit: BoxFit.contain,
-                color: imageColor,
-                errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                child: (imageAsset != null)
+                    ? Image.asset(
+                        imageAsset!,
+                        fit: BoxFit.contain,
+                        color: imageColor,
+                        errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                      )
+                    : (iconUrl != null && iconUrl!.isNotEmpty)
+                        ? CustomImage(
+                            image: iconUrl!,
+                            fit: BoxFit.contain,
+                            height: 50,
+                            width: 50,
+                          )
+                        : const SizedBox.shrink(),
               ),
               const SizedBox(width: Dimensions.paddingSizeSmall),
               Expanded(
