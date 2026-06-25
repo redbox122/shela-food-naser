@@ -88,6 +88,10 @@ class MarketStoreScreen extends StatefulWidget {
 class _MarketStoreScreenState extends State<MarketStoreScreen> {
   _StoreDetail? _detail;
 
+  /// The store's REAL module id (from /stores/details), used to fetch its items
+  /// so they resolve regardless of which module was active when it was opened.
+  int? _storeModuleId;
+
   /// Full category list from `/stores/{id}/categories` (falls back to the
   /// subset embedded in the main detail response).
   List<_Category> _categories = const [];
@@ -143,15 +147,22 @@ class _MarketStoreScreenState extends State<MarketStoreScreen> {
     };
     final id = widget.storeId;
     try {
-      // Fetch the page detail and the full category list together.
+      // Fetch the page detail, the full category list, and the store's real
+      // module id together. /stores/details carries module_id (the v2 detail
+      // does not), so items resolve no matter which module was active.
       final results = await Future.wait([
         api.getData('/api/v2/stores/$id', headers: headers, useEtag: false),
         api.getData('/api/v2/stores/$id/categories',
+            headers: headers, useEtag: false),
+        api.getData('/api/v1/stores/details/$id',
             headers: headers, useEtag: false),
       ]);
       if (!mounted) return;
       final dynamic detailBody = results[0].body;
       final dynamic catBody = results[1].body;
+      final dynamic v1Body = results[2].body;
+      final int? storeModule =
+          v1Body is Map ? int.tryParse('${v1Body['module_id']}') : null;
       final List rawCats = catBody is List
           ? catBody
           : (catBody is Map && catBody['data'] is List)
@@ -167,6 +178,7 @@ class _MarketStoreScreenState extends State<MarketStoreScreen> {
             .whereType<Map>()
             .map((e) => _Category.fromJson(Map<String, dynamic>.from(e)))
             .toList();
+        _storeModuleId = storeModule;
         _loading = false;
       });
     } catch (_) {
@@ -180,6 +192,8 @@ class _MarketStoreScreenState extends State<MarketStoreScreen> {
     final cats = _resolvedCategories;
     // Selected category index (clamped so it stays valid if the list shrinks).
     final int sel = cats.isEmpty ? 0 : _activeTab.clamp(0, cats.length - 1);
+    // Prefer the store's real module (from /stores/details) for item fetches.
+    final int effectiveModule = _storeModuleId ?? widget.moduleId;
     return Scaffold(
       backgroundColor: const Color(0xFFFFFFFF),
       // أسواق الحي stores have no bottom nav (matches the design); other
@@ -253,7 +267,7 @@ class _MarketStoreScreenState extends State<MarketStoreScreen> {
                   key: ValueKey(cats[sel].rawId),
                   child: _CategoryRail(
                     storeId: widget.storeId ?? 0,
-                    moduleId: widget.moduleId,
+                    moduleId: effectiveModule,
                     category: cats[sel],
                     storeName: d.name ?? widget.name,
                     storeLogo: d.logo ?? widget.logo,
