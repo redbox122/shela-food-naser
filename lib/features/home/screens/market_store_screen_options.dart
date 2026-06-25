@@ -24,6 +24,10 @@ class _OptGroup {
   final bool required;
   final int min;
   final int max;
+
+  /// 'replace' → the chosen option IS the price (size tiers); 'add' → its price
+  /// is added on top of the base (choices/add-ons).
+  final bool replacePrice;
   final List<_OptItem> options;
 
   const _OptGroup({
@@ -32,6 +36,7 @@ class _OptGroup {
     required this.required,
     required this.min,
     required this.max,
+    required this.replacePrice,
     required this.options,
   });
 
@@ -48,6 +53,7 @@ class _OptGroup {
       required: j['required'] == true,
       min: int.tryParse('${j['min'] ?? 0}') ?? 0,
       max: int.tryParse('${j['max'] ?? 1}') ?? 1,
+      replacePrice: (j['price_mode'] ?? 'add').toString() == 'replace',
       options: opts,
     );
   }
@@ -241,13 +247,19 @@ class _ProductOptionsSheetState extends State<_ProductOptionsSheet> {
   }
 
   double get _unitPrice {
+    double base = _basePrice;
     double extra = 0;
     for (int i = 0; i < _groups.length; i++) {
+      final g = _groups[i];
       for (final oi in _selected[i]) {
-        extra += _groups[i].options[oi].price;
+        if (g.replacePrice) {
+          base = g.options[oi].price;
+        } else {
+          extra += g.options[oi].price;
+        }
       }
     }
-    return _basePrice + extra;
+    return base + extra;
   }
 
   Future<void> _add() async {
@@ -259,17 +271,81 @@ class _ProductOptionsSheetState extends State<_ProductOptionsSheet> {
       showCustomSnackBar('يرجى اختيار الخيارات المطلوبة', isError: true);
       return;
     }
-    // Add the selected quantity at the computed unit price.
-    final product = _Product(
-      id: widget.itemId,
-      name: _name,
-      image: _image,
-      price: _unitPrice,
+    if (!Get.isRegistered<CartController>()) return;
+    final cartController = Get.find<CartController>();
+
+    // Build the selected option groups as cart variations so the merchant sees
+    // exactly what the customer chose.
+    final List<OrderVariation> variations = [];
+    for (int i = 0; i < _groups.length; i++) {
+      if (_selected[i].isEmpty) continue;
+      final g = _groups[i];
+      variations.add(OrderVariation(
+        name: g.name,
+        values: OrderVariationValue(
+          options: _selected[i]
+              .map((oi) => VariationOption(
+                    label: g.options[oi].name,
+                    optionPrice: g.options[oi].price,
+                  ))
+              .toList(),
+        ),
+      ));
+    }
+
+    // The cart holds one store/module at a time — confirm clearing if needed.
+    if (cartController.existAnotherStoreItem(widget.storeId, widget.moduleId)) {
+      final bool confirmed = await _confirmClearCart();
+      if (!confirmed) return;
+      await cartController.clearCartList();
+    }
+    // Align the active + cache module with the item's module (cart keys on it).
+    if (Get.isRegistered<SplashController>()) {
+      final sc = Get.find<SplashController>();
+      for (final m in sc.moduleList ?? const []) {
+        if (m.id == widget.moduleId) {
+          if (sc.module?.id != widget.moduleId) {
+            await sc.setModuleHeaderOnly(m);
+          }
+          await sc.setCacheModuleOnly(m);
+          break;
+        }
+      }
+    }
+
+    final cart = OnlineCart(
+      null,
+      widget.itemId,
+      null,
+      _unitPrice.toString(),
+      '',
+      const [],
+      variations.isEmpty ? const [] : variations,
+      _qty,
+      const [],
+      const [],
+      const [],
+      'Item',
+      itemType: 'Item',
+      storeId: widget.storeId,
     );
+
     Get.back<void>();
-    for (int i = 0; i < _qty; i++) {
-      await _addProductToCart(product, widget.storeId,
-          moduleId: widget.moduleId);
+    try {
+      bool ok = await cartController.addToCartOnline(cart);
+      if (!ok && cartController.lastAddToCartErrorCode == 'different_store') {
+        final bool confirmed = await _confirmClearCart();
+        if (!confirmed) return;
+        await cartController.clearCartList();
+        ok = await cartController.addToCartOnline(cart);
+      }
+      if (!ok) {
+        showCustomSnackBar('failed_to_add_to_cart'.tr, isError: true);
+      } else {
+        _showAddedToCartToast();
+      }
+    } catch (e) {
+      showCustomSnackBar(e.toString(), isError: true);
     }
   }
 
