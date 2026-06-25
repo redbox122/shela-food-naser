@@ -58,15 +58,17 @@ class _Brand {
   static double _toDouble(dynamic v) =>
       v == null ? 0 : (double.tryParse(v.toString()) ?? 0);
 
-  factory _Brand.fromJson(Map<String, dynamic> j) => _Brand(
+  /// Builds a rail chip from a `/api/v2/stores` row: the store's own logo and
+  /// name, resolving its tap to open that store directly.
+  factory _Brand.fromStore(Map<String, dynamic> j) => _Brand(
         id: int.tryParse('${j['id']}'),
         name: j['name']?.toString(),
-        image: (j['image_full_url'] ?? j['image'])?.toString(),
-        storeId: int.tryParse('${j['store_id']}'),
-        storeName: j['store_name']?.toString(),
+        image: (j['logo_full_url'] ?? j['logo'])?.toString(),
+        storeId: int.tryParse('${j['id']}'),
+        storeName: j['name']?.toString(),
         deliveryTime: j['delivery_time']?.toString(),
         freeDelivery: j['free_delivery'] == true || j['free_delivery'] == 1,
-        deliveryFee: _toDouble(j['first_km_fee']),
+        deliveryFee: _toDouble(j['delivery_fee'] ?? j['first_km_fee']),
         rating: _toDouble(j['avg_rating']),
         ratingCount: int.tryParse('${j['rating_count']}') ?? 0,
       );
@@ -88,31 +90,30 @@ class _MarketBrandsSectionState extends State<MarketBrandsSection> {
       return;
     }
     try {
-      // Brands are scoped to the screen's module; only the market family has
-      // brands, so non-market modules (restaurants/cafés/pharmacy) return an
-      // empty list and the section hides itself.
-      final int brandModuleId =
+      // The rail surfaces this module's own STORES (e.g. وردة فيولا) as circular
+      // logo chips — not cross-module brands — so each section shows its real
+      // shops. Tapping a chip opens that store. Scoped to the screen's module.
+      final int storeModuleId =
           widget.moduleId ?? MarketBrandsSection._marketModuleId;
       final response = await Get.find<ApiClient>().getData(
-        '/api/v2/brands?module_id=$brandModuleId',
-        headers: const {
+        '/api/v2/stores?module_id=$storeModuleId&limit=20&offset=0',
+        headers: {
           AppConstants.localizationKey: 'ar',
+          AppConstants.moduleId: storeModuleId.toString(),
         },
         useEtag: false,
       );
       if (!mounted) return;
       final dynamic body = response.body;
-      final List raw = body is List
-          ? body
-          : (body is Map && body['brands'] is List)
-              ? body['brands'] as List
-              : (body is Map && body['data'] is List)
-                  ? body['data'] as List
-                  : const [];
+      final List raw = (body is Map && body['stores'] is List)
+          ? body['stores'] as List
+          : (body is List)
+              ? body
+              : const [];
       setState(() {
         _items = raw
             .whereType<Map>()
-            .map((e) => _Brand.fromJson(Map<String, dynamic>.from(e)))
+            .map((e) => _Brand.fromStore(Map<String, dynamic>.from(e)))
             .toList();
         _loading = false;
       });
@@ -137,7 +138,7 @@ class _MarketBrandsSectionState extends State<MarketBrandsSection> {
             padding: const EdgeInsets.symmetric(
                 horizontal: Dimensions.paddingSizeDefault),
             child: Text(
-              'popular_brands'.tr,
+              'أشهر المتاجر',
               textAlign: TextAlign.right,
               style: const TextStyle(
                 fontFamily: 'Tajawal',

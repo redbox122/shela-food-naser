@@ -474,6 +474,198 @@ class _GridProductCard extends StatelessWidget {
   }
 }
 
+/// Full-width product row (food-delivery style): a square image with the add
+/// button + discount badge on the left, and the name, description, order count
+/// and price on the right. Used for the in-store category sections.
+class _ListProductCard extends StatelessWidget {
+  final _Product product;
+  final int? storeId;
+  const _ListProductCard({required this.product, this.storeId});
+
+  String _fmt(double v) =>
+      v == v.roundToDouble() ? v.toStringAsFixed(0) : v.toStringAsFixed(2);
+
+  @override
+  Widget build(BuildContext context) {
+    final radius = BorderRadius.circular(12);
+    final String orders = product.orderCount > 500
+        ? '+500'
+        : '${product.orderCount}';
+    return InkWell(
+      onTap: () => _addProductToCart(product, storeId),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(
+            horizontal: Dimensions.paddingSizeDefault, vertical: 10),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Text block (right in RTL): name, description, order count, price.
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    product.name ?? '',
+                    textAlign: TextAlign.right,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontFamily: 'Tajawal',
+                      fontWeight: FontWeight.w700,
+                      fontSize: 15,
+                      height: 1.3,
+                      color: Color(0xFF121C19),
+                    ),
+                  ),
+                  if ((product.description ?? '').trim().isNotEmpty) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      product.description!.trim(),
+                      textAlign: TextAlign.right,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontFamily: 'Tajawal',
+                        fontWeight: FontWeight.w400,
+                        fontSize: 12,
+                        height: 1.4,
+                        color: Color(0xFF8A8F99),
+                      ),
+                    ),
+                  ],
+                  if (product.orderCount > 0) ...[
+                    const SizedBox(height: 6),
+                    Text(
+                      'عدد الطلبات: $orders',
+                      textAlign: TextAlign.right,
+                      style: const TextStyle(
+                        fontFamily: 'Tajawal',
+                        fontWeight: FontWeight.w500,
+                        fontSize: 11,
+                        color: Color(0xFFB0B4BB),
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: 8),
+                  _priceRow(),
+                ],
+              ),
+            ),
+            const SizedBox(width: 12),
+            // Image (left in RTL) with the discount badge + add button.
+            SizedBox(
+              width: 104,
+              child: Column(
+                children: [
+                  Stack(
+                    children: [
+                      ClipRRect(
+                        borderRadius: radius,
+                        child: CustomImage(
+                          image: product.image ?? '',
+                          width: 104,
+                          height: 104,
+                          fit: BoxFit.cover,
+                          placeholder: Images.placeholder,
+                        ),
+                      ),
+                      if (product.discountPercent > 0)
+                        Positioned(
+                          top: 0,
+                          right: 0,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 6, vertical: 2),
+                            decoration: const BoxDecoration(
+                              color: Color(0xFFE53935),
+                              borderRadius: BorderRadius.only(
+                                bottomLeft: Radius.circular(8),
+                                topRight: Radius.circular(12),
+                              ),
+                            ),
+                            child: Text(
+                              '-${product.discountPercent}%',
+                              style: const TextStyle(
+                                fontFamily: 'Tajawal',
+                                fontWeight: FontWeight.w700,
+                                fontSize: 10,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ),
+                        ),
+                      Positioned(
+                        left: 6,
+                        bottom: 6,
+                        child: _AddButton(
+                          onTap: () => _addProductToCart(product, storeId),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  const Text(
+                    'قابل للتخصيص',
+                    style: TextStyle(
+                      fontFamily: 'Tajawal',
+                      fontWeight: FontWeight.w500,
+                      fontSize: 10,
+                      color: Color(0xFFB0B4BB),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _priceRow() {
+    return Directionality(
+      textDirection: TextDirection.ltr,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Image.asset(
+            Images.sar,
+            width: 13,
+            height: 13,
+            color: const Color(0xFF121C19),
+            errorBuilder: (_, __, ___) => Text('﷼',
+                style: robotoBold.copyWith(
+                    fontSize: 12, color: const Color(0xFF121C19))),
+          ),
+          const SizedBox(width: 3),
+          Text(
+            _fmt(product.shownPrice),
+            style: const TextStyle(
+              fontFamily: 'Tajawal',
+              fontWeight: FontWeight.w700,
+              fontSize: 14,
+              color: Color(0xFF121C19),
+            ),
+          ),
+          if (product.hasDiscount) ...[
+            const SizedBox(width: 8),
+            Text(
+              _fmt(product.originalPrice),
+              style: const TextStyle(
+                fontFamily: 'Tajawal',
+                fontWeight: FontWeight.w500,
+                fontSize: 11,
+                decoration: TextDecoration.lineThrough,
+                color: Color(0xFF9AA0A6),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
 /// Floating cart button shown once the cart has items; opens the cart screen.
 /// Kept for later reuse — the store screen now uses the app bottom nav bar.
 class _StoreCartFab extends StatelessWidget {

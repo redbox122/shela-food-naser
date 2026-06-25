@@ -15,7 +15,11 @@ const List<String> _categoryColumnBackgrounds = [
 String _categoryBgForIndex(int index) => _categoryColumnBackgrounds[
     (index ~/ 2) % _categoryColumnBackgrounds.length];
 
-class _CategoriesGrid extends StatefulWidget {
+/// Single horizontal row of square category tiles. Entering a store shows the
+/// categories neatly in one scrollable row (swipes left/right); the matching
+/// products render in the sections below. Replaces the older 2-row grid +
+/// "view more" so every category is reachable by scrolling the one row.
+class _CategoriesGrid extends StatelessWidget {
   final List<_Category> categories;
   final int? storeId;
   final int moduleId;
@@ -26,137 +30,34 @@ class _CategoriesGrid extends StatefulWidget {
       this.moduleId = _marketModuleId,
       this.storeCover});
 
-  /// Collapsed preview shows this many categories + a "view more" tile (= 8).
-  static const int _previewCount = 7;
-
-  @override
-  State<_CategoriesGrid> createState() => _CategoriesGridState();
-}
-
-class _CategoriesGridState extends State<_CategoriesGrid> {
-  bool _expanded = false;
+  /// Square tile edge (= row height); name sits inside the tile.
+  static const double _tileSize = 104;
 
   @override
   Widget build(BuildContext context) {
-    final cats = widget.categories;
-
-    // Expanded: full vertical 3-column grid (all categories).
-    if (_expanded) {
-      return Padding(
-        padding: const EdgeInsets.symmetric(
-          vertical: Dimensions.paddingSizeSmall,
-        ),
-        child: GridView.builder(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          padding: const EdgeInsets.symmetric(
-            horizontal: Dimensions.paddingSizeDefault,
-          ),
-          itemCount: cats.length,
-          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 3,
-            mainAxisSpacing: 10,
-            crossAxisSpacing: 10,
-            childAspectRatio: 1.0,
-          ),
-          itemBuilder: (_, i) => _CategoryTile(
-            category: cats[i],
-            index: i,
-            storeId: widget.storeId,
-            moduleId: widget.moduleId,
-            storeCover: widget.storeCover,
-          ),
-        ),
-      );
-    }
-
-    // Collapsed: two fixed rows scrolling horizontally; 7 cats + view-more.
-    final bool hasMore = cats.length > _CategoriesGrid._previewCount;
-    final int previewLen =
-        hasMore ? _CategoriesGrid._previewCount : cats.length;
+    if (categories.isEmpty) return const SizedBox.shrink();
     return Padding(
       padding: const EdgeInsets.symmetric(
         vertical: Dimensions.paddingSizeSmall,
       ),
       child: SizedBox(
-        height: 220,
-        child: GridView.builder(
+        height: _tileSize,
+        child: ListView.separated(
           scrollDirection: Axis.horizontal,
           padding: const EdgeInsets.symmetric(
             horizontal: Dimensions.paddingSizeDefault,
           ),
-          itemCount: previewLen + (hasMore ? 1 : 0),
-          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 2,
-            mainAxisSpacing: 10,
-            crossAxisSpacing: 10,
-            childAspectRatio: 1.0,
-          ),
-          itemBuilder: (_, i) {
-            if (hasMore && i == previewLen) {
-              return _ViewMoreCategoryTile(
-                index: previewLen,
-                onTap: () => setState(() => _expanded = true),
-              );
-            }
-            return _CategoryTile(
-              category: cats[i],
+          itemCount: categories.length,
+          separatorBuilder: (_, __) => const SizedBox(width: 10),
+          itemBuilder: (_, i) => SizedBox(
+            width: _tileSize,
+            child: _CategoryTile(
+              category: categories[i],
               index: i,
-              storeId: widget.storeId,
-              moduleId: widget.moduleId,
-              storeCover: widget.storeCover,
-            );
-          },
-        ),
-      ),
-    );
-  }
-}
-
-/// Category-tile-sized "اطّلع على المزيد" tile that expands the grid.
-/// Uses the same back_N artwork as the surrounding category tiles.
-class _ViewMoreCategoryTile extends StatelessWidget {
-  final VoidCallback onTap;
-  final int index;
-  const _ViewMoreCategoryTile({required this.onTap, required this.index});
-
-  @override
-  Widget build(BuildContext context) {
-    final radius = BorderRadius.circular(4);
-    final String bg = _categoryBgForIndex(index);
-    return Material(
-      color: Colors.transparent,
-      borderRadius: radius,
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: onTap,
-        child: Container(
-          decoration: BoxDecoration(
-            borderRadius: radius,
-            image: DecorationImage(
-              image: AssetImage(bg),
-              fit: BoxFit.cover,
+              storeId: storeId,
+              moduleId: moduleId,
+              storeCover: storeCover,
             ),
-          ),
-          alignment: Alignment.center,
-          padding: const EdgeInsets.all(6),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                'see_more'.tr,
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  fontFamily: 'Tajawal',
-                  fontWeight: FontWeight.w700,
-                  fontSize: 12,
-                  height: 1.2,
-                  color: Color(0xFF1F7A35),
-                ),
-              ),
-              const SizedBox(height: 6),
-              const Icon(Icons.arrow_back, size: 18, color: Color(0xFF1F7A35)),
-            ],
           ),
         ),
       ),

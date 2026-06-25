@@ -94,58 +94,51 @@ class _ProductSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Card with a green slogan header; the rail shows 5 products then a trailing
-    // "عرض المزيد" tile that opens the full list.
+    if (products.isEmpty) return const SizedBox.shrink();
+    // Clean section: a green title header (+ "عرض المزيد"), then the products as
+    // a 3-column grid (matching the category screen design).
     return Padding(
       padding: const EdgeInsets.only(
         top: 4,
         bottom: Dimensions.paddingSizeSmall,
       ),
-      child: GestureDetector(
-        onTap: _openOffers,
-        child: Container(
-          margin: const EdgeInsets.symmetric(
-              horizontal: Dimensions.paddingSizeDefault),
-          decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: [Color(0xFF057835), Color(0xFFEBFEEB)],
-            ),
-            borderRadius: BorderRadius.circular(4),
-            border: Border.all(color: const Color(0xFFCDEBD6)),
-          ),
-          clipBehavior: Clip.antiAlias,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Padding(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                child: Text(
-                  title,
-                  textAlign: TextAlign.right,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontFamily: 'Tajawal',
-                    fontWeight: FontWeight.w700,
-                    fontSize: 15,
-                    color: Colors.white,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+                Dimensions.paddingSizeDefault, 8, Dimensions.paddingSizeDefault, 10),
+            child: Row(
+              children: [
+                Expanded(
+                  child: GestureDetector(
+                    onTap: _openOffers,
+                    child: Text(
+                      title,
+                      textAlign: TextAlign.right,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontFamily: 'Tajawal',
+                        fontWeight: FontWeight.w700,
+                        fontSize: 16,
+                        height: 1.2,
+                        color: Color(0xFF30913F),
+                      ),
+                    ),
                   ),
                 ),
-              ),
-              const SizedBox(height: Dimensions.paddingSizeSmall),
-              _ProductRail(
-                products: products,
-                storeId: storeId,
-                moduleId: moduleId,
-                onViewMore: _openOffers,
-              ),
-              const SizedBox(height: Dimensions.paddingSizeSmall),
-            ],
+                _SeeMorePill(onTap: _openOffers),
+              ],
+            ),
           ),
-        ),
+          _ProductRail(
+            products: products,
+            storeId: storeId,
+            moduleId: moduleId,
+            onViewMore: _openOffers,
+          ),
+        ],
       ),
     );
   }
@@ -371,98 +364,72 @@ class _FeaturedSectionViewState extends State<_FeaturedSectionView> {
   @override
   Widget build(BuildContext context) {
     final section = widget.section;
+    if (section.products.isEmpty) return const SizedBox.shrink();
+    // Clean section header: slogan (in the logo's accent colour) + a small store
+    // logo, then the products as a 3-column grid below on white.
+    final Color accent =
+        _accent == null ? _fallbackTop : _readableDark(_accent!);
     return Padding(
-      // Extra top room so the logo can protrude above the card.
       padding: const EdgeInsets.only(
         top: 4,
         bottom: Dimensions.paddingSizeSmall,
       ),
-      // Tapping the section (header / logo / empty area) opens the store's
-      // products; the product cards keep their own taps.
-      child: GestureDetector(
-        onTap: _openOffers,
-        child: Stack(
-          clipBehavior: Clip.none,
-          children: [
-            // Card: gradient across the whole card (accent top → light tint
-            // bottom), derived from the logo; the slogan header + product rail
-            // sit on top of it.
-            AnimatedContainer(
-              duration: const Duration(milliseconds: 350),
-              curve: Curves.easeOut,
-              // 30px top margin keeps the protruding logo + "see more" pill
-              // inside the Stack's bounds so they stay tappable (a Stack child
-              // painted outside its bounds is visible but ignores taps).
-              margin: const EdgeInsets.fromLTRB(Dimensions.paddingSizeDefault,
-                  30, Dimensions.paddingSizeDefault, 0),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [_topColor, _bottomColor],
-                ),
-                borderRadius: BorderRadius.circular(4),
-                border: Border.all(color: _borderColor),
-              ),
-              clipBehavior: Clip.antiAlias,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+                Dimensions.paddingSizeDefault, 8, Dimensions.paddingSizeDefault, 10),
+            child: GestureDetector(
+              onTap: _openOffers,
+              child: Row(
                 children: [
-                  // Slogan header — transparent so the card gradient shows; the
-                  // right padding leaves room for the logo.
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(12, 12, 84, 12),
+                  Expanded(
                     child: Text(
                       section.slogan ?? '',
                       textAlign: TextAlign.right,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontFamily: 'Tajawal',
                         fontWeight: FontWeight.w700,
                         fontSize: 16,
-                        height: 1.4,
-                        color: Colors.white,
+                        height: 1.2,
+                        color: accent,
                       ),
                     ),
                   ),
-                  const SizedBox(height: Dimensions.paddingSizeSmall),
-                  _ProductRail(
-                    products: section.products,
-                    storeId: section.storeId,
-                    moduleId: section.moduleId ?? _marketModuleId,
-                    onViewMore: _openOffers,
+                  const SizedBox(width: 8),
+                  AnimatedContainer(
+                    duration: const Duration(milliseconds: 350),
+                    curve: Curves.easeOut,
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: _logoBg,
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(color: Colors.white, width: 2),
+                    ),
+                    clipBehavior: Clip.antiAlias,
+                    child: CustomImage(
+                      image: section.logo ?? '',
+                      width: 40,
+                      height: 40,
+                      fit: BoxFit.contain,
+                      placeholder: Images.placeholder,
+                    ),
                   ),
-                  const SizedBox(height: Dimensions.paddingSizeSmall),
                 ],
               ),
             ),
-            // Logo (65×63, white 2px border) protruding at the top-right.
-            Positioned(
-              top: 14,
-              right: Dimensions.paddingSizeDefault + 12,
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 350),
-                curve: Curves.easeOut,
-                width: 65,
-                height: 63,
-                decoration: BoxDecoration(
-                  color: _logoBg,
-                  borderRadius: BorderRadius.circular(4),
-                  border: Border.all(color: Colors.white, width: 2),
-                ),
-                clipBehavior: Clip.antiAlias,
-                child: CustomImage(
-                  image: section.logo ?? '',
-                  width: 65,
-                  height: 63,
-                  fit: BoxFit.contain,
-                  placeholder: Images.placeholder,
-                ),
-              ),
-            ),
-          ],
-        ),
+          ),
+          _ProductRail(
+            products: section.products,
+            storeId: section.storeId,
+            moduleId: section.moduleId ?? _marketModuleId,
+            onViewMore: _openOffers,
+          ),
+        ],
       ),
     );
   }
@@ -486,40 +453,39 @@ class _ProductRail extends StatelessWidget {
     this.onViewMore,
   });
 
-  /// Preview rails show only the first few products; the rest live behind the
-  /// trailing "عرض المزيد" tile.
-  static const int _previewLimit = 5;
-
   @override
   Widget build(BuildContext context) {
-    final int shown = onViewMore == null
-        ? products.length
-        : (products.length > _previewLimit ? _previewLimit : products.length);
-    final bool showViewMore = onViewMore != null;
-    // Fixed-width 108×128 cards in a horizontal scroll; when capped, a vertical
-    // "عرض المزيد" tile trails the preview and opens the full grid.
-    return SizedBox(
-      height: 128,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        padding:
-            const EdgeInsets.symmetric(horizontal: Dimensions.paddingSizeSmall),
-        itemCount: shown + (showViewMore ? 1 : 0),
-        separatorBuilder: (_, __) => const SizedBox(width: 8),
-        itemBuilder: (_, i) {
-          if (showViewMore && i == shown) {
-            return _ViewMoreTile(onTap: onViewMore!);
-          }
-          return SizedBox(
-            width: 108,
-            child: _ProductCard(
-              product: products[i],
-              storeId: storeId,
-              moduleId: moduleId,
+    if (products.isEmpty) return const SizedBox.shrink();
+    // Products as full-width rows (image + name + description + order count +
+    // price). A capped section previews the first rows then a "عرض المزيد" pill
+    // opens the full list.
+    const int preview = 6;
+    final bool cap = onViewMore != null && products.length > preview;
+    final int shown = cap ? preview : products.length;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        for (int i = 0; i < shown; i++) ...[
+          if (i > 0)
+            const Divider(
+              height: 1,
+              thickness: 1,
+              indent: Dimensions.paddingSizeDefault,
+              endIndent: Dimensions.paddingSizeDefault,
+              color: Color(0xFFF0F1F3),
             ),
-          );
-        },
-      ),
+          _ListProductCard(product: products[i], storeId: storeId),
+        ],
+        if (cap)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(Dimensions.paddingSizeDefault, 6,
+                Dimensions.paddingSizeDefault, 0),
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: _SeeMorePill(onTap: onViewMore!),
+            ),
+          ),
+      ],
     );
   }
 }

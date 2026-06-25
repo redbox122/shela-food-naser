@@ -34,6 +34,12 @@ class _Product {
   final double originalPrice;
   final double discountedPrice;
 
+  /// Short product description shown under the name in the list rows.
+  final String? description;
+
+  /// How many times the item has been ordered (e.g. "عدد الطلبات: +500").
+  final int orderCount;
+
   _Product({
     this.id,
     this.name,
@@ -41,6 +47,8 @@ class _Product {
     this.price = 0,
     this.originalPrice = 0,
     this.discountedPrice = 0,
+    this.description,
+    this.orderCount = 0,
   });
 
   static double _d(dynamic v) =>
@@ -55,6 +63,8 @@ class _Product {
         price: _d(j['price']),
         originalPrice: _d(j['original_price']),
         discountedPrice: _d(j['discounted_price']),
+        description: j['description']?.toString(),
+        orderCount: int.tryParse('${j['order_count'] ?? 0}') ?? 0,
       );
 
   bool get hasDiscount =>
