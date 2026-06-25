@@ -208,9 +208,35 @@ class _HomeSearchScreenState extends State<HomeSearchScreen> {
   }
 
   Future<void> _fetchModuleScoped() async {
-    // Store-scoped search hides the global discovery rails, so skip fetching
-    // the (global) most-searched keywords and brands entirely.
+    // In-store search: show THIS store's category names as quick keywords and
+    // no store rail (e.g. searching inside هايبر شله lists its sections).
     if (widget.storeId != null) {
+      try {
+        if (Get.isRegistered<ApiClient>()) {
+          final r = await Get.find<ApiClient>().getData(
+            '/api/v2/stores/${widget.storeId}/categories',
+            headers: widget.moduleId != null
+                ? {AppConstants.moduleId: widget.moduleId.toString()}
+                : null,
+            useEtag: false,
+          );
+          final dynamic body = r.body;
+          final List raw = body is List
+              ? body
+              : (body is Map && body['categories'] is List)
+                  ? body['categories'] as List
+                  : (body is Map && body['data'] is List)
+                      ? body['data'] as List
+                      : const [];
+          if (mounted) {
+            _mostSearched = raw
+                .whereType<Map>()
+                .map((e) => (e['name'] ?? '').toString())
+                .where((n) => n.isNotEmpty)
+                .toList();
+          }
+        }
+      } catch (_) {}
       if (mounted) setState(() => _loadingDiscovery = false);
       return;
     }

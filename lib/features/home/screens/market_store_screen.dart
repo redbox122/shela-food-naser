@@ -246,9 +246,21 @@ class _MarketStoreScreenState extends State<MarketStoreScreen> {
           if (_loading)
             const SliverToBoxAdapter(child: _BodySkeleton())
           else if (d != null) ...[
-            // Sticky category tab bar: pins under the header; tapping a tab
-            // selects that category and shows its products below.
-            if (cats.isNotEmpty)
+            // Hyper market keeps its original square category grid (tap a tile
+            // to open that category); other stores get the sticky tab bar.
+            if (cats.isNotEmpty && widget.isHyperStorefront)
+              SliverToBoxAdapter(
+                child: _CategoriesGrid(
+                  categories: cats,
+                  storeId: widget.storeId,
+                  moduleId: effectiveModule,
+                  storeCover: d.cover ?? widget.cover,
+                ),
+              ),
+
+            // Sticky category tab bar (non-hyper): pins under the header; tapping
+            // a tab selects that category and shows its products below.
+            if (cats.isNotEmpty && !widget.isHyperStorefront)
               SliverPersistentHeader(
                 pinned: true,
                 delegate: _CategoryTabsDelegate(
