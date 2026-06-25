@@ -451,7 +451,9 @@ class _MarketProductScreenState extends State<MarketProductScreen> {
         backgroundColor: Colors.transparent,
         floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
         floatingActionButton:
-            (!_loading && _item != null) ? const _BottomActionBar() : null,
+            (!_loading && _item != null)
+                ? _BottomActionBar(storeId: widget.storeId)
+                : null,
         body: ClipRRect(
           borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
           child: Container(
@@ -1155,7 +1157,8 @@ class _RecommendedCard extends StatelessWidget {
 /// Bottom green pill with two actions: open cart (with a count badge) and open
 /// search. Centered above the bottom edge of the sheet.
 class _BottomActionBar extends StatelessWidget {
-  const _BottomActionBar();
+  final int? storeId;
+  const _BottomActionBar({this.storeId});
 
   static const Color _accent = Color(0xFF1F7A35);
   // The pill is split into two shades: the cart half (lighter) and the search
@@ -1241,7 +1244,7 @@ class _BottomActionBar extends StatelessWidget {
                 child: Center(
                   child: IconButton(
                     onPressed: () =>
-                        Get.to<void>(() => const HomeSearchScreen()),
+                        Get.to<void>(() => HomeSearchScreen(storeId: storeId)),
                     icon: Image.asset(
                       Images.search_v2,
                       width: 24,

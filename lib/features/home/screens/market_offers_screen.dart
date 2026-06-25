@@ -329,8 +329,8 @@ class _MarketOffersScreenState extends State<MarketOffersScreen> {
                     name: widget.storeName ?? widget.title,
                     slogan: widget.title,
                     onBack: () => Get.back<void>(),
-                    onSearch: () =>
-                        Get.to<void>(() => const HomeSearchScreen()),
+                    onSearch: () => Get.to<void>(() => HomeSearchScreen(
+                        storeId: widget.storeId, moduleId: widget.moduleId)),
                   )
                 else
                   MarketOffersHeader(
