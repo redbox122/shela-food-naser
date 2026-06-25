@@ -148,6 +148,19 @@ class _HomeSearchScreenState extends State<HomeSearchScreen> {
         }
       }
     } catch (_) {}
+    // Relevance ranking: an exact name, then a name that STARTS with the query,
+    // then the earliest in-name match — so "نوتيلا" surfaces the chocolate
+    // before furniture that merely carries "نوتيلا" as a colour mid-name.
+    final String q = text.toLowerCase().trim();
+    int rank(_SearchProduct p) {
+      final n = (p.name ?? '').toLowerCase();
+      if (n == q) return 0;
+      if (n.startsWith(q)) return 1;
+      final i = n.indexOf(q);
+      return i < 0 ? 1000000 : 100 + i;
+    }
+
+    results = [...results]..sort((a, b) => rank(a).compareTo(rank(b)));
     if (!mounted) return;
     // Drop stale responses if the query changed while we were waiting.
     if (_controller.text.trim() != text) return;
