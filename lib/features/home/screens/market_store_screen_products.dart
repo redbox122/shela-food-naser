@@ -496,7 +496,8 @@ class _ProductRail extends StatelessWidget {
               endIndent: Dimensions.paddingSizeDefault,
               color: Color(0xFFF0F1F3),
             ),
-          _ListProductCard(product: products[i], storeId: storeId),
+          _ListProductCard(
+              product: products[i], storeId: storeId, moduleId: moduleId),
         ],
         if (cap)
           Padding(

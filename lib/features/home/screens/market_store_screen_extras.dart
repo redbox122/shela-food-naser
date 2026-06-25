@@ -480,10 +480,25 @@ class _GridProductCard extends StatelessWidget {
 class _ListProductCard extends StatelessWidget {
   final _Product product;
   final int? storeId;
-  const _ListProductCard({required this.product, this.storeId});
+  final int moduleId;
+  const _ListProductCard(
+      {required this.product, this.storeId, this.moduleId = _marketModuleId});
 
   String _fmt(double v) =>
       v == v.roundToDouble() ? v.toStringAsFixed(0) : v.toStringAsFixed(2);
+
+  /// Opens the product options sheet (choices + quantity), then adds to cart.
+  void _open() {
+    if (product.id == null) return;
+    showProductOptions(
+      itemId: product.id!,
+      storeId: storeId,
+      moduleId: moduleId,
+      name: product.name,
+      image: product.image,
+      price: product.shownPrice,
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -492,7 +507,7 @@ class _ListProductCard extends StatelessWidget {
         ? '+500'
         : '${product.orderCount}';
     return InkWell(
-      onTap: () => _addProductToCart(product, storeId),
+      onTap: _open,
       child: Padding(
         padding: const EdgeInsets.symmetric(
             horizontal: Dimensions.paddingSizeDefault, vertical: 10),
@@ -597,9 +612,7 @@ class _ListProductCard extends StatelessWidget {
                       Positioned(
                         left: 6,
                         bottom: 6,
-                        child: _AddButton(
-                          onTap: () => _addProductToCart(product, storeId),
-                        ),
+                        child: _AddButton(onTap: _open),
                       ),
                     ],
                   ),

@@ -32,6 +32,7 @@ part 'market_store_screen_chrome.dart';
 part 'market_store_screen_categories.dart';
 part 'market_store_screen_products.dart';
 part 'market_store_screen_extras.dart';
+part 'market_store_screen_options.dart';
 
 /// 🎨 REDESIGN (Market): grocery store detail screen opened when tapping a
 /// store card in the market.
