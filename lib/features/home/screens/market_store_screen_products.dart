@@ -176,42 +176,61 @@ class _CategoryRailState extends State<_CategoryRail> {
     _fetch();
   }
 
-  Future<void> _fetch() async {
-    List<_Product> result = const [];
+  /// Fetches this category's items scoped to [moduleId] (the items index is
+  /// module-scoped). Returns an empty list on any failure.
+  Future<List<_Product>> _fetchWithModule(int moduleId) async {
     try {
-      if (Get.isRegistered<ApiClient>()) {
-        // Use the store's own module so its items resolve (restaurants, cafés,
-        // pharmacies, …). Only the hyper store passes a legacy moduleId (≤1)
-        // that the items index rejects, so fall back to the ecommerce module
-        // for that one. store_id scopes the items to this store either way.
-        int moduleId = widget.moduleId;
-        if (moduleId <= 1) {
-          if (Get.isRegistered<SplashController>()) {
-            for (final m
-                in (Get.find<SplashController>().moduleList ?? const [])) {
-              if ((m.moduleType ?? '').toLowerCase() == 'ecommerce') {
-                moduleId = m.id;
-                break;
-              }
-            }
-          }
-        }
-        final r = await Get.find<ApiClient>().getData(
-          '/api/v1/categories/items/${widget.category.id}'
-          '?store_id=${widget.storeId}&offset=1&limit=10&type=all',
-          headers: {AppConstants.moduleId: moduleId.toString()},
-          useEtag: false,
-        );
-        final body = r.body;
-        final list = body is Map ? body['products'] : null;
-        if (list is List) {
-          result = list
-              .whereType<Map>()
-              .map((e) => _Product.fromJson(Map<String, dynamic>.from(e)))
-              .toList();
-        }
+      final r = await Get.find<ApiClient>().getData(
+        '/api/v1/categories/items/${widget.category.id}'
+        '?store_id=${widget.storeId}&offset=1&limit=10&type=all',
+        headers: {AppConstants.moduleId: moduleId.toString()},
+        useEtag: false,
+      );
+      final body = r.body;
+      final list = body is Map ? body['products'] : null;
+      if (list is List) {
+        return list
+            .whereType<Map>()
+            .map((e) => _Product.fromJson(Map<String, dynamic>.from(e)))
+            .toList();
       }
     } catch (_) {}
+    return const [];
+  }
+
+  Future<void> _fetch() async {
+    List<_Product> result = const [];
+    if (Get.isRegistered<ApiClient>()) {
+      // The items index is module-scoped, and the module passed in can be wrong
+      // (e.g. a store opened while another module was active). Try the store's
+      // module first, then food, then ecommerce, then every loaded module —
+      // stopping at the first that returns items — so products always resolve.
+      final List<int> candidates = [];
+      void add(int? m) {
+        if (m != null && m > 1 && !candidates.contains(m)) candidates.add(m);
+      }
+
+      add(widget.moduleId);
+      if (Get.isRegistered<SplashController>()) {
+        final modules = Get.find<SplashController>().moduleList ?? const [];
+        for (final m in modules) {
+          if ((m.moduleType ?? '').toLowerCase() == 'food') add(m.id);
+        }
+        for (final m in modules) {
+          if ((m.moduleType ?? '').toLowerCase() == 'ecommerce') add(m.id);
+        }
+        for (final m in modules) {
+          add(m.id);
+        }
+      }
+      if (candidates.isEmpty) candidates.add(widget.moduleId);
+
+      for (final m in candidates) {
+        result = await _fetchWithModule(m);
+        if (result.isNotEmpty) break;
+        if (!mounted) return;
+      }
+    }
     if (mounted) setState(() => _products = result);
   }
 
