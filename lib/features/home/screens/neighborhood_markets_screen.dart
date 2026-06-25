@@ -66,7 +66,7 @@ class _NeighborhoodMarketsScreenState extends State<NeighborhoodMarketsScreen> {
       backgroundColor: const Color(0xFFFFFFFF),
       body: Column(
         children: [
-          _Header(title: widget.title),
+          _Header(title: widget.title, moduleId: moduleId),
           Expanded(
             child: CustomScrollView(
               physics: const AlwaysScrollableScrollPhysics(),
@@ -131,7 +131,11 @@ class _NeighborhoodMarketsScreenState extends State<NeighborhoodMarketsScreen> {
 class _Header extends StatelessWidget {
   final String title;
 
-  const _Header({required this.title});
+  /// Module this storefront belongs to — passed to search so it scopes results
+  /// and shows this module's own stores.
+  final int? moduleId;
+
+  const _Header({required this.title, this.moduleId});
 
   @override
   Widget build(BuildContext context) {
@@ -166,7 +170,8 @@ class _Header extends StatelessWidget {
             // Search (RTL: on the left).
             _CircleIconButton(
               image: Images.search,
-              onTap: () => Get.to<void>(() => const HomeSearchScreen()),
+              onTap: () =>
+                  Get.to<void>(() => HomeSearchScreen(moduleId: moduleId)),
             ),
           ],
         ),

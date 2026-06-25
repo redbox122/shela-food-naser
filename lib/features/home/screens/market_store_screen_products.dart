@@ -180,19 +180,22 @@ class _CategoryRailState extends State<_CategoryRail> {
     List<_Product> result = const [];
     try {
       if (Get.isRegistered<ApiClient>()) {
-        // Use a valid (ecommerce) module for the header — the store's legacy
-        // moduleId (1) is rejected; store_id scopes the items to this store.
-        int? moduleId;
-        if (Get.isRegistered<SplashController>()) {
-          for (final m
-              in (Get.find<SplashController>().moduleList ?? const [])) {
-            if ((m.moduleType ?? '').toLowerCase() == 'ecommerce') {
-              moduleId = m.id;
-              break;
+        // Use the store's own module so its items resolve (restaurants, cafés,
+        // pharmacies, …). Only the hyper store passes a legacy moduleId (≤1)
+        // that the items index rejects, so fall back to the ecommerce module
+        // for that one. store_id scopes the items to this store either way.
+        int moduleId = widget.moduleId;
+        if (moduleId <= 1) {
+          if (Get.isRegistered<SplashController>()) {
+            for (final m
+                in (Get.find<SplashController>().moduleList ?? const [])) {
+              if ((m.moduleType ?? '').toLowerCase() == 'ecommerce') {
+                moduleId = m.id;
+                break;
+              }
             }
           }
         }
-        moduleId ??= widget.moduleId;
         final r = await Get.find<ApiClient>().getData(
           '/api/v1/categories/items/${widget.category.id}'
           '?store_id=${widget.storeId}&offset=1&limit=10&type=all',
