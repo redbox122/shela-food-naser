@@ -93,6 +93,15 @@ class _MarketStoreScreenState extends State<MarketStoreScreen> {
   List<_Category> _categories = const [];
   bool _loading = true;
 
+  /// Drives the sticky category tab bar: the selected tab shows that category's
+  /// products below. A controller is kept so selecting a tab can snap the menu
+  /// back to the top.
+  final ScrollController _scrollController = ScrollController();
+  int _activeTab = 0;
+
+  /// Height of the pinned category tab bar.
+  static const double _tabBarHeight = 46;
+
   List<_Category> get _resolvedCategories {
     final base =
         _categories.isNotEmpty ? _categories : (_detail?.categories ?? const []);
@@ -108,6 +117,18 @@ class _MarketStoreScreenState extends State<MarketStoreScreen> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) => _fetch());
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  /// Selects a category tab → shows that category's products below the pinned
+  /// tabs.
+  void _selectTab(int i) {
+    if (i != _activeTab) setState(() => _activeTab = i);
   }
 
   Future<void> _fetch() async {
@@ -156,6 +177,9 @@ class _MarketStoreScreenState extends State<MarketStoreScreen> {
   @override
   Widget build(BuildContext context) {
     final d = _detail;
+    final cats = _resolvedCategories;
+    // Selected category index (clamped so it stays valid if the list shrinks).
+    final int sel = cats.isEmpty ? 0 : _activeTab.clamp(0, cats.length - 1);
     return Scaffold(
       backgroundColor: const Color(0xFFFFFFFF),
       // أسواق الحي stores have no bottom nav (matches the design); other
@@ -165,6 +189,7 @@ class _MarketStoreScreenState extends State<MarketStoreScreen> {
       body: Stack(
         children: [
           CustomScrollView(
+            controller: _scrollController,
             physics: const AlwaysScrollableScrollPhysics(),
             slivers: [
           // أسواق الحي stores: cover-image header (cover + icons + delivery +
@@ -205,35 +230,35 @@ class _MarketStoreScreenState extends State<MarketStoreScreen> {
           if (_loading)
             const SliverToBoxAdapter(child: _BodySkeleton())
           else if (d != null) ...[
-            // Categories grid (full list from /categories, else inline subset).
-            if (_resolvedCategories.isNotEmpty)
-              SliverToBoxAdapter(
-                child: _CategoriesGrid(
-                  categories: _resolvedCategories,
-                  storeId: widget.storeId,
-                  moduleId: widget.moduleId,
-                  storeCover: d.cover ?? widget.cover,
+            // Sticky category tab bar: pins under the header; tapping a tab
+            // selects that category and shows its products below.
+            if (cats.isNotEmpty)
+              SliverPersistentHeader(
+                pinned: true,
+                delegate: _CategoryTabsDelegate(
+                  categories: cats,
+                  activeIndex: sel,
+                  height: _tabBarHeight,
+                  onTap: _selectTab,
                 ),
               ),
 
-            // Every category is shown as its own section so the customer can
-            // scroll down and browse the whole store. (Falls back to the single
-            // selected-category section only when the category list is empty.)
-            if (_resolvedCategories.isNotEmpty)
-              SliverList(
-                delegate: SliverChildBuilderDelegate(
-                  (context, i) {
-                    final c = _resolvedCategories[i];
-                    return _CategoryRail(
-                      storeId: widget.storeId ?? 0,
-                      moduleId: widget.moduleId,
-                      category: c,
-                      storeName: d.name ?? widget.name,
-                      storeLogo: d.logo ?? widget.logo,
-                      storeCover: d.cover ?? widget.cover,
-                    );
-                  },
-                  childCount: _resolvedCategories.length,
+            // Only the selected category's products are shown — navigate between
+            // sections via the tabs. Keyed by category id so switching tabs
+            // reloads that category's items. Falls back to the single inline
+            // category section when the category list is empty.
+            if (cats.isNotEmpty)
+              SliverToBoxAdapter(
+                child: KeyedSubtree(
+                  key: ValueKey(cats[sel].rawId),
+                  child: _CategoryRail(
+                    storeId: widget.storeId ?? 0,
+                    moduleId: widget.moduleId,
+                    category: cats[sel],
+                    storeName: d.name ?? widget.name,
+                    storeLogo: d.logo ?? widget.logo,
+                    storeCover: d.cover ?? widget.cover,
+                  ),
                 ),
               )
             else if (d.categoryProducts.isNotEmpty)
@@ -250,15 +275,8 @@ class _MarketStoreScreenState extends State<MarketStoreScreen> {
                 ),
               ),
 
-            // Featured discounted products ("عروض مختارة لك") — hidden in the
-            // hyper storefront so it shows only its own products.
-            if (!widget.isHyperStorefront &&
-                d.discounted != null &&
-                d.discounted!.products.isNotEmpty)
-              SliverToBoxAdapter(
-                  child: _FeaturedSectionView(section: d.discounted!)),
-
-            // "منتجات مقترحة لك" (cross-store featured) removed per request.
+            // "عروض مختارة لك" / "منتجات مقترحة لك" (cross-store featured
+            // sections) removed per request.
           ],
 
           const SliverToBoxAdapter(

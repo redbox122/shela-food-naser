@@ -1,171 +1,98 @@
 part of 'market_store_screen.dart';
 
-// ─── Categories grid ─────────────────────────────────────────────────────────
+// ─── Sticky category tabs ────────────────────────────────────────────────────
 
-/// Only 4 tile backgrounds, assigned by column so the top and bottom tile of a
-/// column share one: col 0 → back_1, col 1 → back_2, col 2 → back_5, col 3 →
-/// back_6 (then it repeats). In the 2-row horizontal grid, column = index ~/ 2.
-const List<String> _categoryColumnBackgrounds = [
-  'assets/image/back_1.png',
-  'assets/image/back_2.png',
-  'assets/image/back_5.png',
-  'assets/image/back_6.png',
-];
-
-String _categoryBgForIndex(int index) => _categoryColumnBackgrounds[
-    (index ~/ 2) % _categoryColumnBackgrounds.length];
-
-/// Single horizontal row of square category tiles. Entering a store shows the
-/// categories neatly in one scrollable row (swipes left/right); the matching
-/// products render in the sections below. Replaces the older 2-row grid +
-/// "view more" so every category is reachable by scrolling the one row.
-class _CategoriesGrid extends StatelessWidget {
+/// Pinned horizontal category tab bar (food-delivery style). Each tab is a
+/// category name; the active one is dark + bold with a green underline. Tapping
+/// a tab asks the screen to scroll to that category's section, and the active
+/// tab follows the scroll position (scroll-spy, handled by the screen state).
+class _CategoryTabsDelegate extends SliverPersistentHeaderDelegate {
   final List<_Category> categories;
-  final int? storeId;
-  final int moduleId;
-  final String? storeCover;
-  const _CategoriesGrid(
-      {required this.categories,
-      this.storeId,
-      this.moduleId = _marketModuleId,
-      this.storeCover});
+  final int activeIndex;
+  final double height;
+  final void Function(int index) onTap;
 
-  /// Square tile edge (= row height); name sits inside the tile.
-  static const double _tileSize = 104;
-
-  @override
-  Widget build(BuildContext context) {
-    if (categories.isEmpty) return const SizedBox.shrink();
-    return Padding(
-      padding: const EdgeInsets.symmetric(
-        vertical: Dimensions.paddingSizeSmall,
-      ),
-      child: SizedBox(
-        height: _tileSize,
-        child: ListView.separated(
-          scrollDirection: Axis.horizontal,
-          padding: const EdgeInsets.symmetric(
-            horizontal: Dimensions.paddingSizeDefault,
-          ),
-          itemCount: categories.length,
-          separatorBuilder: (_, __) => const SizedBox(width: 10),
-          itemBuilder: (_, i) => SizedBox(
-            width: _tileSize,
-            child: _CategoryTile(
-              category: categories[i],
-              index: i,
-              storeId: storeId,
-              moduleId: moduleId,
-              storeCover: storeCover,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _CategoryTile extends StatelessWidget {
-  final _Category category;
-  final int index;
-  final int? storeId;
-  final int moduleId;
-  final String? storeCover;
-  const _CategoryTile(
-      {required this.category,
-      required this.index,
-      this.storeId,
-      this.moduleId = _marketModuleId,
-      this.storeCover});
+  _CategoryTabsDelegate({
+    required this.categories,
+    required this.activeIndex,
+    required this.height,
+    required this.onTap,
+  });
 
   @override
-  Widget build(BuildContext context) {
-    final radius = BorderRadius.circular(4);
-    final String bg = _categoryBgForIndex(index);
-    // The backend's special discount category comes back as "Best Offers" (in
-    // English, no image). Localize its label and use an offers icon fallback.
-    final bool isDiscount =
-        category.isDiscount || category.name == 'Best Offers';
-    final String displayName =
-        isDiscount ? 'best_offers'.tr : (category.name ?? '');
-    final String imageUrl = category.image ?? '';
-    return Material(
-      color: Colors.transparent,
-      borderRadius: radius,
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: () => Get.to<void>(
-          () => MarketOffersScreen(
-            title: displayName,
-            storeId: storeId,
-            moduleId: moduleId,
-            categoryId: category.rawId,
-            storeCover: storeCover,
-          ),
-        ),
-        child: Container(
-          decoration: BoxDecoration(
-            borderRadius: radius,
-            image: DecorationImage(
-              image: AssetImage(bg),
-              fit: BoxFit.cover,
-            ),
-          ),
-          child: Stack(
-            children: [
-              // Category product image (68×68) centered at the bottom. The
-              // discount category has no image → fall back to an offers icon.
-              Positioned(
-                left: 0,
-                right: 0,
-                bottom: 6,
-                child: Center(
-                  child: (imageUrl.isEmpty && isDiscount)
-                      ? Image.asset(
-                          Images.filter_offers_active,
-                          width: 68,
-                          height: 68,
-                          fit: BoxFit.contain,
-                          errorBuilder: (_, __, ___) => const SizedBox(
-                            width: 68,
-                            height: 68,
+  double get minExtent => height;
+
+  @override
+  double get maxExtent => height;
+
+  @override
+  Widget build(
+      BuildContext context, double shrinkOffset, bool overlapsContent) {
+    return Container(
+      height: height,
+      color: Colors.white,
+      child: Column(
+        children: [
+          Expanded(
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(
+                  horizontal: Dimensions.paddingSizeDefault),
+              itemCount: categories.length,
+              separatorBuilder: (_, __) => const SizedBox(width: 18),
+              itemBuilder: (_, i) {
+                final bool active = i == activeIndex;
+                final c = categories[i];
+                final String name =
+                    (c.name == null || c.name!.isEmpty) ? '—' : c.name!;
+                return GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: () => onTap(i),
+                  child: Column(
+                    children: [
+                      Expanded(
+                        child: Center(
+                          child: Text(
+                            name,
+                            style: TextStyle(
+                              fontFamily: 'Tajawal',
+                              fontWeight:
+                                  active ? FontWeight.w700 : FontWeight.w500,
+                              fontSize: 14,
+                              color: active
+                                  ? const Color(0xFF121C19)
+                                  : const Color(0xFF8A8F99),
+                            ),
                           ),
-                        )
-                      : CustomImage(
-                          image: imageUrl,
-                          width: 68,
-                          height: 68,
-                          fit: BoxFit.contain,
-                          placeholder: Images.placeholder,
                         ),
-                ),
-              ),
-              // Name at the top, centered.
-              Positioned(
-                top: 8,
-                right: 6,
-                left: 6,
-                child: Text(
-                  displayName,
-                  textAlign: TextAlign.center,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontFamily: 'Tajawal',
-                    fontWeight: FontWeight.w700,
-                    fontSize: 12,
-                    height: 1.0,
-                    color: Color(0xFF30913F),
+                      ),
+                      // Underline shown only under the active tab.
+                      Container(
+                        height: 3,
+                        width: 26,
+                        decoration: BoxDecoration(
+                          color: active
+                              ? const Color(0xFF30913F)
+                              : Colors.transparent,
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                    ],
                   ),
-                ),
-              ),
-            ],
+                );
+              },
+            ),
           ),
-        ),
+          Container(height: 1, color: const Color(0xFFF0F1F3)),
+        ],
       ),
     );
   }
-}
 
-// ─── Category chips removed (redundant circular strip; the category grid
-// above already covers category navigation). ────────────────────────────────
+  @override
+  bool shouldRebuild(_CategoryTabsDelegate old) =>
+      old.activeIndex != activeIndex ||
+      old.categories.length != categories.length ||
+      old.height != height;
+}

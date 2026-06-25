@@ -30,6 +30,7 @@ import 'package:sixam_mart/features/loyalty/screens/loyalty_screen.dart';
 import 'package:sixam_mart/features/profile/domain/models/update_user_model.dart';
 import 'package:sixam_mart/features/refer_and_earn/screens/refer_and_earn_screen.dart';
 import 'package:sixam_mart/features/splash/controllers/splash_controller.dart';
+import 'package:sixam_mart/features/home/screens/market_store_screen.dart';
 import 'package:sixam_mart/features/notification/domain/models/notification_body_model.dart';
 import 'package:sixam_mart/features/checkout/domain/models/place_order_body_model.dart';
 import 'package:sixam_mart/features/address/domain/models/address_model.dart';
@@ -957,19 +958,29 @@ class RouteHelper {
     GetPage(
         name: store,
         page: () {
-          return getRoute(
-              (Get.arguments as Widget?) ??
-                  StoreScreen(
-                    store: Store(
-                        id: Get.parameters['id'] != 'null' &&
-                                Get.parameters['id'] != null
-                            ? int.parse(Get.parameters['id']!)
-                            : null),
-                    fromModule: Get.parameters['page'] != null &&
-                        Get.parameters['page'] == 'module',
-                    slug: Get.parameters['slug'] ?? '',
-                  ),
-              byPuss: Get.parameters['slug']?.isNotEmpty ?? false);
+          // Open every store with the redesigned storefront (sticky category
+          // tabs + product rows). Falls back to the legacy StoreScreen only for
+          // slug deep links that carry no store id.
+          final String? idParam = Get.parameters['id'];
+          final int? sid = (idParam != null && idParam != 'null')
+              ? int.tryParse(idParam)
+              : null;
+          final String slug = Get.parameters['slug'] ?? '';
+          final Widget screen = (Get.arguments as Widget?) ??
+              (sid != null
+                  ? MarketStoreScreen(
+                      storeId: sid,
+                      moduleId: Get.isRegistered<SplashController>()
+                          ? (Get.find<SplashController>().module?.id ?? 3)
+                          : 3,
+                      useCoverHeader: true,
+                    )
+                  : StoreScreen(
+                      store: Store(id: null),
+                      fromModule: Get.parameters['page'] == 'module',
+                      slug: slug,
+                    ));
+          return getRoute(screen, byPuss: slug.isNotEmpty);
         }),
     GetPage(
         name: orderDetails,

@@ -10,6 +10,7 @@ import 'package:sixam_mart/features/brands/domain/models/brands_model.dart';
 import 'package:sixam_mart/features/search/controllers/search_controller.dart'
     as srch;
 import 'package:sixam_mart/features/splash/controllers/splash_controller.dart';
+import 'package:sixam_mart/features/home/screens/market_store_screen.dart';
 import 'package:sixam_mart/helper/price_converter.dart';
 import 'package:sixam_mart/helper/route_helper.dart';
 import 'package:sixam_mart/util/app_constants.dart';
@@ -122,9 +123,11 @@ class _HomeSearchScreenState extends State<HomeSearchScreen> {
         // that the search index rejects. The market storefronts are ecommerce,
         // so fall back to the ecommerce module — store_id does the real scoping.
         final int? ecommerceId = _moduleIdByType('ecommerce');
+        // Scope to the context module so an in-restaurants search stays within
+        // restaurants (and their products); store_id narrows it further.
         final int? scopeModuleId = storeScoped
             ? (ecommerceId ?? currentModuleId ?? widget.moduleId ?? foodId)
-            : foodId;
+            : (widget.moduleId ?? currentModuleId ?? foodId);
         final r = await Get.find<ApiClient>().getData(
           '/api/v1/items/search?name=${Uri.encodeQueryComponent(text)}'
           '&offset=1&limit=50'
@@ -187,18 +190,21 @@ class _HomeSearchScreenState extends State<HomeSearchScreen> {
         RouteHelper.getItemDetailsRoute(item.id, type == AppConstants.food));
   }
 
-  /// Switches to the ecommerce module (where brands live) then opens the
-  /// brand's items screen.
-  Future<void> _openBrand(BrandModel brand) async {
-    final module = _moduleByType('ecommerce');
-    if (module != null && Get.isRegistered<SplashController>()) {
-      final sc = Get.find<SplashController>();
-      if (sc.module?.id != module.id) {
-        await sc.setModuleHeaderOnly(module);
-      }
-    }
-    await Get.toNamed(
-        RouteHelper.getBrandsItemScreen(brand.id ?? 0, brand.name ?? ''));
+  /// The rail now holds stores; open the tapped store's storefront (the
+  /// redesigned [MarketStoreScreen]).
+  Future<void> _openBrand(BrandModel store) async {
+    if (store.id == null) return;
+    final int? mid = widget.moduleId ??
+        (Get.isRegistered<SplashController>()
+            ? Get.find<SplashController>().module?.id
+            : null);
+    await Get.to<void>(() => MarketStoreScreen(
+          storeId: store.id,
+          name: store.name,
+          logo: store.imageFullUrl,
+          moduleId: mid ?? 3,
+          useCoverHeader: true,
+        ));
   }
 
   Future<void> _fetchModuleScoped() async {
@@ -230,21 +236,34 @@ class _HomeSearchScreenState extends State<HomeSearchScreen> {
     } catch (_) {}
 
     try {
-      // Brands live in the ecommerce module (هايبر شله); force it so the rail
-      // stays populated regardless of the active module.
-      final ecommerceId = _moduleIdByType('ecommerce');
+      // The rail shows this context's STORES (e.g. restaurants) — not
+      // cross-module brands — scoped to the screen's module. Each chip opens
+      // that store. Reuses [BrandModel] purely as a {id, name, image} holder.
+      final int? railModuleId = widget.moduleId ??
+          (Get.isRegistered<SplashController>()
+              ? Get.find<SplashController>().module?.id
+              : null) ??
+          _moduleIdByType('food');
       final r = await api.getData(
-        AppConstants.brandListUri,
+        '/api/v2/stores?module_id=${railModuleId ?? ''}&limit=20&offset=0',
         useEtag: false,
-        headers: ecommerceId != null
-            ? {AppConstants.moduleId: ecommerceId.toString()}
+        headers: railModuleId != null
+            ? {AppConstants.moduleId: railModuleId.toString()}
             : null,
       );
-      if (mounted && r.body is List) {
-        _brands = (r.body as List)
-            .whereType<Map>()
-            .map((e) => BrandModel.fromJson(Map<String, dynamic>.from(e)))
-            .toList();
+      final dynamic body = r.body;
+      final List raw = (body is Map && body['stores'] is List)
+          ? body['stores'] as List
+          : (body is List ? body : const []);
+      if (mounted) {
+        _brands = raw.whereType<Map>().map((e) {
+          final m = Map<String, dynamic>.from(e);
+          return BrandModel(
+            id: int.tryParse('${m['id']}'),
+            name: m['name']?.toString(),
+            imageFullUrl: (m['logo_full_url'] ?? m['logo'])?.toString(),
+          );
+        }).toList();
       }
     } catch (_) {}
 
@@ -531,7 +550,7 @@ class _HomeSearchScreenState extends State<HomeSearchScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        _buildSectionTitle('popular_brands'.tr),
+        _buildSectionTitle('أشهر المتاجر'),
         _shimmer(
           Wrap(
             spacing: Dimensions.paddingSizeSmall,
@@ -1020,7 +1039,7 @@ class _HomeSearchScreenState extends State<HomeSearchScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        _buildSectionTitle('popular_brands'.tr),
+        _buildSectionTitle('أشهر المتاجر'),
         GridView.builder(
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
