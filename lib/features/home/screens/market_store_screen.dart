@@ -218,6 +218,8 @@ class _MarketStoreScreenState extends State<MarketStoreScreen> {
                 rating: d?.rating ?? widget.rating,
                 freeDelivery: d?.freeDelivery ?? widget.freeDelivery,
                 deliveryTime: d?.deliveryTime ?? widget.deliveryTime,
+                storeId: widget.storeId,
+                moduleId: effectiveModule,
               ),
             )
           else ...[
@@ -261,7 +263,23 @@ class _MarketStoreScreenState extends State<MarketStoreScreen> {
             // sections via the tabs. Keyed by category id so switching tabs
             // reloads that category's items. Falls back to the single inline
             // category section when the category list is empty.
-            if (cats.isNotEmpty)
+            // Hyper market: browse every category section (scroll through the
+            // whole store). Other stores: one category at a time via the tabs.
+            if (cats.isNotEmpty && widget.isHyperStorefront)
+              ...List.generate(
+                cats.length,
+                (i) => SliverToBoxAdapter(
+                  child: _CategoryRail(
+                    storeId: widget.storeId ?? 0,
+                    moduleId: effectiveModule,
+                    category: cats[i],
+                    storeName: d.name ?? widget.name,
+                    storeLogo: d.logo ?? widget.logo,
+                    storeCover: d.cover ?? widget.cover,
+                  ),
+                ),
+              )
+            else if (cats.isNotEmpty)
               SliverToBoxAdapter(
                 child: KeyedSubtree(
                   key: ValueKey(cats[sel].rawId),

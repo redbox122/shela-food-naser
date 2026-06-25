@@ -141,6 +141,10 @@ class _StoreHeader extends StatelessWidget {
   final bool freeDelivery;
   final String? deliveryTime;
 
+  /// Store + module — so the header's search is scoped to THIS store's products.
+  final int? storeId;
+  final int? moduleId;
+
   const _StoreHeader({
     required this.name,
     required this.logo,
@@ -149,6 +153,8 @@ class _StoreHeader extends StatelessWidget {
     required this.rating,
     required this.freeDelivery,
     required this.deliveryTime,
+    this.storeId,
+    this.moduleId,
   });
 
   @override
@@ -186,8 +192,8 @@ class _StoreHeader extends StatelessWidget {
                       const Spacer(),
                       _CircleIconButton(
                         image: Images.search_v2,
-                        onTap: () =>
-                            Get.to<void>(() => const HomeSearchScreen()),
+                        onTap: () => Get.to<void>(() => HomeSearchScreen(
+                            storeId: storeId, moduleId: moduleId)),
                       ),
                       const SizedBox(width: Dimensions.paddingSizeSmall),
                       _CircleIconButton(
