@@ -100,3 +100,8 @@ env.json
 
 # Local Claude Code config
 .claude/
+
+# Vendored JDK / tools — download locally, never track
+/tools/
+# iOS build output
+/ios/build/
