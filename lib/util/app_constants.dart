@@ -15,7 +15,7 @@ import 'package:sixam_mart/util/images.dart';
 import 'package:sixam_mart/util/environment_config.dart';
 
 class AppConstants {
-  static const String appName = 'شلة';
+  static const String appName = 'شله';
   static const double appVersion = 3.7;
 
   ///Flutter Version: 3.27.4
@@ -43,6 +43,30 @@ class AppConstants {
   // Secure token getters - loaded from properties
   static String get myFatoorahLiveToken => _myFatoorahLiveToken ?? '';
   static String get myFatoorahTestToken => _myFatoorahTestToken ?? '';
+
+  // ── Native Apple Pay (PassKit) ─────────────────────────────────────────────
+  // The Apple Pay merchant identifier — must match the entitlement in Xcode
+  // (ios/Runner/Runner.entitlements) AND the merchant id registered in the
+  // MyFatoorah dashboard. Until BOTH are configured, keep [applePayNativeEnabled]
+  // false so checkout transparently uses the existing MyFatoorah WebView flow.
+  static const String applePayMerchantId =
+      String.fromEnvironment('APPLE_PAY_MERCHANT_ID',
+          defaultValue: 'merchant.com.shella.app');
+  static const String applePayMerchantName = 'shella';
+
+  // Master switch for the native Apple Pay sheet. OFF by default — flip to true
+  // (or pass --dart-define=APPLE_PAY_NATIVE=true) only after the Apple Merchant
+  // ID + MyFatoorah Apple Pay activation are both in place.
+  static const bool applePayNativeEnabled =
+      bool.fromEnvironment('APPLE_PAY_NATIVE', defaultValue: false);
+
+  // ── Embedded (in-app) card payment ─────────────────────────────────────────
+  // When true, card payments render MyFatoorah's EMBEDDED card form inside the
+  // app (no WebView redirect; the card is tokenized/saved in MyFatoorah). Any
+  // failure falls back to the hosted WebView flow. OFF by default until verified
+  // on a device — flip with --dart-define=IN_APP_CARD=true.
+  static const bool inAppCardPaymentEnabled =
+      bool.fromEnvironment('IN_APP_CARD', defaultValue: false);
 
   // Initialize tokens from secure properties
   static void initializeTokens({

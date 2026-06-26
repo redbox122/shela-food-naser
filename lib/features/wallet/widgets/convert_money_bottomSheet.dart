@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:sixam_mart/features/wallet/controllers/wallet_controller.dart';
+import 'package:sixam_mart/features/profile/controllers/profile_controller.dart';
+import 'package:sixam_mart/common/widgets/custom_snackbar.dart';
 import '../../../common/widgets/custom_text_field.dart';
 
 class ConvertMoneyBottomsheet extends StatefulWidget {
@@ -101,6 +103,26 @@ class _ConvertMoneyBottomsheetState extends State<ConvertMoneyBottomsheet> {
                 Center(
                     child: ElevatedButton(
                         onPressed: () async {
+                          // Validate the amount before calling the server:
+                          // numeric, > 0, and not more than the wallet balance.
+                          final double? amount =
+                              double.tryParse(money.text.trim());
+                          final double balance = Get.isRegistered<ProfileController>()
+                              ? (Get.find<ProfileController>()
+                                      .userInfoModel
+                                      ?.walletBalance ??
+                                  0)
+                              : 0;
+                          if (amount == null || amount <= 0) {
+                            showCustomSnackBar('يرجى إدخال مبلغ صحيح',
+                                isError: true);
+                            return;
+                          }
+                          if (amount > balance) {
+                            showCustomSnackBar(
+                                'المبلغ أكبر من رصيد محفظتك', isError: true);
+                            return;
+                          }
                           await Get.find<WalletController>().Exchange(phoneNumber.text, myOtp.text, otpUser.text, money.text);
                           Get.back();
                         },

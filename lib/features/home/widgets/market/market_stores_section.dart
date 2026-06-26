@@ -5,6 +5,7 @@ import 'package:sixam_mart/api/api_client.dart';
 import 'package:sixam_mart/common/widgets/custom_image.dart';
 import 'package:sixam_mart/features/home/screens/market_store_screen.dart';
 import 'package:sixam_mart/features/home/widgets/market/market_store_filters.dart';
+import 'package:sixam_mart/helper/address_helper.dart';
 import 'package:sixam_mart/util/app_constants.dart';
 import 'package:sixam_mart/util/dimensions.dart';
 import 'package:sixam_mart/util/images.dart';
@@ -51,6 +52,10 @@ class _Store {
   final double deliveryFee;
   final bool hasOffer;
 
+  /// Distance from the user (METRES, server-computed). 0/absent → unknown, not
+  /// shown. The list is already nearest-first (backend orders by distance).
+  final double distance;
+
   /// Discount details (from the `discount` object), used for the
   /// "خصم 45% على 250" badge. discountValue is the amount/percent, minPurchase
   /// the threshold, discountType either 'percent' or 'amount'.
@@ -71,6 +76,7 @@ class _Store {
     this.deliveryTime,
     this.deliveryFee = 0,
     this.hasOffer = false,
+    this.distance = 0,
     this.discountValue = 0,
     this.minPurchase = 0,
     this.discountType = '',
@@ -97,6 +103,8 @@ class _Store {
       deliveryTime: j['delivery_time']?.toString(),
       deliveryFee: _toDouble(j['first_km_fee']),
       hasOffer: j['has_offer'] == true || j['has_offer'] == 1,
+      distance: _toDouble(j['distance']), // metres from the server
+
       discountValue: _toDouble(discount['discount']),
       minPurchase: _toDouble(discount['min_purchase']),
       discountType: (discount['discount_type'] ?? '').toString(),
@@ -113,10 +121,45 @@ class _MarketStoresSectionState extends State<MarketStoresSection> {
   // Active toggle filters driving the query (category comes from widget).
   Set<String> _filters = const {};
 
+  // ── Pagination (load farther stores as the user scrolls) ──────────────────
+  int _page = 1; // v2 `offset` = 1-based page number
+  int _totalSize = 0; // total stores available for the current query
+  bool _loadingMore = false;
+  bool get _hasMore => _items.length < _totalSize;
+
+  // The enclosing (home) scroll position — we load the next page near its end.
+  ScrollPosition? _parentScroll;
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) => _fetch());
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Listen to the home's scroll so we can auto-load more near the bottom.
+    final ScrollPosition? pos = Scrollable.maybeOf(context)?.position;
+    if (pos != _parentScroll) {
+      _parentScroll?.removeListener(_onParentScroll);
+      _parentScroll = pos;
+      _parentScroll?.addListener(_onParentScroll);
+    }
+  }
+
+  @override
+  void dispose() {
+    _parentScroll?.removeListener(_onParentScroll);
+    super.dispose();
+  }
+
+  void _onParentScroll() {
+    final pos = _parentScroll;
+    if (pos == null || _loading || _loadingMore || !_hasMore) return;
+    if (pos.pixels >= pos.maxScrollExtent - 500) {
+      _loadMore();
+    }
   }
 
   @override
@@ -147,7 +190,7 @@ class _MarketStoresSectionState extends State<MarketStoresSection> {
     final params = <String>[
       'module_id=${widget.moduleId ?? ''}',
       'limit=${MarketStoresSection._limit}',
-      'offset=0',
+      'offset=$_page', // v2 paginates by 1-based page number
     ];
     if (widget.categoryId != null) {
       params.add('category_id=${widget.categoryId}');
@@ -160,7 +203,34 @@ class _MarketStoresSectionState extends State<MarketStoresSection> {
     return '/api/v2/stores?${params.join('&')}';
   }
 
+  /// The current address's lat/lng as request headers (the V2 stores endpoint
+  /// reads `latitude`/`longitude` to compute distance). Empty when no location.
+  Map<String, String> _locationHeaders() {
+    final addr = AddressHelper.getUserAddressFromSharedPref();
+    final String? lat = addr?.latitude;
+    final String? lng = addr?.longitude;
+    if (lat != null && lat.isNotEmpty && lng != null && lng.isNotEmpty) {
+      return {'latitude': lat, 'longitude': lng};
+    }
+    return const {};
+  }
+
+  /// First page (resets pagination). Called on init + category/filter change.
   Future<void> _fetch() async {
+    _page = 1;
+    await _request(append: false);
+  }
+
+  /// Loads the next page and APPENDS farther stores (triggered near scroll end).
+  Future<void> _loadMore() async {
+    if (_loadingMore || !_hasMore) return;
+    setState(() => _loadingMore = true);
+    _page += 1;
+    await _request(append: true);
+    if (mounted) setState(() => _loadingMore = false);
+  }
+
+  Future<void> _request({required bool append}) async {
     if (!Get.isRegistered<ApiClient>()) {
       if (mounted) setState(() => _loading = false);
       return;
@@ -172,6 +242,9 @@ class _MarketStoresSectionState extends State<MarketStoresSection> {
           AppConstants.localizationKey: 'ar',
           if (widget.moduleId != null)
             AppConstants.moduleId: widget.moduleId.toString(),
+          // Send the user's location so the server computes distance + orders
+          // nearest-first. Without it the API returns distance = 0 (hidden).
+          ..._locationHeaders(),
         },
         useEtag: false,
       );
@@ -184,15 +257,25 @@ class _MarketStoresSectionState extends State<MarketStoresSection> {
               : (body is Map && body['data'] is List)
                   ? body['data'] as List
                   : const [];
+      final int total = (body is Map)
+          ? (int.tryParse('${body['total_size'] ?? ''}') ?? 0)
+          : 0;
+      final page = raw
+          .whereType<Map>()
+          .map((e) => _Store.fromJson(Map<String, dynamic>.from(e)))
+          .toList();
       setState(() {
-        _items = raw
-            .whereType<Map>()
-            .map((e) => _Store.fromJson(Map<String, dynamic>.from(e)))
-            .toList();
+        _items = append ? [..._items, ...page] : page;
+        if (total > 0) _totalSize = total;
+        // Fallback when the API omits total_size: a short page = the last one.
+        if (total == 0 && page.length < MarketStoresSection._limit) {
+          _totalSize = _items.length;
+        }
         _loading = false;
       });
     } catch (_) {
       if (mounted) setState(() => _loading = false);
+      if (append) _page -= 1; // allow retry of the failed page
     }
   }
 
@@ -238,7 +321,7 @@ class _MarketStoresSectionState extends State<MarketStoresSection> {
                 ),
               ),
             )
-          else
+          else ...[
             ListView.separated(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
@@ -252,6 +335,20 @@ class _MarketStoresSectionState extends State<MarketStoresSection> {
                 coverHeader: widget.storeCoverHeader,
               ),
             ),
+            // Spinner while the next (farther) page loads.
+            if (_loadingMore)
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 16),
+                child: Center(
+                  child: SizedBox(
+                    height: 24,
+                    width: 24,
+                    child: CircularProgressIndicator(
+                        strokeWidth: 2, color: Color(0xFF30913F)),
+                  ),
+                ),
+              ),
+          ],
         ],
       ),
     );
@@ -358,70 +455,87 @@ class _StoreCard extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 4),
-                  // Rating badge: rounded only on the top-right + bottom-left.
+                  // Rating + distance badges side by side (distance is shown
+                  // as a prominent green pill so it reads clearly).
                   Align(
                     alignment: Alignment.centerRight,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 3),
-                      decoration: const BoxDecoration(
-                        color: Color(0xFFE7F7EA),
-                        borderRadius: BorderRadius.only(
-                          topRight: Radius.circular(10),
-                          bottomLeft: Radius.circular(10),
-                        ),
-                      ),
-                      child: Row(
-                        textDirection: TextDirection.ltr,
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            store.rating.toStringAsFixed(1),
-                            style: const TextStyle(
-                              fontFamily: 'Tajawal',
-                              fontWeight: FontWeight.w700,
-                              fontSize: 13,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        // Rating badge.
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 3),
+                          decoration: const BoxDecoration(
+                            color: Color(0xFFE7F7EA),
+                            borderRadius: BorderRadius.only(
+                              topRight: Radius.circular(10),
+                              bottomLeft: Radius.circular(10),
                             ),
                           ),
-                          const SizedBox(width: 2),
-                          Image.asset(
-                            Images.star_v2,
-                            width: 12,
-                            height: 12,
-                            errorBuilder: (_, __, ___) => const Icon(
-                              Icons.star,
-                              size: 12,
+                          child: Row(
+                            textDirection: TextDirection.ltr,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                store.rating.toStringAsFixed(1),
+                                style: const TextStyle(
+                                  fontFamily: 'Tajawal',
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 13,
+                                ),
+                              ),
+                              const SizedBox(width: 2),
+                              Image.asset(
+                                Images.star_v2,
+                                width: 12,
+                                height: 12,
+                                errorBuilder: (_, __, ___) =>
+                                    const Icon(Icons.star, size: 12),
+                              ),
+                            ],
+                          ),
+                        ),
+                        // Distance badge — filled Shella-green pill, clearly
+                        // visible (e.g. "3.5 كم").
+                        if (_distanceText(store.distance) != null) ...[
+                          const SizedBox(width: 6),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 8, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF30913F),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(Icons.location_on,
+                                    size: 13, color: Colors.white),
+                                const SizedBox(width: 2),
+                                Text(
+                                  _distanceText(store.distance)!,
+                                  style: const TextStyle(
+                                    fontFamily: 'Tajawal',
+                                    fontWeight: FontWeight.w700,
+                                    fontSize: 12,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
                         ],
-                      ),
+                      ],
                     ),
                   ),
-                  const SizedBox(height: 6),
-                  Row(
-                    children: [
-                      Image.asset(
-                        Images.truck_delivery_v2,
-                        width: 15,
-                        height: 15,
-                        errorBuilder: (_, __, ___) => Icon(
-                          Icons.delivery_dining,
-                          size: 15,
-                          color: Theme.of(context).hintColor,
-                        ),
-                      ),
-                      const SizedBox(width: 3),
-                      Text(
-                        _fmt(store.deliveryFee),
-                        style: const TextStyle(
-                          fontFamily: 'Tajawal',
-                          fontSize: 12,
-                          color: Color(0xFF121C19),
-                        ),
-                      ),
-                      if (store.deliveryTime != null &&
-                          store.deliveryTime!.isNotEmpty) ...[
-                        const SizedBox(width: 12),
+                  // Delivery time only (no delivery-fee/truck icon) — clean,
+                  // clear: ⏱ "20 - 40 دقيقة".
+                  if (store.deliveryTime != null &&
+                      store.deliveryTime!.isNotEmpty) ...[
+                    const SizedBox(height: 6),
+                    Row(
+                      children: [
                         Image.asset(
                           Images.time_v2,
                           width: 15,
@@ -432,23 +546,24 @@ class _StoreCard extends StatelessWidget {
                             color: Theme.of(context).hintColor,
                           ),
                         ),
-                        const SizedBox(width: 3),
+                        const SizedBox(width: 4),
                         Flexible(
                           child: Text(
-                            store.deliveryTime!,
+                            '${store.deliveryTime!} دقيقة',
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             softWrap: false,
                             style: const TextStyle(
                               fontFamily: 'Tajawal',
+                              fontWeight: FontWeight.w500,
                               fontSize: 12,
-                              color: Color(0xFF121C19),
+                              color: Color(0xFF717885),
                             ),
                           ),
                         ),
                       ],
-                    ],
-                  ),
+                    ),
+                  ],
                   const SizedBox(height: 8),
                   // Badges.
                   Wrap(
@@ -493,6 +608,14 @@ class _StoreCard extends StatelessWidget {
 
   String _fmt(double v) =>
       v == v.roundToDouble() ? v.toStringAsFixed(0) : v.toStringAsFixed(2);
+
+  /// Distance label from metres: under 1 km → "800 م", otherwise "1.2 كم".
+  /// Returns null when unknown (0 / no coordinates) so nothing is shown.
+  String? _distanceText(double metres) {
+    if (metres <= 0) return null;
+    if (metres < 1000) return '${metres.round()} م';
+    return '${(metres / 1000).toStringAsFixed(1)} كم';
+  }
 
   /// "خصم 45% على 250" (percent) or "خصم 45 على 250" (amount). The "على {min}"
   /// part is dropped when there is no minimum purchase.

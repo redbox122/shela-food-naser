@@ -3,6 +3,7 @@ import 'package:sixam_mart/common/widgets/loading/loading.dart';
 import 'package:sixam_mart/features/splash/controllers/splash_controller.dart';
 import 'package:sixam_mart/features/item/domain/models/item_model.dart';
 import 'package:sixam_mart/features/store/domain/models/store_model.dart';
+import 'package:sixam_mart/features/home/utils/store_filter_helper.dart';
 import 'package:sixam_mart/helper/responsive_helper.dart';
 import 'package:sixam_mart/util/dimensions.dart';
 import 'package:sixam_mart/common/widgets/no_data_screen.dart';
@@ -53,10 +54,18 @@ class _ItemsViewState extends State<ItemsView> {
   Widget build(BuildContext context) {
     bool isNull = true;
     int length = 0;
+    // RULE #2 (defence): hide stores with no image before they reach the grid,
+    // so an imageless store never renders as a grey placeholder card. Products
+    // are intentionally NOT filtered here (rule scoped to stores).
+    final List<Store?>? stores = (widget.isStore && widget.stores != null)
+        ? widget.stores!
+            .where((s) => s != null && StoreFilterHelper.storeHasImage(s))
+            .toList()
+        : widget.stores;
     if (widget.isStore) {
-      isNull = widget.stores == null;
-      if (!isNull) {
-        length = widget.stores!.length;
+      isNull = stores == null;
+      if (stores != null) {
+        length = stores.length;
       }
     } else {
       isNull = widget.items == null;
@@ -115,9 +124,9 @@ class _ItemsViewState extends State<ItemsView> {
                   addAutomaticKeepAlives:
                       false, // ⚡ TASK 3: Disable keepAlive for 2K items
                   itemBuilder: (context, index) {
-                    return widget.stores != null && widget.isStore
+                    return stores != null && widget.isStore
                         ? StoreCardWithDistance(
-                            store: widget.stores![index]!,
+                            store: stores[index]!,
                             fromAllStore: true,
                             heroSection: 'items_view_store_grid',
                             heroIndex: index,
@@ -128,8 +137,7 @@ class _ItemsViewState extends State<ItemsView> {
                             isStore: widget.isStore,
                             item: widget.isStore ? null : widget.items![index],
                             isFeatured: widget.isFeatured,
-                            store:
-                                widget.isStore ? widget.stores![index] : null,
+                            store: widget.isStore ? stores![index] : null,
                             index: index,
                             length: length,
                             isCampaign: widget.isCampaign,

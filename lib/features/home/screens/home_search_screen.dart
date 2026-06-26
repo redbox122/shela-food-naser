@@ -9,6 +9,7 @@ import 'package:sixam_mart/common/widgets/custom_image.dart';
 import 'package:sixam_mart/features/brands/domain/models/brands_model.dart';
 import 'package:sixam_mart/features/search/controllers/search_controller.dart'
     as srch;
+import 'package:sixam_mart/features/search/utils/search_text_utils.dart';
 import 'package:sixam_mart/features/splash/controllers/splash_controller.dart';
 import 'package:sixam_mart/features/home/screens/market_store_screen.dart';
 import 'package:sixam_mart/helper/price_converter.dart';
@@ -117,19 +118,19 @@ class _HomeSearchScreenState extends State<HomeSearchScreen> {
         final int? currentModuleId = Get.isRegistered<SplashController>()
             ? Get.find<SplashController>().module?.id
             : null;
-        final int? foodId = _moduleIdByType('food');
-        // Resolve a VALID search module: the live selected module is null in the
-        // multi-module home, and the hyper store passes a legacy moduleId (1)
-        // that the search index rejects. The market storefronts are ecommerce,
-        // so fall back to the ecommerce module — store_id does the real scoping.
-        final int? ecommerceId = _moduleIdByType('ecommerce');
-        // Scope to the context module so an in-restaurants search stays within
-        // restaurants (and their products); store_id narrows it further.
-        final int? scopeModuleId = storeScoped
-            ? (ecommerceId ?? currentModuleId ?? widget.moduleId ?? foodId)
-            : (widget.moduleId ?? currentModuleId ?? foodId);
+        // RULE #1 (scoped search): the CURRENT section's module must always win
+        // so an in-restaurants search never leaks hyper/ecommerce results (and
+        // vice-versa). Prefer the module passed from the section — the store
+        // screen forwards the store's REAL resolved module — then the live
+        // selected module. When NEITHER exists (the multi-module landing) we
+        // send NO module_id (a deliberate cross-module search) instead of
+        // forcing food. store_id narrows store-scoped searches further.
+        final int? scopeModuleId = widget.moduleId ?? currentModuleId;
         final r = await Get.find<ApiClient>().getData(
-          '/api/v1/items/search?name=${Uri.encodeQueryComponent(text)}'
+          // Normalize the typed text (strip diacritics/tatweel) so "جُبن" and
+          // "جبن" hit the same rows. (Hamza/ال unification is applied to the
+          // ranking below; matching those on the backend needs a parity step.)
+          '/api/v1/items/search?name=${Uri.encodeQueryComponent(_stripMarks(text))}'
           '&offset=1&limit=50'
           '${storeScoped ? '&store_id=${widget.storeId}' : ''}'
           '${scopeModuleId != null ? '&module_id=$scopeModuleId' : ''}',
@@ -145,15 +146,33 @@ class _HomeSearchScreenState extends State<HomeSearchScreen> {
               .whereType<Map>()
               .map((e) => _SearchProduct.fromJson(Map<String, dynamic>.from(e)))
               .toList();
+          // RULE #1 defence-in-depth: never trust the backend's scoping alone.
+          if (storeScoped) {
+            // Store search: drop any product that isn't from this store.
+            results = results
+                .where((p) => p.storeId == null || p.storeId == widget.storeId)
+                .toList();
+          } else {
+            // Section search: second layer — keep only products whose module
+            // matches the current section (lenient: unknown module_type kept).
+            final String? sectionType = _sectionModuleType();
+            if (sectionType != null && sectionType.isNotEmpty) {
+              results = results
+                  .where((p) =>
+                      (p.moduleType ?? '').isEmpty ||
+                      p.moduleType!.toLowerCase() == sectionType)
+                  .toList();
+            }
+          }
         }
       }
     } catch (_) {}
     // Relevance ranking: an exact name, then a name that STARTS with the query,
     // then the earliest in-name match — so "نوتيلا" surfaces the chocolate
     // before furniture that merely carries "نوتيلا" as a colour mid-name.
-    final String q = text.toLowerCase().trim();
+    final String q = _normCore(text);
     int rank(_SearchProduct p) {
-      final n = (p.name ?? '').toLowerCase();
+      final n = _normCore(p.name ?? '');
       if (n == q) return 0;
       if (n.startsWith(q)) return 1;
       final i = n.indexOf(q);
@@ -170,9 +189,6 @@ class _HomeSearchScreenState extends State<HomeSearchScreen> {
     });
   }
 
-  /// Resolves a module id by its type (e.g. 'food', 'ecommerce').
-  int? _moduleIdByType(String type) => _moduleByType(type)?.id;
-
   /// Resolves a module by its type (e.g. 'food', 'ecommerce').
   ModuleModel? _moduleByType(String type) {
     if (!Get.isRegistered<SplashController>()) return null;
@@ -185,6 +201,58 @@ class _HomeSearchScreenState extends State<HomeSearchScreen> {
     }
     return null;
   }
+
+  /// The CURRENT section's module id (rule #1): the one passed in, else the
+  /// live selected module. Used to scope discovery + pick the fallback list.
+  int? _sectionModuleId() =>
+      widget.moduleId ??
+      (Get.isRegistered<SplashController>()
+          ? Get.find<SplashController>().module?.id
+          : null);
+
+  /// The current section's module type (e.g. 'pharmacy', 'food', 'ecommerce').
+  String? _sectionModuleType() {
+    final int? id = _sectionModuleId();
+    if (id == null || !Get.isRegistered<SplashController>()) return null;
+    for (final m in Get.find<SplashController>().moduleList ?? const []) {
+      if (m.id == id) return (m.moduleType ?? '').toLowerCase();
+    }
+    return null;
+  }
+
+  // ── Arabic text normalization (delegates to the testable util) ────────────
+  String _stripMarks(String s) => stripArabicMarks(s);
+  String _normCore(String s) => normalizeArabic(s);
+
+  /// Words that must never appear as a suggestion (normalized before compare).
+  /// Populate with the project's profanity/blocklist terms.
+  static const Set<String> _termBlocklist = <String>{};
+
+  /// Per-section fallback suggestions (rule #3) — NEVER food for other sections.
+  /// Keys are matched as substrings of the module type.
+  static const Map<String, List<String>> _moduleDefaultSuggestions = {
+    'pharmac': ['مسكنات', 'فيتامينات', 'عناية بالبشرة', 'مكملات', 'شامبو'],
+    'grocery': ['أرز', 'حليب', 'منظفات', 'عصائر', 'سكر'],
+    'ecommerce': ['أرز', 'حليب', 'منظفات', 'عصائر', 'سكر'],
+    'cafe': ['قهوة', 'لاتيه', 'شاي', 'عصير', 'حلى'],
+    'coffee': ['قهوة', 'لاتيه', 'شاي', 'عصير', 'حلى'],
+    'food': ['برجر', 'بيتزا', 'شاورما', 'دجاج', 'مشروبات'],
+  };
+
+  List<String> _fallbackSuggestions() {
+    final String type = _sectionModuleType() ?? '';
+    for (final entry in _moduleDefaultSuggestions.entries) {
+      if (type.contains(entry.key)) return entry.value;
+    }
+    return const [];
+  }
+
+  /// Cleans raw "most searched" terms (rule #2 of this task): drop < 3 chars
+  /// (kills "جب/سم/كب/بي"), drop blocklisted, de-dup by normalized key
+  /// ("جبن" = "جُبن" = "الجبن"), cap at 10. Keeps the original display form of
+  /// the first (highest-ranked) occurrence — the API list is hit-count desc.
+  List<String> _cleanPopularTerms(Iterable<String> raw) =>
+      cleanPopularTerms(raw, blocklist: _termBlocklist);
 
   /// Switches to the product's module (so its details/cart load in the right
   /// context) then opens the item details screen.
@@ -257,32 +325,39 @@ class _HomeSearchScreenState extends State<HomeSearchScreen> {
     final api = Get.find<ApiClient>();
 
     try {
-      // Most-searched keywords, ranked by how often users searched them.
+      // Most-searched keywords for THIS section only (rule #1): send module_id
+      // explicitly so e.g. pharmacy never surfaces food terms. Over-fetch (20)
+      // because cleaning/de-dup trims the list down to ≤10.
+      final int? mid = _sectionModuleId();
       final r = await api.getData(
-        '/api/v2/search/popular?limit=10',
+        '/api/v2/search/popular?limit=20'
+        '${mid != null ? '&module_id=$mid' : ''}',
         useEtag: false,
-        headers: {'Cache-Control': 'no-cache', 'Pragma': 'no-cache'},
+        headers: {
+          'Cache-Control': 'no-cache',
+          'Pragma': 'no-cache',
+          if (mid != null) AppConstants.moduleId: mid.toString(),
+        },
       );
       final dynamic body = r.body;
       final dynamic list = body is Map ? body['data'] : body;
       if (mounted && list is List) {
-        _mostSearched = list
-            .whereType<Map>()
-            .map((e) => (e['keyword'] ?? '').toString())
-            .where((k) => k.isNotEmpty)
-            .toList();
+        _mostSearched = _cleanPopularTerms(
+            list.whereType<Map>().map((e) => (e['keyword'] ?? '').toString()));
       }
     } catch (_) {}
+    // Rule #3: too few terms for this section → show its OWN default list,
+    // never the food default. (Only in the non-store discovery path.)
+    if (_mostSearched.isEmpty) {
+      _mostSearched = _fallbackSuggestions();
+    }
 
     try {
       // The rail shows this context's STORES (e.g. restaurants) — not
       // cross-module brands — scoped to the screen's module. Each chip opens
       // that store. Reuses [BrandModel] purely as a {id, name, image} holder.
-      final int? railModuleId = widget.moduleId ??
-          (Get.isRegistered<SplashController>()
-              ? Get.find<SplashController>().module?.id
-              : null) ??
-          _moduleIdByType('food');
+      // Rule #1: scope to the current section (no blind food fallback).
+      final int? railModuleId = _sectionModuleId();
       final r = await api.getData(
         '/api/v2/stores?module_id=${railModuleId ?? ''}&limit=20&offset=0',
         useEtag: false,
@@ -295,14 +370,20 @@ class _HomeSearchScreenState extends State<HomeSearchScreen> {
           ? body['stores'] as List
           : (body is List ? body : const []);
       if (mounted) {
-        _brands = raw.whereType<Map>().map((e) {
-          final m = Map<String, dynamic>.from(e);
-          return BrandModel(
-            id: int.tryParse('${m['id']}'),
-            name: m['name']?.toString(),
-            imageFullUrl: (m['logo_full_url'] ?? m['logo'])?.toString(),
-          );
-        }).toList();
+        _brands = raw
+            .whereType<Map>()
+            .map((e) => Map<String, dynamic>.from(e))
+            // Rule #2: a store with no logo is hidden from "popular stores".
+            .where((m) => (m['logo_full_url'] ?? m['logo'] ?? '')
+                .toString()
+                .trim()
+                .isNotEmpty)
+            .map((m) => BrandModel(
+                  id: int.tryParse('${m['id']}'),
+                  name: m['name']?.toString(),
+                  imageFullUrl: (m['logo_full_url'] ?? m['logo']).toString(),
+                ))
+            .toList();
       }
     } catch (_) {}
 

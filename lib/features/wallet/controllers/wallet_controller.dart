@@ -463,8 +463,8 @@ class WalletController extends GetxController implements GetxService {
         final Response walletResponse = walletResponseResult is Response ? walletResponseResult : const Response();
 
         if (walletResponse.statusCode == 200) {
-          // Refresh user info to update wallet balance
-          Get.find<ProfileController>().getUserInfo();
+          // Refresh user info to update wallet balance (force: bypass ETag/304).
+          Get.find<ProfileController>().getUserInfo(forceRefresh: true);
           showCustomSnackBar('fund_added_successfully'.tr, isError: false);
           return true;
         } else {
@@ -559,7 +559,7 @@ class WalletController extends GetxController implements GetxService {
       showCustomSnackBar(
           'تاكد من ال otp الخاص بك و otp الخاص بالحساب الاخر وتوافر المبلغ المحول معك');
     }
-    Get.find<ProfileController>().getUserInfo();
+    Get.find<ProfileController>().getUserInfo(forceRefresh: true);
     return response.statusCode == 200;
   }
 }

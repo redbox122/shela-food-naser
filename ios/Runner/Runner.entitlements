@@ -8,5 +8,11 @@
 	<array>
 		<string>Default</string>
 	</array>
+	<!-- Native Apple Pay (PassKit). The merchant id must match
+	     AppConstants.applePayMerchantId and the id registered in MyFatoorah. -->
+	<key>com.apple.developer.in-app-payments</key>
+	<array>
+		<string>merchant.com.shella.app</string>
+	</array>
 </dict>
 </plist>

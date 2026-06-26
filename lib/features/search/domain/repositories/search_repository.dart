@@ -59,13 +59,18 @@ class SearchRepository implements SearchRepositoryInterface {
 
   Future<List<Item>?> _getSuggestedItems() async {
     List<Item>? suggestedItemList;
+    // RULE #1: scope suggestions to the current module explicitly.
+    final int? moduleId = _resolveModuleId();
     _logSearchRequest(endpoint: AppConstants.suggestedItemUri, method: 'GET');
     final response = await apiClient.getData(
-      AppConstants.suggestedItemUri,
+      moduleId != null
+          ? '${AppConstants.suggestedItemUri}?module_id=$moduleId'
+          : AppConstants.suggestedItemUri,
       useEtag: false,
       headers: <String, String>{
         'Cache-Control': 'no-cache',
         'Pragma': 'no-cache',
+        if (moduleId != null) AppConstants.moduleId: moduleId.toString(),
       },
     );
     _logSearchResponse(response);
@@ -200,14 +205,19 @@ class SearchRepository implements SearchRepositoryInterface {
   @override
   Future<List<PopularCategoryModel?>?> getPopularCategories() async {
     List<PopularCategoryModel?>? categoryList;
+    // RULE #1: scope popular categories to the current module explicitly.
+    final int? moduleId = _resolveModuleId();
     _logSearchRequest(
         endpoint: AppConstants.searchPopularCategoriesUri, method: 'GET');
     final response = await apiClient.getData(
-      AppConstants.searchPopularCategoriesUri,
+      moduleId != null
+          ? '${AppConstants.searchPopularCategoriesUri}?module_id=$moduleId'
+          : AppConstants.searchPopularCategoriesUri,
       useEtag: false,
       headers: <String, String>{
         'Cache-Control': 'no-cache',
         'Pragma': 'no-cache',
+        if (moduleId != null) AppConstants.moduleId: moduleId.toString(),
       },
     );
     _logSearchResponse(response);

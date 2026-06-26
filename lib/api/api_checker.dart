@@ -98,7 +98,13 @@ class ApiChecker {
     }
   }
 
-  /// 🔧 Decide whether a 401 should trigger logout
+  /// 🔧 Decide whether a 401 should trigger logout.
+  ///
+  /// POSITIVE logic: a real 401 means the session token is invalid, so we log
+  /// out by DEFAULT — otherwise a 401 on cart/order/checkout/wallet would be
+  /// swallowed and leave the user stuck with a broken session. The only
+  /// exceptions are the auth handshake itself (bad credentials / OTP / token
+  /// sync), where a 401 is expected and must NOT drop the user to the start.
   static bool _shouldTriggerLogout(String? uri) {
     if (uri == null) {
       if (kDebugMode) {
@@ -109,19 +115,34 @@ class ApiChecker {
       return false;
     }
 
-    const criticalPaths = <String>[
-      '/customer/info',
+    // Endpoints where a 401 is NOT a dead-session signal.
+    const excludedPaths = <String>[
+      '/auth/customer-login',
       '/auth/login',
+      '/auth/sign-up',
+      '/auth/registration',
       '/auth/social-login',
+      '/auth/social-customer-login',
+      '/auth/verify',
+      '/auth/otp',
+      '/auth/forgot-password',
+      '/auth/reset-password',
+      // Token sync — a 401 here must not loop into logout.
+      '/customer/cm-firebase-token',
     ];
 
-    for (final path in criticalPaths) {
+    for (final path in excludedPaths) {
       if (uri.contains(path)) {
-        return true;
+        if (kDebugMode) {
+          debugPrint(
+            '⚠️ ApiChecker: 401 on auth/handshake endpoint ($uri) - no logout',
+          );
+        }
+        return false;
       }
     }
 
-    return false;
+    return true;
   }
 
   /// Called for the first leg of auth-deferred handling: sync FCM token with

@@ -1334,7 +1334,7 @@ class OrderDetailsScreenState extends State<OrderDetailsScreen> {
       }
     }
     final String storeName = _normalizeModuleType(order.store?.name);
-    if (storeName.contains('hypershella') || storeName.contains('هايبرشلة')) {
+    if (storeName.contains('hypershella') || storeName.contains('هايبرشله')) {
       return 'ecommerce';
     }
     return '';

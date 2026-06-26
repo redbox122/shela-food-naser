@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:sixam_mart/features/notification/controllers/notification_controller.dart';
 import 'package:sixam_mart/features/profile/controllers/profile_controller.dart';
+import 'package:sixam_mart/features/splash/controllers/splash_controller.dart';
 import 'package:sixam_mart/helper/auth_helper.dart';
 import 'package:sixam_mart/features/home/screens/home_search_screen.dart';
 import 'package:sixam_mart/helper/route_helper.dart';
@@ -78,7 +79,13 @@ class _HomeHeaderState extends State<HomeHeader> {
             _HeaderIconButton(
               image: Images.search,
               icon: CupertinoIcons.search,
-              onTap: () => Get.to<void>(() => const HomeSearchScreen()),
+              // Carry the active module so the search stays scoped (rule #1)
+              // instead of falling back to a fixed vertical.
+              onTap: () => Get.to<void>(() => HomeSearchScreen(
+                    moduleId: Get.isRegistered<SplashController>()
+                        ? Get.find<SplashController>().module?.id
+                        : null,
+                  )),
             ),
             const SizedBox(width: Dimensions.paddingSizeSmall),
             const _NotificationBell(),

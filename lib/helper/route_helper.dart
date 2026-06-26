@@ -875,6 +875,8 @@ class RouteHelper {
             zone: data['zone'] is CheckZoneModel
                 ? data['zone'] as CheckZoneModel
                 : null,
+            // Present → edit mode (prefilled form + PUT update).
+            addressId: (data['addressId'] as num?)?.toInt(),
           );
         }),
 

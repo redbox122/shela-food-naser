@@ -125,7 +125,10 @@ class AddressController extends GetxController implements GetxService {
     update();
     final ResponseModel responseModel = await addressServiceInterface.removeAddressByID(id);
     if(responseModel.isSuccess) {
-      _addressList!.removeAt(index);
+      // Bounds-check before removing (mirrors the safe V2 path).
+      if (_addressList != null && index >= 0 && index < _addressList!.length) {
+        _addressList!.removeAt(index);
+      }
     }
     _isLoading = false;
     update();
@@ -188,7 +191,7 @@ class AddressController extends GetxController implements GetxService {
 
   Future<ResponseModel> _processSuccessResponse(ResponseModel responseModel, bool fromCheckout, int? storeZoneId) async {
     if (responseModel.isSuccess) {
-      if(fromCheckout && !responseModel.zoneIds!.contains(storeZoneId)) {
+      if(fromCheckout && !(responseModel.zoneIds?.contains(storeZoneId) ?? false)) {
         responseModel = ResponseModel(false, (Get.find<SplashController>().configModel!.moduleConfig!.module!.showRestaurantText! ? 'your_selected_location_is_from_different_zone'.tr : 'your_selected_location_is_from_different_zone_store'.tr));
       }else {
         await getAddressList();

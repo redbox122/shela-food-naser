@@ -7,6 +7,14 @@ library;
 import 'package:sixam_mart/features/store/domain/models/store_model.dart';
 
 class StoreFilterHelper {
+  /// RULE #2 (defence layer): a store is shown only when it has a logo or cover
+  /// image. The authoritative enforcement is backend SQL on the original `logo`
+  /// column; this stops a stray imageless store from rendering as a grey
+  /// placeholder. The store stays in the DB and reappears once an image is added.
+  static bool storeHasImage(Store store) =>
+      (store.logoFullUrl ?? '').trim().isNotEmpty ||
+      (store.coverPhotoFullUrl ?? '').trim().isNotEmpty;
+
   /// Apply all active filters to a store list
   static List<Store> applyFilters({
     required List<Store> stores,
@@ -21,6 +29,9 @@ class StoreFilterHelper {
     List<int>? categoryIds,
   }) {
     List<Store> filteredStores = List<Store>.from(stores);
+
+    // RULE #2: always exclude stores with no image (kept in DB, hidden in UI).
+    filteredStores = filteredStores.where(storeHasImage).toList();
 
     // Filter by open now
     if (openNow) {

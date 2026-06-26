@@ -57,6 +57,9 @@ class ProfileRepository implements ProfileRepositoryInterface {
     return userInfoModel;
   }
 
+  @override
+  Future<UserInfoModel?> getUserInfoForceRefresh() => _forceRefreshUserInfo();
+
   Future<UserInfoModel?> _forceRefreshUserInfo() async {
     final freshResponse = await apiClient.getData(
       AppConstants.customerInfoUri,

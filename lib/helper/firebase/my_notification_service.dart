@@ -10,7 +10,10 @@ import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sixam_mart/features/checkout/controllers/checkout_controller.dart';
 import 'package:sixam_mart/features/notification/domain/models/notification_model.dart';
+import 'package:sixam_mart/features/notification/domain/models/notification_body_model.dart';
 import 'package:sixam_mart/features/notification/controllers/notification_controller.dart';
+import 'package:sixam_mart/helper/notification_helper.dart';
+import 'package:sixam_mart/helper/route_helper.dart';
 import 'package:sixam_mart/util/app_constants.dart';
 import 'package:sixam_mart/util/backend_message_translator.dart';
 import 'package:sixam_mart/common/utils/secure_log.dart';
@@ -120,7 +123,13 @@ class NotificationService {
       }
     }
 
-    await flutterLocalNotificationsPlugin.initialize(initSettings);
+    await flutterLocalNotificationsPlugin.initialize(
+      initSettings,
+      // Tapping a notification we displayed ourselves (foreground) routes to
+      // the right screen via its JSON payload — same logic as a tap from
+      // background/terminated below.
+      onDidReceiveNotificationResponse: _onLocalNotificationResponse,
+    );
 
     if (!kIsWeb && Platform.isIOS) {
       await _firebaseMessaging.requestPermission();
@@ -149,8 +158,10 @@ class NotificationService {
       return;
     }
     if (message.notification != null) {
+      // Foreground: show the notification, but DON'T navigate — navigation
+      // only happens when the user actually taps it (handled by
+      // _onLocalNotificationResponse).
       await NotificationService.showNotification(message);
-      _handleNotificationTap(message);
 
       // Save notification for popup display
       _saveNotificationForPopup(message);
@@ -167,11 +178,12 @@ class NotificationService {
         return;
       }
       if (message.notification != null) {
-        await NotificationService.showNotification(message);
-        _handleNotificationTap(message);
-
         // Save notification for popup display
         _saveNotificationForPopup(message);
+        // App was launched by tapping this notification: route to its screen
+        // once the first route is mounted (the router isn't ready yet here).
+        Future.delayed(const Duration(seconds: 1),
+            () => _navigateFromData(message.data));
       }
     }
   }
@@ -220,7 +232,8 @@ class NotificationService {
       title,
       body,
       platformDetails,
-      payload: message.data.toString(),
+      // JSON (not toString) so the tap handler can decode `type`/`order_id`.
+      payload: jsonEncode(message.data),
     );
 
     await _persistRemoteMessageToLocalLog(message);
@@ -284,9 +297,71 @@ class NotificationService {
     }
   }
 
+  // Background tap (app alive, in background): FCM delivers the tapped message
+  // here — route straight to its screen.
   void _handleNotificationTap(RemoteMessage message) {
-    if (isNotificationTapped) return;
-    isNotificationTapped = true;
+    _navigateFromData(message.data);
+  }
+
+  // Foreground local-notification tap: decode the JSON payload we attached in
+  // showNotification(), then route through the same logic.
+  static void _onLocalNotificationResponse(NotificationResponse response) {
+    final String? payload = response.payload;
+    if (payload == null || payload.isEmpty) return;
+    try {
+      final dynamic decoded = jsonDecode(payload);
+      if (decoded is Map) {
+        _navigateFromData(Map<String, dynamic>.from(decoded));
+      }
+    } catch (e) {
+      if (kDebugMode) debugPrint('🔔 notification payload decode failed: $e');
+    }
+  }
+
+  /// The SINGLE source of truth for notification routing (unifying the two
+  /// previously-conflicting systems). Maps the backend `type` + `order_id` to a
+  /// route via the shared [NotificationHelper.convertNotification] parser.
+  static void _navigateFromData(Map<String, dynamic> data) {
+    if (data.isEmpty) return;
+    try {
+      final NotificationBodyModel body =
+          NotificationHelper.convertNotification(Map<String, dynamic>.from(data));
+      final int? orderId = int.tryParse(data['order_id']?.toString() ?? '');
+      switch (body.notificationType) {
+        case NotificationType.order:
+        case NotificationType.trip:
+          if (orderId != null) {
+            Get.toNamed(RouteHelper.getOrderDetailsRoute(orderId,
+                fromNotification: true));
+          } else {
+            Get.toNamed(RouteHelper.getNotificationRoute(fromNotification: true));
+          }
+          break;
+        case NotificationType.message:
+          Get.toNamed(RouteHelper.getChatRoute(
+              notificationBody: body,
+              conversationID: body.conversationId,
+              fromNotification: true));
+          break;
+        case NotificationType.add_fund:
+        case NotificationType.referral_earn:
+        case NotificationType.cashback:
+          Get.toNamed(RouteHelper.getWalletRoute(fromNotification: true));
+          break;
+        case NotificationType.loyalty_point:
+          Get.toNamed(RouteHelper.getLoyaltyRoute(fromNotification: true));
+          break;
+        case NotificationType.block:
+        case NotificationType.unblock:
+          Get.toNamed(RouteHelper.getSignInRoute(RouteHelper.notification));
+          break;
+        default:
+          // general / otp / referral_code / unknown → notifications list.
+          Get.toNamed(RouteHelper.getNotificationRoute(fromNotification: true));
+      }
+    } catch (e) {
+      if (kDebugMode) debugPrint('🔔 notification routing failed: $e');
+    }
   }
 
   // Save notification for popup display

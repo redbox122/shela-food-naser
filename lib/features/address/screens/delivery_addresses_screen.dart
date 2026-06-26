@@ -12,8 +12,8 @@ import 'package:sixam_mart/util/images.dart';
 /// 🎨 REDESIGN: "Delivery addresses" management screen.
 ///
 /// Reached from the "edit addresses" action in the address-selection sheet.
-/// Lists the saved addresses (v2) with delete-only actions plus an
-/// "add another address" button. There is no edit flow.
+/// Lists the saved addresses (v2). Each card has edit (opens the form prefilled)
+/// and delete actions, plus an "add another address" button.
 class DeliveryAddressesScreen extends StatefulWidget {
   const DeliveryAddressesScreen({super.key});
 
@@ -181,6 +181,10 @@ class _DeliveryAddressesScreenState extends State<DeliveryAddressesScreen> {
                         address: items[i],
                         selected: items[i].id == currentId,
                         onDelete: () => _confirmDelete(items[i], i),
+                        onEdit: () => Get.toNamed(
+                          RouteHelper.getAddressDetailsRoute(),
+                          arguments: {'addressId': items[i].id},
+                        ),
                       ),
                     );
                   }),
@@ -224,10 +228,12 @@ class _AddressTile extends StatelessWidget {
   final AddressModel address;
   final bool selected;
   final VoidCallback onDelete;
+  final VoidCallback onEdit;
   const _AddressTile({
     required this.address,
     required this.selected,
     required this.onDelete,
+    required this.onEdit,
   });
 
   @override
@@ -276,6 +282,23 @@ class _AddressTile extends StatelessWidget {
                     ),
                   ),
               ],
+            ),
+          ),
+          const SizedBox(width: Dimensions.paddingSizeSmall),
+          // Edit → opens the form prefilled with this address (mockup step 6).
+          InkWell(
+            onTap: onEdit,
+            borderRadius: BorderRadius.circular(24),
+            child: Container(
+              width: 40,
+              height: 40,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                shape: BoxShape.circle,
+                border: Border.all(color: const Color(0xFFEAEAEA)),
+              ),
+              child: Icon(Icons.edit_outlined, size: 20, color: primary),
             ),
           ),
           const SizedBox(width: Dimensions.paddingSizeSmall),

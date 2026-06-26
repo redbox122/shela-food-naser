@@ -6,6 +6,7 @@ import 'package:sixam_mart/features/home/screens/home_search_screen.dart';
 import 'package:sixam_mart/features/home/widgets/home_top_notice_strip.dart';
 import 'package:sixam_mart/features/home/widgets/market/current_offers_repository.dart';
 import 'package:sixam_mart/features/home/widgets/market/offers_filter_sheet.dart';
+import 'package:sixam_mart/features/splash/controllers/splash_controller.dart';
 import 'package:sixam_mart/helper/route_helper.dart';
 import 'package:sixam_mart/util/dimensions.dart';
 import 'package:sixam_mart/util/images.dart';
@@ -945,7 +946,12 @@ class _OfferDetailSheet extends StatelessWidget {
               bg: searchColor,
               onTap: () {
                 Get.back<void>();
-                Get.to<void>(() => const HomeSearchScreen());
+                // Scope the search to the active module (rule #1).
+                Get.to<void>(() => HomeSearchScreen(
+                      moduleId: Get.isRegistered<SplashController>()
+                          ? Get.find<SplashController>().module?.id
+                          : null,
+                    ));
               },
             ),
           ],

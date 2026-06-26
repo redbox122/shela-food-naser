@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 import 'package:country_code_picker/country_code_picker.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -8,6 +9,7 @@ import 'package:get/get.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:myfatoorah_flutter/myfatoorah_flutter.dart';
+import 'package:sixam_mart/features/checkout/widgets/mf_embedded_card_sheet.dart';
 import 'package:sixam_mart/features/cart/controllers/cart_controller.dart';
 import 'package:sixam_mart/features/cart/domain/models/cart_model.dart';
 import 'package:sixam_mart/features/language/controllers/language_controller.dart';
@@ -152,6 +154,48 @@ class CheckoutController extends GetxController implements GetxService {
   ///
   /// Logs are intentionally limited to numeric totals — no token, address, or
   /// payment credentials are ever logged here.
+  /// Pure, side-effect-free totals validation — the decision half of
+  /// [guardCheckoutTotals], split out so it can be unit-tested without GetX /
+  /// overlay / coupon side-effects. Returns the block reason, or null when the
+  /// totals are valid.
+  ///
+  /// Order of checks:
+  /// 1) Coupon discount sanity — measured against the product subtotal only.
+  /// 2) Final payable total sanity.
+  /// 3) The independently re-derived amount must match the displayed payable
+  ///    total. `orderAmount` is recomputed from raw components by the caller
+  ///    (NOT a copy of `payableTotal`), so a real mismatch here means the
+  ///    displayed total drifted from its parts — block before charging. (1 cent
+  ///    tolerance absorbs rounding only.)
+  @visibleForTesting
+  static String? checkoutTotalsBlockReason({
+    required double payableTotal,
+    required double orderAmount,
+    required double productSubtotal,
+    required double couponDiscount,
+  }) {
+    if (couponDiscount.isNaN ||
+        couponDiscount.isInfinite ||
+        couponDiscount < 0) {
+      return 'coupon_discount_invalid';
+    } else if (productSubtotal.isNaN ||
+        productSubtotal.isInfinite ||
+        productSubtotal < 0) {
+      return 'product_subtotal_invalid';
+    } else if (couponDiscount > productSubtotal) {
+      return 'coupon_discount_exceeds_subtotal';
+    } else if (payableTotal.isNaN ||
+        payableTotal.isInfinite ||
+        payableTotal <= 0) {
+      return 'payable_total_invalid';
+    } else if (orderAmount.isNaN ||
+        orderAmount.isInfinite ||
+        (orderAmount - payableTotal).abs() > 0.01) {
+      return 'order_amount_mismatch';
+    }
+    return null;
+  }
+
   bool guardCheckoutTotals({
     required double payableTotal,
     required double orderAmount,
@@ -165,35 +209,15 @@ class CheckoutController extends GetxController implements GetxService {
       'productSubtotal=$productSubtotal couponDiscount=$couponDiscount',
     );
 
-    String? blockReason;
-    bool couponCaused = false;
-
-    // 1) Coupon discount sanity — measured against the product subtotal only.
-    if (couponDiscount.isNaN ||
-        couponDiscount.isInfinite ||
-        couponDiscount < 0) {
-      blockReason = 'coupon_discount_invalid';
-      couponCaused = true;
-    } else if (productSubtotal.isNaN ||
-        productSubtotal.isInfinite ||
-        productSubtotal < 0) {
-      blockReason = 'product_subtotal_invalid';
-    } else if (couponDiscount > productSubtotal) {
-      blockReason = 'coupon_discount_exceeds_subtotal';
-      couponCaused = true;
-    }
-    // 2) Final payable total sanity.
-    else if (payableTotal.isNaN ||
-        payableTotal.isInfinite ||
-        payableTotal <= 0) {
-      blockReason = 'payable_total_invalid';
-    }
-    // 3) Amount sent to backend must match the displayed payable total.
-    else if (orderAmount.isNaN ||
-        orderAmount.isInfinite ||
-        (orderAmount - payableTotal).abs() > 0.01) {
-      blockReason = 'order_amount_mismatch';
-    }
+    final String? blockReason = checkoutTotalsBlockReason(
+      payableTotal: payableTotal,
+      orderAmount: orderAmount,
+      productSubtotal: productSubtotal,
+      couponDiscount: couponDiscount,
+    );
+    // Coupon-caused reasons clear the coupon; others ask for a cart refresh.
+    final bool couponCaused = blockReason == 'coupon_discount_invalid' ||
+        blockReason == 'coupon_discount_exceeds_subtotal';
 
     if (blockReason != null) {
       debugPrint(
@@ -334,6 +358,35 @@ class CheckoutController extends GetxController implements GetxService {
   /// distinguish "not completed yet (pending/InProgress)" from a hard
   /// failure/cancel while reusing the shared cleanup below. Consumed once.
   String? _digitalFailureMessage;
+
+  /// The gateway's actual failure reason (e.g. "card declined") captured from
+  /// the last check-status response, so a real decline shows WHY instead of a
+  /// generic message — distinct from a network drop (treated as pending).
+  String? _lastGatewayFailureReason;
+
+  /// Pulls a human failure reason out of a MyFatoorah check-status body, trying
+  /// the common shapes. Returns null when none is present (→ generic fallback).
+  String? _extractGatewayFailureReason(Map<String, dynamic> body, dynamic data) {
+    String? pick(dynamic v) {
+      final s = v?.toString().trim();
+      return (s != null && s.isNotEmpty) ? s : null;
+    }
+
+    if (data is Map<String, dynamic>) {
+      final direct = pick(data['Error']) ??
+          pick(data['error']) ??
+          pick(data['ErrorMessage']) ??
+          pick(data['TransactionStatusDescription']);
+      if (direct != null) return direct;
+      final txns = data['InvoiceTransactions'];
+      if (txns is List && txns.isNotEmpty && txns.last is Map) {
+        final last = txns.last as Map;
+        final t = pick(last['Error']) ?? pick(last['ErrorCode']);
+        if (t != null) return t;
+      }
+    }
+    return pick(body['message']) ?? pick(body['error']);
+  }
 
   Future<void> handleDigitalPaymentFailure() async {
     _paymentFlowState = PaymentFlowState.failed;
@@ -1035,6 +1088,55 @@ class CheckoutController extends GetxController implements GetxService {
     debugPrint(
         '?? Using selected payment method ID: $paymentMethodId (${select_payment_Methods!.paymentMethodAr})');
 
+    // ── Native Apple Pay (PassKit) ───────────────────────────────────────────
+    // When the chosen method is Apple Pay on iOS and the feature is enabled,
+    // open the SYSTEM Apple Pay sheet instead of the hosted MyFatoorah WebView.
+    // On confirmed success we verify with the server (which updates the order)
+    // and finish; otherwise we fall through to the hosted flow as a safety net.
+    final String selEn =
+        (select_payment_Methods!.paymentMethodEn ?? '').toLowerCase();
+    final String selCode =
+        (select_payment_Methods!.paymentMethodCode ?? '').toLowerCase();
+    final bool isApplePay = selEn.contains('apple') || selCode == 'ap';
+    if (isApplePay && Platform.isIOS && AppConstants.applePayNativeEnabled) {
+      final bool nativeOk =
+          await processNativeApplePay(amount, customerReference: orderId.toString());
+      if (nativeOk) {
+        final MyFatoorahPaymentResult res = _lastInvoiceId.isNotEmpty
+            ? await _checkMyFatoorahStatus(_lastInvoiceId)
+            : MyFatoorahPaymentResult.paid;
+        if (res == MyFatoorahPaymentResult.paid) {
+          _isPaymentInProgress = false;
+          _isOrderPaid = true;
+          await clearPendingPaymentContext(reason: 'apple_pay_native');
+          return true;
+        }
+        // Not confirmed yet → continue to the hosted flow below.
+      }
+      debugPrint('[ApplePay][native] unavailable/declined → hosted WebView flow');
+    }
+
+    // ── Embedded (in-app) card payment ───────────────────────────────────────
+    // For card methods (not Apple/Google/STC), pay via MyFatoorah's EMBEDDED
+    // card form INSIDE the app instead of redirecting to the hosted WebView.
+    // Any failure/cancel falls through to the hosted flow below.
+    final bool isCardMethod = !isApplePay &&
+        !selEn.contains('google') &&
+        !selCode.contains('gp') &&
+        !selEn.contains('stc') &&
+        !selCode.contains('stc');
+    if (AppConstants.inAppCardPaymentEnabled && isCardMethod) {
+      final bool cardOk =
+          await payWithEmbeddedCard(amount, customerReference: orderId.toString());
+      if (cardOk) {
+        _isPaymentInProgress = false;
+        _isOrderPaid = true;
+        await clearPendingPaymentContext(reason: 'embedded_card');
+        return true;
+      }
+      debugPrint('[MF][embedded] card unavailable/declined → hosted WebView flow');
+    }
+
     try {
       final apiClient = Get.find<ApiClient>();
       final repository = MyFatoorahRepository(apiClient: apiClient);
@@ -1209,8 +1311,12 @@ class CheckoutController extends GetxController implements GetxService {
           return false;
         case MyFatoorahPaymentResult.failed:
           _isOrderPaid = false;
+          // Show the gateway's real reason (e.g. card declined) when available.
           _digitalFailureMessage =
-              'فشل الدفع أو تم إلغاؤه. يرجى المحاولة مرة أخرى.';
+              (_lastGatewayFailureReason?.trim().isNotEmpty ?? false)
+                  ? _lastGatewayFailureReason!.trim()
+                  : 'فشل الدفع أو تم إلغاؤه. يرجى المحاولة مرة أخرى.';
+          _lastGatewayFailureReason = null;
           await clearPendingPaymentContext(reason: 'failed_in_flow');
           return false;
       }
@@ -1287,7 +1393,9 @@ class CheckoutController extends GetxController implements GetxService {
         return MyFatoorahPaymentResult.pending;
       }
 
-      // 3) Anything else → failed / cancelled.
+      // 3) Anything else → failed / cancelled. Capture the gateway's reason so
+      // the user sees WHY (e.g. card declined) rather than a generic message.
+      _lastGatewayFailureReason = _extractGatewayFailureReason(body, data);
       return MyFatoorahPaymentResult.failed;
     } catch (e) {
       debugPrint('[Pay][CheckStatus] exception: $e');
@@ -1464,6 +1572,20 @@ class CheckoutController extends GetxController implements GetxService {
   Future<bool> processDigitalWalletPayment(
       MFPaymentMethod paymentMethod, String amount) async {
     try {
+      // Apple Pay → try the NATIVE PassKit sheet first (no WebView). Returns
+      // false instantly when off/unsupported, so we transparently fall back to
+      // the hosted flow below. (Feature-flagged: AppConstants.applePayNativeEnabled.)
+      final String mEn = (paymentMethod.paymentMethodEn ?? '').toLowerCase();
+      final String mCode = (paymentMethod.paymentMethodCode ?? '').toLowerCase();
+      final bool isApplePay = mEn.contains('apple') || mCode == 'ap';
+      if (isApplePay) {
+        final bool nativeOk = await processNativeApplePay(
+          amount,
+          customerReference: _currentOrderId?.toString(),
+        );
+        if (nativeOk) return true;
+      }
+
       final bool sdkReady = await _ensureMyFatoorahSdkInitialized();
       if (!sdkReady) {
         showCustomSnackBar('فشل تهيئة الدفع: مفتاح MyFatoorah غير مضبوط');
@@ -1506,6 +1628,120 @@ class CheckoutController extends GetxController implements GetxService {
         amount: amount,
       );
       showCustomSnackBar('فشلت عملية الدفع: ${_mfReadableErrorMessage(error)}');
+      return false;
+    }
+  }
+
+  /// Native Apple Pay (PassKit) — opens the system Apple Pay sheet directly
+  /// (NOT the MyFatoorah WebView) and executes the payment via the MyFatoorah
+  /// Apple Pay SDK. The amount must already be the SERVER-approved total
+  /// (see the totals guard / order-derived amount, rule #3).
+  ///
+  /// Requires: iOS, Apple Pay capability + merchant id in entitlements, and the
+  /// merchant id activated in the MyFatoorah dashboard. Returns false when not
+  /// available so the caller can fall back to the WebView flow.
+  Future<bool> processNativeApplePay(String amount,
+      {String? customerReference}) async {
+    if (!Platform.isIOS || !AppConstants.applePayNativeEnabled) {
+      return false; // caller falls back to the WebView flow
+    }
+    try {
+      final bool sdkReady = await _ensureMyFatoorahSdkInitialized();
+      if (!sdkReady) return false;
+
+      final double value = double.tryParse(amount) ?? 0.0;
+      if (value <= 0) return false;
+
+      // 1) Session for the embedded Apple Pay flow.
+      final MFInitiateSessionResponse session =
+          await MFSDK.initiateSession(MFInitiateSessionRequest(), null);
+
+      // 2) Build the request — SAR, server-approved amount, order reference.
+      final MFExecutePaymentRequest request = MFExecutePaymentRequest(
+        invoiceValue: value,
+        displayCurrencyIso: 'SAR',
+        customerReference: customerReference,
+      );
+
+      // 3) Configure the native sheet with the merchant name "shella".
+      final bool setup = await MFApplepay.setupApplePay(
+        session,
+        request,
+        MFLanguage.ARABIC,
+        merchantName: AppConstants.applePayMerchantName,
+      );
+      if (!setup) {
+        debugPrint('[ApplePay][native] setup failed → fallback to WebView');
+        return false;
+      }
+
+      // 4) Present the system Apple Pay sheet (Face ID / side button confirm).
+      final MFCallbackResponse sheet = await MFApplepay.openPaymentSheet();
+      debugPrint('[ApplePay][native] sheet response=${sheet.toJson()}');
+
+      // 5) Execute via MyFatoorah and read the resulting invoice status.
+      final MFGetPaymentStatusResponse status =
+          await MFApplepay.executeApplePayPayment(
+        request: request,
+        onInvoiceCreated: (invoiceId) {
+          if (invoiceId.isNotEmpty) _lastInvoiceId = invoiceId;
+        },
+      );
+      if ((status.invoiceId ?? 0) != 0) {
+        _lastInvoiceId = status.invoiceId.toString();
+      }
+      final String st = (status.invoiceStatus ?? '').toLowerCase();
+      final bool paid = st == 'paid' || st == 'success';
+      debugPrint(
+          '[ApplePay][native] status=$st invoiceId=${status.invoiceId} paid=$paid');
+      return paid;
+    } catch (e, stackTrace) {
+      _logMyFatoorahError(
+        stage: 'processNativeApplePay',
+        error: e,
+        stackTrace: stackTrace,
+        method: null,
+        amount: amount,
+      );
+      // Any failure → let the caller fall back to the WebView flow.
+      return false;
+    }
+  }
+
+  /// Embedded (in-app) card payment — opens MyFatoorah's PCI card form INSIDE
+  /// the app (no WebView redirect) and charges it; the card is tokenized/saved
+  /// in MyFatoorah. Verifies the result with the server before returning true.
+  /// Returns false (→ caller falls back to the hosted flow) when disabled,
+  /// the SDK isn't ready, the sheet is cancelled, or the charge isn't confirmed.
+  Future<bool> payWithEmbeddedCard(String amount,
+      {String? customerReference}) async {
+    if (!AppConstants.inAppCardPaymentEnabled) return false;
+    try {
+      final bool sdkReady = await _ensureMyFatoorahSdkInitialized();
+      if (!sdkReady) return false;
+      final double value = double.tryParse(amount) ?? 0.0;
+      if (value <= 0) return false;
+
+      final String? invoiceId = await Get.bottomSheet<String?>(
+        MFEmbeddedCardSheet(amount: value, customerReference: customerReference),
+        isScrollControlled: true,
+        backgroundColor: Colors.transparent,
+      );
+      if (invoiceId == null || invoiceId.isEmpty) return false;
+
+      _lastInvoiceId = invoiceId;
+      // Server-side confirmation (also updates the order).
+      final MyFatoorahPaymentResult res =
+          await _checkMyFatoorahStatus(invoiceId);
+      return res == MyFatoorahPaymentResult.paid;
+    } catch (e, st) {
+      _logMyFatoorahError(
+        stage: 'payWithEmbeddedCard',
+        error: e,
+        stackTrace: st,
+        method: null,
+        amount: amount,
+      );
       return false;
     }
   }
@@ -2852,8 +3088,8 @@ class CheckoutController extends GetxController implements GetxService {
             debugPrint(
                 '\x1B[32m[Payment][Wallet] success order=$_currentOrderId\x1B[0m');
             paymentSucceeded = true;
-            // Refresh user info to get updated wallet balance
-            await profile_Controller.getUserInfo();
+            // Refresh user info to get updated wallet balance (force: skip ETag).
+            await profile_Controller.getUserInfo(forceRefresh: true);
           } else {
             debugPrint(
                 '\x1B[33m[Payment][Wallet] failed status=$statusCode\x1B[0m');

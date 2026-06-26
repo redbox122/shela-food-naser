@@ -218,9 +218,15 @@ class _OfflinePaymentScreenState extends State<OfflinePaymentScreen> {
         onPressed: !allFieldsFilled
             ? null
             : () async {
+                // Synchronous double-tap guard (same lock as the main checkout
+                // screen) so two fast taps can't create two orders.
+                final CheckoutController offlineLock =
+                    Get.find<CheckoutController>();
+                if (!offlineLock.tryStartPlaceOrder()) return;
                 paymentController.changeLoadingStatus(true);
                 bool complete = false;
                 String text = '';
+                try {
                 for (int i = 0; i < methodInformation.length; i++) {
                   if (methodInformation[i].isRequired!) {
                     if (paymentController.informationControllerList[i].text.isEmpty) {
@@ -281,7 +287,11 @@ class _OfflinePaymentScreenState extends State<OfflinePaymentScreen> {
                     });
                   }
                 } else {
+                  paymentController.changeLoadingStatus(false);
                   showCustomSnackBar(text);
+                }
+                } finally {
+                  offlineLock.finishPlaceOrder();
                 }
               },
       ),

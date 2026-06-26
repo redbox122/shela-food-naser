@@ -13,7 +13,7 @@ import 'package:sixam_mart/util/images.dart';
 ///
 /// It surfaces a single, context-aware row:
 ///  1. Location not set on the map   → "ضع عنوانك لتكتشف خدماتنا بسهولة"
-///  2. Guest user (location is set)   → "انضم إلينا واستمتع بخدمات شلة"
+///  2. Guest user (location is set)   → "انضم إلينا واستمتع بخدمات شله"
 ///  3. Logged-in user with a location → shows the saved address (📍 pin)
 ///
 /// This is a presentation-only widget; it reads existing controllers/helpers

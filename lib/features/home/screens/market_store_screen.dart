@@ -231,9 +231,11 @@ class _MarketStoreScreenState extends State<MarketStoreScreen> {
                 title: widget.isHyperStorefront
                     ? 'hyper_market_shella'.tr
                     : (d?.name ?? widget.name ?? ''),
-                // Scope in-store search to this store's products only.
+                // Scope in-store search to this store's products only, using the
+                // store's REAL resolved module (not the static market default)
+                // so RULE #1 keeps results inside this store's vertical.
                 storeId: widget.storeId,
-                moduleId: widget.moduleId,
+                moduleId: effectiveModule,
               ),
             ),
             const SliverToBoxAdapter(child: HomeTopNoticeStrip()),

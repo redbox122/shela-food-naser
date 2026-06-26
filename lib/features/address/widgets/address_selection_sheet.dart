@@ -227,8 +227,13 @@ class _AddressCard extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(Dimensions.paddingSizeDefault),
         decoration: BoxDecoration(
-          color: Color(0xffEBFEEB),
+          color: const Color(0xffEBFEEB),
           borderRadius: BorderRadius.circular(Dimensions.radiusDefault),
+          // Shella green border highlights the selected address (per mockup).
+          border: Border.all(
+            color: selected ? const Color(0xFF30913F) : Colors.transparent,
+            width: 1.5,
+          ),
         ),
         child: Row(
           children: [
@@ -271,7 +276,7 @@ class _AddressCard extends StatelessWidget {
             Icon(
               selected ? Icons.check_circle : Icons.circle_outlined,
               color: selected
-                  ? Color.fromARGB(255, 0, 0, 0)
+                  ? const Color(0xFF30913F)
                   : Theme.of(context).disabledColor,
               size: 22,
             ),

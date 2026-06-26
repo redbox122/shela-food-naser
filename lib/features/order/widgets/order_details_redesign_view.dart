@@ -799,12 +799,96 @@ class OrderDetailsRedesignView extends StatelessWidget {
             ),
             child: Text(
               '${'order_id'.tr} #${order.id}',
-              style: TextStyle(
+              style: const TextStyle(
                 fontFamily: 'Tajawal',
                 fontWeight: FontWeight.w700,
-                fontSize: 35,
-                color: Color(0xff1232),
+                fontSize: 18,
+                color: _ink,
               ),
+            ),
+          ),
+          if ((order.otp ?? '').isNotEmpty &&
+              (order.orderType ?? '') != 'take_away') ...[
+            const SizedBox(height: Dimensions.paddingSizeDefault),
+            _deliveryOtpCard(status),
+          ],
+        ],
+      ),
+    );
+  }
+
+  // رمز التسليم — يظهر للعميل ليعطيه للسائق عند الاستلام (تحقّق التوصيل)
+  Widget _deliveryOtpCard(_StatusVisual status) {
+    final String code = order.otp ?? '';
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(
+        vertical: Dimensions.paddingSizeDefault,
+        horizontal: Dimensions.paddingSizeDefault,
+      ),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: status.accent.withValues(alpha: 0.30)),
+      ),
+      child: Column(
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.lock_clock_outlined, size: 18, color: status.accent),
+              const SizedBox(width: 6),
+              const Text(
+                'رمز التسليم',
+                style: TextStyle(
+                  fontFamily: 'Tajawal',
+                  fontWeight: FontWeight.w700,
+                  fontSize: 15,
+                  color: _ink,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          // الأرقام تُعرض LTR دائماً حتى لا تنعكس خاناتها في واجهة RTL (3769 لا 9673)
+          Directionality(
+            textDirection: TextDirection.ltr,
+            child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: code.split('').map((d) {
+              return Container(
+                margin: const EdgeInsets.symmetric(horizontal: 4),
+                width: 44,
+                height: 54,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: status.accent.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(10),
+                  border:
+                      Border.all(color: status.accent.withValues(alpha: 0.25)),
+                ),
+                child: Text(
+                  d,
+                  style: TextStyle(
+                    fontFamily: 'Tajawal',
+                    fontWeight: FontWeight.w900,
+                    fontSize: 26,
+                    color: status.accent,
+                  ),
+                ),
+              );
+            }).toList(),
+            ),
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'أعطِ هذا الرمز للسائق عند استلام طلبك',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontFamily: 'Tajawal',
+              fontWeight: FontWeight.w500,
+              fontSize: 12,
+              color: Color(0xff71807a),
             ),
           ),
         ],

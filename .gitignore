@@ -97,3 +97,6 @@ fetch_*.dart
 
 # Local API keys (Google Maps, Facebook, MyFatoorah)
 env.json
+
+# Local Claude Code config
+.claude/

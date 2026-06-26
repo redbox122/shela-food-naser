@@ -3,6 +3,7 @@ import 'package:sixam_mart/features/profile/widgets/notification_status_change_b
 import 'package:sixam_mart/features/splash/controllers/splash_controller.dart';
 import 'package:sixam_mart/features/profile/controllers/profile_controller.dart';
 import 'package:sixam_mart/features/auth/controllers/auth_controller.dart';
+import 'package:sixam_mart/features/update/controllers/update_controller.dart';
 import 'package:sixam_mart/helper/auth_helper.dart';
 import 'package:sixam_mart/helper/date_converter.dart';
 import 'package:sixam_mart/helper/price_converter.dart';
@@ -50,7 +51,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
       backgroundColor: Theme.of(context).colorScheme.surface,
       key: UniqueKey(),
       body: SafeArea(
-        top: !ResponsiveHelper.isDesktop(context),
+        // Let the green header fill behind the status bar (the title row has its
+        // own inner SafeArea to clear the notch) for a taller, cohesive header.
+        top: false,
         bottom: true,
         left: false,
         right: false,
@@ -78,9 +81,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   child: (isLoggedIn && ResponsiveHelper.isDesktop(context))
                       ? const WebProfileWidget()
                       : Container(
-                          color: Theme.of(context).primaryColor.withValues(alpha: 0.2),
                           width: Dimensions.webMaxWidth,
                           height: context.height,
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              begin: Alignment.topRight,
+                              end: Alignment.bottomLeft,
+                              colors: [
+                                Theme.of(context).primaryColor,
+                                const Color(0xFF1F7A35),
+                              ],
+                            ),
+                          ),
                           child: Center(
                             child: Column(children: [
                               Padding(
@@ -91,21 +103,40 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                     !ResponsiveHelper.isDesktop(context)
                                         ? IconButton(
                                             onPressed: () => Get.back(),
-                                            icon: const Icon(Icons.arrow_back_ios),
+                                            icon: const Icon(Icons.arrow_back_ios,
+                                                color: Colors.white),
                                           )
                                         : const SizedBox(),
-                                    Text('profile'.tr, style: robotoBold.copyWith(fontSize: Dimensions.fontSizeLarge)),
+                                    Text('profile'.tr,
+                                        style: robotoBold.copyWith(
+                                            fontSize: Dimensions.fontSizeLarge,
+                                            color: Colors.white)),
                                     const SizedBox(width: 50),
                                   ]),
                                 ),
                               ),
+                              const SizedBox(height: Dimensions.paddingSizeDefault),
                               Padding(
                                 padding: const EdgeInsets.only(
                                     left: Dimensions.paddingSizeExtremeLarge,
                                     right: Dimensions.paddingSizeExtremeLarge,
-                                    bottom: Dimensions.paddingSizeLarge),
+                                    bottom: Dimensions.paddingSizeExtraLarge),
                                 child: Row(children: [
-                                  ClipOval(
+                                  Container(
+                                    decoration: BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      color: Colors.white,
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: Colors.black
+                                              .withValues(alpha: 0.18),
+                                          blurRadius: 10,
+                                          offset: const Offset(0, 3),
+                                        ),
+                                      ],
+                                    ),
+                                    padding: const EdgeInsets.all(3),
+                                    child: ClipOval(
                                     child: Builder(
                                       builder: (context) {
                                         final String? imageUrl =
@@ -145,6 +176,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                       },
                                     ),
                                   ),
+                                  ),
                                   const SizedBox(width: Dimensions.paddingSizeDefault),
                                   Expanded(
                                     child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -152,7 +184,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                         isLoggedIn
                                             ? '${profileController.userInfoModel?.fName ?? ''} ${profileController.userInfoModel?.lName ?? ''}'
                                             : 'guest_user'.tr,
-                                        style: robotoBold.copyWith(fontSize: Dimensions.fontSizeExtraLarge),
+                                        style: robotoBold.copyWith(
+                                            fontSize: Dimensions.fontSizeExtraLarge,
+                                            color: Colors.white),
                                       ),
                                       const SizedBox(height: Dimensions.paddingSizeExtraSmall),
                                       isLoggedIn
@@ -161,7 +195,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                                   ? 'joined'.tr
                                                   : '${'joined'.tr} ${DateConverter.containTAndZToUTCFormat(joinedAt)}',
                                               style: robotoMedium.copyWith(
-                                                  fontSize: Dimensions.fontSizeSmall, color: Theme.of(context).primaryColor),
+                                                  fontSize: Dimensions.fontSizeSmall,
+                                                  color: Colors.white
+                                                      .withValues(alpha: 0.9)),
                                             )
                                           : InkWell(
                                               onTap: () async {
@@ -178,7 +214,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                               child: Text(
                                                 'login_to_view_all_feature'.tr,
                                                 style: robotoMedium.copyWith(
-                                                    fontSize: Dimensions.fontSizeSmall, color: Theme.of(context).primaryColor),
+                                                    fontSize: Dimensions.fontSizeSmall,
+                                                    color: Colors.white
+                                                        .withValues(alpha: 0.9)),
                                               ),
                                             ),
                                     ]),
@@ -197,8 +235,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                                       spreadRadius: 1,
                                                       offset: const Offset(3, 3))
                                                 ]),
-                                            padding: const EdgeInsets.all(Dimensions.paddingSizeExtraSmall),
-                                            child: const Icon(Icons.edit_outlined, size: 24, color: Colors.blue),
+                                            padding: const EdgeInsets.all(Dimensions.paddingSizeSmall),
+                                            child: Icon(Icons.edit_outlined,
+                                                size: 22,
+                                                color: Theme.of(context).primaryColor),
                                           ),
                                         )
                                       : InkWell(
@@ -216,13 +256,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                           child: Container(
                                             decoration: BoxDecoration(
                                               borderRadius: BorderRadius.circular(Dimensions.radiusDefault),
-                                              color: Theme.of(context).primaryColor,
+                                              color: Colors.white,
                                             ),
                                             padding: const EdgeInsets.symmetric(
                                                 vertical: Dimensions.paddingSizeSmall, horizontal: Dimensions.paddingSizeLarge),
                                             child: Text(
                                               'login'.tr,
-                                              style: robotoMedium.copyWith(color: Theme.of(context).cardColor),
+                                              style: robotoMedium.copyWith(color: Theme.of(context).primaryColor),
                                             ),
                                           ),
                                         )
@@ -332,10 +372,53 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                         onTap: () => Get.toNamed(RouteHelper.getReferAndEarnRoute()),
                                       ),
                                       const SizedBox(height: Dimensions.paddingSizeSmall),
+                                      // ── المساعدة والدعم ──────────────────────
+                                      ProfileButtonWidget(
+                                        icon: Icons.chat_bubble_outline,
+                                        title: 'live_chat'.tr,
+                                        onTap: () => Get.toNamed(
+                                            RouteHelper.getConversationRoute()),
+                                      ),
+                                      const SizedBox(height: Dimensions.paddingSizeSmall),
                                       ProfileButtonWidget(
                                         iconImage: Images.helpIcon,
                                         title: 'help_and_support'.tr,
                                         onTap: () => Get.toNamed(RouteHelper.getSupportRoute()),
+                                      ),
+                                      const SizedBox(height: Dimensions.paddingSizeSmall),
+                                      ProfileButtonWidget(
+                                        icon: Icons.system_update_outlined,
+                                        title: 'check_for_updates'.tr,
+                                        onTap: () => Get.find<UpdateController>()
+                                            .manualCheckForUpdates(),
+                                      ),
+                                      const SizedBox(height: Dimensions.paddingSizeSmall),
+                                      ProfileButtonWidget(
+                                        icon: Icons.info_outline,
+                                        title: 'about_us'.tr,
+                                        onTap: () => Get.toNamed(
+                                            RouteHelper.getHtmlRoute('about-us')),
+                                      ),
+                                      const SizedBox(height: Dimensions.paddingSizeSmall),
+                                      ProfileButtonWidget(
+                                        icon: Icons.description_outlined,
+                                        title: 'terms_conditions'.tr,
+                                        onTap: () => Get.toNamed(RouteHelper
+                                            .getHtmlRoute('terms-and-condition')),
+                                      ),
+                                      const SizedBox(height: Dimensions.paddingSizeSmall),
+                                      ProfileButtonWidget(
+                                        icon: Icons.privacy_tip_outlined,
+                                        title: 'privacy_policy'.tr,
+                                        onTap: () => Get.toNamed(RouteHelper
+                                            .getHtmlRoute('privacy-policy')),
+                                      ),
+                                      const SizedBox(height: Dimensions.paddingSizeSmall),
+                                      ProfileButtonWidget(
+                                        icon: Icons.assignment_return_outlined,
+                                        title: 'refund_policy'.tr,
+                                        onTap: () => Get.toNamed(RouteHelper
+                                            .getHtmlRoute('refund-policy')),
                                       ),
                                       const SizedBox(height: Dimensions.paddingSizeSmall),
                                     ],

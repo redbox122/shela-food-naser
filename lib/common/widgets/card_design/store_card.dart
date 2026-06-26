@@ -31,6 +31,13 @@ class StoreCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // RULE #2 (last-resort defence): never render a store with no image — it
+    // stays in the DB and reappears once a logo/cover is added. Lists are
+    // pre-filtered, so this rarely triggers.
+    if ((store.logoFullUrl ?? '').trim().isEmpty &&
+        (store.coverPhotoFullUrl ?? '').trim().isEmpty) {
+      return const SizedBox.shrink();
+    }
     // ⚡ TASK 1: Wrap in RepaintBoundary to isolate GPU repaints
     // 🔧 FIX 4: Wrap in error boundary to prevent crashes
     return RepaintBoundary(

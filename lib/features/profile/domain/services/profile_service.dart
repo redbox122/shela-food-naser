@@ -12,8 +12,10 @@ class ProfileService implements ProfileServiceInterface {
   ProfileService({required this.profileRepositoryInterface});
 
   @override
-  Future<UserInfoModel?> getUserInfo() async {
-    final result = await profileRepositoryInterface.get(null);
+  Future<UserInfoModel?> getUserInfo({bool forceRefresh = false}) async {
+    final result = forceRefresh
+        ? await profileRepositoryInterface.getUserInfoForceRefresh()
+        : await profileRepositoryInterface.get(null);
     return result is UserInfoModel? ? result : null;
   }
 

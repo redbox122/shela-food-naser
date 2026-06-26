@@ -28,11 +28,12 @@ class HomeCurrentOffersSection extends StatefulWidget {
 }
 
 class _HomeCurrentOffersSectionState extends State<HomeCurrentOffersSection> {
-  List<OfferItem> _offers = const [];
+  List<OfferItem> _offers = const []; // full list (for "عرض المزيد")
+  List<OfferItem> _ordered = const []; // diversified (sections interleaved)
   bool _loading = true;
 
-  /// The rail shows only the first [_collapsedCount] offers; "عرض المزيد" opens
-  /// the full [CurrentOffersScreen].
+  /// "عرض المزيد" appears once there are more than this many offers; the rail
+  /// itself is a horizontal strip the user swipes to reveal more.
   static const int _collapsedCount = 3;
 
   @override
@@ -46,8 +47,36 @@ class _HomeCurrentOffersSectionState extends State<HomeCurrentOffersSection> {
     if (!mounted) return;
     setState(() {
       _offers = all;
+      // On the multi-module home, interleave by section so swiping the strip
+      // alternates restaurants/cafés/markets/hyper instead of one section's run.
+      _ordered = widget.moduleId == null ? _diversify(all) : all;
       _loading = false;
     });
+  }
+
+  /// Round-robins offers across modules (one per section per round) so the
+  /// horizontal strip alternates sections as the user swipes through it.
+  List<OfferItem> _diversify(List<OfferItem> offers) {
+    if (offers.length <= 1) return offers;
+    final Map<int?, List<OfferItem>> byModule = {};
+    for (final o in offers) {
+      (byModule[o.moduleId] ??= <OfferItem>[]).add(o);
+    }
+    final groups = byModule.values.toList();
+    final out = <OfferItem>[];
+    int i = 0;
+    bool added = true;
+    while (added) {
+      added = false;
+      for (final g in groups) {
+        if (i < g.length) {
+          out.add(g[i]);
+          added = true;
+        }
+      }
+      i++;
+    }
+    return out;
   }
 
   @override
@@ -56,8 +85,9 @@ class _HomeCurrentOffersSectionState extends State<HomeCurrentOffersSection> {
       return const SizedBox.shrink();
     }
 
-    // The rail shows the first 3 offers; "عرض المزيد" opens the full screen.
-    final List<OfferItem> visible = _offers.take(_collapsedCount).toList();
+    // Horizontal strip: shows ALL offers (diversified order); swipe to reveal
+    // more. "عرض المزيد" opens the full vertical screen.
+    final List<OfferItem> visible = _ordered;
     final bool canExpand = !_loading && _offers.length > _collapsedCount;
 
     return Padding(
@@ -102,13 +132,13 @@ class _HomeCurrentOffersSectionState extends State<HomeCurrentOffersSection> {
                 ? _buildSkeleton(context)
                 : ListView.separated(
                     scrollDirection: Axis.horizontal,
+                    physics: const BouncingScrollPhysics(),
                     padding: const EdgeInsets.symmetric(
                       horizontal: Dimensions.paddingSizeDefault,
                     ),
                     itemCount: visible.length,
                     separatorBuilder: (_, __) => const SizedBox(width: 8),
-                    itemBuilder: (_, index) =>
-                        _OfferCard(offer: visible[index]),
+                    itemBuilder: (_, index) => _OfferCard(offer: visible[index]),
                   ),
           ),
         ],

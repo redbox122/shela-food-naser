@@ -38,16 +38,18 @@ class ProfileController extends GetxController implements GetxService {
   bool _isFetchingUserInfo = false;
   Future<void>? _inFlightGetUserInfo;
 
-  Future<void> getUserInfo() async {
+  Future<void> getUserInfo({bool forceRefresh = false}) async {
+    // A forced refresh (e.g. after a wallet operation) must always run fresh —
+    // don't piggy-back on an in-flight ETag fetch that may return a 304/cache.
     final Future<void>? existing = _inFlightGetUserInfo;
-    if (_isFetchingUserInfo && existing != null) {
+    if (!forceRefresh && _isFetchingUserInfo && existing != null) {
       if (kDebugMode) {
         debugPrint('[PROFILE][GET_USER_INFO_SKIP_IN_PROGRESS]');
       }
       return existing;
     }
     _isFetchingUserInfo = true;
-    final Future<void> fetchFuture = _runGetUserInfo();
+    final Future<void> fetchFuture = _runGetUserInfo(forceRefresh: forceRefresh);
     _inFlightGetUserInfo = fetchFuture;
     try {
       await fetchFuture;
@@ -57,7 +59,7 @@ class ProfileController extends GetxController implements GetxService {
     }
   }
 
-  Future<void> _runGetUserInfo() async {
+  Future<void> _runGetUserInfo({bool forceRefresh = false}) async {
     _hasProfileError = false;
     _pickedFile = null;
     final bool hadExistingData = _userInfoModel != null;
@@ -72,7 +74,8 @@ class ProfileController extends GetxController implements GetxService {
     if (kDebugMode) {
       debugPrint('[PROFILE][GET_USER_INFO_START]');
     }
-    final UserInfoModel? userInfoModel = await profileServiceInterface.getUserInfo();
+    final UserInfoModel? userInfoModel =
+        await profileServiceInterface.getUserInfo(forceRefresh: forceRefresh);
     if (userInfoModel != null) {
       _userInfoModel = userInfoModel;
       if (kDebugMode) {

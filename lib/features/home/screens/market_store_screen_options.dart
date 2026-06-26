@@ -7,12 +7,30 @@ class _OptItem {
   final String name;
   final double price;
   final double calories;
-  const _OptItem({required this.name, this.price = 0, this.calories = 0});
+
+  /// Pre-selected when the sheet opens (DB `is_default`).
+  final bool isDefault;
+
+  /// Available to pick — a sold-out option is shown greyed and disabled
+  /// (DB `is_available`, defaults to true when the field is absent).
+  final bool available;
+
+  const _OptItem({
+    required this.name,
+    this.price = 0,
+    this.calories = 0,
+    this.isDefault = false,
+    this.available = true,
+  });
 
   factory _OptItem.fromJson(Map<String, dynamic> j) => _OptItem(
         name: (j['name'] ?? '').toString(),
         price: double.tryParse('${j['price'] ?? 0}') ?? 0,
         calories: double.tryParse('${j['calories'] ?? 0}') ?? 0,
+        isDefault: j['is_default'] == true || j['is_default'] == 1,
+        available: j['is_available'] == null
+            ? true
+            : (j['is_available'] == true || j['is_available'] == 1),
       );
 }
 
@@ -195,12 +213,30 @@ class _ProductOptionsSheetState extends State<_ProductOptionsSheet> {
             _basePrice =
                 double.tryParse('${data['price'] ?? _basePrice}') ?? _basePrice;
             _groups = groups;
-            // Pre-select the first option of every required single group so the
-            // sheet opens in a valid state where possible.
+            // Pre-select options flagged `is_default`, capped at the group's
+            // max; then, for a required single group with no default, fall back
+            // to its first available option so the sheet opens valid.
             _selected = List.generate(groups.length, (i) {
               final g = groups[i];
-              if (!g.multi && g.required && g.options.isNotEmpty) return {0};
-              return <int>{};
+              final defaults = <int>{};
+              for (int oi = 0; oi < g.options.length; oi++) {
+                final o = g.options[oi];
+                if (!o.isDefault || !o.available) continue;
+                if (g.multi) {
+                  if (g.max > 0 && defaults.length >= g.max) break;
+                  defaults.add(oi);
+                } else {
+                  defaults
+                    ..clear()
+                    ..add(oi);
+                  break; // single keeps exactly one
+                }
+              }
+              if (defaults.isEmpty && !g.multi && g.required) {
+                final first = g.options.indexWhere((o) => o.available);
+                if (first >= 0) defaults.add(first);
+              }
+              return defaults;
             });
             _loading = false;
           });
@@ -217,6 +253,7 @@ class _ProductOptionsSheetState extends State<_ProductOptionsSheet> {
 
   void _toggle(int gi, int oi) {
     final g = _groups[gi];
+    if (!g.options[oi].available) return; // sold-out option is not selectable
     setState(() {
       final sel = _selected[gi];
       if (g.multi) {
@@ -330,7 +367,6 @@ class _ProductOptionsSheetState extends State<_ProductOptionsSheet> {
       storeId: widget.storeId,
     );
 
-    Get.back<void>();
     try {
       bool ok = await cartController.addToCartOnline(cart);
       if (!ok && cartController.lastAddToCartErrorCode == 'different_store') {
@@ -340,8 +376,11 @@ class _ProductOptionsSheetState extends State<_ProductOptionsSheet> {
         ok = await cartController.addToCartOnline(cart);
       }
       if (!ok) {
+        // Keep the sheet open so the user sees it didn't add (e.g. on a
+        // network failure) instead of a silent close + toast.
         showCustomSnackBar('failed_to_add_to_cart'.tr, isError: true);
       } else {
+        Get.back<void>();
         _showAddedToCartToast();
       }
     } catch (e) {
@@ -518,7 +557,9 @@ class _ProductOptionsSheetState extends State<_ProductOptionsSheet> {
                       ),
                       Text(
                         g.multi
-                            ? (g.max > 0 ? 'اختر حتى ${g.max}' : 'اختياري')
+                            ? (g.max > 0
+                                ? 'اخترت ${_selected[gi].length} من ${g.max}'
+                                : 'اختياري')
                             : 'اختيار واحد',
                         textAlign: TextAlign.right,
                         style: const TextStyle(
@@ -544,40 +585,48 @@ class _ProductOptionsSheetState extends State<_ProductOptionsSheet> {
     final g = _groups[gi];
     final o = g.options[oi];
     final bool on = _selected[gi].contains(oi);
-    return InkWell(
-      onTap: () => _toggle(gi, oi),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
-        child: Row(
-          children: [
-            // Selector (left): radio for single, checkbox for multi.
-            _selector(on: on, multi: g.multi),
-            const SizedBox(width: 12),
-            if (o.price > 0)
-              Text(
-                '+ ${_fmt(o.price)}',
-                style: const TextStyle(
-                  fontFamily: 'Tajawal',
-                  fontWeight: FontWeight.w700,
-                  fontSize: 13,
-                  color: Color(0xFF30913F),
+    // Disabled when the option is sold out, or when an unselected option would
+    // exceed a multi group's max (the user must deselect another first).
+    final bool atMax =
+        g.multi && g.max > 0 && !on && _selected[gi].length >= g.max;
+    final bool disabled = !o.available || atMax;
+    return Opacity(
+      opacity: disabled ? 0.4 : 1,
+      child: InkWell(
+        onTap: disabled ? null : () => _toggle(gi, oi),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
+          child: Row(
+            children: [
+              // Selector (left): radio for single, checkbox for multi.
+              _selector(on: on, multi: g.multi),
+              const SizedBox(width: 12),
+              if (o.price > 0)
+                Text(
+                  '+ ${_fmt(o.price)}',
+                  style: const TextStyle(
+                    fontFamily: 'Tajawal',
+                    fontWeight: FontWeight.w700,
+                    fontSize: 13,
+                    color: Color(0xFF30913F),
+                  ),
+                ),
+              const Spacer(),
+              Expanded(
+                flex: 5,
+                child: Text(
+                  o.name,
+                  textAlign: TextAlign.right,
+                  style: const TextStyle(
+                    fontFamily: 'Tajawal',
+                    fontWeight: FontWeight.w500,
+                    fontSize: 14,
+                    color: Color(0xFF121C19),
+                  ),
                 ),
               ),
-            const Spacer(),
-            Expanded(
-              flex: 5,
-              child: Text(
-                o.name,
-                textAlign: TextAlign.right,
-                style: const TextStyle(
-                  fontFamily: 'Tajawal',
-                  fontWeight: FontWeight.w500,
-                  fontSize: 14,
-                  color: Color(0xFF121C19),
-                ),
-              ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

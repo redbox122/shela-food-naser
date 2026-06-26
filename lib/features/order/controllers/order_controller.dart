@@ -869,7 +869,8 @@ class OrderController extends GetxController implements GetxService {
   Future<void> _refreshWalletAfterCancellation() async {
     try {
       if (Get.isRegistered<ProfileController>()) {
-        await Get.find<ProfileController>().getUserInfo();
+        // Force refresh so a refunded balance isn't masked by an ETag 304.
+        await Get.find<ProfileController>().getUserInfo(forceRefresh: true);
       }
 
       if (Get.isRegistered<WalletController>()) {

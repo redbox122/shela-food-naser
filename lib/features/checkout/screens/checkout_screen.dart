@@ -971,6 +971,38 @@ class CheckoutScreenState extends State<CheckoutScreen>
 
                         total = total - referralDiscount;
 
+                        // 🛡️ RULE #3: independently RE-DERIVE the payable total
+                        // from its raw components, so guardCheckoutTotals can
+                        // detect any drift between what the user sees (`total`)
+                        // and the amount built for the order. The previous guard
+                        // compared `total` to itself, so it could never fire.
+                        // Mirrors the active total branch above (tips + extra
+                        // packaging apply only on the non-cart path).
+                        final bool tipsCounted =
+                            checkoutController.orderType != 'take_away' &&
+                                (Get.find<SplashController>()
+                                            .configModel
+                                            ?.dmTipsStatus ??
+                                        0) ==
+                                    1;
+                        final double independentTotal = PriceConverter.toFixed(
+                              subTotal +
+                                  validDeliveryCharge +
+                                  additionalCharge +
+                                  (taxIncluded ? 0 : tax) -
+                                  couponDiscount -
+                                  discount +
+                                  (useSimpleCartTotal
+                                      ? 0
+                                      : (tipsCounted
+                                          ? checkoutController.tips
+                                          : 0)) +
+                                  (useSimpleCartTotal
+                                      ? 0
+                                      : extraPackagingCharge),
+                            ) -
+                            referralDiscount;
+
                         // ✅ FIX: Only set payment method ONCE on first build
                         if (effectiveStoreId != null &&
                             !_paymentMethodInitialized) {
@@ -1173,6 +1205,7 @@ class CheckoutScreenState extends State<CheckoutScreen>
                                                             tax,
                                                             discount,
                                                             total,
+                                                            independentTotal,
                                                             maxCodOrderAmount,
                                                             isPrescriptionRequired,
                                                           ),
@@ -1292,6 +1325,7 @@ class CheckoutScreenState extends State<CheckoutScreen>
                                                       tax,
                                                       discount,
                                                       total,
+                                                      independentTotal,
                                                       maxCodOrderAmount,
                                                       isPrescriptionRequired,
                                                     ),
@@ -1380,6 +1414,7 @@ class CheckoutScreenState extends State<CheckoutScreen>
                                                 tax,
                                                 discount,
                                                 total,
+                                                independentTotal,
                                                 maxCodOrderAmount,
                                                 isPrescriptionRequired,
                                               ),
@@ -1412,6 +1447,7 @@ class CheckoutScreenState extends State<CheckoutScreen>
       double tax,
       double? discount,
       double total,
+      double independentTotal,
       double? maxCodOrderAmount,
       bool isPrescriptionRequired) {
     return Container(
@@ -1566,10 +1602,24 @@ class CheckoutScreenState extends State<CheckoutScreen>
                         }
                         // If regular wallet is selected (index 1) and balance is insufficient.
                         else if (selectedPaymentIndex == 1) {
+                          // Force-refresh the balance (bypass ETag/304) before
+                          // the check, mirroring the Qidha path above — so a
+                          // stale cached balance can't wrongly allow/deny.
+                          await Get.find<ProfileController>()
+                              .getUserInfo(forceRefresh: true);
+                          if (!mounted) {
+                            controller.setLoading(false, ids: ['payment']);
+                            return;
+                          }
+                          myWalletBalance = Get.find<ProfileController>()
+                                  .userInfoModel
+                                  ?.walletBalance ??
+                              0.0;
                           if (myWalletBalance < total) {
                             showCustomSnackBar(
                                 'عفوًا، رصيد المحفظة (${PriceConverter.convertPrice(myWalletBalance)}) غير كافٍ لإتمام الطلب',
                                 isError: true);
+                            controller.setLoading(false, ids: ['payment']);
                             return; // Stop immediately and do not continue.
                           }
                         }
@@ -2034,8 +2084,9 @@ class CheckoutScreenState extends State<CheckoutScreen>
                             // against product subtotal only.
                             if (!checkoutController.guardCheckoutTotals(
                               payableTotal: total,
-                              orderAmount:
-                                  placeOrderBody.orderAmount ?? total,
+                              // Independently re-derived total (NOT `total`
+                              // again) so the guard actually detects drift.
+                              orderAmount: independentTotal,
                               productSubtotal:
                                   Get.find<CartController>().subTotal,
                               couponDiscount: orderCouponDiscountAmount,

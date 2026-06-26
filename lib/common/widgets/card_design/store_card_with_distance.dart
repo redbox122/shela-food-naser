@@ -142,6 +142,12 @@ class _StoreCardWithDistanceState extends State<StoreCardWithDistance> {
   @override
   Widget build(BuildContext context) {
     final store = widget.store;
+    // RULE #2 (last-resort defence): hide a store with no image (kept in DB,
+    // shown once an image is added). Lists are pre-filtered, so this is a guard.
+    if ((store.logoFullUrl ?? '').trim().isEmpty &&
+        (store.coverPhotoFullUrl ?? '').trim().isEmpty) {
+      return const SizedBox.shrink();
+    }
     final bool isPharmacy = Get.find<SplashController>().module != null &&
         Get.find<SplashController>().module!.moduleType.toString() ==
             AppConstants.pharmacy;

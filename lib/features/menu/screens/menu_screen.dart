@@ -1007,7 +1007,7 @@ class _MenuScreenState extends State<MenuScreen> {
                                       Dimensions.paddingSizeDefault),
                                   child: Column(children: [
                                     PortionWidget(
-                                        icon: Images.chatIcon,
+                                        iconData: Icons.chat_bubble_outline,
                                         title: 'live_chat'.tr,
                                         route:
                                             RouteHelper.getConversationRoute(),
@@ -1022,7 +1022,7 @@ class _MenuScreenState extends State<MenuScreen> {
                                         onTap: () => Get.toNamed(
                                             RouteHelper.getSupportRoute())),
                                     PortionWidget(
-                                        icon: Images.helpIcon,
+                                        iconData: Icons.system_update_outlined,
                                         title: 'check_for_updates'.tr,
                                         onTap: () =>
                                             Get.find<UpdateController>()
