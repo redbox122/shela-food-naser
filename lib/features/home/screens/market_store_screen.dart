@@ -54,6 +54,9 @@ class MarketStoreScreen extends StatefulWidget {
   final bool freeDelivery;
   final String? deliveryTime;
 
+  /// Distance to this store in **metres** (0 = unknown, badge hidden).
+  final double distance;
+
   /// When true, this is the special "هايبر ماركت شله" storefront: it shows the
   /// fixed "هايبر ماركت شله" title + the promotional banner. For every other
   /// store (opened from أسواق الحي, brands, etc.) this stays false, so the
@@ -76,6 +79,7 @@ class MarketStoreScreen extends StatefulWidget {
     this.rating = 0,
     this.freeDelivery = false,
     this.deliveryTime,
+    this.distance = 0,
     this.isHyperStorefront = false,
     this.useCoverHeader = false,
   });
@@ -88,31 +92,25 @@ class MarketStoreScreen extends StatefulWidget {
 
 class _MarketStoreScreenState extends State<MarketStoreScreen> {
   _StoreDetail? _detail;
-
-  /// The store's REAL module id (from /stores/details), used to fetch its items
-  /// so they resolve regardless of which module was active when it was opened.
   int? _storeModuleId;
-
-  /// Full category list from `/stores/{id}/categories` (falls back to the
-  /// subset embedded in the main detail response).
   List<_Category> _categories = const [];
   bool _loading = true;
-
-  /// Drives the sticky category tab bar: the selected tab shows that category's
-  /// products below. A controller is kept so selecting a tab can snap the menu
-  /// back to the top.
-  final ScrollController _scrollController = ScrollController();
   int _activeTab = 0;
 
-  /// Height of the pinned category tab bar.
+  /// Key gives access to NestedScrollView's inner controller after build.
+  final GlobalKey<NestedScrollViewState> _nestedKey = GlobalKey();
+
+  /// One GlobalKey per category — used for scroll-to-section and scroll-spy.
+  List<GlobalKey> _categoryKeys = [];
+
+  /// Inner scroll controller cached so we can attach/detach the scroll-spy.
+  ScrollController? _innerController;
+
   static const double _tabBarHeight = 46;
 
   List<_Category> get _resolvedCategories {
     final base =
         _categories.isNotEmpty ? _categories : (_detail?.categories ?? const []);
-    // The backend now also returns the special "أفضل العروض" (id=offers,
-    // is_discount_category) category in the list. The app already surfaces
-    // offers on its own, so drop it here to avoid a duplicate grid tile.
     return base
         .where((c) => !c.isDiscount && c.rawId.toLowerCase() != 'offers')
         .toList();
@@ -126,14 +124,59 @@ class _MarketStoreScreenState extends State<MarketStoreScreen> {
 
   @override
   void dispose() {
-    _scrollController.dispose();
+    _innerController?.removeListener(_onInnerScroll);
     super.dispose();
   }
 
-  /// Selects a category tab → shows that category's products below the pinned
-  /// tabs.
+  void _attachScrollListener() {
+    final inner = _nestedKey.currentState?.innerController;
+    if (inner == null || inner == _innerController) return;
+    _innerController?.removeListener(_onInnerScroll);
+    _innerController = inner;
+    _innerController!.addListener(_onInnerScroll);
+  }
+
+  void _onInnerScroll() {
+    if (_categoryKeys.isEmpty) return;
+    final inner = _innerController;
+    if (inner == null || !inner.hasClients) return;
+    final scrollBox = inner.position.context.notificationContext
+        ?.findRenderObject() as RenderBox?;
+    if (scrollBox == null) return;
+    int newActive = 0;
+    for (int i = 0; i < _categoryKeys.length; i++) {
+      final box =
+          _categoryKeys[i].currentContext?.findRenderObject() as RenderBox?;
+      if (box == null) continue;
+      final y = inner.offset +
+          box.localToGlobal(Offset.zero, ancestor: scrollBox).dy;
+      if (y <= inner.offset + 48) {
+        newActive = i;
+      } else {
+        break;
+      }
+    }
+    if (newActive != _activeTab) setState(() => _activeTab = newActive);
+  }
+
   void _selectTab(int i) {
-    if (i != _activeTab) setState(() => _activeTab = i);
+    setState(() => _activeTab = i);
+    if (i >= _categoryKeys.length) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final inner = _nestedKey.currentState?.innerController;
+      if (inner == null || !inner.hasClients) return;
+      final box =
+          _categoryKeys[i].currentContext?.findRenderObject() as RenderBox?;
+      if (box == null) return;
+      final scrollBox = inner.position.context.notificationContext
+          ?.findRenderObject() as RenderBox?;
+      if (scrollBox == null) return;
+      final localY = box.localToGlobal(Offset.zero, ancestor: scrollBox).dy;
+      final target =
+          (inner.offset + localY).clamp(0.0, inner.position.maxScrollExtent);
+      inner.animateTo(target,
+          duration: const Duration(milliseconds: 350), curve: Curves.easeOut);
+    });
   }
 
   Future<void> _fetch() async {
@@ -148,9 +191,6 @@ class _MarketStoreScreenState extends State<MarketStoreScreen> {
     };
     final id = widget.storeId;
     try {
-      // Fetch the page detail, the full category list, and the store's real
-      // module id together. /stores/details carries module_id (the v2 detail
-      // does not), so items resolve no matter which module was active.
       final results = await Future.wait([
         api.getData('/api/v2/stores/$id', headers: headers, useEtag: false),
         api.getData('/api/v2/stores/$id/categories',
@@ -171,17 +211,21 @@ class _MarketStoreScreenState extends State<MarketStoreScreen> {
               : (catBody is Map && catBody['categories'] is List)
                   ? catBody['categories'] as List
                   : const [];
+      final List<_Category> parsed = rawCats
+          .whereType<Map>()
+          .map((e) => _Category.fromJson(Map<String, dynamic>.from(e)))
+          .toList();
       setState(() {
         _detail = detailBody is Map
             ? _StoreDetail.fromJson(Map<String, dynamic>.from(detailBody))
             : null;
-        _categories = rawCats
-            .whereType<Map>()
-            .map((e) => _Category.fromJson(Map<String, dynamic>.from(e)))
-            .toList();
+        _categories = parsed;
+        _categoryKeys = List.generate(parsed.length, (_) => GlobalKey());
         _storeModuleId = storeModule;
         _loading = false;
       });
+      // Attach scroll-spy once NestedScrollView has built its inner controller.
+      WidgetsBinding.instance.addPostFrameCallback((_) => _attachScrollListener());
     } catch (_) {
       if (mounted) setState(() => _loading = false);
     }
@@ -191,148 +235,22 @@ class _MarketStoreScreenState extends State<MarketStoreScreen> {
   Widget build(BuildContext context) {
     final d = _detail;
     final cats = _resolvedCategories;
-    // Selected category index (clamped so it stays valid if the list shrinks).
     final int sel = cats.isEmpty ? 0 : _activeTab.clamp(0, cats.length - 1);
-    // Prefer the store's real module (from /stores/details) for item fetches.
     final int effectiveModule = _storeModuleId ?? widget.moduleId;
+
     return Scaffold(
       backgroundColor: const Color(0xFFFFFFFF),
-      // أسواق الحي stores have no bottom nav (matches the design); other
-      // stores keep it.
       bottomNavigationBar:
           widget.useCoverHeader ? null : const _StoreBottomNav(),
       body: Stack(
         children: [
-          CustomScrollView(
-            controller: _scrollController,
+          NestedScrollView(
+            key: _nestedKey,
             physics: const AlwaysScrollableScrollPhysics(),
-            slivers: [
-          // أسواق الحي stores: cover-image header (cover + icons + delivery +
-          // rating + name + description), no address notice strip.
-          if (widget.useCoverHeader)
-            SliverToBoxAdapter(
-              child: _StoreHeader(
-                name: d?.name ?? widget.name,
-                logo: d?.logo ?? widget.logo,
-                cover: d?.cover ?? widget.cover,
-                description: d?.description,
-                rating: d?.rating ?? widget.rating,
-                freeDelivery: d?.freeDelivery ?? widget.freeDelivery,
-                deliveryTime: d?.deliveryTime ?? widget.deliveryTime,
-                storeId: widget.storeId,
-                moduleId: effectiveModule,
-              ),
-            )
-          else ...[
-            // Banner-style header: fixed "هايبر ماركت شله" title only for the
-            // hyper storefront; every other store shows its real name.
-            SliverToBoxAdapter(
-              child: _MarketTopHeader(
-                title: widget.isHyperStorefront
-                    ? 'hyper_market_shella'.tr
-                    : (d?.name ?? widget.name ?? ''),
-                // Scope in-store search to this store's products only, using the
-                // store's REAL resolved module (not the static market default)
-                // so RULE #1 keeps results inside this store's vertical.
-                storeId: widget.storeId,
-                moduleId: effectiveModule,
-              ),
-            ),
-            const SliverToBoxAdapter(child: HomeTopNoticeStrip()),
-          ],
-          // Promotional banner belongs to the hyper storefront only.
-          if (widget.isHyperStorefront)
-            SliverToBoxAdapter(
-              child: MarketBannerSection(moduleId: widget.moduleId),
-            ),
-
-          if (_loading)
-            const SliverToBoxAdapter(child: _BodySkeleton())
-          else if (d != null) ...[
-            // Hyper market keeps its original square category grid (tap a tile
-            // to open that category); other stores get the sticky tab bar.
-            if (cats.isNotEmpty && widget.isHyperStorefront)
-              SliverToBoxAdapter(
-                child: _CategoriesGrid(
-                  categories: cats,
-                  storeId: widget.storeId,
-                  moduleId: effectiveModule,
-                  storeCover: d.cover ?? widget.cover,
-                ),
-              ),
-
-            // Sticky category tab bar (non-hyper): pins under the header; tapping
-            // a tab selects that category and shows its products below.
-            if (cats.isNotEmpty && !widget.isHyperStorefront)
-              SliverPersistentHeader(
-                pinned: true,
-                delegate: _CategoryTabsDelegate(
-                  categories: cats,
-                  activeIndex: sel,
-                  height: _tabBarHeight,
-                  onTap: _selectTab,
-                ),
-              ),
-
-            // Only the selected category's products are shown — navigate between
-            // sections via the tabs. Keyed by category id so switching tabs
-            // reloads that category's items. Falls back to the single inline
-            // category section when the category list is empty.
-            // Hyper market: browse every category section (scroll through the
-            // whole store). Other stores: one category at a time via the tabs.
-            if (cats.isNotEmpty && widget.isHyperStorefront)
-              ...List.generate(
-                cats.length,
-                (i) => SliverToBoxAdapter(
-                  child: _CategoryRail(
-                    storeId: widget.storeId ?? 0,
-                    moduleId: effectiveModule,
-                    category: cats[i],
-                    storeName: d.name ?? widget.name,
-                    storeLogo: d.logo ?? widget.logo,
-                    storeCover: d.cover ?? widget.cover,
-                  ),
-                ),
-              )
-            else if (cats.isNotEmpty)
-              SliverToBoxAdapter(
-                child: KeyedSubtree(
-                  key: ValueKey(cats[sel].rawId),
-                  child: _CategoryRail(
-                    storeId: widget.storeId ?? 0,
-                    moduleId: effectiveModule,
-                    category: cats[sel],
-                    storeName: d.name ?? widget.name,
-                    storeLogo: d.logo ?? widget.logo,
-                    storeCover: d.cover ?? widget.cover,
-                  ),
-                ),
-              )
-            else if (d.categoryProducts.isNotEmpty)
-              SliverToBoxAdapter(
-                child: _ProductSection(
-                  title: d.categoryName ?? '',
-                  products: d.categoryProducts,
-                  storeId: widget.storeId,
-                  moduleId: widget.moduleId,
-                  categoryId: d.categoryId,
-                  storeName: d.name ?? widget.name,
-                  storeLogo: d.logo ?? widget.logo,
-                  storeCover: d.cover ?? widget.cover,
-                ),
-              ),
-
-            // "عروض مختارة لك" / "منتجات مقترحة لك" (cross-store featured
-            // sections) removed per request.
-          ],
-
-          const SliverToBoxAdapter(
-            child: SizedBox(height: Dimensions.paddingSizeLarge),
+            headerSliverBuilder: (ctx, _) => _buildHeaderSlivers(
+                d, cats, sel, effectiveModule),
+            body: _buildBody(d, cats, sel, effectiveModule),
           ),
-        ],
-          ),
-          // Floating cart tab (right edge), shown once the cart has items —
-          // أسواق الحي stores only (they have no bottom nav).
           if (widget.useCoverHeader)
             const Align(
               alignment: Alignment.centerRight,
@@ -341,5 +259,138 @@ class _MarketStoreScreenState extends State<MarketStoreScreen> {
         ],
       ),
     );
+  }
+
+  List<Widget> _buildHeaderSlivers(
+      _StoreDetail? d, List<_Category> cats, int sel, int effectiveModule) {
+    return [
+      if (widget.useCoverHeader)
+        SliverToBoxAdapter(
+          child: _StoreHeader(
+            name: d?.name ?? widget.name,
+            logo: d?.logo ?? widget.logo,
+            cover: d?.cover ?? widget.cover,
+            description: d?.description,
+            rating: d?.rating ?? widget.rating,
+            freeDelivery: d?.freeDelivery ?? widget.freeDelivery,
+            deliveryTime: d?.deliveryTime ?? widget.deliveryTime,
+            distance: (d?.distance != null && d!.distance! > 0)
+                ? d.distance
+                : (widget.distance > 0 ? widget.distance : null),
+            storeId: widget.storeId,
+            moduleId: effectiveModule,
+          ),
+        )
+      else ...[
+        SliverToBoxAdapter(
+          child: _MarketTopHeader(
+            title: widget.isHyperStorefront
+                ? 'hyper_market_shella'.tr
+                : (d?.name ?? widget.name ?? ''),
+            storeId: widget.storeId,
+            moduleId: effectiveModule,
+          ),
+        ),
+        const SliverToBoxAdapter(child: HomeTopNoticeStrip()),
+      ],
+      if (widget.isHyperStorefront)
+        SliverToBoxAdapter(
+          child: MarketBannerSection(moduleId: widget.moduleId),
+        ),
+      if (!_loading && d != null) ...[
+        if (cats.isNotEmpty && widget.isHyperStorefront)
+          SliverToBoxAdapter(
+            child: _CategoriesGrid(
+              categories: cats,
+              storeId: widget.storeId,
+              moduleId: effectiveModule,
+              storeCover: d.cover ?? widget.cover,
+            ),
+          ),
+        // Pinned tab bar for non-hyper stores. NestedScrollView guarantees
+        // the outer scroll can always travel the full header height, so the
+        // tab bar reliably pins at the top even with a short product list.
+        if (cats.isNotEmpty && !widget.isHyperStorefront)
+          SliverPersistentHeader(
+            pinned: true,
+            delegate: _CategoryTabsDelegate(
+              categories: cats,
+              activeIndex: sel,
+              height: _tabBarHeight,
+              onTap: _selectTab,
+            ),
+          ),
+      ],
+    ];
+  }
+
+  Widget _buildBody(
+      _StoreDetail? d, List<_Category> cats, int sel, int effectiveModule) {
+    if (_loading) {
+      return const SingleChildScrollView(child: _BodySkeleton());
+    }
+    if (d == null) return const SizedBox.shrink();
+
+    // Hyper market: all categories stacked (scrolled inside the body).
+    if (widget.isHyperStorefront) {
+      return CustomScrollView(
+        slivers: [
+          ...cats.map((cat) => SliverToBoxAdapter(
+                child: _CategoryRail(
+                  storeId: widget.storeId ?? 0,
+                  moduleId: effectiveModule,
+                  category: cat,
+                  storeName: d.name ?? widget.name,
+                  storeLogo: d.logo ?? widget.logo,
+                  storeCover: d.cover ?? widget.cover,
+                ),
+              )),
+          const SliverToBoxAdapter(
+              child: SizedBox(height: Dimensions.paddingSizeLarge)),
+        ],
+      );
+    }
+
+    // Non-hyper: all categories stacked for continuous scroll.
+    // GlobalKey on each SliverToBoxAdapter lets _selectTab scroll to the
+    // right section and _onInnerScroll drive the active tab highlight.
+    if (cats.isNotEmpty) {
+      return CustomScrollView(
+        slivers: [
+          ...List.generate(cats.length, (i) => SliverToBoxAdapter(
+            key: i < _categoryKeys.length ? _categoryKeys[i] : null,
+            child: _CategoryRail(
+              storeId: widget.storeId ?? 0,
+              moduleId: effectiveModule,
+              category: cats[i],
+              storeName: d.name ?? widget.name,
+              storeLogo: d.logo ?? widget.logo,
+              storeCover: d.cover ?? widget.cover,
+              hideSeeMore: true,
+            ),
+          )),
+          const SliverToBoxAdapter(
+              child: SizedBox(height: Dimensions.paddingSizeLarge)),
+        ],
+      );
+    }
+
+    // Fallback: no categories list — show the single embedded section.
+    if (d.categoryProducts.isNotEmpty) {
+      return SingleChildScrollView(
+        child: _ProductSection(
+          title: d.categoryName ?? '',
+          products: d.categoryProducts,
+          storeId: widget.storeId,
+          moduleId: widget.moduleId,
+          categoryId: d.categoryId,
+          storeName: d.name ?? widget.name,
+          storeLogo: d.logo ?? widget.logo,
+          storeCover: d.cover ?? widget.cover,
+        ),
+      );
+    }
+
+    return const SizedBox.shrink();
   }
 }

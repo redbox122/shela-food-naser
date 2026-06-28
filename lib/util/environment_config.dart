@@ -35,8 +35,8 @@ class EnvironmentConfig {
       'description': 'Staging Server',
     },
     Environment.production: {
-      'baseUrl': 'https://shellafood.com',
-      'webHostedUrl': 'https://shellafood.com',
+      'baseUrl': 'https://shellagroup.sa',
+      'webHostedUrl': 'https://shellagroup.sa',
       'description': 'Production Server',
     },
   };

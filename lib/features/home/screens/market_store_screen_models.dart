@@ -362,6 +362,7 @@ class _StoreDetail {
   final double rating;
   final bool freeDelivery;
   final String? deliveryTime;
+  final double? distance;
   final List<_Category> categories;
   final String? categoryId;
   final String? categoryName;
@@ -377,6 +378,7 @@ class _StoreDetail {
     this.rating = 0,
     this.freeDelivery = false,
     this.deliveryTime,
+    this.distance,
     this.categories = const [],
     this.categoryId,
     this.categoryName,
@@ -405,6 +407,9 @@ class _StoreDetail {
       rating: _Product._d(j['rating']),
       freeDelivery: _toBool(j['free_delivery']),
       deliveryTime: j['delivery_time']?.toString(),
+      distance: (j['distance'] == null && j['distance_in_meters'] == null)
+          ? null
+          : _Product._d(j['distance'] ?? j['distance_in_meters']),
       categories: (j['categories'] is List)
           ? (j['categories'] as List)
               .whereType<Map>()

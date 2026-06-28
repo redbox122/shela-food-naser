@@ -13,6 +13,9 @@ import 'package:sixam_mart/features/home/widgets/market/offers/market_offers_mod
 import 'package:sixam_mart/features/home/widgets/market/offers/market_offers_tabs_bar.dart';
 import 'package:sixam_mart/util/app_constants.dart';
 
+enum _ViewMode { grid, list }
+enum _SortOrder { none, nameAsc, nameDesc, popular }
+
 /// 🎨 REDESIGN (Market): store category / "Best Offers" screen.
 ///
 /// Opened from a store's category tile (or the Best Offers tile). Loads
@@ -70,6 +73,375 @@ class MarketOffersScreen extends StatefulWidget {
   State<MarketOffersScreen> createState() => _MarketOffersScreenState();
 }
 
+// ─── Filter / view widgets ────────────────────────────────────────────────────
+
+/// Row shown above the tabs bar: product count (right) + view toggles + filter
+/// button (left, RTL).
+class _OfferControlRow extends StatelessWidget {
+  final int count;
+  final _ViewMode viewMode;
+  final bool hasFilter;
+  final void Function(_ViewMode) onViewMode;
+  final VoidCallback onFilter;
+
+  const _OfferControlRow({
+    required this.count,
+    required this.viewMode,
+    required this.hasFilter,
+    required this.onViewMode,
+    required this.onFilter,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+      child: Row(
+        children: [
+          // Count label (rightmost in RTL → first child).
+          Text(
+            '$count منتجات',
+            textDirection: TextDirection.rtl,
+            style: const TextStyle(
+              fontFamily: 'Tajawal',
+              fontSize: 13,
+              color: Color(0xFF717885),
+            ),
+          ),
+          const Spacer(),
+          // Grid toggle.
+          _iconBtn(
+              Icons.grid_view_rounded, viewMode == _ViewMode.grid,
+              () => onViewMode(_ViewMode.grid)),
+          const SizedBox(width: 6),
+          // List toggle.
+          _iconBtn(
+              Icons.view_agenda_outlined, viewMode == _ViewMode.list,
+              () => onViewMode(_ViewMode.list)),
+          const SizedBox(width: 6),
+          // Filter button (leftmost in RTL → last child).
+          GestureDetector(
+            onTap: onFilter,
+            child: Container(
+              width: 34,
+              height: 34,
+              decoration: BoxDecoration(
+                color: hasFilter
+                    ? const Color(0xFF1F7A35)
+                    : const Color(0xFFF5F6F8),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Icon(
+                Icons.tune_rounded,
+                size: 18,
+                color: hasFilter ? Colors.white : const Color(0xFF717885),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _iconBtn(IconData icon, bool active, VoidCallback onTap) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 34,
+        height: 34,
+        decoration: BoxDecoration(
+          color: active ? const Color(0xFFEBFEEB) : const Color(0xFFF5F6F8),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Icon(
+          icon,
+          size: 18,
+          color: active ? const Color(0xFF1F7A35) : const Color(0xFF717885),
+        ),
+      ),
+    );
+  }
+}
+
+// ─── Filter sheet ─────────────────────────────────────────────────────────────
+
+class _OfferFilterSheet extends StatefulWidget {
+  final _SortOrder sortOrder;
+  final (double, double)? priceRange;
+  final String? catFilter;
+  final List<SubCat> subCats;
+  final void Function(_SortOrder, (double, double)?, String?) onApply;
+
+  const _OfferFilterSheet({
+    required this.sortOrder,
+    required this.priceRange,
+    required this.catFilter,
+    required this.subCats,
+    required this.onApply,
+  });
+
+  @override
+  State<_OfferFilterSheet> createState() => _OfferFilterSheetState();
+}
+
+class _OfferFilterSheetState extends State<_OfferFilterSheet> {
+  late _SortOrder _sort;
+  late (double, double)? _price;
+  late String? _cat;
+
+  static const _priceRanges = <(double, double, String)>[
+    (0, 10, '0 - 10'),
+    (10, 20, '10 - 20'),
+    (20, 40, '20 - 40'),
+    (40, 70, '40 - 70'),
+    (70, 100, '70 - 100'),
+    (100, 150, '100 - 150'),
+    (150, 200, '150 - 200'),
+    (200, 300, '200 - 300'),
+    (300, 500, '300 - 500'),
+    (500, 700, '500 - 700'),
+    (700, 1000, '700 - 1000'),
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    _sort = widget.sortOrder;
+    _price = widget.priceRange;
+    _cat = widget.catFilter;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final bottom = MediaQuery.of(context).viewInsets.bottom;
+    return Container(
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      padding: EdgeInsets.only(bottom: bottom + 16),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Drag handle.
+          Container(
+            width: 40,
+            height: 4,
+            margin: const EdgeInsets.symmetric(vertical: 12),
+            decoration: BoxDecoration(
+              color: const Color(0xFFE0E0E0),
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+          // Title row.
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+            child: Row(
+              children: [
+                GestureDetector(
+                  onTap: () => Get.back<void>(),
+                  child: const Icon(Icons.close,
+                      size: 22, color: Color(0xFF717885)),
+                ),
+                const Spacer(),
+                const Text(
+                  'فلتر',
+                  style: TextStyle(
+                    fontFamily: 'Tajawal',
+                    fontWeight: FontWeight.w700,
+                    fontSize: 18,
+                    color: Color(0xFF121C19),
+                  ),
+                ),
+                const Spacer(),
+                const SizedBox(width: 22),
+              ],
+            ),
+          ),
+          const Divider(height: 1, color: Color(0xFFF0F1F3)),
+          // Scrollable options.
+          Flexible(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  _section(
+                    'الترتيب حسب',
+                    Wrap(
+                      textDirection: TextDirection.rtl,
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        _chip(
+                          'تنازلي من (ي - أ)',
+                          _sort == _SortOrder.nameDesc,
+                          () => setState(() => _sort = _sort == _SortOrder.nameDesc
+                              ? _SortOrder.none
+                              : _SortOrder.nameDesc),
+                        ),
+                        _chip(
+                          'تصاعدي من (أ - ي)',
+                          _sort == _SortOrder.nameAsc,
+                          () => setState(() => _sort = _sort == _SortOrder.nameAsc
+                              ? _SortOrder.none
+                              : _SortOrder.nameAsc),
+                        ),
+                        _chip(
+                          'شائع',
+                          _sort == _SortOrder.popular,
+                          () => setState(() => _sort = _sort == _SortOrder.popular
+                              ? _SortOrder.none
+                              : _SortOrder.popular),
+                        ),
+                      ],
+                    ),
+                  ),
+                  if (widget.subCats.length > 1) ...[
+                    const SizedBox(height: 20),
+                    _section(
+                      'المنتجات',
+                      Wrap(
+                        textDirection: TextDirection.rtl,
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: [
+                          _chip('جميع المنتجات', _cat == null,
+                              () => setState(() => _cat = null)),
+                          ...widget.subCats.map((s) => _chip(
+                                s.name,
+                                _cat == s.id,
+                                () => setState(
+                                    () => _cat = _cat == s.id ? null : s.id),
+                              )),
+                        ],
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: 20),
+                  _section(
+                    'النطاق السعري',
+                    Wrap(
+                      textDirection: TextDirection.rtl,
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        _chip('الجميع', _price == null,
+                            () => setState(() => _price = null)),
+                        ..._priceRanges.map((r) => _chip(
+                              r.$3,
+                              _price != null &&
+                                  _price!.$1 == r.$1 &&
+                                  _price!.$2 == r.$2,
+                              () => setState(() => _price = (_price != null &&
+                                      _price!.$1 == r.$1 &&
+                                      _price!.$2 == r.$2)
+                                  ? null
+                                  : (r.$1, r.$2)),
+                            )),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  // Apply button.
+                  SizedBox(
+                    height: 50,
+                    child: ElevatedButton(
+                      onPressed: () {
+                        widget.onApply(_sort, _price, _cat);
+                        Get.back<void>();
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF1F7A35),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12)),
+                        elevation: 0,
+                      ),
+                      child: const Text(
+                        'تم',
+                        style: TextStyle(
+                          fontFamily: 'Tajawal',
+                          fontWeight: FontWeight.w700,
+                          fontSize: 16,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                  ),
+                  // Reset button.
+                  TextButton(
+                    onPressed: () => setState(() {
+                      _sort = _SortOrder.none;
+                      _price = null;
+                      _cat = null;
+                    }),
+                    child: const Text(
+                      'إعادة الضبط',
+                      style: TextStyle(
+                        fontFamily: 'Tajawal',
+                        fontWeight: FontWeight.w600,
+                        fontSize: 14,
+                        color: Color(0xFF717885),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _section(String title, Widget content) => Column(
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          Text(
+            title,
+            textDirection: TextDirection.rtl,
+            style: const TextStyle(
+              fontFamily: 'Tajawal',
+              fontWeight: FontWeight.w700,
+              fontSize: 16,
+              color: Color(0xFF121C19),
+            ),
+          ),
+          const SizedBox(height: 10),
+          content,
+        ],
+      );
+
+  Widget _chip(String label, bool active, VoidCallback onTap) =>
+      GestureDetector(
+        onTap: onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 150),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+          decoration: BoxDecoration(
+            color: active ? const Color(0xFF1F7A35) : Colors.white,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: active
+                  ? const Color(0xFF1F7A35)
+                  : const Color(0xFFE0E1E3),
+            ),
+          ),
+          child: Text(
+            label,
+            style: TextStyle(
+              fontFamily: 'Tajawal',
+              fontWeight: FontWeight.w600,
+              fontSize: 13,
+              color: active ? Colors.white : const Color(0xFF717885),
+            ),
+          ),
+        ),
+      );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
 class _MarketOffersScreenState extends State<MarketOffersScreen> {
   final ScrollController _scroll = ScrollController();
 
@@ -88,8 +460,51 @@ class _MarketOffersScreenState extends State<MarketOffersScreen> {
   List<StoreCat> _cats = const [];
   int _selectedCat = 0;
 
-  /// Second-bar labels: one per sub_category.
-  List<String> get _tabLabels => _subs.map((s) => s.name).toList();
+  // ── Filter / view state ──────────────────────────────────────────────────
+  _ViewMode _viewMode = _ViewMode.grid;
+  _SortOrder _sortOrder = _SortOrder.none;
+  (double, double)? _priceRange;
+  String? _catFilter;
+
+  /// One GlobalKey per *displayed* (post-filter) section, rebuilt whenever the
+  /// filter changes. Passed to both the tabs bar and the body so tap-to-scroll
+  /// and Scrollable.ensureVisible stay in sync.
+  List<GlobalKey> _displayKeys = const [];
+
+  // ── Computed ─────────────────────────────────────────────────────────────
+
+  List<SubCat> get _displaySubs {
+    List<SubCat> result = _catFilter != null
+        ? _subs.where((s) => s.id == _catFilter).toList()
+        : List<SubCat>.from(_subs);
+    return result.map((sub) {
+      List<OfferProduct> products = sub.products;
+      if (_priceRange != null) {
+        final (mn, mx) = _priceRange!;
+        products =
+            products.where((p) => p.shownPrice >= mn && p.shownPrice <= mx).toList();
+      }
+      if (_sortOrder == _SortOrder.nameAsc) {
+        products = [...products]
+          ..sort((a, b) => (a.name ?? '').compareTo(b.name ?? ''));
+      } else if (_sortOrder == _SortOrder.nameDesc) {
+        products = [...products]
+          ..sort((a, b) => (b.name ?? '').compareTo(a.name ?? ''));
+      }
+      return SubCat(
+          id: sub.id,
+          name: sub.name,
+          products: products,
+          total: sub.total,
+          hasMore: sub.hasMore);
+    }).where((s) => s.products.isNotEmpty).toList();
+  }
+
+  bool get _hasFilter =>
+      _sortOrder != _SortOrder.none || _priceRange != null || _catFilter != null;
+
+  int get _displayCount =>
+      _displaySubs.fold(0, (sum, s) => sum + s.products.length);
 
   /// Theme accent derived from the store logo (palette_generator); the brand's
   /// green band, tabs, pills, buttons and section titles all tint to it.
@@ -239,8 +654,13 @@ class _MarketOffersScreenState extends State<MarketOffersScreen> {
   void _applySubs(List<SubCat> subs) {
     _subs = subs;
     _sectionKeys = List.generate(subs.length, (_) => GlobalKey());
+    _displayKeys = List.from(_sectionKeys);
     _selectedTab = 0;
     _loadingDetail = false;
+    // Reset filter when a new category loads.
+    _sortOrder = _SortOrder.none;
+    _priceRange = null;
+    _catFilter = null;
   }
 
   Future<void> _fetchDetail(String catId) async {
@@ -276,8 +696,8 @@ class _MarketOffersScreenState extends State<MarketOffersScreen> {
   /// Tapping a sub_category tab scrolls the body to its titled section.
   void _onTabTap(int i) {
     setState(() => _selectedTab = i);
-    final ctx = (i >= 0 && i < _sectionKeys.length)
-        ? _sectionKeys[i].currentContext
+    final ctx = (i >= 0 && i < _displayKeys.length)
+        ? _displayKeys[i].currentContext
         : null;
     if (ctx != null) {
       Scrollable.ensureVisible(
@@ -290,6 +710,32 @@ class _MarketOffersScreenState extends State<MarketOffersScreen> {
       _scroll.animateTo(0,
           duration: const Duration(milliseconds: 250), curve: Curves.easeOut);
     }
+  }
+
+  void _openFilter() {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _OfferFilterSheet(
+        sortOrder: _sortOrder,
+        priceRange: _priceRange,
+        catFilter: _catFilter,
+        subCats: _subs,
+        onApply: (sort, price, cat) {
+          if (!mounted) return;
+          setState(() {
+            _sortOrder = sort;
+            _priceRange = price;
+            _catFilter = cat;
+            _selectedTab = 0;
+            // Rebuild display keys for the new filtered set. _displaySubs
+            // reads the just-updated filter fields so the count is correct.
+            _displayKeys = List.generate(_displaySubs.length, (_) => GlobalKey());
+          });
+        },
+      ),
+    );
   }
 
   /// Tapping a top-bar category loads its sub_categories (Best Offers uses the
@@ -340,26 +786,36 @@ class _MarketOffersScreenState extends State<MarketOffersScreen> {
                     onBack: () => Get.back<void>(),
                     onCatTap: _onCatTap,
                   ),
-                // Single filter row: "كل المنتجات" + sub_category pills.
-                if (!_loadingDetail && _subs.isNotEmpty)
-                  MarketOffersTabsBar(
-                    labels: _tabLabels,
-                    selectedTab: _selectedTab,
-                    // Fixed brand green for the selected pill's text — the
-                    // category chips are not tinted by the store logo.
-                    accent: const Color(0xFF1F7A35),
-                    accentPale: _accentPale,
-                    onTabTap: _onTabTap,
+                // Count + view toggle + filter button row.
+                if (!_loadingDetail && _subs.isNotEmpty) ...[
+                  _OfferControlRow(
+                    count: _displayCount,
+                    viewMode: _viewMode,
+                    hasFilter: _hasFilter,
+                    onViewMode: (v) => setState(() => _viewMode = v),
+                    onFilter: _openFilter,
                   ),
+                  // Sub-category tabs (show only the displayed/filtered tabs).
+                  if (_displaySubs.isNotEmpty)
+                    MarketOffersTabsBar(
+                      labels: _displaySubs.map((s) => s.name).toList(),
+                      selectedTab: _selectedTab
+                          .clamp(0, (_displaySubs.length - 1).clamp(0, 9999)),
+                      accent: const Color(0xFF1F7A35),
+                      accentPale: _accentPale,
+                      onTabTap: _onTabTap,
+                    ),
+                ],
                 Expanded(
                   child: MarketOffersBody(
                     loading: _loadingDetail,
-                    subs: _subs,
-                    sectionKeys: _sectionKeys,
+                    subs: _displaySubs,
+                    sectionKeys: _displayKeys,
                     scrollController: _scroll,
                     accent: _accent,
                     storeId: widget.storeId,
                     moduleId: widget.moduleId,
+                    isListView: _viewMode == _ViewMode.list,
                   ),
                 ),
               ],

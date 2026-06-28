@@ -140,6 +140,7 @@ class _StoreHeader extends StatelessWidget {
   final double rating;
   final bool freeDelivery;
   final String? deliveryTime;
+  final double? distance;
 
   /// Store + module — so the header's search is scoped to THIS store's products.
   final int? storeId;
@@ -153,6 +154,7 @@ class _StoreHeader extends StatelessWidget {
     required this.rating,
     required this.freeDelivery,
     required this.deliveryTime,
+    this.distance,
     this.storeId,
     this.moduleId,
   });
@@ -316,9 +318,46 @@ class _StoreHeader extends StatelessWidget {
                   ],
                 ),
               ),
-              // Rating badge sits on the left (RTL), aligned with the name.
+              // Rating + distance badges stacked on the left (RTL).
               const SizedBox(width: Dimensions.paddingSizeSmall),
-              _RatingBadge(rating: rating),
+              Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  _RatingBadge(rating: rating),
+                  if (distance != null && distance! > 0) ...[
+                    const SizedBox(height: 4),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 7, vertical: 4),
+                      decoration: const BoxDecoration(
+                        color: Color(0xFF31A342),
+                        borderRadius:
+                            BorderRadius.all(Radius.circular(6)),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.location_on,
+                              size: 11, color: Colors.white),
+                          const SizedBox(width: 2),
+                          Text(
+                            distance! < 1000
+                                ? '${distance!.round()} م'
+                                : '${(distance! / 1000).toStringAsFixed(1)} كم',
+                            style: const TextStyle(
+                              fontFamily: 'Tajawal',
+                              fontWeight: FontWeight.w700,
+                              fontSize: 11,
+                              height: 1,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ],
+              ),
             ],
           ),
         ),

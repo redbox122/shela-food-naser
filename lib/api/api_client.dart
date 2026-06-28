@@ -78,8 +78,8 @@ class ApiClient extends GetxService {
   // Fallback Dio client (replaces http package)
   late final dio_pkg.Dio _fallbackDio;
 
-  // ETag storage for conditional requests
-  static const String _etagPrefix = 'etag_';
+  // ETag storage — backed by Hive via HiveHomeCacheService
+  final HiveHomeCacheService _hiveCache = HiveHomeCacheService();
   Completer<void>? _contextSyncCompleter;
 
   ApiClient({required this.appBaseUrl, required this.sharedPreferences}) {
@@ -105,26 +105,14 @@ class ApiClient extends GetxService {
     // MOBILE-MODULE-ID FIX: Read saved moduleId on ALL platforms (not just web).
     // Without this, every cold start on Android/iOS fires API calls with
     // module-id=null until resolveInitialModule or _ensureApiHeadersUpdated runs.
-    int? moduleID;
-    if (sharedPreferences.containsKey(AppConstants.moduleId)) {
-      try {
-        moduleID = ModuleModel.fromJson(
-                jsonDecode(sharedPreferences.getString(AppConstants.moduleId)!)
-                    as Map<String, dynamic>)
-            .id;
-      } catch (e) {
-        if (kDebugMode) debugPrint('ApiClient: $e');
-      }
-    }
     updateHeader(
         token,
         addressModel?.zoneIds,
         addressModel?.areaIds,
         sharedPreferences.getString(AppConstants.languageCode),
-        moduleID,
+        _readSavedModuleId(),
         addressModel?.latitude,
-        addressModel
-            ?.longitude); // responseMode - will be set per-request in Phase 2
+        addressModel?.longitude);
   }
 
   /// Initialize token from secure storage - ALWAYS check secure storage first
@@ -161,27 +149,14 @@ class ApiClient extends GetxService {
         } catch (e) {
           if (kDebugMode) debugPrint('ApiClient: $e');
         }
-        // MOBILE-MODULE-ID FIX: Read saved moduleId on ALL platforms.
-        int? moduleID;
-        if (sharedPreferences.containsKey(AppConstants.moduleId)) {
-          try {
-            moduleID = ModuleModel.fromJson(jsonDecode(
-                        sharedPreferences.getString(AppConstants.moduleId)!)
-                    as Map<String, dynamic>)
-                .id;
-          } catch (e) {
-            if (kDebugMode) debugPrint('ApiClient: $e');
-          }
-        }
         updateHeader(
             token,
             addressModel?.zoneIds,
             addressModel?.areaIds,
             sharedPreferences.getString(AppConstants.languageCode),
-            moduleID,
+            _readSavedModuleId(),
             addressModel?.latitude,
-            addressModel
-                ?.longitude); // responseMode - will be set per-request in Phase 2
+            addressModel?.longitude);
         return;
       }
 
@@ -208,24 +183,12 @@ class ApiClient extends GetxService {
         } catch (e) {
           if (kDebugMode) debugPrint('ApiClient: $e');
         }
-        // MOBILE-MODULE-ID FIX: Read saved moduleId on ALL platforms.
-        int? moduleID;
-        if (sharedPreferences.containsKey(AppConstants.moduleId)) {
-          try {
-            moduleID = ModuleModel.fromJson(jsonDecode(
-                        sharedPreferences.getString(AppConstants.moduleId)!)
-                    as Map<String, dynamic>)
-                .id;
-          } catch (e) {
-            if (kDebugMode) debugPrint('ApiClient: $e');
-          }
-        }
         updateHeader(
             token,
             addressModel?.zoneIds,
             addressModel?.areaIds,
             sharedPreferences.getString(AppConstants.languageCode),
-            moduleID,
+            _readSavedModuleId(),
             addressModel?.latitude,
             addressModel?.longitude);
       }
@@ -233,6 +196,21 @@ class ApiClient extends GetxService {
       if (kDebugMode) {
         debugPrint('❌ Error loading token from secure storage: $e');
       }
+    }
+  }
+
+  /// Read the saved module ID from SharedPreferences.
+  /// Returns null if absent or if the stored JSON is malformed.
+  int? _readSavedModuleId() {
+    if (!sharedPreferences.containsKey(AppConstants.moduleId)) return null;
+    try {
+      return ModuleModel.fromJson(
+              jsonDecode(sharedPreferences.getString(AppConstants.moduleId)!)
+                  as Map<String, dynamic>)
+          .id;
+    } catch (e) {
+      if (kDebugMode) debugPrint('ApiClient: $e');
+      return null;
     }
   }
 
@@ -879,10 +857,6 @@ class ApiClient extends GetxService {
 
       final stopwatch = Stopwatch()..start();
 
-      // 🔧 Optional: Per-endpoint timeout override for diagnostics (items/latest only)
-      // This is intentionally very narrow-scoped to avoid impacting other APIs.
-      const bool enableItemsLatestTimeoutDebug = true;
-
       // Use secure client if available. Public APIs do not require a token.
       // For /items/latest we can force fallback-only mode via debug flag.
       final bool canUseSecureClient = _useSecureClient &&
@@ -909,9 +883,7 @@ class ApiClient extends GetxService {
           }
 
           final Duration? secureReceiveTimeoutOverride =
-              enableItemsLatestTimeoutDebug && isItemsLatestEndpoint
-                  ? const Duration(seconds: 120)
-                  : _secureHttpClient.dio.options.receiveTimeout;
+              _secureHttpClient.dio.options.receiveTimeout;
 
           final response = await _secureHttpClient.dio.get<dynamic>(
             uri,
@@ -1039,18 +1011,11 @@ class ApiClient extends GetxService {
       if (kDebugMode) {
         final String fallbackMode =
             itemsFallbackOnlyMode ? 'fallback-only' : 'fallback';
-        final int previewTimeoutSeconds =
-            enableItemsLatestTimeoutDebug && isItemsLatestEndpoint
-                ? 120
-                : timeoutInSeconds;
         appLogger.debug(
-            '[ApiClient] FALLBACK START | requestId=$effectiveRequestId | uri=$fullUri | mode=$fallbackMode | timeout=${previewTimeoutSeconds}s | hasAuth=${finalHeaders.containsKey('Authorization')} | public=$isPublicApi | isWeb=$kIsWeb');
+            '[ApiClient] FALLBACK START | requestId=$effectiveRequestId | uri=$fullUri | mode=$fallbackMode | timeout=${timeoutInSeconds}s | hasAuth=${finalHeaders.containsKey('Authorization')} | public=$isPublicApi | isWeb=$kIsWeb');
       }
 
-      final int effectiveTimeoutSeconds =
-          enableItemsLatestTimeoutDebug && isItemsLatestEndpoint
-              ? 120
-              : timeoutInSeconds;
+      final int effectiveTimeoutSeconds = timeoutInSeconds;
 
       final dynamic dioGetResp = await _fallbackDio.get<dynamic>(
         changeBaseUrl ? newUri!.toString() : (appBaseUrl + uri),
@@ -1411,9 +1376,11 @@ class ApiClient extends GetxService {
     Map<String, String>? headers,
     bool handleError = true,
   }) async {
-    debugPrint('\x1B[35m🔥🔥🔥 apiClient.postFormData() CALLED 🔥🔥🔥\x1B[0m');
-    debugPrint('\x1B[35m - URI: $uri\x1B[0m');
-    debugPrint('\x1B[35m - formData type: ${formData.runtimeType}\x1B[0m');
+    if (kDebugMode) {
+      debugPrint('\x1B[35m🔥🔥🔥 apiClient.postFormData() CALLED 🔥🔥🔥\x1B[0m');
+      debugPrint('\x1B[35m - URI: $uri\x1B[0m');
+      debugPrint('\x1B[35m - formData type: ${formData.runtimeType}\x1B[0m');
+    }
 
     try {
       // ⚠️ CRITICAL: Merge custom headers with default headers
@@ -1434,7 +1401,6 @@ class ApiClient extends GetxService {
       finalHeaders.addAll(guardHeaders);
 
       finalHeaders.remove('Content-Type');
-      debugPrint('\x1B[35m - Content-Type removed (will be set by dio)\x1B[0m');
 
       // Convert to Map<String, String> for logging
       final Map<String, String> logHeaders =
@@ -1443,21 +1409,21 @@ class ApiClient extends GetxService {
       // Log API call start
       appLogger.logApiCallStart('POST (FormData)', uri, headers: logHeaders);
 
-      // Try to get files/fields count for debug logging
-      try {
-        if (formData.runtimeType.toString().contains('FormData')) {
-          // formData is already dynamic — access fields directly without redundant cast
-          if (formData.files != null) {
-            debugPrint(
-                '\x1B[35m - FormData files count: ${formData.files.length}\x1B[0m');
+      if (kDebugMode) {
+        try {
+          if (formData.runtimeType.toString().contains('FormData')) {
+            if (formData.files != null) {
+              debugPrint(
+                  '\x1B[35m - FormData files count: ${formData.files.length}\x1B[0m');
+            }
+            if (formData.fields != null) {
+              debugPrint(
+                  '\x1B[35m - FormData fields count: ${formData.fields.length}\x1B[0m');
+            }
           }
-          if (formData.fields != null) {
-            debugPrint(
-                '\x1B[35m - FormData fields count: ${formData.fields.length}\x1B[0m');
-          }
+        } catch (e) {
+          debugPrint('\x1B[35m - Could not get FormData info: $e\x1B[0m');
         }
-      } catch (e) {
-        debugPrint('\x1B[35m - Could not get FormData info: $e\x1B[0m');
       }
 
       final stopwatch = Stopwatch()..start();
@@ -1499,24 +1465,26 @@ class ApiClient extends GetxService {
           return _convertDioResponseToGetResponse(response, uri);
         } on dio_pkg.DioException catch (e) {
           stopwatch.stop();
-          debugPrint(
-              '\x1B[31m❌❌❌ dio_pkg.DioException in postFormData (Secure Client):\x1B[0m');
-          debugPrint(
-              '\x1B[31m - Status Code: ${e.response?.statusCode}\x1B[0m');
-          debugPrint(
-              '\x1B[31m - Status Message: ${e.response?.statusMessage}\x1B[0m');
-          debugPrint('\x1B[31m - Response Data: ${e.response?.data}\x1B[0m');
-          debugPrint(
-              '\x1B[31m - Response Headers: ${e.response?.headers}\x1B[0m');
-          if (e.response?.data is Map) {
-            final errorData = e.response!.data as Map;
-            if (errorData.containsKey('errors')) {
-              debugPrint(
-                  '\x1B[31m - Validation Errors: ${errorData['errors']}\x1B[0m');
-            }
-            if (errorData.containsKey('message')) {
-              debugPrint(
-                  '\x1B[31m - Error Message: ${errorData['message']}\x1B[0m');
+          if (kDebugMode) {
+            debugPrint(
+                '\x1B[31m❌❌❌ dio_pkg.DioException in postFormData (Secure Client):\x1B[0m');
+            debugPrint(
+                '\x1B[31m - Status Code: ${e.response?.statusCode}\x1B[0m');
+            debugPrint(
+                '\x1B[31m - Status Message: ${e.response?.statusMessage}\x1B[0m');
+            debugPrint('\x1B[31m - Response Data: ${e.response?.data}\x1B[0m');
+            debugPrint(
+                '\x1B[31m - Response Headers: ${e.response?.headers}\x1B[0m');
+            if (e.response?.data is Map) {
+              final errorData = e.response!.data as Map;
+              if (errorData.containsKey('errors')) {
+                debugPrint(
+                    '\x1B[31m - Validation Errors: ${errorData['errors']}\x1B[0m');
+              }
+              if (errorData.containsKey('message')) {
+                debugPrint(
+                    '\x1B[31m - Error Message: ${errorData['message']}\x1B[0m');
+              }
             }
           }
           appLogger.logApiCallError('POST (FormData)', uri, e.toString(),
@@ -1524,9 +1492,11 @@ class ApiClient extends GetxService {
           _useSecureClient = false;
         } catch (e) {
           stopwatch.stop();
-          debugPrint(
-              '\x1B[31m❌❌❌ General Exception in postFormData (Secure Client):\x1B[0m');
-          debugPrint('\x1B[31m - Error: $e\x1B[0m');
+          if (kDebugMode) {
+            debugPrint(
+                '\x1B[31m❌❌❌ General Exception in postFormData (Secure Client):\x1B[0m');
+            debugPrint('\x1B[31m - Error: $e\x1B[0m');
+          }
           appLogger.logApiCallError('POST (FormData)', uri, e.toString(),
               duration: stopwatch.elapsed);
           _useSecureClient = false;
@@ -1555,7 +1525,7 @@ class ApiClient extends GetxService {
       CertificatePinning.apply(dioClient);
 
       try {
-        debugPrint('\x1B[35m🔥 Sending Dio POST request...\x1B[0m');
+        if (kDebugMode) debugPrint('\x1B[35m🔥 Sending Dio POST request...\x1B[0m');
         final response = await dioClient.post<dynamic>(
           uri,
           data: formData,
@@ -1581,28 +1551,22 @@ class ApiClient extends GetxService {
 
         stopwatch.stop();
 
-        // Log response details
-        debugPrint('\x1B[35m✅ postFormData Response:\x1B[0m');
-        debugPrint('\x1B[35m - Status Code: ${response.statusCode}\x1B[0m');
-        debugPrint(
-            '\x1B[35m - Status Message: ${response.statusMessage}\x1B[0m');
-
-        // If error response (422, 400, etc), log the body
         if (response.statusCode != null && response.statusCode! >= 400) {
-          debugPrint('\x1B[31m❌ ERROR RESPONSE BODY:\x1B[0m');
-          debugPrint('\x1B[31m${response.data}\x1B[0m');
-          if (response.data is Map) {
-            final errorData = response.data as Map;
-            if (errorData.containsKey('errors')) {
-              debugPrint(
-                  '\x1B[31m - Validation Errors: ${errorData['errors']}\x1B[0m');
-            }
-            if (errorData.containsKey('message')) {
-              debugPrint(
-                  '\x1B[31m - Error Message: ${errorData['message']}\x1B[0m');
+          if (kDebugMode) {
+            debugPrint('\x1B[31m❌ ERROR RESPONSE BODY:\x1B[0m');
+            debugPrint('\x1B[31m${response.data}\x1B[0m');
+            if (response.data is Map) {
+              final errorData = response.data as Map;
+              if (errorData.containsKey('errors')) {
+                debugPrint(
+                    '\x1B[31m - Validation Errors: ${errorData['errors']}\x1B[0m');
+              }
+              if (errorData.containsKey('message')) {
+                debugPrint(
+                    '\x1B[31m - Error Message: ${errorData['message']}\x1B[0m');
+              }
             }
           }
-          // ✅ FIX: تسجيل كـ error وليس success
           appLogger.logApiCallError('POST (FormData)', uri,
               'Status ${response.statusCode}: ${response.data}',
               duration: stopwatch.elapsed);
@@ -1619,29 +1583,30 @@ class ApiClient extends GetxService {
         );
       } on dio_pkg.DioException catch (e) {
         stopwatch.stop();
-        debugPrint(
-            '\x1B[31m❌❌❌ dio_pkg.DioException in postFormData (Fallback):\x1B[0m');
-        debugPrint('\x1B[31m - Status Code: ${e.response?.statusCode}\x1B[0m');
-        debugPrint(
-            '\x1B[31m - Status Message: ${e.response?.statusMessage}\x1B[0m');
-        debugPrint('\x1B[31m - Response Data: ${e.response?.data}\x1B[0m');
-        debugPrint(
-            '\x1B[31m - Response Headers: ${e.response?.headers}\x1B[0m');
-        if (e.response?.data is Map) {
-          final errorData = e.response!.data as Map;
-          if (errorData.containsKey('errors')) {
-            debugPrint(
-                '\x1B[31m - Validation Errors: ${errorData['errors']}\x1B[0m');
-          }
-          if (errorData.containsKey('message')) {
-            debugPrint(
-                '\x1B[31m - Error Message: ${errorData['message']}\x1B[0m');
+        if (kDebugMode) {
+          debugPrint(
+              '\x1B[31m❌❌❌ dio_pkg.DioException in postFormData (Fallback):\x1B[0m');
+          debugPrint('\x1B[31m - Status Code: ${e.response?.statusCode}\x1B[0m');
+          debugPrint(
+              '\x1B[31m - Status Message: ${e.response?.statusMessage}\x1B[0m');
+          debugPrint('\x1B[31m - Response Data: ${e.response?.data}\x1B[0m');
+          debugPrint(
+              '\x1B[31m - Response Headers: ${e.response?.headers}\x1B[0m');
+          if (e.response?.data is Map) {
+            final errorData = e.response!.data as Map;
+            if (errorData.containsKey('errors')) {
+              debugPrint(
+                  '\x1B[31m - Validation Errors: ${errorData['errors']}\x1B[0m');
+            }
+            if (errorData.containsKey('message')) {
+              debugPrint(
+                  '\x1B[31m - Error Message: ${errorData['message']}\x1B[0m');
+            }
           }
         }
         if (!uri.contains('registration-activity')) {
           appLogger.logApiCallError('POST (FormData)', uri, e.toString());
         }
-        // Return error response instead of generic error
         if (e.response != null) {
           return Response(
             statusCode: e.response!.statusCode ?? 0,
@@ -1652,17 +1617,21 @@ class ApiClient extends GetxService {
         return Response(statusCode: 1, statusText: noInternetMessage);
       } catch (e) {
         stopwatch.stop();
-        debugPrint(
-            '\x1B[31m❌❌❌ General Exception in postFormData (Fallback):\x1B[0m');
-        debugPrint('\x1B[31m - Error: $e\x1B[0m');
+        if (kDebugMode) {
+          debugPrint(
+              '\x1B[31m❌❌❌ General Exception in postFormData (Fallback):\x1B[0m');
+          debugPrint('\x1B[31m - Error: $e\x1B[0m');
+        }
         if (!uri.contains('registration-activity')) {
           appLogger.logApiCallError('POST (FormData)', uri, e.toString());
         }
         return Response(statusCode: 1, statusText: noInternetMessage);
       }
     } catch (e) {
-      debugPrint('\x1B[31m❌❌❌ Outer Exception in postFormData:\x1B[0m');
-      debugPrint('\x1B[31m - Error: $e\x1B[0m');
+      if (kDebugMode) {
+        debugPrint('\x1B[31m❌❌❌ Outer Exception in postFormData:\x1B[0m');
+        debugPrint('\x1B[31m - Error: $e\x1B[0m');
+      }
       if (!uri.contains('registration-activity')) {
         appLogger.logApiCallError('POST (FormData)', uri, e.toString());
       }
@@ -1964,11 +1933,9 @@ class ApiClient extends GetxService {
   Future<String?> _getStoredEtag(String uri,
       {Map<String, String>? headers}) async {
     try {
-      // ⚡ TASK 3: Use Hive app_config box for ETag storage
-      final cacheService = HiveHomeCacheService();
       final scopedUri =
           EtagScopeKeyBuilder.buildScopedUri(uri, headers: headers);
-      return await cacheService.getEtag(scopedUri);
+      return await _hiveCache.getEtag(scopedUri);
     } catch (e) {
       if (kDebugMode) {
         debugPrint('❌ ApiClient: Error getting stored ETag: $e');
@@ -1977,16 +1944,12 @@ class ApiClient extends GetxService {
     }
   }
 
-  /// Store ETag for an endpoint
-  /// ⚡ TASK 3: Migrated from SharedPreferences to Hive app_config box
   Future<void> _storeEtag(String uri, String etag,
       {Map<String, String>? headers}) async {
     try {
-      // ⚡ TASK 3: Use Hive app_config box for ETag storage
-      final cacheService = HiveHomeCacheService();
       final scopedUri =
           EtagScopeKeyBuilder.buildScopedUri(uri, headers: headers);
-      await cacheService.saveEtag(scopedUri, etag);
+      await _hiveCache.saveEtag(scopedUri, etag);
     } catch (e) {
       if (kDebugMode) {
         debugPrint('❌ ApiClient: Error storing ETag: $e');
@@ -1994,31 +1957,12 @@ class ApiClient extends GetxService {
     }
   }
 
-  /// Clear stored ETag for an endpoint (useful for force refresh)
   Future<void> clearEtag(String uri) async {
     try {
-      final etagKey =
-          '$_etagPrefix${uri.replaceAll('/', '_').replaceAll(':', '_')}';
-      await sharedPreferences.remove(etagKey);
+      await _hiveCache.clearEtag(uri);
     } catch (e) {
       if (kDebugMode) {
         debugPrint('❌ ApiClient: Error clearing ETag: $e');
-      }
-    }
-  }
-
-  /// Clear all stored ETags
-  Future<void> clearAllEtags() async {
-    try {
-      final keys = sharedPreferences.getKeys();
-      for (final key in keys) {
-        if (key.startsWith(_etagPrefix)) {
-          await sharedPreferences.remove(key);
-        }
-      }
-    } catch (e) {
-      if (kDebugMode) {
-        debugPrint('❌ ApiClient: Error clearing all ETags: $e');
       }
     }
   }

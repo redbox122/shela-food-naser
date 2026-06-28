@@ -401,6 +401,7 @@ class _StoreCard extends StatelessWidget {
           rating: store.rating,
           freeDelivery: store.freeDelivery,
           deliveryTime: store.deliveryTime,
+          distance: store.distance,
           useCoverHeader: coverHeader,
         ),
       ),

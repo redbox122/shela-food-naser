@@ -77,8 +77,7 @@ Future<void> main() async {
     enablePageLogging: AppConstants.enableVerboseLogs,
     filterEGLLogs: true,
   );
-  // ignore: avoid_print
-  print('[APP_BASE_URL] ${AppConstants.baseUrl}');
+  if (kDebugMode) debugPrint('[APP_BASE_URL] ${AppConstants.baseUrl}');
   appLogger.info('ðŸš€ App Logger initialized');
 
   // âš¡ PERFORMANCE: Start timing from main function

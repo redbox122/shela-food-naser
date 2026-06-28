@@ -63,6 +63,10 @@ class _ProductSection extends StatelessWidget {
   final String? storeName;
   final String? storeLogo;
   final String? storeCover;
+
+  /// When true the "اطلع على المزيد" pill is hidden (continuous-scroll view).
+  final bool hideSeeMore;
+
   const _ProductSection(
       {required this.title,
       required this.products,
@@ -71,7 +75,8 @@ class _ProductSection extends StatelessWidget {
       this.categoryId,
       this.storeName,
       this.storeLogo,
-      this.storeCover});
+      this.storeCover,
+      this.hideSeeMore = false});
 
   /// "See more" / logo opens the branded offers screen (cover + logo + name
   /// header + sub-category strip only) — distinct from a category tile tap,
@@ -128,7 +133,7 @@ class _ProductSection extends StatelessWidget {
                     ),
                   ),
                 ),
-                _SeeMorePill(onTap: _openOffers),
+                if (!hideSeeMore) _SeeMorePill(onTap: _openOffers),
               ],
             ),
           ),
@@ -154,13 +159,16 @@ class _CategoryRail extends StatefulWidget {
   final String? storeName;
   final String? storeLogo;
   final String? storeCover;
+  final bool hideSeeMore;
   const _CategoryRail({
+    super.key,
     required this.storeId,
     required this.moduleId,
     required this.category,
     this.storeName,
     this.storeLogo,
     this.storeCover,
+    this.hideSeeMore = false,
   });
 
   @override
@@ -250,6 +258,7 @@ class _CategoryRailState extends State<_CategoryRail> {
       storeName: widget.storeName,
       storeLogo: widget.storeLogo,
       storeCover: widget.storeCover,
+      hideSeeMore: widget.hideSeeMore,
     );
   }
 }

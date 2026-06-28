@@ -98,6 +98,11 @@ fetch_*.dart
 # Local API keys (Google Maps, Facebook, MyFatoorah)
 env.json
 
+# Firebase credential files — contain live API keys, must not be committed
+android/app/google-services.json
+ios/Runner/GoogleService-Info.plist
+lib/helper/firebase/firebase_options.dart
+
 # Local Claude Code config
 .claude/
 

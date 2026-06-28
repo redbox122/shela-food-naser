@@ -56,6 +56,8 @@ class SecureTokenStorage {
   
   // Secure key storage
   static Key? _encryptionKey;
+  // _initializationVector is kept only for decrypting tokens stored by older
+  // app versions (single static IV). New encryptions use a fresh IV each time.
   static IV? _initializationVector;
   static bool _isInitialized = false;
   static Completer<void>? _initCompleter;
@@ -187,20 +189,16 @@ class SecureTokenStorage {
         throw Exception('Invalid token format');
       }
       
-      // Encrypt the token
-      if (_encryptionKey == null || _initializationVector == null) {
+      if (_encryptionKey == null) {
         throw Exception('Encryption keys not initialized');
       }
-      final encrypter = Encrypter(AES(_encryptionKey!));
-      final encrypted = encrypter.encrypt(token, iv: _initializationVector!);
-      
-      // Calculate expiry timestamp
+      final stored = _encrypt(token);
+
       final expiryTime = DateTime.now().add(expiry ?? _defaultTokenExpiry);
       final expiryTimestamp = expiryTime.millisecondsSinceEpoch;
-      
-      // Store encrypted token and expiry
+
       final prefs = await SharedPreferences.getInstance();
-      final success = await prefs.setString(_tokenKey, encrypted.base64) &&
+      final success = await prefs.setString(_tokenKey, stored) &&
                       await prefs.setInt(_tokenExpiryKey, expiryTimestamp);
       
       if (success) {
@@ -274,12 +272,10 @@ class SecureTokenStorage {
         }
       }
       
-      // Decrypt the token (only if not in cache)
-      if (_encryptionKey == null || _initializationVector == null) {
+      if (_encryptionKey == null) {
         throw Exception('Encryption keys not initialized');
       }
-      final encrypter = Encrypter(AES(_encryptionKey!));
-      final decrypted = encrypter.decrypt64(encrypted, iv: _initializationVector!);
+      final decrypted = _decrypt(encrypted);
       
       // Validate decrypted token
       if (!_isValidToken(decrypted)) {
@@ -317,14 +313,11 @@ class SecureTokenStorage {
         throw Exception('Invalid refresh token format');
       }
       
-      if (_encryptionKey == null || _initializationVector == null) {
+      if (_encryptionKey == null) {
         throw Exception('Encryption keys not initialized');
       }
-      final encrypter = Encrypter(AES(_encryptionKey!));
-      final encrypted = encrypter.encrypt(refreshToken, iv: _initializationVector!);
-      
       final prefs = await SharedPreferences.getInstance();
-      return await prefs.setString(_refreshTokenKey, encrypted.base64);
+      return await prefs.setString(_refreshTokenKey, _encrypt(refreshToken));
     } catch (e) {
       if (kDebugMode) {
         appLogger.error('❌ Error saving refresh token: $e', e);
@@ -342,11 +335,10 @@ class SecureTokenStorage {
       final encrypted = prefs.getString(_refreshTokenKey);
       if (encrypted == null) return null;
       
-      if (_encryptionKey == null || _initializationVector == null) {
+      if (_encryptionKey == null) {
         throw Exception('Encryption keys not initialized');
       }
-      final encrypter = Encrypter(AES(_encryptionKey!));
-      return encrypter.decrypt64(encrypted, iv: _initializationVector!);
+      return _decrypt(encrypted);
     } catch (e) {
       if (kDebugMode) {
         appLogger.error('❌ Error retrieving refresh token: $e', e);
@@ -505,6 +497,35 @@ class SecureTokenStorage {
     }
   }
   
+  /// Encrypt [plaintext] with a fresh random IV each call.
+  /// Returns `"ivBase64:cipherBase64"` so the IV travels with the ciphertext.
+  static String _encrypt(String plaintext) {
+    final random = Random.secure();
+    final ivBytes = Uint8List(_ivLength);
+    for (int i = 0; i < _ivLength; i++) {
+      ivBytes[i] = random.nextInt(256);
+    }
+    final iv = IV(ivBytes);
+    final encrypter = Encrypter(AES(_encryptionKey!));
+    return '${iv.base64}:${encrypter.encrypt(plaintext, iv: iv).base64}';
+  }
+
+  /// Decrypt a value previously produced by [_encrypt] or by the legacy scheme
+  /// (raw base64 ciphertext encrypted with the stored static `_initializationVector`).
+  static String _decrypt(String stored) {
+    final sep = stored.indexOf(':');
+    if (sep > 0) {
+      // New format: ivBase64:cipherBase64
+      final iv = IV.fromBase64(stored.substring(0, sep));
+      final cipher = stored.substring(sep + 1);
+      return Encrypter(AES(_encryptionKey!)).decrypt64(cipher, iv: iv);
+    } else {
+      // Legacy format: raw ciphertext with static IV
+      return Encrypter(AES(_encryptionKey!))
+          .decrypt64(stored, iv: _initializationVector!);
+    }
+  }
+
   /// Validate token format and security
   /// Returns true if token is valid
   static bool _isValidToken(String token) {

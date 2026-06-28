@@ -160,7 +160,7 @@ class OfferProductCard extends StatelessWidget {
         Positioned(
           left: 4,
           top: 85 - 24,
-          child: _AddControl(
+          child: OfferAddControl(
             product: product,
             storeId: storeId,
             moduleId: moduleId,
@@ -208,12 +208,13 @@ class OfferProductCard extends StatelessWidget {
 
 /// Add button on a product card: a green "+" circle that becomes a green
 /// "- qty +" stepper once the item is in the cart.
-class _AddControl extends StatelessWidget {
+class OfferAddControl extends StatelessWidget {
   final OfferProduct product;
   final int? storeId;
   final int moduleId;
   final Color accent;
-  const _AddControl({
+  const OfferAddControl({
+    super.key,
     required this.product,
     this.storeId,
     this.moduleId = 3,
