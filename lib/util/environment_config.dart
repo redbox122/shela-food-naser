@@ -35,8 +35,8 @@ class EnvironmentConfig {
       'description': 'Staging Server',
     },
     Environment.production: {
-      'baseUrl': 'https://shellagroup.sa',
-      'webHostedUrl': 'https://shellagroup.sa',
+      'baseUrl': 'https://shellagroup.uaenorth.cloudapp.azure.com',
+      'webHostedUrl': 'https://shellagroup.uaenorth.cloudapp.azure.com',
       'description': 'Production Server',
     },
   };
