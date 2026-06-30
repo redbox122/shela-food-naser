@@ -189,16 +189,22 @@ class OrderTrackingScreenState extends State<OrderTrackingScreen> {
             // ── Live map fills the screen; the sheet floats over its lower half.
             Positioned.fill(child: LiveTrackingMap(track: track)),
 
-            // Back button.
+            // Top bar: back + help.
             SafeArea(
               child: Padding(
                 padding: const EdgeInsets.all(Dimensions.paddingSizeSmall),
-                child: Align(
-                  alignment: Alignment.topLeft,
-                  child: _CircleButton(
-                    icon: Icons.arrow_back,
-                    onTap: () => Get.back<void>(),
-                  ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    _CircleButton(
+                      icon: Icons.arrow_back,
+                      onTap: () => Get.back<void>(),
+                    ),
+                    _CircleButton(
+                      icon: Icons.help_outline,
+                      onTap: () => _showHelpSheet(context, track),
+                    ),
+                  ],
                 ),
               ),
             ),
@@ -273,11 +279,9 @@ class OrderTrackingScreenState extends State<OrderTrackingScreen> {
                       ),
                       _StatusHeader(track: track),
                       const SizedBox(height: Dimensions.paddingSizeDefault),
-                      _HorizontalStepper(
-                        status: track.orderStatus,
-                        takeAway: track.orderType == 'take_away',
-                      ),
+                      _IconStepper(status: track.orderStatus),
                       const SizedBox(height: Dimensions.paddingSizeDefault),
+                      const _DeliveryGuaranteeCard(),
                       if (_showOtp(track))
                         _OtpCard(otp: track.otp!),
                       if ((track.orderStatus ?? '').toLowerCase() == 'delivered')
@@ -288,6 +292,8 @@ class OrderTrackingScreenState extends State<OrderTrackingScreen> {
                         showChat: showChatPermission,
                         onChat: _openChat,
                       ),
+                      const SizedBox(height: Dimensions.paddingSizeDefault),
+                      _ReceiptCard(track: track),
                     ],
                   ),
                 );
@@ -493,78 +499,92 @@ double _distanceKm(LatLng a, LatLng b) {
 
 double _rad(double deg) => deg * math.pi / 180;
 
-/// Compact horizontal 5-step progress bar that mirrors the order status.
-class _HorizontalStepper extends StatelessWidget {
+/// Signature 4-icon progress bar (receipt → store → courier → home). Stages
+/// fill with Shella green as the order advances; the connector before a reached
+/// stage is coloured too. RTL: the first stage (order placed) sits on the right.
+class _IconStepper extends StatelessWidget {
   final String? status;
-  final bool takeAway;
-  const _HorizontalStepper({required this.status, required this.takeAway});
+  const _IconStepper({required this.status});
+
+  /// 0 placed/confirmed · 1 preparing · 2 on the way · 3 delivered.
+  int get _stage {
+    switch ((status ?? '').toLowerCase()) {
+      case 'pending':
+      case 'accepted':
+      case 'confirmed':
+        return 0;
+      case 'processing':
+        return 1;
+      case 'handover':
+      case 'picked_up':
+      case 'on_the_way':
+        return 2;
+      case 'delivered':
+        return 3;
+      default:
+        return 0;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    final int state = _statusIndex(status, takeAway);
-    final bool isArabic = Get.locale?.languageCode == 'ar';
-    final List<String> labels = [
-      'order_placed'.tr,
-      'order_confirmed'.tr,
-      'preparing_item'.tr,
-      takeAway ? 'ready_for_handover'.tr : 'delivery_on_the_way'.tr,
-      takeAway ? (isArabic ? 'تم الاستلام' : 'Received') : 'delivered'.tr,
-    ];
-
+    final int stage = _stage;
     final Color active = Theme.of(context).primaryColor;
-    const Color current = Colors.orange;
-    final Color pending = Theme.of(context).disabledColor.withValues(alpha: 0.4);
+    final Color pending =
+        Theme.of(context).disabledColor.withValues(alpha: 0.35);
+
+    const stages = <_IconStep>[
+      _IconStep(Icons.receipt_long, 'order_placed'),
+      _IconStep(Icons.storefront, 'preparing_item'),
+      _IconStep(Icons.delivery_dining, 'delivery_on_the_way'),
+      _IconStep(Icons.home_rounded, 'delivered'),
+    ];
 
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
-      children: List.generate(labels.length * 2 - 1, (i) {
-        // Even indices are nodes; odd indices are the connector lines.
+      children: List.generate(stages.length * 2 - 1, (i) {
         if (i.isOdd) {
-          final int leftNode = i ~/ 2;
-          final bool done = state > leftNode;
+          final bool done = stage > i ~/ 2;
           return Expanded(
             child: Container(
               height: 3,
-              margin: const EdgeInsets.only(bottom: 26),
-              color: done ? active : pending,
+              margin: const EdgeInsets.only(top: 22),
+              decoration: BoxDecoration(
+                color: done ? active : pending,
+                borderRadius: BorderRadius.circular(2),
+              ),
             ),
           );
         }
-        final int index = i ~/ 2;
-        final bool isDone = state >= 0 && index < state;
-        final bool isCurrent = state >= 0 && index == state;
-        final Color c = isDone ? active : (isCurrent ? current : pending);
+        final int idx = i ~/ 2;
+        final bool reached = idx <= stage;
+        final Color c = reached ? active : pending;
         return SizedBox(
-          width: 54,
+          width: 62,
           child: Column(
             children: [
               Container(
-                width: 26,
-                height: 26,
-                alignment: Alignment.center,
+                width: 46,
+                height: 46,
                 decoration: BoxDecoration(
-                  color: isDone || isCurrent ? c : Colors.transparent,
+                  color: reached ? active : Colors.transparent,
                   shape: BoxShape.circle,
                   border: Border.all(color: c, width: 2),
                 ),
-                child: isDone
-                    ? const Icon(Icons.check, size: 15, color: Colors.white)
-                    : Text('${index + 1}',
-                        style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.bold,
-                            color: isCurrent ? Colors.white : c)),
+                child: Icon(stages[idx].icon,
+                    size: 22, color: reached ? Colors.white : c),
               ),
-              const SizedBox(height: 5),
+              const SizedBox(height: 6),
               Text(
-                labels[index],
+                stages[idx].labelKey.tr,
                 textAlign: TextAlign.center,
                 maxLines: 2,
                 style: TextStyle(
-                  fontSize: 9.5,
+                  fontFamily: 'Tajawal',
+                  fontSize: 10,
                   height: 1.15,
-                  fontWeight: isCurrent ? FontWeight.bold : FontWeight.w500,
-                  color: isDone ? active : (isCurrent ? current : pending),
+                  fontWeight: idx == stage ? FontWeight.bold : FontWeight.w500,
+                  color: reached ? active : pending,
                 ),
               ),
             ],
@@ -575,24 +595,58 @@ class _HorizontalStepper extends StatelessWidget {
   }
 }
 
-int _statusIndex(String? status, bool takeAway) {
-  switch (status) {
-    case 'pending':
-      return 0;
-    case 'accepted':
-    case 'confirmed':
-      return 1;
-    case 'processing':
-      return 2;
-    case 'handover':
-      return takeAway ? 3 : 2;
-    case 'picked_up':
-    case 'on_the_way':
-      return 3;
-    case 'delivered':
-      return 4;
-    default:
-      return -1;
+class _IconStep {
+  final IconData icon;
+  final String labelKey;
+  const _IconStep(this.icon, this.labelKey);
+}
+
+/// Trust element: a green "on-time delivery guarantee" card.
+class _DeliveryGuaranteeCard extends StatelessWidget {
+  const _DeliveryGuaranteeCard();
+
+  @override
+  Widget build(BuildContext context) {
+    final bool isArabic = Get.locale?.languageCode == 'ar';
+    return Container(
+      margin: const EdgeInsets.only(bottom: Dimensions.paddingSizeDefault),
+      padding: const EdgeInsets.all(Dimensions.paddingSizeDefault),
+      decoration: BoxDecoration(
+        color: Theme.of(context).primaryColor.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(Dimensions.radiusDefault),
+        border: Border.all(
+            color: Theme.of(context).primaryColor.withValues(alpha: 0.2)),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.verified, color: Theme.of(context).primaryColor, size: 26),
+          const SizedBox(width: Dimensions.paddingSizeSmall),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  isArabic
+                      ? 'ضمان التوصيل في الوقت المحدد'
+                      : 'On-time delivery guarantee',
+                  style: robotoBold.copyWith(
+                      color: Theme.of(context).primaryColor),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  isArabic
+                      ? 'لو تأخّر طلبك عن الوقت المتوقّع، نعوّضك بقسيمة خصم'
+                      : 'If your order is late, we’ll make it up with a coupon',
+                  style: robotoRegular.copyWith(
+                      fontSize: Dimensions.fontSizeExtraSmall,
+                      color: Theme.of(context).hintColor),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 
@@ -1199,6 +1253,207 @@ class _OtpCard extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+/// "Order help" sheet — ready options + the rule that cancelling after a courier
+/// is assigned goes through support only.
+void _showHelpSheet(BuildContext context, OrderModel track) {
+  final bool isArabic = Get.locale?.languageCode == 'ar';
+  final status = (track.orderStatus ?? '').toLowerCase();
+  final bool driverAssigned = track.deliveryMan != null;
+  final options = isArabic
+      ? <String>[
+          'كيف ألغي طلبي؟',
+          'أريد تغيير الأصناف',
+          'تغيير العنوان أو الملاحظات',
+          'المتجر مغلق',
+          'صنف غير متوفّر',
+          'لماذا لم يُقبل طلبي؟',
+          'غير ذلك',
+        ]
+      : <String>[
+          'How do I cancel my order?',
+          'I want to change items',
+          'Change address or notes',
+          'The store is closed',
+          'An item is out of stock',
+          'Why wasn’t my order accepted?',
+          'Something else',
+        ];
+
+  showModalBottomSheet<void>(
+    context: context,
+    isScrollControlled: true,
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
+    ),
+    builder: (ctx) => SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 44,
+                height: 5,
+                margin: const EdgeInsets.only(bottom: 12),
+                decoration: BoxDecoration(
+                  color: Theme.of(ctx).disabledColor.withValues(alpha: 0.4),
+                  borderRadius: BorderRadius.circular(4),
+                ),
+              ),
+            ),
+            Text(isArabic ? 'مساعدة في الطلب' : 'Order help',
+                style: robotoBold.copyWith(fontSize: Dimensions.fontSizeLarge)),
+            // Order summary line.
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 6),
+              child: Text(
+                '${'order'.tr} #${track.id ?? ''} · ${_statusTitle(status)}',
+                style: robotoRegular.copyWith(
+                    color: Theme.of(ctx).hintColor,
+                    fontSize: Dimensions.fontSizeSmall),
+              ),
+            ),
+            const Divider(),
+            ...options.map((o) => ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: Text(o, style: robotoRegular),
+                  trailing: const Icon(Icons.chevron_left, size: 20),
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    Get.toNamed(RouteHelper.getSupportRoute());
+                  },
+                )),
+            // Cancel-after-assignment note.
+            if (driverAssigned)
+              Container(
+                margin: const EdgeInsets.only(top: 6),
+                padding: const EdgeInsets.all(Dimensions.paddingSizeSmall),
+                decoration: BoxDecoration(
+                  color: Colors.orange.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(Dimensions.radiusSmall),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.info_outline,
+                        size: 18, color: Colors.orange),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        isArabic
+                            ? 'بعد تعيين السائق، يتم الإلغاء عبر الدعم الفني فقط'
+                            : 'After a courier is assigned, cancellation is via support only',
+                        style: robotoRegular.copyWith(
+                            fontSize: Dimensions.fontSizeExtraSmall),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+          ],
+        ),
+      ),
+    ),
+  );
+}
+
+/// Receipt-style order summary: total · delivery fee · payment + a button to the
+/// full invoice. Ticket look via a dashed divider.
+class _ReceiptCard extends StatelessWidget {
+  final OrderModel track;
+  const _ReceiptCard({required this.track});
+
+  String _money(double v) => v == v.roundToDouble()
+      ? v.toStringAsFixed(0)
+      : v.toStringAsFixed(2);
+
+  @override
+  Widget build(BuildContext context) {
+    final bool isArabic = Get.locale?.languageCode == 'ar';
+    final double total = track.orderAmount ?? 0;
+    final double delivery = track.deliveryCharge ?? 0;
+    final String pay = (track.paymentMethod ?? '').replaceAll('_', ' ');
+    final String cur = isArabic ? 'ر.س' : 'SAR';
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: Dimensions.paddingSizeDefault),
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardColor,
+        borderRadius: BorderRadius.circular(Dimensions.radiusDefault),
+        border: Border.all(
+            color: Theme.of(context).disabledColor.withValues(alpha: 0.15)),
+      ),
+      child: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(Dimensions.paddingSizeDefault),
+            child: Column(
+              children: [
+                _row(context, isArabic ? 'رسوم التوصيل' : 'Delivery fee',
+                    '${_money(delivery)} $cur'),
+                const SizedBox(height: 6),
+                _row(
+                  context,
+                  isArabic ? 'الإجمالي' : 'Total',
+                  '${_money(total)} $cur',
+                  bold: true,
+                ),
+                if (pay.trim().isNotEmpty) ...[
+                  const SizedBox(height: 6),
+                  Row(
+                    children: [
+                      Icon(Icons.payments_outlined,
+                          size: 18, color: Theme.of(context).hintColor),
+                      const SizedBox(width: 6),
+                      Text(pay,
+                          style: robotoMedium.copyWith(
+                              fontSize: Dimensions.fontSizeSmall)),
+                    ],
+                  ),
+                ],
+              ],
+            ),
+          ),
+          const Divider(height: 1),
+          InkWell(
+            onTap: () => Get.toNamed(
+                RouteHelper.getOrderDetailsRoute(track.id)),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(isArabic ? 'تفاصيل الطلب' : 'Order details',
+                      style: robotoBold.copyWith(
+                          color: Theme.of(context).primaryColor)),
+                  const SizedBox(width: 4),
+                  Icon(Icons.chevron_left,
+                      size: 20, color: Theme.of(context).primaryColor),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _row(BuildContext context, String label, String value,
+      {bool bold = false}) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(label,
+            style: bold
+                ? robotoBold
+                : robotoRegular.copyWith(color: Theme.of(context).hintColor)),
+        Text(value, style: bold ? robotoBold : robotoMedium),
+      ],
     );
   }
 }
