@@ -2,6 +2,7 @@
 
 import 'dart:async';
 import 'dart:math' as math;
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:sixam_mart/features/notification/domain/models/notification_body_model.dart';
 import 'package:sixam_mart/features/order/controllers/order_controller.dart';
 import 'package:sixam_mart/features/order/domain/models/order_model.dart';
@@ -277,6 +278,7 @@ class OrderTrackingScreenState extends State<OrderTrackingScreen> {
                           ),
                         ),
                       ),
+                      const _NotificationsBanner(),
                       _StatusHeader(track: track),
                       const SizedBox(height: Dimensions.paddingSizeDefault),
                       _IconStepper(status: track.orderStatus),
@@ -599,6 +601,79 @@ class _IconStep {
   final IconData icon;
   final String labelKey;
   const _IconStep(this.icon, this.labelKey);
+}
+
+/// Prompts the customer to enable push notifications so they receive order
+/// progress updates. Hides itself once notifications are authorized.
+class _NotificationsBanner extends StatefulWidget {
+  const _NotificationsBanner();
+
+  @override
+  State<_NotificationsBanner> createState() => _NotificationsBannerState();
+}
+
+class _NotificationsBannerState extends State<_NotificationsBanner> {
+  bool _show = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _check();
+  }
+
+  Future<void> _check() async {
+    try {
+      final settings =
+          await FirebaseMessaging.instance.getNotificationSettings();
+      if (mounted) {
+        setState(() => _show =
+            settings.authorizationStatus != AuthorizationStatus.authorized);
+      }
+    } catch (_) {/* keep hidden */}
+  }
+
+  Future<void> _enable() async {
+    try {
+      final settings = await FirebaseMessaging.instance.requestPermission();
+      if (mounted) {
+        setState(() => _show =
+            settings.authorizationStatus != AuthorizationStatus.authorized);
+      }
+    } catch (_) {}
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (!_show) return const SizedBox.shrink();
+    final bool isArabic = Get.locale?.languageCode == 'ar';
+    return Container(
+      margin: const EdgeInsets.only(bottom: Dimensions.paddingSizeDefault),
+      padding: const EdgeInsets.all(Dimensions.paddingSizeSmall),
+      decoration: BoxDecoration(
+        color: Colors.orange.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(Dimensions.radiusDefault),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.notifications_active, color: Colors.orange),
+          const SizedBox(width: Dimensions.paddingSizeSmall),
+          Expanded(
+            child: Text(
+              isArabic
+                  ? 'فعّل الإشعارات لتلقّي تحديثات طلبك'
+                  : 'Enable notifications for order updates',
+              style: robotoMedium.copyWith(fontSize: Dimensions.fontSizeSmall),
+            ),
+          ),
+          TextButton(
+            onPressed: _enable,
+            child: Text(isArabic ? 'تفعيل' : 'Enable',
+                style: robotoBold.copyWith(color: Colors.orange)),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 /// Trust element: a green "on-time delivery guarantee" card.
