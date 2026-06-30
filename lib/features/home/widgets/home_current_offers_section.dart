@@ -26,7 +26,7 @@ class HomeCurrentOffersSection extends StatefulWidget {
   const HomeCurrentOffersSection(
       {super.key, this.moduleId, this.autoScroll = false});
 
-  static const double _railHeight = 152;
+  static const double _railHeight = 182;
   static const double _cardWidth = 155.5;
 
   @override
@@ -283,27 +283,6 @@ class _OfferCard extends StatelessWidget {
   String _fmt(double v) =>
       v == v.roundToDouble() ? v.toStringAsFixed(0) : v.toStringAsFixed(2);
 
-  /// Discount line shown below the store name — never a price. Prefers a
-  /// server-provided description; otherwise the percentage computed from the
-  /// prices; otherwise the payload's discount_amount; otherwise the title.
-  String _discountText() {
-    final desc = (offer.description ?? '').trim();
-    if (desc.isNotEmpty) return desc;
-    if (offer.originalPrice > offer.discountedPrice &&
-        offer.originalPrice > 0) {
-      final pct = (((offer.originalPrice - offer.discountedPrice) /
-                  offer.originalPrice) *
-              100)
-          .round();
-      if (pct > 0) return '${'discount_label'.tr} $pct%';
-    }
-    if (offer.discountAmount > 0) {
-      final suffix = offer.discountType == 'percent' ? '%' : '';
-      return '${'discount_label'.tr} ${_fmt(offer.discountAmount)}$suffix';
-    }
-    final title = (offer.offerTitle ?? '').trim();
-    return title.isNotEmpty ? title : 'special_offer'.tr;
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -369,20 +348,72 @@ class _OfferCard extends StatelessWidget {
                               ),
                             ),
                             const SizedBox(height: 6),
-                            // Discount below the name (never a price).
-                            Text(
-                              _discountText(),
-                              textAlign: TextAlign.right,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                fontFamily: 'Tajawal',
-                                fontWeight: FontWeight.w700,
-                                fontSize: 12,
-                                height: 1.2,
-                                color: Color(0xFF121C19),
+                            // Price: new (red, bold) + old (struck grey).
+                            Directionality(
+                              textDirection: TextDirection.ltr,
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                crossAxisAlignment: CrossAxisAlignment.center,
+                                children: [
+                                  Image.asset(Images.sar,
+                                      width: 9,
+                                      height: 9,
+                                      color: const Color(0xFFE53935)),
+                                  const SizedBox(width: 2),
+                                  Text(
+                                    _fmt(offer.discountedPrice),
+                                    style: const TextStyle(
+                                      fontFamily: 'Tajawal',
+                                      fontWeight: FontWeight.w700,
+                                      fontSize: 13,
+                                      color: Color(0xFFE53935),
+                                    ),
+                                  ),
+                                  if (offer.originalPrice >
+                                      offer.discountedPrice) ...[
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      _fmt(offer.originalPrice),
+                                      style: const TextStyle(
+                                        fontFamily: 'Tajawal',
+                                        fontWeight: FontWeight.w500,
+                                        fontSize: 10,
+                                        color: Color(0xFF9AA0A6),
+                                        decoration: TextDecoration.lineThrough,
+                                        decorationColor: Color(0xFF9AA0A6),
+                                      ),
+                                    ),
+                                  ],
+                                ],
                               ),
                             ),
+                          ],
+                        ),
+                        // 🛵 Delivery line: time + free (green) / fee.
+                        Row(
+                          children: [
+                            const Text('🛵', style: TextStyle(fontSize: 10)),
+                            const SizedBox(width: 3),
+                            if ((offer.deliveryTime ?? '').isNotEmpty)
+                              Text(
+                                offer.deliveryTime!,
+                                style: const TextStyle(
+                                  fontFamily: 'Tajawal',
+                                  fontSize: 9,
+                                  color: Color(0xFF6B7280),
+                                ),
+                              ),
+                            const Spacer(),
+                            if (offer.freeDelivery)
+                              Text(
+                                'free_delivery'.tr,
+                                style: const TextStyle(
+                                  fontFamily: 'Tajawal',
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 9,
+                                  color: Color(0xFF1F7A35),
+                                ),
+                              ),
                           ],
                         ),
                       ],
@@ -412,10 +443,44 @@ class _OfferCard extends StatelessWidget {
                 ),
               ),
             ),
+            // ⚡ Discount badge on the image (bottom-left), yellow.
+            if (_discountPct() > 0)
+              Positioned(
+                left: 6,
+                top: _imageHeight - 18,
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFFC107),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Text(
+                    '⚡ ${'discount_label'.tr} ${_discountPct()}%',
+                    style: const TextStyle(
+                      fontFamily: 'Tajawal',
+                      fontWeight: FontWeight.w700,
+                      fontSize: 9,
+                      height: 1.2,
+                      color: Color(0xFF121C19),
+                    ),
+                  ),
+                ),
+              ),
           ],
         ),
       ),
     );
   }
 
+  /// Discount percentage from the prices (0 when there is no real discount).
+  int _discountPct() {
+    if (offer.originalPrice > offer.discountedPrice && offer.originalPrice > 0) {
+      return (((offer.originalPrice - offer.discountedPrice) /
+                  offer.originalPrice) *
+              100)
+          .round();
+    }
+    return 0;
+  }
 }
