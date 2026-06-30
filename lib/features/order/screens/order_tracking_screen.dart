@@ -5,6 +5,7 @@ import 'dart:math' as math;
 import 'package:sixam_mart/features/notification/domain/models/notification_body_model.dart';
 import 'package:sixam_mart/features/order/controllers/order_controller.dart';
 import 'package:sixam_mart/features/order/domain/models/order_model.dart';
+import 'package:sixam_mart/features/order/widgets/arabic_address_text.dart';
 import 'package:sixam_mart/features/order/widgets/live_tracking_map.dart';
 import 'package:sixam_mart/features/store/domain/models/store_model.dart';
 import 'package:sixam_mart/common/widgets/custom_image.dart';
@@ -672,12 +673,7 @@ class _DeliveryDetailsSection extends StatelessWidget {
           Text('store_information'.tr,
               style: robotoMedium.copyWith(color: Theme.of(context).hintColor)),
           const SizedBox(height: Dimensions.paddingSizeSmall),
-          _StoreInfoCard(
-            store: track.store!,
-            showChat: showChat,
-            onChat: () => onChat(NotificationBodyModel(
-                orderId: orderId, restaurantId: track.store!.vendorId)),
-          ),
+          _StoreInfoCard(store: track.store!),
           const SizedBox(height: Dimensions.paddingSizeDefault),
         ],
 
@@ -733,13 +729,20 @@ class _DeliveryDetailsSection extends StatelessWidget {
           const SizedBox(height: Dimensions.paddingSizeDefault),
         ],
 
-        // "Deliver to" address row (or pickup store for take-away).
+        // "Deliver to" address row (or pickup store for take-away). Rendered in
+        // Arabic via reverse-geocoding when the stored address is English.
         _AddressRow(
           icon: _takeAway ? Icons.storefront : Icons.location_on,
           title: _takeAway ? 'store'.tr : 'delivery_address'.tr,
           subtitle: _takeAway
               ? (track.store?.address ?? '')
               : (track.deliveryAddress?.address ?? ''),
+          lat: _takeAway
+              ? track.store?.latitude
+              : track.deliveryAddress?.latitude,
+          lng: _takeAway
+              ? track.store?.longitude
+              : track.deliveryAddress?.longitude,
         ),
       ],
     );
@@ -749,10 +752,7 @@ class _DeliveryDetailsSection extends StatelessWidget {
 /// Store info card: logo · name · rating · address + a contact button.
 class _StoreInfoCard extends StatelessWidget {
   final Store store;
-  final bool showChat;
-  final VoidCallback onChat;
-  const _StoreInfoCard(
-      {required this.store, required this.showChat, required this.onChat});
+  const _StoreInfoCard({required this.store});
 
   @override
   Widget build(BuildContext context) {
@@ -794,21 +794,12 @@ class _StoreInfoCard extends StatelessWidget {
                   ],
                 ),
               ),
+              // Only the location/directions button on the store card — no chat
+              // with the merchant.
               _ActionButton(
                 icon: Icons.directions_outlined,
                 color: Theme.of(context).primaryColor,
                 onTap: () => _openDirections(store.latitude, store.longitude),
-              ),
-              const SizedBox(width: Dimensions.paddingSizeSmall),
-              _ActionButton(
-                icon: Icons.chat_bubble_outline,
-                color: const Color(0xFF1F7A35),
-                onTap: () => _showTrackContactSheet(
-                  context,
-                  phone: store.phone,
-                  showChat: showChat,
-                  onChat: onChat,
-                ),
               ),
             ],
           ),
@@ -821,12 +812,14 @@ class _StoreInfoCard extends StatelessWidget {
                     size: 16, color: Theme.of(context).hintColor),
                 const SizedBox(width: 4),
                 Expanded(
-                  child: Text(store.address!,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: robotoRegular.copyWith(
-                          fontSize: Dimensions.fontSizeSmall,
-                          color: Theme.of(context).hintColor)),
+                  child: ArabicAddressText(
+                    fallback: store.address!,
+                    lat: store.latitude,
+                    lng: store.longitude,
+                    style: robotoRegular.copyWith(
+                        fontSize: Dimensions.fontSizeSmall,
+                        color: Theme.of(context).hintColor),
+                  ),
                 ),
               ],
             ),
@@ -1085,8 +1078,14 @@ class _AddressRow extends StatelessWidget {
   final IconData icon;
   final String title;
   final String subtitle;
+  final String? lat;
+  final String? lng;
   const _AddressRow(
-      {required this.icon, required this.title, required this.subtitle});
+      {required this.icon,
+      required this.title,
+      required this.subtitle,
+      this.lat,
+      this.lng});
 
   @override
   Widget build(BuildContext context) {
@@ -1120,10 +1119,12 @@ class _AddressRow extends StatelessWidget {
                         fontSize: Dimensions.fontSizeSmall,
                         color: Theme.of(context).hintColor)),
                 const SizedBox(height: 2),
-                Text(subtitle,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: robotoMedium),
+                ArabicAddressText(
+                  fallback: subtitle,
+                  lat: lat,
+                  lng: lng,
+                  style: robotoMedium,
+                ),
               ],
             ),
           ),
