@@ -3,10 +3,10 @@
 import 'dart:async';
 import 'dart:math' as math;
 import 'package:sixam_mart/features/notification/domain/models/notification_body_model.dart';
-import 'package:sixam_mart/features/chat/domain/models/conversation_model.dart';
 import 'package:sixam_mart/features/order/controllers/order_controller.dart';
 import 'package:sixam_mart/features/order/domain/models/order_model.dart';
 import 'package:sixam_mart/features/order/widgets/live_tracking_map.dart';
+import 'package:sixam_mart/features/store/domain/models/store_model.dart';
 import 'package:sixam_mart/common/widgets/custom_image.dart';
 import 'package:sixam_mart/common/widgets/custom_snackbar.dart';
 import 'package:sixam_mart/common/widgets/rating_bar.dart';
@@ -136,6 +136,14 @@ class OrderTrackingScreenState extends State<OrderTrackingScreen> {
         duration: const Duration(seconds: 4),
       );
     });
+  }
+
+  /// Opens an in-app chat (driver or store, per the passed body), pausing the
+  /// poll timer while away and resuming on return.
+  Future<void> _openChat(NotificationBodyModel body) async {
+    _timer?.cancel();
+    await Get.toNamed(RouteHelper.getChatRoute(notificationBody: body));
+    _startApiCall();
   }
 
   bool _showOtp(OrderModel track) {
@@ -275,18 +283,9 @@ class OrderTrackingScreenState extends State<OrderTrackingScreen> {
                         _DeliveredCard(orderId: widget.orderID),
                       _DeliveryDetailsSection(
                         track: track,
+                        orderId: int.tryParse(widget.orderID ?? ''),
                         showChat: showChatPermission,
-                        onChat: () async {
-                          _timer?.cancel();
-                          await Get.toNamed(RouteHelper.getChatRoute(
-                            notificationBody: NotificationBodyModel(
-                              adminId: 0,
-                              orderId: int.parse(widget.orderID!),
-                            ),
-                            user: User(id: 0, fName: 'المسئول', lName: ''),
-                          ));
-                          _startApiCall();
-                        },
+                        onChat: _openChat,
                       ),
                     ],
                   ),
@@ -637,16 +636,20 @@ class _DeliveredCard extends StatelessWidget {
   }
 }
 
-/// Professional delivery details: a clean driver card (avatar · name · rating ·
-/// call / chat) when a courier is assigned, a "not assigned yet" pill before,
-/// and a tidy "deliver to" address row. Replaces the cramped legacy trip-route
-/// block; the route itself is shown on the live map above.
+/// Professional delivery details: store info card, a clean driver card (avatar ·
+/// name · rating · contact) when a courier is assigned (a "not assigned yet"
+/// pill before), the trip distance, and a tidy "deliver to" address row. Each
+/// contact button opens a unified options sheet (WhatsApp · call · in-app chat).
 class _DeliveryDetailsSection extends StatelessWidget {
   final OrderModel track;
+  final int? orderId;
   final bool showChat;
-  final Future<void> Function() onChat;
+  final Future<void> Function(NotificationBodyModel) onChat;
   const _DeliveryDetailsSection(
-      {required this.track, required this.showChat, required this.onChat});
+      {required this.track,
+      required this.orderId,
+      required this.showChat,
+      required this.onChat});
 
   bool get _takeAway => track.orderType == 'take_away';
 
@@ -659,25 +662,55 @@ class _DeliveryDetailsSection extends StatelessWidget {
         !hasDriver &&
         status != 'delivered' &&
         status != 'canceled';
+    final String? distance = _tripDistanceText(track);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        // ── Store information.
+        if (track.store != null) ...[
+          Text('store_information'.tr,
+              style: robotoMedium.copyWith(color: Theme.of(context).hintColor)),
+          const SizedBox(height: Dimensions.paddingSizeSmall),
+          _StoreInfoCard(
+            store: track.store!,
+            showChat: showChat,
+            onChat: () => onChat(NotificationBodyModel(
+                orderId: orderId, restaurantId: track.store!.vendorId)),
+          ),
+          const SizedBox(height: Dimensions.paddingSizeDefault),
+        ],
+
+        // ── Trip distance (validated; never drawn from 0,0 / invalid coords).
+        if (distance != null) ...[
+          _InfoChipRow(icon: Icons.route, label: 'distance'.tr, value: distance),
+          const SizedBox(height: Dimensions.paddingSizeDefault),
+        ],
+
+        // ── Courier.
         if (hasDriver && !_takeAway) ...[
           Text('delivery_man'.tr,
               style: robotoMedium.copyWith(color: Theme.of(context).hintColor)),
           const SizedBox(height: Dimensions.paddingSizeSmall),
-          _DriverCard(
+          _ContactCard(
             name: '${driver.fName ?? ''} ${driver.lName ?? ''}'.trim(),
+            fallbackName: 'delivery_man'.tr,
             image: driver.imageFullUrl,
             rating: driver.avgRating,
             ratingCount: driver.ratingCount,
-            phone: driver.phone,
+            circular: true,
             showChat: showChat,
-            onChat: onChat,
+            onContact: () => _showTrackContactSheet(
+              context,
+              phone: driver.phone,
+              showChat: showChat,
+              onChat: () => onChat(NotificationBodyModel(
+                  orderId: orderId, deliverymanId: driver.id)),
+            ),
           ),
+          const SizedBox(height: Dimensions.paddingSizeDefault),
         ],
-        if (preDriver)
+        if (preDriver) ...[
           Container(
             padding: const EdgeInsets.all(Dimensions.paddingSizeDefault),
             decoration: BoxDecoration(
@@ -697,7 +730,9 @@ class _DeliveryDetailsSection extends StatelessWidget {
               ],
             ),
           ),
-        const SizedBox(height: Dimensions.paddingSizeDefault),
+          const SizedBox(height: Dimensions.paddingSizeDefault),
+        ],
+
         // "Deliver to" address row (or pickup store for take-away).
         _AddressRow(
           icon: _takeAway ? Icons.storefront : Icons.location_on,
@@ -711,23 +746,13 @@ class _DeliveryDetailsSection extends StatelessWidget {
   }
 }
 
-class _DriverCard extends StatelessWidget {
-  final String name;
-  final String? image;
-  final double? rating;
-  final int? ratingCount;
-  final String? phone;
+/// Store info card: logo · name · rating · address + a contact button.
+class _StoreInfoCard extends StatelessWidget {
+  final Store store;
   final bool showChat;
-  final Future<void> Function() onChat;
-  const _DriverCard({
-    required this.name,
-    required this.image,
-    required this.rating,
-    required this.ratingCount,
-    required this.phone,
-    required this.showChat,
-    required this.onChat,
-  });
+  final VoidCallback onChat;
+  const _StoreInfoCard(
+      {required this.store, required this.showChat, required this.onChat});
 
   @override
   Widget build(BuildContext context) {
@@ -739,22 +764,247 @@ class _DriverCard extends StatelessWidget {
         border: Border.all(
             color: Theme.of(context).disabledColor.withValues(alpha: 0.15)),
       ),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(10),
+                child: CustomImage(
+                  image: store.logoFullUrl ?? '',
+                  height: 50,
+                  width: 50,
+                  fit: BoxFit.cover,
+                ),
+              ),
+              const SizedBox(width: Dimensions.paddingSizeSmall),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(store.name ?? '',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: robotoBold),
+                    const SizedBox(height: 2),
+                    RatingBar(
+                        rating: store.avgRating ?? 0,
+                        size: 12,
+                        ratingCount: store.ratingCount),
+                  ],
+                ),
+              ),
+              _ActionButton(
+                icon: Icons.directions_outlined,
+                color: Theme.of(context).primaryColor,
+                onTap: () => _openDirections(store.latitude, store.longitude),
+              ),
+              const SizedBox(width: Dimensions.paddingSizeSmall),
+              _ActionButton(
+                icon: Icons.chat_bubble_outline,
+                color: const Color(0xFF1F7A35),
+                onTap: () => _showTrackContactSheet(
+                  context,
+                  phone: store.phone,
+                  showChat: showChat,
+                  onChat: onChat,
+                ),
+              ),
+            ],
+          ),
+          if ((store.address ?? '').isNotEmpty) ...[
+            const SizedBox(height: Dimensions.paddingSizeSmall),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(Icons.location_on_outlined,
+                    size: 16, color: Theme.of(context).hintColor),
+                const SizedBox(width: 4),
+                Expanded(
+                  child: Text(store.address!,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: robotoRegular.copyWith(
+                          fontSize: Dimensions.fontSizeSmall,
+                          color: Theme.of(context).hintColor)),
+                ),
+              ],
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+Future<void> _openDirections(String? lat, String? lng) async {
+  final a = double.tryParse(lat ?? ''), b = double.tryParse(lng ?? '');
+  if (a == null || b == null || (a == 0 && b == 0)) return;
+  final url = 'https://www.google.com/maps/dir/?api=1&destination=$a,$b&mode=d';
+  if (await canLaunchUrlString(url)) {
+    await launchUrlString(url, mode: LaunchMode.externalApplication);
+  } else {
+    showCustomSnackBar('unable_to_launch_google_map'.tr);
+  }
+}
+
+/// Validated trip distance store→customer. Returns null when either endpoint is
+/// missing / (0,0) / implausibly far (guards against flipped or empty coords).
+String? _tripDistanceText(OrderModel track) {
+  LatLng? p(String? la, String? ln) {
+    final a = double.tryParse(la ?? ''), b = double.tryParse(ln ?? '');
+    if (a == null || b == null || (a == 0 && b == 0)) return null;
+    if (a.abs() > 90 || b.abs() > 180) return null; // flipped/invalid
+    return LatLng(a, b);
+  }
+
+  final store = p(track.store?.latitude, track.store?.longitude);
+  final customer =
+      p(track.deliveryAddress?.latitude, track.deliveryAddress?.longitude);
+  if (store == null || customer == null) return null;
+  final km = _distanceKm(store, customer);
+  if (km <= 0 || km > 300) return null; // sanity cap for a delivery
+  final bool isArabic = Get.locale?.languageCode == 'ar';
+  if (km < 1) return '${(km * 1000).round()} ${isArabic ? 'م' : 'm'}';
+  return '${km.toStringAsFixed(1)} ${isArabic ? 'كم' : 'km'}';
+}
+
+/// Unified contact options sheet: WhatsApp · phone call · in-app chat. Each row
+/// appears only when it is usable (phone present / chat allowed & assigned).
+void _showTrackContactSheet(
+  BuildContext context, {
+  required String? phone,
+  required bool showChat,
+  required VoidCallback onChat,
+}) {
+  final String clean = (phone ?? '').replaceAll(RegExp(r'[^\d+]'), '');
+  showModalBottomSheet<void>(
+    context: context,
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
+    ),
+    builder: (ctx) => SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text('contact_options'.tr, style: robotoBold),
+            const SizedBox(height: 6),
+            if (clean.isNotEmpty)
+              _ContactTile(
+                icon: Icons.chat,
+                color: const Color(0xFF25D366),
+                label: 'whatsapp'.tr,
+                onTap: () async {
+                  Navigator.pop(ctx);
+                  final url = 'https://wa.me/$clean';
+                  if (await canLaunchUrlString(url)) {
+                    await launchUrlString(url,
+                        mode: LaunchMode.externalApplication);
+                  } else {
+                    showCustomSnackBar('${'can_not_launch'.tr} WhatsApp');
+                  }
+                },
+              ),
+            if (clean.isNotEmpty)
+              _ContactTile(
+                icon: Icons.call,
+                color: const Color(0xFF1F7A35),
+                label: 'call'.tr,
+                onTap: () async {
+                  Navigator.pop(ctx);
+                  if (await canLaunchUrlString('tel:$clean')) {
+                    await launchUrlString('tel:$clean',
+                        mode: LaunchMode.externalApplication);
+                  } else {
+                    showCustomSnackBar('${'can_not_launch'.tr} $clean');
+                  }
+                },
+              ),
+            if (showChat)
+              _ContactTile(
+                icon: Icons.chat_bubble_outline,
+                color: Theme.of(ctx).primaryColor,
+                label: 'in_app_chat'.tr,
+                onTap: () {
+                  Navigator.pop(ctx);
+                  onChat();
+                },
+              ),
+          ],
+        ),
+      ),
+    ),
+  );
+}
+
+class _ContactTile extends StatelessWidget {
+  final IconData icon;
+  final Color color;
+  final String label;
+  final VoidCallback onTap;
+  const _ContactTile(
+      {required this.icon,
+      required this.color,
+      required this.label,
+      required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return ListTile(
+      leading: Icon(icon, color: color),
+      title: Text(label, style: robotoRegular),
+      onTap: onTap,
+    );
+  }
+}
+
+/// Reusable contact row card (avatar · name · rating · single contact button).
+class _ContactCard extends StatelessWidget {
+  final String name;
+  final String fallbackName;
+  final String? image;
+  final double? rating;
+  final int? ratingCount;
+  final bool circular;
+  final bool showChat;
+  final VoidCallback onContact;
+  const _ContactCard({
+    required this.name,
+    required this.fallbackName,
+    required this.image,
+    required this.rating,
+    required this.ratingCount,
+    required this.circular,
+    required this.showChat,
+    required this.onContact,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final img = CustomImage(
+        image: image ?? '', height: 50, width: 50, fit: BoxFit.cover);
+    return Container(
+      padding: const EdgeInsets.all(Dimensions.paddingSizeSmall),
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardColor,
+        borderRadius: BorderRadius.circular(Dimensions.radiusDefault),
+        border: Border.all(
+            color: Theme.of(context).disabledColor.withValues(alpha: 0.15)),
+      ),
       child: Row(
         children: [
-          ClipOval(
-            child: CustomImage(
-              image: image ?? '',
-              height: 50,
-              width: 50,
-              fit: BoxFit.cover,
-            ),
-          ),
+          circular
+              ? ClipOval(child: img)
+              : ClipRRect(
+                  borderRadius: BorderRadius.circular(10), child: img),
           const SizedBox(width: Dimensions.paddingSizeSmall),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(name.isEmpty ? 'delivery_man'.tr : name,
+                Text(name.isEmpty ? fallbackName : name,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: robotoBold),
@@ -764,27 +1014,43 @@ class _DriverCard extends StatelessWidget {
               ],
             ),
           ),
-          if (showChat)
-            _ActionButton(
-              icon: Icons.chat_bubble_outline,
-              color: Theme.of(context).primaryColor,
-              onTap: () => onChat(),
-            ),
-          if (showChat) const SizedBox(width: Dimensions.paddingSizeSmall),
           _ActionButton(
-            icon: Icons.call,
-            color: const Color(0xFF1F7A35),
-            onTap: () async {
-              final p = phone ?? '';
-              if (p.isEmpty) return;
-              if (await canLaunchUrlString('tel:$p')) {
-                await launchUrlString('tel:$p',
-                    mode: LaunchMode.externalApplication);
-              } else {
-                showCustomSnackBar('${'can_not_launch'.tr} $p');
-              }
-            },
+            icon: Icons.headset_mic_outlined,
+            color: Theme.of(context).primaryColor,
+            onTap: onContact,
           ),
+        ],
+      ),
+    );
+  }
+}
+
+/// A labelled value chip row, e.g. "🛣 المسافة  3.4 كم".
+class _InfoChipRow extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String value;
+  const _InfoChipRow(
+      {required this.icon, required this.label, required this.value});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(
+          horizontal: Dimensions.paddingSizeDefault, vertical: 12),
+      decoration: BoxDecoration(
+        color: Theme.of(context).primaryColor.withValues(alpha: 0.06),
+        borderRadius: BorderRadius.circular(Dimensions.radiusDefault),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, size: 20, color: Theme.of(context).primaryColor),
+          const SizedBox(width: Dimensions.paddingSizeSmall),
+          Text(label, style: robotoRegular),
+          const Spacer(),
+          Text(value,
+              style:
+                  robotoBold.copyWith(color: Theme.of(context).primaryColor)),
         ],
       ),
     );
