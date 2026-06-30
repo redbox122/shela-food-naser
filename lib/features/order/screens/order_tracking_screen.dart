@@ -7,14 +7,17 @@ import 'package:sixam_mart/features/chat/domain/models/conversation_model.dart';
 import 'package:sixam_mart/features/order/controllers/order_controller.dart';
 import 'package:sixam_mart/features/order/domain/models/order_model.dart';
 import 'package:sixam_mart/features/order/widgets/live_tracking_map.dart';
+import 'package:sixam_mart/common/widgets/custom_image.dart';
+import 'package:sixam_mart/common/widgets/custom_snackbar.dart';
+import 'package:sixam_mart/common/widgets/rating_bar.dart';
 import 'package:sixam_mart/helper/auth_helper.dart';
 import 'package:sixam_mart/helper/route_helper.dart';
 import 'package:sixam_mart/util/dimensions.dart';
-import 'package:sixam_mart/features/order/widgets/track_details_view_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart' show LatLng;
 import 'package:sixam_mart/util/styles.dart';
+import 'package:url_launcher/url_launcher_string.dart';
 
 import '../../../common/widgets/loading/loading.dart';
 
@@ -100,6 +103,53 @@ class OrderTrackingScreenState extends State<OrderTrackingScreen> {
     super.dispose();
   }
 
+  // Last order status we showed an in-app banner for — prevents re-notifying the
+  // same status on every rebuild/poll.
+  String? _lastNotifiedStatus;
+
+  /// Shows an in-app banner once per real status change, with a friendly message.
+  void _maybeNotifyStatusChange(OrderModel track) {
+    final status = (track.orderStatus ?? '').toLowerCase();
+    if (status.isEmpty) return;
+    if (_lastNotifiedStatus == null) {
+      // First load — adopt current status silently (no banner on open).
+      _lastNotifiedStatus = status;
+      return;
+    }
+    if (status == _lastNotifiedStatus) return;
+    _lastNotifiedStatus = status;
+
+    final String? msg =
+        _notificationText(status, (track.deliveryMan?.fName ?? '').trim());
+    if (msg == null) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      Get.snackbar(
+        _statusTitle(status),
+        msg,
+        snackPosition: SnackPosition.TOP,
+        backgroundColor: Theme.of(context).primaryColor,
+        colorText: Colors.white,
+        margin: const EdgeInsets.all(12),
+        borderRadius: 14,
+        icon: const Icon(Icons.notifications_active, color: Colors.white),
+        duration: const Duration(seconds: 4),
+      );
+    });
+  }
+
+  bool _showOtp(OrderModel track) {
+    final s = (track.orderStatus ?? '').toLowerCase();
+    return (track.otp ?? '').isNotEmpty &&
+        track.orderType != 'take_away' &&
+        (s == 'processing' ||
+            s == 'handover' ||
+            s == 'picked_up' ||
+            s == 'on_the_way' ||
+            s == 'accepted' ||
+            s == 'confirmed');
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -109,6 +159,8 @@ class OrderTrackingScreenState extends State<OrderTrackingScreen> {
         if (track == null) {
           return const Center(child: LoadingWidget());
         }
+
+        _maybeNotifyStatusChange(track);
 
         if (track.orderType != 'parcel') {
           if (track.store?.storeBusinessModel == 'commission') {
@@ -217,13 +269,14 @@ class OrderTrackingScreenState extends State<OrderTrackingScreen> {
                         takeAway: track.orderType == 'take_away',
                       ),
                       const SizedBox(height: Dimensions.paddingSizeDefault),
+                      if (_showOtp(track))
+                        _OtpCard(otp: track.otp!),
                       if ((track.orderStatus ?? '').toLowerCase() == 'delivered')
                         _DeliveredCard(orderId: widget.orderID),
-                      TrackDetailsViewWidget(
-                        status: track.orderStatus,
+                      _DeliveryDetailsSection(
                         track: track,
-                        showChatPermission: showChatPermission,
-                        callback: () async {
+                        showChat: showChatPermission,
+                        onChat: () async {
                           _timer?.cancel();
                           await Get.toNamed(RouteHelper.getChatRoute(
                             notificationBody: NotificationBodyModel(
@@ -325,6 +378,37 @@ String _statusTitle(String status) {
       return 'order_canceled'.tr;
     default:
       return 'order_tracking'.tr;
+  }
+}
+
+/// Friendly in-app notification copy fired on each status change.
+String? _notificationText(String status, String driverName) {
+  final bool isArabic = Get.locale?.languageCode == 'ar';
+  switch (status) {
+    case 'pending':
+      return isArabic
+          ? 'تم استلام طلبك، بانتظار تأكيد المتجر'
+          : 'Order received, waiting for store confirmation';
+    case 'accepted':
+    case 'confirmed':
+      return isArabic ? 'أكّد المتجر طلبك ✅' : 'The store confirmed your order ✅';
+    case 'processing':
+      return isArabic
+          ? 'المتجر يجهّز طلبك 👨‍🍳'
+          : 'The store is preparing your order 👨‍🍳';
+    case 'handover':
+      return isArabic
+          ? '${driverName.isEmpty ? 'المندوب' : driverName} في طريقه لاستلام طلبك 🛵'
+          : '${driverName.isEmpty ? 'The courier' : driverName} is picking up your order 🛵';
+    case 'picked_up':
+    case 'on_the_way':
+      return isArabic ? 'طلبك في الطريق إليك' : 'Your order is on the way';
+    case 'delivered':
+      return isArabic
+          ? 'تم تسليم طلبك، بالهناء والشفاء 🎉 — قيّم تجربتك'
+          : 'Your order was delivered 🎉 — rate your experience';
+    default:
+      return null;
   }
 }
 
@@ -546,6 +630,305 @@ class _DeliveredCard extends StatelessWidget {
             child: Text('rate_review'.tr,
                 style: robotoBold.copyWith(
                     color: Theme.of(context).primaryColor)),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Professional delivery details: a clean driver card (avatar · name · rating ·
+/// call / chat) when a courier is assigned, a "not assigned yet" pill before,
+/// and a tidy "deliver to" address row. Replaces the cramped legacy trip-route
+/// block; the route itself is shown on the live map above.
+class _DeliveryDetailsSection extends StatelessWidget {
+  final OrderModel track;
+  final bool showChat;
+  final Future<void> Function() onChat;
+  const _DeliveryDetailsSection(
+      {required this.track, required this.showChat, required this.onChat});
+
+  bool get _takeAway => track.orderType == 'take_away';
+
+  @override
+  Widget build(BuildContext context) {
+    final driver = track.deliveryMan;
+    final bool hasDriver = driver != null;
+    final status = (track.orderStatus ?? '').toLowerCase();
+    final bool preDriver = !_takeAway &&
+        !hasDriver &&
+        status != 'delivered' &&
+        status != 'canceled';
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        if (hasDriver && !_takeAway) ...[
+          Text('delivery_man'.tr,
+              style: robotoMedium.copyWith(color: Theme.of(context).hintColor)),
+          const SizedBox(height: Dimensions.paddingSizeSmall),
+          _DriverCard(
+            name: '${driver.fName ?? ''} ${driver.lName ?? ''}'.trim(),
+            image: driver.imageFullUrl,
+            rating: driver.avgRating,
+            ratingCount: driver.ratingCount,
+            phone: driver.phone,
+            showChat: showChat,
+            onChat: onChat,
+          ),
+        ],
+        if (preDriver)
+          Container(
+            padding: const EdgeInsets.all(Dimensions.paddingSizeDefault),
+            decoration: BoxDecoration(
+              color: Theme.of(context).disabledColor.withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(Dimensions.radiusDefault),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.delivery_dining,
+                    color: Theme.of(context).hintColor, size: 22),
+                const SizedBox(width: Dimensions.paddingSizeSmall),
+                Expanded(
+                  child: Text('delivery_man_not_assigned'.tr,
+                      style: robotoMedium.copyWith(
+                          color: Theme.of(context).hintColor)),
+                ),
+              ],
+            ),
+          ),
+        const SizedBox(height: Dimensions.paddingSizeDefault),
+        // "Deliver to" address row (or pickup store for take-away).
+        _AddressRow(
+          icon: _takeAway ? Icons.storefront : Icons.location_on,
+          title: _takeAway ? 'store'.tr : 'delivery_address'.tr,
+          subtitle: _takeAway
+              ? (track.store?.address ?? '')
+              : (track.deliveryAddress?.address ?? ''),
+        ),
+      ],
+    );
+  }
+}
+
+class _DriverCard extends StatelessWidget {
+  final String name;
+  final String? image;
+  final double? rating;
+  final int? ratingCount;
+  final String? phone;
+  final bool showChat;
+  final Future<void> Function() onChat;
+  const _DriverCard({
+    required this.name,
+    required this.image,
+    required this.rating,
+    required this.ratingCount,
+    required this.phone,
+    required this.showChat,
+    required this.onChat,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(Dimensions.paddingSizeSmall),
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardColor,
+        borderRadius: BorderRadius.circular(Dimensions.radiusDefault),
+        border: Border.all(
+            color: Theme.of(context).disabledColor.withValues(alpha: 0.15)),
+      ),
+      child: Row(
+        children: [
+          ClipOval(
+            child: CustomImage(
+              image: image ?? '',
+              height: 50,
+              width: 50,
+              fit: BoxFit.cover,
+            ),
+          ),
+          const SizedBox(width: Dimensions.paddingSizeSmall),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(name.isEmpty ? 'delivery_man'.tr : name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: robotoBold),
+                const SizedBox(height: 2),
+                RatingBar(
+                    rating: rating ?? 0, size: 12, ratingCount: ratingCount),
+              ],
+            ),
+          ),
+          if (showChat)
+            _ActionButton(
+              icon: Icons.chat_bubble_outline,
+              color: Theme.of(context).primaryColor,
+              onTap: () => onChat(),
+            ),
+          if (showChat) const SizedBox(width: Dimensions.paddingSizeSmall),
+          _ActionButton(
+            icon: Icons.call,
+            color: const Color(0xFF1F7A35),
+            onTap: () async {
+              final p = phone ?? '';
+              if (p.isEmpty) return;
+              if (await canLaunchUrlString('tel:$p')) {
+                await launchUrlString('tel:$p',
+                    mode: LaunchMode.externalApplication);
+              } else {
+                showCustomSnackBar('${'can_not_launch'.tr} $p');
+              }
+            },
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ActionButton extends StatelessWidget {
+  final IconData icon;
+  final Color color;
+  final VoidCallback onTap;
+  const _ActionButton(
+      {required this.icon, required this.color, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: color.withValues(alpha: 0.12),
+      shape: const CircleBorder(),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(10),
+          child: Icon(icon, size: 20, color: color),
+        ),
+      ),
+    );
+  }
+}
+
+class _AddressRow extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  const _AddressRow(
+      {required this.icon, required this.title, required this.subtitle});
+
+  @override
+  Widget build(BuildContext context) {
+    if (subtitle.isEmpty) return const SizedBox.shrink();
+    return Container(
+      padding: const EdgeInsets.all(Dimensions.paddingSizeSmall),
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardColor,
+        borderRadius: BorderRadius.circular(Dimensions.radiusDefault),
+        border: Border.all(
+            color: Theme.of(context).disabledColor.withValues(alpha: 0.15)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: Theme.of(context).primaryColor.withValues(alpha: 0.1),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(icon, size: 18, color: Theme.of(context).primaryColor),
+          ),
+          const SizedBox(width: Dimensions.paddingSizeSmall),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title,
+                    style: robotoRegular.copyWith(
+                        fontSize: Dimensions.fontSizeSmall,
+                        color: Theme.of(context).hintColor)),
+                const SizedBox(height: 2),
+                Text(subtitle,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: robotoMedium),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Prominent delivery-code (OTP) card — a trust element the customer reads out
+/// to the courier on hand-off.
+class _OtpCard extends StatelessWidget {
+  final String otp;
+  const _OtpCard({required this.otp});
+
+  @override
+  Widget build(BuildContext context) {
+    final bool isArabic = Get.locale?.languageCode == 'ar';
+    return Container(
+      margin: const EdgeInsets.only(bottom: Dimensions.paddingSizeDefault),
+      padding: const EdgeInsets.all(Dimensions.paddingSizeDefault),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            Theme.of(context).primaryColor,
+            Theme.of(context).primaryColor.withValues(alpha: 0.78),
+          ],
+          begin: Alignment.centerRight,
+          end: Alignment.centerLeft,
+        ),
+        borderRadius: BorderRadius.circular(Dimensions.radiusDefault),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.verified_user, color: Colors.white, size: 30),
+          const SizedBox(width: Dimensions.paddingSizeSmall),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  isArabic ? 'رمز التسليم' : 'Delivery code',
+                  style: robotoBold.copyWith(color: Colors.white),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  isArabic
+                      ? 'أعطِ هذا الرمز للسائق عند الاستلام'
+                      : 'Give this code to the courier on delivery',
+                  style: robotoRegular.copyWith(
+                      color: Colors.white.withValues(alpha: 0.9),
+                      fontSize: Dimensions.fontSizeExtraSmall),
+                ),
+              ],
+            ),
+          ),
+          Container(
+            padding:
+                const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Text(
+              otp,
+              style: robotoBold.copyWith(
+                color: Theme.of(context).primaryColor,
+                fontSize: Dimensions.fontSizeExtraLarge,
+                letterSpacing: 4,
+              ),
+            ),
           ),
         ],
       ),
