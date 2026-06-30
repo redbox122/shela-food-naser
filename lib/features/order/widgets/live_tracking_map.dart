@@ -118,6 +118,26 @@ class _LiveTrackingMapState extends State<LiveTrackingMap>
   LatLng? get _driverLatLng =>
       _parse(widget.track.deliveryMan?.lat, widget.track.deliveryMan?.lng);
 
+  /// Remaining driver→customer distance in km (null when not on the way / invalid
+  /// coords / implausibly far — guards against the old 5714 km bug).
+  double? get _remainingKm {
+    if (!_onTheWay) return null;
+    final d = _driverShown ?? _driverLatLng;
+    final c = _customerLatLng;
+    if (d == null || c == null) return null;
+    const r = 6371.0;
+    final dLat = (c.latitude - d.latitude) * math.pi / 180;
+    final dLng = (c.longitude - d.longitude) * math.pi / 180;
+    final a = math.sin(dLat / 2) * math.sin(dLat / 2) +
+        math.cos(d.latitude * math.pi / 180) *
+            math.cos(c.latitude * math.pi / 180) *
+            math.sin(dLng / 2) *
+            math.sin(dLng / 2);
+    final km = r * 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a));
+    if (km <= 0 || km > 300) return null;
+    return km;
+  }
+
   // ─── rebuild on each track update ────────────────────────────────────────────
 
   void _rebuild({bool initial = false}) {
@@ -333,6 +353,14 @@ class _LiveTrackingMapState extends State<LiveTrackingMap>
                   AlwaysStoppedAnimation<Color>(Theme.of(context).primaryColor),
             ),
           ),
+        // Remaining-distance bubble over the driver ("يبعد عنك X كم").
+        if (_remainingKm != null)
+          Positioned(
+            top: MediaQuery.of(context).padding.top + 64,
+            left: 0,
+            right: 0,
+            child: Center(child: _DistanceBubble(km: _remainingKm!)),
+          ),
         // Re-centre button.
         Positioned(
           right: 12,
@@ -346,6 +374,52 @@ class _LiveTrackingMapState extends State<LiveTrackingMap>
           ),
         ),
       ],
+    );
+  }
+}
+
+/// Floating green pill showing how far the courier still is from the customer.
+class _DistanceBubble extends StatelessWidget {
+  final double km;
+  const _DistanceBubble({required this.km});
+
+  @override
+  Widget build(BuildContext context) {
+    final bool isArabic = Get.locale?.languageCode == 'ar';
+    final String dist = km < 1
+        ? '${(km * 1000).round()} ${isArabic ? 'م' : 'm'}'
+        : '${km.toStringAsFixed(1)} ${isArabic ? 'كم' : 'km'}';
+    final String label =
+        isArabic ? 'السائق يبعد عنك $dist' : 'Courier is $dist away';
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+      decoration: BoxDecoration(
+        color: Theme.of(context).primaryColor,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.18),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.delivery_dining, color: Colors.white, size: 18),
+          const SizedBox(width: 6),
+          Text(
+            label,
+            style: const TextStyle(
+              fontFamily: 'Tajawal',
+              fontWeight: FontWeight.w700,
+              fontSize: 13,
+              color: Colors.white,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

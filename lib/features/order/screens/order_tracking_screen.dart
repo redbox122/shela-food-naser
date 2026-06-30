@@ -746,6 +746,7 @@ class _DeliveryDetailsSection extends StatelessWidget {
             name: '${driver.fName ?? ''} ${driver.lName ?? ''}'.trim(),
             fallbackName: 'delivery_man'.tr,
             image: driver.imageFullUrl,
+            subtitle: driver.vehicleType,
             rating: driver.avgRating,
             ratingCount: driver.ratingCount,
             circular: true,
@@ -1012,6 +1013,7 @@ class _ContactCard extends StatelessWidget {
   final String name;
   final String fallbackName;
   final String? image;
+  final String? subtitle;
   final double? rating;
   final int? ratingCount;
   final bool circular;
@@ -1021,6 +1023,7 @@ class _ContactCard extends StatelessWidget {
     required this.name,
     required this.fallbackName,
     required this.image,
+    this.subtitle,
     required this.rating,
     required this.ratingCount,
     required this.circular,
@@ -1055,6 +1058,20 @@ class _ContactCard extends StatelessWidget {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: robotoBold),
+                if ((subtitle ?? '').isNotEmpty) ...[
+                  const SizedBox(height: 2),
+                  Row(
+                    children: [
+                      Icon(Icons.two_wheeler,
+                          size: 13, color: Theme.of(context).hintColor),
+                      const SizedBox(width: 3),
+                      Text(subtitle!,
+                          style: robotoRegular.copyWith(
+                              fontSize: Dimensions.fontSizeExtraSmall,
+                              color: Theme.of(context).hintColor)),
+                    ],
+                  ),
+                ],
                 const SizedBox(height: 2),
                 RatingBar(
                     rating: rating ?? 0, size: 12, ratingCount: ratingCount),

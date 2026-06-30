@@ -326,6 +326,7 @@ class DeliveryMan {
   String? lat;
   String? lng;
   String? location;
+  String? vehicleType;
 
   DeliveryMan({
     this.id,
@@ -342,6 +343,7 @@ class DeliveryMan {
     this.lat,
     this.lng,
     this.location,
+    this.vehicleType,
   });
 
   DeliveryMan.fromJson(Map<String, dynamic> json) {
@@ -359,6 +361,7 @@ class DeliveryMan {
     lat = json['lat']?.toString();
     lng = json['lng']?.toString();
     location = json['location']?.toString();
+    vehicleType = json['vehicle_type']?.toString();
   }
 
   Map<String, dynamic> toJson() {
@@ -377,6 +380,7 @@ class DeliveryMan {
     data['lat'] = lat;
     data['lng'] = lng;
     data['location'] = location;
+    data['vehicle_type'] = vehicleType;
     return data;
   }
 }
