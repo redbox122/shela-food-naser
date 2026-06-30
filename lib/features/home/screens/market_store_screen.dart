@@ -97,16 +97,17 @@ class _MarketStoreScreenState extends State<MarketStoreScreen> {
   bool _loading = true;
   int _activeTab = 0;
 
-  /// Key gives access to NestedScrollView's inner controller after build.
-  final GlobalKey<NestedScrollViewState> _nestedKey = GlobalKey();
+  // Single scroll controller for the whole product area.
+  final ScrollController _scrollCtrl = ScrollController();
+  final ScrollController _tabScrollCtrl = ScrollController();
 
-  /// One GlobalKey per category — used for scroll-to-section and scroll-spy.
-  List<GlobalKey> _categoryKeys = [];
+  // Key on the CustomScrollView so we can localToGlobal section positions.
+  final GlobalKey _scrollViewKey = GlobalKey();
 
-  /// Inner scroll controller cached so we can attach/detach the scroll-spy.
-  ScrollController? _innerController;
+  // One key per category section header (the Column with title + rail).
+  List<GlobalKey> _sectionKeys = [];
 
-  static const double _tabBarHeight = 46;
+  static const double _tabBarH = 48.0;
 
   List<_Category> get _resolvedCategories {
     final base =
@@ -119,64 +120,82 @@ class _MarketStoreScreenState extends State<MarketStoreScreen> {
   @override
   void initState() {
     super.initState();
+    _scrollCtrl.addListener(_onScroll);
     WidgetsBinding.instance.addPostFrameCallback((_) => _fetch());
   }
 
   @override
   void dispose() {
-    _innerController?.removeListener(_onInnerScroll);
+    _scrollCtrl
+      ..removeListener(_onScroll)
+      ..dispose();
+    _tabScrollCtrl.dispose();
     super.dispose();
   }
 
-  void _attachScrollListener() {
-    final inner = _nestedKey.currentState?.innerController;
-    if (inner == null || inner == _innerController) return;
-    _innerController?.removeListener(_onInnerScroll);
-    _innerController = inner;
-    _innerController!.addListener(_onInnerScroll);
-  }
+  // ── Scroll-spy ──────────────────────────────────────────────────────────────
 
-  void _onInnerScroll() {
-    if (_categoryKeys.isEmpty) return;
-    final inner = _innerController;
-    if (inner == null || !inner.hasClients) return;
-    final scrollBox = inner.position.context.notificationContext
-        ?.findRenderObject() as RenderBox?;
-    if (scrollBox == null) return;
+  void _onScroll() {
+    if (_sectionKeys.isEmpty || !_scrollCtrl.hasClients) return;
+    final scrollBox = _scrollViewKey.currentContext?.findRenderObject();
+    if (scrollBox is! RenderBox) return;
+
     int newActive = 0;
-    for (int i = 0; i < _categoryKeys.length; i++) {
-      final box =
-          _categoryKeys[i].currentContext?.findRenderObject() as RenderBox?;
-      if (box == null) continue;
-      final y = inner.offset +
-          box.localToGlobal(Offset.zero, ancestor: scrollBox).dy;
-      if (y <= inner.offset + 48) {
+    for (int i = 0; i < _sectionKeys.length; i++) {
+      final box = _sectionKeys[i].currentContext?.findRenderObject();
+      if (box is! RenderBox) continue;
+      // dy = visual Y of the section header within the scroll view's frame.
+      final dy = box.localToGlobal(Offset.zero, ancestor: scrollBox).dy;
+      if (dy <= _tabBarH + 2) {
         newActive = i;
       } else {
-        break;
+        break; // sections are in order; stop when one is still below the bar.
       }
     }
-    if (newActive != _activeTab) setState(() => _activeTab = newActive);
+
+    if (newActive != _activeTab) {
+      setState(() => _activeTab = newActive);
+      _scrollTabIntoView(newActive);
+    }
   }
 
-  void _selectTab(int i) {
+  void _scrollTabIntoView(int i) {
+    if (!_tabScrollCtrl.hasClients) return;
+    const double estTabW = 100.0;
+    final double maxExt = _tabScrollCtrl.position.maxScrollExtent;
+    if (maxExt <= 0) return;
+    final double viewport = _tabScrollCtrl.position.viewportDimension;
+    final double target =
+        (i * estTabW - viewport / 2 + estTabW / 2).clamp(0.0, maxExt);
+    _tabScrollCtrl.animateTo(target,
+        duration: const Duration(milliseconds: 200), curve: Curves.easeOut);
+  }
+
+  // ── Tab tap → animated scroll to that section ───────────────────────────────
+
+  void _onTabTap(int i) {
     setState(() => _activeTab = i);
-    if (i >= _categoryKeys.length) return;
+    _scrollTabIntoView(i);
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      final inner = _nestedKey.currentState?.innerController;
-      if (inner == null || !inner.hasClients) return;
-      final box =
-          _categoryKeys[i].currentContext?.findRenderObject() as RenderBox?;
-      if (box == null) return;
-      final scrollBox = inner.position.context.notificationContext
-          ?.findRenderObject() as RenderBox?;
-      if (scrollBox == null) return;
-      final localY = box.localToGlobal(Offset.zero, ancestor: scrollBox).dy;
-      final target =
-          (inner.offset + localY).clamp(0.0, inner.position.maxScrollExtent);
-      inner.animateTo(target,
+      if (!_scrollCtrl.hasClients || i >= _sectionKeys.length) return;
+      final scrollBox = _scrollViewKey.currentContext?.findRenderObject();
+      if (scrollBox is! RenderBox) return;
+      final box = _sectionKeys[i].currentContext?.findRenderObject();
+      if (box is! RenderBox) return;
+      // Current visual dy of the section → compute target scroll offset.
+      final dy = box.localToGlobal(Offset.zero, ancestor: scrollBox).dy;
+      final target = (_scrollCtrl.offset + dy - _tabBarH)
+          .clamp(0.0, _scrollCtrl.position.maxScrollExtent);
+      _scrollCtrl.animateTo(target,
           duration: const Duration(milliseconds: 350), curve: Curves.easeOut);
     });
+  }
+
+  // ── Data fetch ──────────────────────────────────────────────────────────────
+
+  void _initSectionKeys(int n) {
+    if (_sectionKeys.length == n) return;
+    _sectionKeys = List.generate(n, (i) => GlobalKey(debugLabel: 'sec_$i'));
   }
 
   Future<void> _fetch() async {
@@ -220,16 +239,16 @@ class _MarketStoreScreenState extends State<MarketStoreScreen> {
             ? _StoreDetail.fromJson(Map<String, dynamic>.from(detailBody))
             : null;
         _categories = parsed;
-        _categoryKeys = List.generate(parsed.length, (_) => GlobalKey());
         _storeModuleId = storeModule;
         _loading = false;
       });
-      // Attach scroll-spy once NestedScrollView has built its inner controller.
-      WidgetsBinding.instance.addPostFrameCallback((_) => _attachScrollListener());
+      _initSectionKeys(_resolvedCategories.length);
     } catch (_) {
       if (mounted) setState(() => _loading = false);
     }
   }
+
+  // ── Build ────────────────────────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
@@ -237,160 +256,98 @@ class _MarketStoreScreenState extends State<MarketStoreScreen> {
     final cats = _resolvedCategories;
     final int sel = cats.isEmpty ? 0 : _activeTab.clamp(0, cats.length - 1);
     final int effectiveModule = _storeModuleId ?? widget.moduleId;
+    final String title = widget.isHyperStorefront
+        ? 'hyper_market_shella'.tr
+        : (d?.name ?? widget.name ?? '');
 
-    return Scaffold(
-      backgroundColor: const Color(0xFFFFFFFF),
-      bottomNavigationBar:
-          widget.useCoverHeader ? null : const _StoreBottomNav(),
-      body: Stack(
-        children: [
-          NestedScrollView(
-            key: _nestedKey,
-            physics: const AlwaysScrollableScrollPhysics(),
-            headerSliverBuilder: (ctx, _) => _buildHeaderSlivers(
-                d, cats, sel, effectiveModule),
-            body: _buildBody(d, cats, sel, effectiveModule),
+    if (!_loading) _initSectionKeys(cats.length);
+
+    // Slivers for the CustomScrollView body.
+    List<Widget> slivers = [];
+
+    // Cover-store header scrolls away as first sliver (both cases).
+    if (widget.useCoverHeader) {
+      slivers.add(SliverToBoxAdapter(
+        child: _StoreCoverPanel(
+          logo: d?.logo ?? widget.logo,
+          cover: d?.cover ?? widget.cover,
+          description: d?.description,
+          rating: d?.rating ?? widget.rating,
+          freeDelivery: d?.freeDelivery ?? widget.freeDelivery,
+          deliveryTime: d?.deliveryTime ?? widget.deliveryTime,
+          distance: (d?.distance != null && d!.distance! > 0)
+              ? d.distance
+              : (widget.distance > 0 ? widget.distance : null),
+        ),
+      ));
+    }
+
+    // Pinned tab bar — sticks once the cover (if any) scrolls away.
+    if (!_loading && cats.isNotEmpty) {
+      slivers.add(SliverPersistentHeader(
+        pinned: true,
+        delegate: _TabBarDelegate(
+          categories: cats,
+          activeIndex: sel,
+          onTap: _onTabTap,
+          tabScrollCtrl: _tabScrollCtrl,
+        ),
+      ));
+    }
+
+    // Category product sections.
+    if (!_loading && cats.isNotEmpty) {
+      for (int i = 0; i < cats.length; i++) {
+        slivers.add(SliverToBoxAdapter(
+          child: _CategorySection(
+            key: _sectionKeys[i],
+            category: cats[i],
+            storeId: widget.storeId ?? 0,
+            moduleId: effectiveModule,
+            storeName: d?.name ?? widget.name,
+            storeLogo: d?.logo ?? widget.logo,
+            storeCover: d?.cover ?? widget.cover,
           ),
-          if (widget.useCoverHeader)
-            const Align(
-              alignment: Alignment.centerRight,
-              child: _StoreCartFab(),
-            ),
+        ));
+      }
+      slivers.add(const SliverToBoxAdapter(child: SizedBox(height: 60)));
+    }
+
+    final Widget scrollArea = _loading
+        ? const SingleChildScrollView(child: _BodySkeleton())
+        : CustomScrollView(
+            key: _scrollViewKey,
+            controller: _scrollCtrl,
+            physics: const BouncingScrollPhysics(),
+            slivers: slivers,
+          );
+
+    // Both cover and non-cover use the same slim fixed header at the top
+    // (back button + store name + search). Only the area below differs:
+    // cover stores show the cover panel as first scrollable sliver.
+    return Scaffold(
+      backgroundColor: Colors.white,
+      // Cover-header stores show the sticky cart bar (real-time, hidden when
+      // empty); the rest keep their bottom navigation.
+      bottomNavigationBar: widget.useCoverHeader
+          ? _StoreStickyCartBar(
+              freeDelivery: _detail?.freeDelivery ?? widget.freeDelivery)
+          : const _StoreBottomNav(),
+      body: Column(
+        children: [
+          _MarketTopHeader(
+            title: title,
+            storeId: widget.storeId,
+            moduleId: effectiveModule,
+          ),
+          if (!widget.useCoverHeader) ...[
+            const HomeTopNoticeStrip(),
+            if (widget.isHyperStorefront)
+              MarketBannerSection(moduleId: widget.moduleId),
+          ],
+          Expanded(child: scrollArea),
         ],
       ),
     );
-  }
-
-  List<Widget> _buildHeaderSlivers(
-      _StoreDetail? d, List<_Category> cats, int sel, int effectiveModule) {
-    return [
-      if (widget.useCoverHeader)
-        SliverToBoxAdapter(
-          child: _StoreHeader(
-            name: d?.name ?? widget.name,
-            logo: d?.logo ?? widget.logo,
-            cover: d?.cover ?? widget.cover,
-            description: d?.description,
-            rating: d?.rating ?? widget.rating,
-            freeDelivery: d?.freeDelivery ?? widget.freeDelivery,
-            deliveryTime: d?.deliveryTime ?? widget.deliveryTime,
-            distance: (d?.distance != null && d!.distance! > 0)
-                ? d.distance
-                : (widget.distance > 0 ? widget.distance : null),
-            storeId: widget.storeId,
-            moduleId: effectiveModule,
-          ),
-        )
-      else ...[
-        SliverToBoxAdapter(
-          child: _MarketTopHeader(
-            title: widget.isHyperStorefront
-                ? 'hyper_market_shella'.tr
-                : (d?.name ?? widget.name ?? ''),
-            storeId: widget.storeId,
-            moduleId: effectiveModule,
-          ),
-        ),
-        const SliverToBoxAdapter(child: HomeTopNoticeStrip()),
-      ],
-      if (widget.isHyperStorefront)
-        SliverToBoxAdapter(
-          child: MarketBannerSection(moduleId: widget.moduleId),
-        ),
-      if (!_loading && d != null) ...[
-        if (cats.isNotEmpty && widget.isHyperStorefront)
-          SliverToBoxAdapter(
-            child: _CategoriesGrid(
-              categories: cats,
-              storeId: widget.storeId,
-              moduleId: effectiveModule,
-              storeCover: d.cover ?? widget.cover,
-            ),
-          ),
-        // Pinned tab bar for non-hyper stores. NestedScrollView guarantees
-        // the outer scroll can always travel the full header height, so the
-        // tab bar reliably pins at the top even with a short product list.
-        if (cats.isNotEmpty && !widget.isHyperStorefront)
-          SliverPersistentHeader(
-            pinned: true,
-            delegate: _CategoryTabsDelegate(
-              categories: cats,
-              activeIndex: sel,
-              height: _tabBarHeight,
-              onTap: _selectTab,
-            ),
-          ),
-      ],
-    ];
-  }
-
-  Widget _buildBody(
-      _StoreDetail? d, List<_Category> cats, int sel, int effectiveModule) {
-    if (_loading) {
-      return const SingleChildScrollView(child: _BodySkeleton());
-    }
-    if (d == null) return const SizedBox.shrink();
-
-    // Hyper market: all categories stacked (scrolled inside the body).
-    if (widget.isHyperStorefront) {
-      return CustomScrollView(
-        slivers: [
-          ...cats.map((cat) => SliverToBoxAdapter(
-                child: _CategoryRail(
-                  storeId: widget.storeId ?? 0,
-                  moduleId: effectiveModule,
-                  category: cat,
-                  storeName: d.name ?? widget.name,
-                  storeLogo: d.logo ?? widget.logo,
-                  storeCover: d.cover ?? widget.cover,
-                ),
-              )),
-          const SliverToBoxAdapter(
-              child: SizedBox(height: Dimensions.paddingSizeLarge)),
-        ],
-      );
-    }
-
-    // Non-hyper: all categories stacked for continuous scroll.
-    // GlobalKey on each SliverToBoxAdapter lets _selectTab scroll to the
-    // right section and _onInnerScroll drive the active tab highlight.
-    if (cats.isNotEmpty) {
-      return CustomScrollView(
-        slivers: [
-          ...List.generate(cats.length, (i) => SliverToBoxAdapter(
-            key: i < _categoryKeys.length ? _categoryKeys[i] : null,
-            child: _CategoryRail(
-              storeId: widget.storeId ?? 0,
-              moduleId: effectiveModule,
-              category: cats[i],
-              storeName: d.name ?? widget.name,
-              storeLogo: d.logo ?? widget.logo,
-              storeCover: d.cover ?? widget.cover,
-              hideSeeMore: true,
-            ),
-          )),
-          const SliverToBoxAdapter(
-              child: SizedBox(height: Dimensions.paddingSizeLarge)),
-        ],
-      );
-    }
-
-    // Fallback: no categories list — show the single embedded section.
-    if (d.categoryProducts.isNotEmpty) {
-      return SingleChildScrollView(
-        child: _ProductSection(
-          title: d.categoryName ?? '',
-          products: d.categoryProducts,
-          storeId: widget.storeId,
-          moduleId: widget.moduleId,
-          categoryId: d.categoryId,
-          storeName: d.name ?? widget.name,
-          storeLogo: d.logo ?? widget.logo,
-          storeCover: d.cover ?? widget.cover,
-        ),
-      );
-    }
-
-    return const SizedBox.shrink();
   }
 }
