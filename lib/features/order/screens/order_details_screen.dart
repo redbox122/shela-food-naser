@@ -19,6 +19,7 @@ import 'package:sixam_mart/helper/route_helper.dart';
 import 'package:sixam_mart/util/dimensions.dart';
 import 'package:sixam_mart/util/images.dart';
 import 'package:sixam_mart/util/styles.dart';
+import 'package:sixam_mart/common/widgets/card_design/store_list_card.dart';
 import 'package:sixam_mart/common/widgets/confirmation_dialog.dart';
 import 'package:sixam_mart/common/widgets/custom_button.dart';
 import 'package:sixam_mart/common/widgets/custom_image.dart';
@@ -31,9 +32,8 @@ import 'package:sixam_mart/features/order/widgets/cancellation_dialogue_widget.d
 import 'package:sixam_mart/features/order/widgets/order_info_widget.dart';
 import 'package:sixam_mart/features/order/widgets/order_details_redesign_view.dart';
 import 'package:sixam_mart/features/item/domain/models/item_model.dart';
-import 'package:sixam_mart/features/store/domain/models/store_model.dart';
+import 'package:sixam_mart/features/home/screens/market_store_screen.dart';
 import 'package:sixam_mart/features/store/controllers/store_controller.dart';
-import 'package:sixam_mart/features/store/screens/store_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
@@ -1079,7 +1079,8 @@ class OrderDetailsScreenState extends State<OrderDetailsScreen> {
                   final store = stores[index];
                   return _buildAlternativeStoreTile(store);
                 },
-                separatorBuilder: (_, __) => const Divider(height: 1),
+                separatorBuilder: (_, __) =>
+                    const SizedBox(height: Dimensions.paddingSizeSmall),
                 itemCount: stores.length,
               ),
           ],
@@ -1381,7 +1382,6 @@ class OrderDetailsScreenState extends State<OrderDetailsScreen> {
         int.tryParse('${store['id'] ?? store['store_id'] ?? ''}');
     final String name =
         '${store['name'] ?? store['store_name'] ?? ''}'.trim();
-    final String address = '${store['address'] ?? ''}'.trim();
     final String? logoUrl = _firstNonEmptyString(<dynamic>[
       store['logo_full_url'],
       store['logoFullUrl'],
@@ -1393,46 +1393,47 @@ class OrderDetailsScreenState extends State<OrderDetailsScreen> {
       store['cover_photo'],
     ]);
 
-    final ThemeData theme = Theme.of(context);
-    final Widget thumbnail = ClipRRect(
-      borderRadius: BorderRadius.circular(Dimensions.radiusSmall),
-      child: SizedBox(
-        width: 44,
-        height: 44,
-        child: logoUrl == null
-            ? _buildAlternativePlaceholder(theme)
-            : CustomImage(
-                image: logoUrl,
-                width: 44,
-                height: 44,
-                errorWidget: _buildAlternativePlaceholder(theme),
-              ),
-      ),
-    );
+    double toDouble(dynamic v) =>
+        v == null ? 0 : (double.tryParse('$v') ?? 0);
+    bool toBool(dynamic v) =>
+        v == true || v == 1 || v == '1' || v == 'true';
 
-    return ListTile(
-      contentPadding: EdgeInsets.zero,
-      leading: thumbnail,
-      title: Text(name.isEmpty ? '#${storeId ?? ''}' : name,
-          maxLines: 1, overflow: TextOverflow.ellipsis),
-      subtitle: address.isEmpty
-          ? null
-          : Text(address, maxLines: 1, overflow: TextOverflow.ellipsis),
-      trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+    final double rating = toDouble(store['avg_rating'] ?? store['rating']);
+    final double distance =
+        toDouble(store['distance'] ?? store['distance_metres']);
+    final bool freeDelivery = toBool(store['free_delivery']);
+    final String? deliveryTime =
+        '${store['delivery_time'] ?? ''}'.trim().isEmpty
+            ? null
+            : '${store['delivery_time']}';
+
+    // Unified store card (same design as every other store list in the app).
+    return StoreListCard(
+      name: name.isEmpty ? '#${storeId ?? ''}' : name,
+      logo: logoUrl,
+      rating: rating,
+      distanceMetres: distance,
+      deliveryTime: deliveryTime,
+      freeDelivery: freeDelivery,
       onTap: storeId == null
           ? null
           : () {
               final int? targetModuleId = int.tryParse(
                 '${store['module_id'] ?? store['moduleId'] ?? ''}',
               );
-              Get.toNamed(
-                RouteHelper.getStoreRoute(id: storeId, page: 'store'),
-                arguments: StoreScreen(
-                  store: Store(
-                    id: storeId,
-                    moduleId: targetModuleId,
-                  ),
-                  fromModule: false,
+              // Open the SAME unified storefront the rest of the app uses, so
+              // the store page looks identical no matter where it was opened.
+              Get.to<void>(
+                () => MarketStoreScreen(
+                  storeId: storeId,
+                  moduleId: targetModuleId ?? 3,
+                  name: name.isEmpty ? null : name,
+                  logo: logoUrl,
+                  rating: rating,
+                  freeDelivery: freeDelivery,
+                  deliveryTime: deliveryTime,
+                  distance: distance,
+                  useCoverHeader: true,
                 ),
               );
             },

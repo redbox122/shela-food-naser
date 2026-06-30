@@ -2,13 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:skeletonizer/skeletonizer.dart';
 import 'package:sixam_mart/api/api_client.dart';
-import 'package:sixam_mart/common/widgets/custom_image.dart';
+import 'package:sixam_mart/common/widgets/card_design/store_list_card.dart';
 import 'package:sixam_mart/features/home/screens/market_store_screen.dart';
 import 'package:sixam_mart/features/home/widgets/market/market_store_filters.dart';
 import 'package:sixam_mart/helper/address_helper.dart';
 import 'package:sixam_mart/util/app_constants.dart';
 import 'package:sixam_mart/util/dimensions.dart';
-import 'package:sixam_mart/util/images.dart';
 
 /// 🎨 REDESIGN (Market): "المتاجر" — store cards list.
 ///
@@ -389,9 +388,19 @@ class _StoreCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final radius = BorderRadius.circular(Dimensions.radiusLarge);
-    return InkWell(
-      borderRadius: radius,
+    // Unified store card — one design shared across the whole app.
+    return StoreListCard(
+      name: store.name,
+      logo: store.logo,
+      rating: store.rating,
+      distanceMetres: store.distance,
+      deliveryTime: store.deliveryTime,
+      freeDelivery: store.freeDelivery,
+      qidha: store.qidha,
+      hasOffer: store.hasOffer,
+      discountValue: store.discountValue,
+      discountType: store.discountType,
+      minPurchase: store.minPurchase,
       onTap: () => Get.to<void>(
         () => MarketStoreScreen(
           storeId: store.id,
@@ -404,271 +413,6 @@ class _StoreCard extends StatelessWidget {
           distance: store.distance,
           useCoverHeader: coverHeader,
         ),
-      ),
-      child: Container(
-        padding: const EdgeInsets.all(Dimensions.paddingSizeSmall),
-        decoration: BoxDecoration(
-          color: Theme.of(context).cardColor,
-          borderRadius: radius,
-          boxShadow: [
-            BoxShadow(
-              color: Theme.of(context).shadowColor.withValues(alpha: 0.06),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        // RTL row: logo square leads on the right, info on the left.
-        child: Row(
-          textDirection: TextDirection.rtl,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            ClipRRect(
-              borderRadius: BorderRadius.circular(8),
-              child: CustomImage(
-                image: store.logo ?? '',
-                width: 90,
-                height: 90,
-                fit: BoxFit.cover,
-                placeholder: Images.placeholder,
-              ),
-            ),
-            const SizedBox(width: Dimensions.paddingSizeSmall),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Name (own line, right-aligned).
-                  SizedBox(
-                    width: double.infinity,
-                    child: Text(
-                      store.name ?? '',
-                      textAlign: TextAlign.right,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontFamily: 'Tajawal',
-                        fontWeight: FontWeight.w700,
-                        fontSize: 15,
-                        height: 1.3,
-                        color: Color(0xFF121C19),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  // Rating + distance badges side by side (distance is shown
-                  // as a prominent green pill so it reads clearly).
-                  Align(
-                    alignment: Alignment.centerRight,
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        // Rating badge.
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 8, vertical: 3),
-                          decoration: const BoxDecoration(
-                            color: Color(0xFFE7F7EA),
-                            borderRadius: BorderRadius.only(
-                              topRight: Radius.circular(10),
-                              bottomLeft: Radius.circular(10),
-                            ),
-                          ),
-                          child: Row(
-                            textDirection: TextDirection.ltr,
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Text(
-                                store.rating.toStringAsFixed(1),
-                                style: const TextStyle(
-                                  fontFamily: 'Tajawal',
-                                  fontWeight: FontWeight.w700,
-                                  fontSize: 13,
-                                ),
-                              ),
-                              const SizedBox(width: 2),
-                              Image.asset(
-                                Images.star_v2,
-                                width: 12,
-                                height: 12,
-                                errorBuilder: (_, __, ___) =>
-                                    const Icon(Icons.star, size: 12),
-                              ),
-                            ],
-                          ),
-                        ),
-                        // Distance badge — filled Shella-green pill, clearly
-                        // visible (e.g. "3.5 كم").
-                        if (_distanceText(store.distance) != null) ...[
-                          const SizedBox(width: 6),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 8, vertical: 3),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFF30913F),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                const Icon(Icons.location_on,
-                                    size: 13, color: Colors.white),
-                                const SizedBox(width: 2),
-                                Text(
-                                  _distanceText(store.distance)!,
-                                  style: const TextStyle(
-                                    fontFamily: 'Tajawal',
-                                    fontWeight: FontWeight.w700,
-                                    fontSize: 12,
-                                    color: Colors.white,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
-                  // Delivery time only (no delivery-fee/truck icon) — clean,
-                  // clear: ⏱ "20 - 40 دقيقة".
-                  if (store.deliveryTime != null &&
-                      store.deliveryTime!.isNotEmpty) ...[
-                    const SizedBox(height: 6),
-                    Row(
-                      children: [
-                        Image.asset(
-                          Images.time_v2,
-                          width: 15,
-                          height: 15,
-                          errorBuilder: (_, __, ___) => Icon(
-                            Icons.access_time,
-                            size: 15,
-                            color: Theme.of(context).hintColor,
-                          ),
-                        ),
-                        const SizedBox(width: 4),
-                        Flexible(
-                          child: Text(
-                            '${store.deliveryTime!} دقيقة',
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            softWrap: false,
-                            style: const TextStyle(
-                              fontFamily: 'Tajawal',
-                              fontWeight: FontWeight.w500,
-                              fontSize: 12,
-                              color: Color(0xFF717885),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                  const SizedBox(height: 8),
-                  // Badges.
-                  Wrap(
-                    spacing: 6,
-                    runSpacing: 6,
-                    children: [
-                      if (store.qidha)
-                        _Badge(
-                          label: 'qidha_system'.tr,
-                          bg: const Color(0xFFE7F7EA),
-                          fg: const Color(0xFF1F7A35),
-                          icon: Icons.verified_user_outlined,
-                        ),
-                      if (store.freeDelivery)
-                        _Badge(
-                          label: 'free_delivery'.tr,
-                          bg: const Color(0xFFE7F7EA),
-                          fg: const Color(0xFF1F7A35),
-                        ),
-                      if (store.discountValue > 0)
-                        _Badge(
-                          label: _discountLabel(store),
-                          bg: const Color(0xFFF1ECFF),
-                          fg: const Color(0xFF6B4FBB),
-                        )
-                      else if (store.hasOffer)
-                        _Badge(
-                          label: 'offers'.tr,
-                          bg: const Color(0xFFF1ECFF),
-                          fg: const Color(0xFF6B4FBB),
-                        ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  String _fmt(double v) =>
-      v == v.roundToDouble() ? v.toStringAsFixed(0) : v.toStringAsFixed(2);
-
-  /// Distance label from metres: under 1 km → "800 م", otherwise "1.2 كم".
-  /// Returns null when unknown (0 / no coordinates) so nothing is shown.
-  String? _distanceText(double metres) {
-    if (metres <= 0) return null;
-    if (metres < 1000) return '${metres.round()} م';
-    return '${(metres / 1000).toStringAsFixed(1)} كم';
-  }
-
-  /// "خصم 45% على 250" (percent) or "خصم 45 على 250" (amount). The "على {min}"
-  /// part is dropped when there is no minimum purchase.
-  String _discountLabel(_Store store) {
-    final value = _fmt(store.discountValue);
-    final suffix = store.discountType == 'percent' ? '%' : '';
-    final base = '${'discount_label'.tr} $value$suffix';
-    if (store.minPurchase > 0) {
-      return '$base ${'on'.tr} ${_fmt(store.minPurchase)}';
-    }
-    return base;
-  }
-}
-
-class _Badge extends StatelessWidget {
-  final String label;
-  final Color bg;
-  final Color fg;
-  final IconData? icon;
-
-  const _Badge({
-    required this.label,
-    required this.bg,
-    required this.fg,
-    this.icon,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-      decoration: BoxDecoration(
-        color: bg,
-        borderRadius: BorderRadius.circular(Dimensions.radiusSmall),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          if (icon != null) ...[
-            Icon(icon, size: 12, color: fg),
-            const SizedBox(width: 3),
-          ],
-          Text(
-            label,
-            style: TextStyle(
-              fontFamily: 'Tajawal',
-              fontWeight: FontWeight.w500,
-              fontSize: 11,
-              color: fg,
-            ),
-          ),
-        ],
       ),
     );
   }
