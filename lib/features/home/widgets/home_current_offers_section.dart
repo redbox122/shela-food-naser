@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:skeletonizer/skeletonizer.dart';
@@ -17,7 +19,12 @@ class HomeCurrentOffersSection extends StatefulWidget {
   /// Null → aggregate offers across all modules (multi-module home).
   final int? moduleId;
 
-  const HomeCurrentOffersSection({super.key, this.moduleId});
+  /// When true, the rail auto-scrolls every 10s, sliding right→left then
+  /// left→right (used on the home, where all sections' offers are shown).
+  final bool autoScroll;
+
+  const HomeCurrentOffersSection(
+      {super.key, this.moduleId, this.autoScroll = false});
 
   static const double _railHeight = 152;
   static const double _cardWidth = 155.5;
@@ -36,10 +43,26 @@ class _HomeCurrentOffersSectionState extends State<HomeCurrentOffersSection> {
   /// itself is a horizontal strip the user swipes to reveal more.
   static const int _collapsedCount = 3;
 
+  /// Drives the auto-scroll animation and stays attached to the rail.
+  final ScrollController _scrollController = ScrollController();
+
+  /// Periodic timer advancing the rail when [widget.autoScroll] is on.
+  Timer? _autoScrollTimer;
+
+  /// Current auto-scroll direction (toggles at each edge): true = right→left.
+  bool _autoScrollForward = true;
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) => _fetch());
+  }
+
+  @override
+  void dispose() {
+    _autoScrollTimer?.cancel();
+    _scrollController.dispose();
+    super.dispose();
   }
 
   Future<void> _fetch() async {
@@ -51,6 +74,35 @@ class _HomeCurrentOffersSectionState extends State<HomeCurrentOffersSection> {
       // alternates restaurants/cafés/markets/hyper instead of one section's run.
       _ordered = widget.moduleId == null ? _diversify(all) : all;
       _loading = false;
+    });
+    if (widget.autoScroll && _ordered.length > 1) _startAutoScroll();
+  }
+
+  /// Every 10s slide one card; reverse direction at each end so the rail loops
+  /// right→left then left→right (و العكس).
+  void _startAutoScroll() {
+    _autoScrollTimer?.cancel();
+    _autoScrollTimer =
+        Timer.periodic(const Duration(seconds: 10), (_) {
+      if (!mounted || !_scrollController.hasClients) return;
+      final ScrollPosition pos = _scrollController.position;
+      // Step ≈ one card; flip direction when reaching either edge.
+      const double step =
+          HomeCurrentOffersSection._cardWidth + 8;
+      double target =
+          _scrollController.offset + (_autoScrollForward ? step : -step);
+      if (target >= pos.maxScrollExtent) {
+        target = pos.maxScrollExtent;
+        _autoScrollForward = false;
+      } else if (target <= pos.minScrollExtent) {
+        target = pos.minScrollExtent;
+        _autoScrollForward = true;
+      }
+      _scrollController.animateTo(
+        target,
+        duration: const Duration(milliseconds: 800),
+        curve: Curves.easeInOut,
+      );
     });
   }
 
@@ -131,6 +183,7 @@ class _HomeCurrentOffersSectionState extends State<HomeCurrentOffersSection> {
             child: _loading
                 ? _buildSkeleton(context)
                 : ListView.separated(
+                    controller: widget.autoScroll ? _scrollController : null,
                     scrollDirection: Axis.horizontal,
                     physics: const BouncingScrollPhysics(),
                     padding: const EdgeInsets.symmetric(

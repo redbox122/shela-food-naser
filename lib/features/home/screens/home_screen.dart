@@ -12,7 +12,6 @@ import 'package:sixam_mart/features/home/widgets/home_top_notice_strip.dart';
 import 'package:sixam_mart/features/home/widgets/home_header.dart';
 import 'package:sixam_mart/features/home/widgets/home_services_grid.dart';
 import 'package:sixam_mart/features/home/widgets/home_current_offers_section.dart';
-import 'package:sixam_mart/features/home/widgets/home_discover_banner_view.dart';
 import 'package:sixam_mart/features/home/widgets/home_reorder_section.dart';
 import 'package:sixam_mart/features/home/widgets/akhdamni/akhdamni_flow_section.dart';
 import 'package:sixam_mart/features/home/widgets/shop_home_skeleton.dart';
@@ -445,15 +444,15 @@ class _HomeScreenState extends State<HomeScreen> {
                                     child: HomeServicesGrid(),
                                   ),
 
-                                  // 🎨 REDESIGN: "العروض الحالية" offers rail
+                                  // 🎨 REDESIGN: "العروض الحالية" offers rail —
+                                  // all sections, auto-scrolls back and forth.
                                   const SliverToBoxAdapter(
-                                    child: HomeCurrentOffersSection(),
+                                    child: HomeCurrentOffersSection(
+                                      autoScroll: true,
+                                    ),
                                   ),
 
-                                  // 🎨 REDESIGN: "اكتشف خدمات أكثر" promo banner (343×96)
-                                  const SliverToBoxAdapter(
-                                    child: HomeDiscoverBannerView(),
-                                  ),
+                                  // "اكتشف خدمات أكثر" promo banner removed.
 
                                   // 🎨 REDESIGN: "أعد طلبك" recent orders
                                   const SliverToBoxAdapter(
