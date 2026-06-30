@@ -7,6 +7,7 @@ import 'package:sixam_mart/features/home/widgets/market/market_banner_section.da
 import 'package:sixam_mart/features/home/widgets/market/market_brands_section.dart';
 import 'package:sixam_mart/features/home/widgets/market/market_categories_section.dart';
 import 'package:sixam_mart/features/home/widgets/market/market_stores_section.dart';
+import 'package:sixam_mart/common/widgets/module_cart_fab.dart';
 import 'package:sixam_mart/util/dimensions.dart';
 import 'package:sixam_mart/util/images.dart';
 
@@ -64,6 +65,9 @@ class _NeighborhoodMarketsScreenState extends State<NeighborhoodMarketsScreen> {
 
     return Scaffold(
       backgroundColor: const Color(0xFFFFFFFF),
+      // Floating cart visible across every module storefront.
+      floatingActionButton: const ModuleCartFab(),
+      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
       body: Column(
         children: [
           _Header(title: widget.title, moduleId: moduleId),
