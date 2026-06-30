@@ -8,6 +8,14 @@ import 'package:sixam_mart/util/app_constants.dart';
 /// home rail ([HomeCurrentOffersSection]) and the full-screen list
 /// ([CurrentOffersScreen]). Wired to `GET /api/v2/stores/offers` (cross-module).
 class OfferItem {
+  /// Backend product id of the discounted item (from `item_id`/`id`). Drives the
+  /// quick-add (+) button on the offer card — null when the payload omits it.
+  final int? itemId;
+
+  /// True when the item has variations/options (from `has_variations`). The (+)
+  /// button opens the product detail page (to complete required options) instead
+  /// of adding directly to the cart.
+  final bool hasVariations;
   final int? storeId;
   final String? storeName;
   final String? storeLogo;
@@ -34,6 +42,8 @@ class OfferItem {
   final List<int> categoryIds;
 
   OfferItem({
+    this.itemId,
+    this.hasVariations = false,
     this.storeId,
     this.storeName,
     this.storeLogo,
@@ -75,6 +85,8 @@ class OfferItem {
   }
 
   factory OfferItem.fromJson(Map<String, dynamic> j) => OfferItem(
+        itemId: _toInt(j['item_id'] ?? j['id'] ?? j['product_id']),
+        hasVariations: _toBool(j['has_variations'] ?? j['has_options']),
         storeId: _toInt(j['store_id']),
         storeName: j['store_name']?.toString(),
         storeLogo:
