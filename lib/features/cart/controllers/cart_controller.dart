@@ -1442,15 +1442,11 @@ class CartController extends GetxController implements GetxService {
         return true;
       }
 
-      if (currentCartModuleId != null &&
-          moduleId != null &&
-          moduleId != currentCartModuleId) {
-        if (kDebugMode) {
-          debugPrint('   -> DIFFERENT MODULE: $moduleId != $currentCartModuleId');
-        }
-        return true;
-      }
-
+      // Same store id ⇒ same store, so the cart must NOT be cleared even if the
+      // caller passed a different moduleId. A store belongs to one module; the
+      // mismatch is just an inconsistent caller (e.g. the storefront opened with
+      // the default market module). Clearing here wrongly emptied the cart when
+      // adding a second item from the same store.
       if (kDebugMode) {
         debugPrint('   -> SAME STORE: $effectiveNewStoreId == $currentCartStoreId');
       }
