@@ -1,6 +1,7 @@
 // Kept-but-unused helper tiles (_ViewMoreTile / _SeeAllProductsScreen) retain
 // their params for later reuse.
 // ignore_for_file: unused_element_parameter, unused_element
+import 'dart:convert';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -198,12 +199,56 @@ class _MarketStoreScreenState extends State<MarketStoreScreen> {
     _sectionKeys = List.generate(n, (i) => GlobalKey(debugLabel: 'sec_$i'));
   }
 
+  // Cache keys for this store's header + categories (stale-while-revalidate).
+  String get _cacheKey => 'mss_${widget.moduleId}_${widget.storeId}';
+
+  /// Parses a raw categories payload (list / {data} / {categories}) into models.
+  List<_Category> _parseCats(dynamic catBody) {
+    final List rawCats = catBody is List
+        ? catBody
+        : (catBody is Map && catBody['data'] is List)
+            ? catBody['data'] as List
+            : (catBody is Map && catBody['categories'] is List)
+                ? catBody['categories'] as List
+                : const [];
+    return rawCats
+        .whereType<Map>()
+        .map((e) => _Category.fromJson(Map<String, dynamic>.from(e)))
+        .toList();
+  }
+
+  /// Shows cached header + categories instantly (no white screen on repeat
+  /// visits), then revalidates from the network in the background.
   Future<void> _fetch() async {
     if (widget.storeId == null || !Get.isRegistered<ApiClient>()) {
       if (mounted) setState(() => _loading = false);
       return;
     }
     final api = Get.find<ApiClient>();
+    final prefs = api.sharedPreferences;
+
+    // ── 1) Instant paint from cache (if any).
+    try {
+      final cached = prefs.getString(_cacheKey);
+      if (cached != null) {
+        final map = jsonDecode(cached) as Map<String, dynamic>;
+        final cats = _parseCats(map['categories']);
+        if (mounted && cats.isNotEmpty) {
+          setState(() {
+            _categories = cats;
+            _detail = map['detail'] is Map
+                ? _StoreDetail.fromJson(
+                    Map<String, dynamic>.from(map['detail'] as Map))
+                : _detail;
+            _storeModuleId = map['module'] as int? ?? _storeModuleId;
+            _loading = false; // reveal the screen immediately
+          });
+          _initSectionKeys(_resolvedCategories.length);
+        }
+      }
+    } catch (_) {/* ignore corrupt cache */}
+
+    // ── 2) Revalidate from the network.
     final headers = {
       AppConstants.localizationKey: 'ar',
       AppConstants.moduleId: widget.moduleId.toString(),
@@ -223,26 +268,27 @@ class _MarketStoreScreenState extends State<MarketStoreScreen> {
       final dynamic v1Body = results[2].body;
       final int? storeModule =
           v1Body is Map ? int.tryParse('${v1Body['module_id']}') : null;
-      final List rawCats = catBody is List
-          ? catBody
-          : (catBody is Map && catBody['data'] is List)
-              ? catBody['data'] as List
-              : (catBody is Map && catBody['categories'] is List)
-                  ? catBody['categories'] as List
-                  : const [];
-      final List<_Category> parsed = rawCats
-          .whereType<Map>()
-          .map((e) => _Category.fromJson(Map<String, dynamic>.from(e)))
-          .toList();
+      final List<_Category> parsed = _parseCats(catBody);
       setState(() {
         _detail = detailBody is Map
             ? _StoreDetail.fromJson(Map<String, dynamic>.from(detailBody))
-            : null;
-        _categories = parsed;
-        _storeModuleId = storeModule;
+            : _detail;
+        if (parsed.isNotEmpty) _categories = parsed;
+        _storeModuleId = storeModule ?? _storeModuleId;
         _loading = false;
       });
       _initSectionKeys(_resolvedCategories.length);
+
+      // ── 3) Persist for next time.
+      try {
+        await prefs.setString(
+            _cacheKey,
+            jsonEncode({
+              'categories': catBody,
+              'detail': detailBody is Map ? detailBody : null,
+              'module': storeModule,
+            }));
+      } catch (_) {/* non-fatal */}
     } catch (_) {
       if (mounted) setState(() => _loading = false);
     }

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:skeletonizer/skeletonizer.dart';
 import 'package:sixam_mart/api/api_client.dart';
+import 'package:sixam_mart/core/cache/simple_json_cache.dart';
 import 'package:sixam_mart/common/widgets/card_design/store_list_card.dart';
 import 'package:sixam_mart/features/home/screens/market_store_screen.dart';
 import 'package:sixam_mart/features/home/widgets/market/market_store_filters.dart';
@@ -214,9 +215,39 @@ class _MarketStoresSectionState extends State<MarketStoresSection> {
     return const {};
   }
 
+  // Cache key for the DEFAULT (unfiltered) first page of this module's stores.
+  String get _storesCacheKey => 'mstores_${widget.moduleId}';
+
+  List<_Store> _parseStores(dynamic body) {
+    final List raw = body is List
+        ? body
+        : (body is Map && body['stores'] is List)
+            ? body['stores'] as List
+            : (body is Map && body['data'] is List)
+                ? body['data'] as List
+                : const [];
+    return raw
+        .whereType<Map>()
+        .map((e) => _Store.fromJson(Map<String, dynamic>.from(e)))
+        .toList();
+  }
+
   /// First page (resets pagination). Called on init + category/filter change.
   Future<void> _fetch() async {
     _page = 1;
+    // Instant paint of the default view from cache, then revalidate.
+    if (!_hasActiveFilter) {
+      final cached = SimpleJsonCache.read(_storesCacheKey);
+      if (cached != null) {
+        final page = _parseStores(cached);
+        if (mounted && page.isNotEmpty) {
+          setState(() {
+            _items = page;
+            _loading = false;
+          });
+        }
+      }
+    }
     await _request(append: false);
   }
 
@@ -249,20 +280,10 @@ class _MarketStoresSectionState extends State<MarketStoresSection> {
       );
       if (!mounted) return;
       final dynamic body = response.body;
-      final List raw = body is List
-          ? body
-          : (body is Map && body['stores'] is List)
-              ? body['stores'] as List
-              : (body is Map && body['data'] is List)
-                  ? body['data'] as List
-                  : const [];
       final int total = (body is Map)
           ? (int.tryParse('${body['total_size'] ?? ''}') ?? 0)
           : 0;
-      final page = raw
-          .whereType<Map>()
-          .map((e) => _Store.fromJson(Map<String, dynamic>.from(e)))
-          .toList();
+      final page = _parseStores(body);
       setState(() {
         _items = append ? [..._items, ...page] : page;
         if (total > 0) _totalSize = total;
@@ -272,6 +293,10 @@ class _MarketStoresSectionState extends State<MarketStoresSection> {
         }
         _loading = false;
       });
+      // Persist the default first page for instant paint next time.
+      if (!append && !_hasActiveFilter) {
+        SimpleJsonCache.write(_storesCacheKey, body);
+      }
     } catch (_) {
       if (mounted) setState(() => _loading = false);
       if (append) _page -= 1; // allow retry of the failed page

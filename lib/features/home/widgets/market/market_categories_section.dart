@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:skeletonizer/skeletonizer.dart';
 import 'package:sixam_mart/api/api_client.dart';
+import 'package:sixam_mart/core/cache/simple_json_cache.dart';
 import 'package:sixam_mart/common/widgets/custom_image.dart';
 import 'package:sixam_mart/util/app_constants.dart';
 import 'package:sixam_mart/util/dimensions.dart';
@@ -67,10 +68,37 @@ class _MarketCategoriesSectionState extends State<MarketCategoriesSection> {
     WidgetsBinding.instance.addPostFrameCallback((_) => _fetch());
   }
 
+  String get _cacheKey => 'mcat_${widget.moduleId}';
+
+  List<_Cat> _parse(dynamic body) {
+    final List raw = body is List
+        ? body
+        : (body is Map && body['data'] is List)
+            ? body['data'] as List
+            : (body is Map && body['categories'] is List)
+                ? body['categories'] as List
+                : const [];
+    return raw
+        .whereType<Map>()
+        .map((e) => _Cat.fromJson(Map<String, dynamic>.from(e)))
+        .toList();
+  }
+
   Future<void> _fetch() async {
     if (!Get.isRegistered<ApiClient>()) {
       if (mounted) setState(() => _loading = false);
       return;
+    }
+    // Instant paint from cache, then revalidate.
+    final cached = SimpleJsonCache.read(_cacheKey);
+    if (cached != null) {
+      final items = _parse(cached);
+      if (mounted && items.isNotEmpty) {
+        setState(() {
+          _items = items;
+          _loading = false;
+        });
+      }
     }
     try {
       final response = await Get.find<ApiClient>().getData(
@@ -84,20 +112,12 @@ class _MarketCategoriesSectionState extends State<MarketCategoriesSection> {
       );
       if (!mounted) return;
       final dynamic body = response.body;
-      final List raw = body is List
-          ? body
-          : (body is Map && body['data'] is List)
-              ? body['data'] as List
-              : (body is Map && body['categories'] is List)
-                  ? body['categories'] as List
-                  : const [];
+      final items = _parse(body);
       setState(() {
-        _items = raw
-            .whereType<Map>()
-            .map((e) => _Cat.fromJson(Map<String, dynamic>.from(e)))
-            .toList();
+        if (items.isNotEmpty) _items = items;
         _loading = false;
       });
+      SimpleJsonCache.write(_cacheKey, body);
     } catch (_) {
       if (mounted) setState(() => _loading = false);
     }
