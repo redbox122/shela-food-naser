@@ -328,9 +328,8 @@ class AuthService implements AuthServiceInterface {
 
   Future<void> _updateHeaderFunctionality(AuthResponseModel authResponse,
       {bool alreadyInApp = false}) async {
-    if (authResponse.isEmailVerified! &&
-        authResponse.isPhoneVerified! &&
-        authResponse.isPersonalInfo! &&
+    if ((authResponse.isPhoneVerified ?? false) &&
+        (authResponse.isPersonalInfo ?? false) &&
         authResponse.token != null &&
         authResponse.isExistUser == null) {
       // 🔧 CRITICAL FIX: saveUserToken now updates headers IMMEDIATELY (synchronously)

@@ -274,8 +274,8 @@ class AuthController extends GetxController implements GetxService {
   void _getUserAndCartData(ResponseModel responseModel) {
     if (responseModel.isSuccess &&
         responseModel.authResponseModel != null &&
-        responseModel.authResponseModel!.isPhoneVerified! &&
-        responseModel.authResponseModel!.isPersonalInfo!) {
+        (responseModel.authResponseModel!.isPhoneVerified ?? false) &&
+        (responseModel.authResponseModel!.isPersonalInfo ?? false)) {
       _postAuthSuccessSetup();
     } else {
       debugPrint('❌ Login failed or incomplete - skipping guest cart transfer');

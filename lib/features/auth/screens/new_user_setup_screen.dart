@@ -48,7 +48,10 @@ class _NewUserSetupScreenState extends State<NewUserSetupScreen> {
 
     _isSocial = widget.loginType == CentralizeLoginType.social.name;
 
-    _countryDialCode = CountryCode.fromCountryCode(Get.find<SplashController>().configModel!.country!).dialCode;
+    final String? country = Get.find<SplashController>().configModel?.country;
+    _countryDialCode = (country != null && country.isNotEmpty)
+        ? CountryCode.fromCountryCode(country).dialCode
+        : '+966';
     _isSocial ? _nameController.text = widget.name : _nameController.text = '';
   }
 
