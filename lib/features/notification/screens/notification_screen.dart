@@ -7,6 +7,7 @@ import 'package:sixam_mart/features/notification/domain/models/notification_mode
 import 'package:sixam_mart/features/notification/helpers/notification_navigation_helper.dart';
 import 'package:sixam_mart/features/notification/helpers/notification_type_icon.dart';
 import 'package:sixam_mart/util/dimensions.dart';
+import 'package:sixam_mart/util/images.dart';
 import 'package:sixam_mart/util/styles.dart';
 
 /// 🔔 Redesigned notifications screen — grouped (today / this week / this month
@@ -79,20 +80,32 @@ class _NotificationScreenState extends State<NotificationScreen> {
         // First load → shimmer.
         if (list == null) return const _NotificationShimmer();
 
-        // Empty state.
+        // Empty state — the bell illustration + friendly copy.
         if (list.isEmpty) {
           return RefreshIndicator(
             onRefresh: _refresh,
             child: ListView(children: [
-              SizedBox(height: context.height * 0.26),
-              Icon(Icons.notifications_off_outlined,
-                  size: 64, color: Theme.of(context).disabledColor),
-              const SizedBox(height: Dimensions.paddingSizeDefault),
+              SizedBox(height: context.height * 0.18),
+              Center(
+                child: Image.asset(
+                  Images.no_notification,
+                  width: context.width * 0.55,
+                  fit: BoxFit.contain,
+                  errorBuilder: (_, __, ___) => Icon(
+                      Icons.notifications_off_outlined,
+                      size: 64,
+                      color: Theme.of(context).disabledColor),
+                ),
+              ),
+              const SizedBox(height: Dimensions.paddingSizeLarge),
               Center(
                 child: Text(
-                  _isArabic ? 'لا توجد إشعارات' : 'No notifications',
-                  style: robotoMedium.copyWith(
-                      color: Theme.of(context).disabledColor),
+                  _isArabic
+                      ? 'لا يوجد لديك إشعارات\nفي الوقت الحالي'
+                      : 'You have no notifications\nat the moment',
+                  textAlign: TextAlign.center,
+                  style: robotoBold.copyWith(
+                      fontSize: Dimensions.fontSizeLarge, height: 1.5),
                 ),
               ),
             ]),
