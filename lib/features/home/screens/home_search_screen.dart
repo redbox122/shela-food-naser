@@ -61,6 +61,8 @@ class _HomeSearchScreenState extends State<HomeSearchScreen> {
   // product results so searching a restaurant name surfaces the restaurant.
   List<BrandModel> _storeMatches = const [];
   bool _searchLoading = false;
+  // Results tab: 0 = all, 1 = stores, 2 = products.
+  int _resultTab = 0;
   // normalized-store-name → all branches with delivery/distance info.
   Map<String, List<_BranchInfo>> _branchGroups = {};
   // store-id → logo URL (from /api/v2/stores).
@@ -230,6 +232,7 @@ class _HomeSearchScreenState extends State<HomeSearchScreen> {
       _results = results;
       _storeMatches = storeMatches;
       _searchLoading = false;
+      _resultTab = 0;
     });
     // Kick off on-demand logo enrichment for stores not in the pre-fetched list.
     _enrichMissingStoreLogos();
@@ -1124,6 +1127,10 @@ class _HomeSearchScreenState extends State<HomeSearchScreen> {
       );
     }
 
+    // Result tabs: الكل / متاجر / منتجات.
+    final bool showStores = _resultTab != 2 && _storeMatches.isNotEmpty;
+    final bool showProducts = _resultTab != 1 && _results.isNotEmpty;
+
     // Group products by store.
     final Map<int?, List<_SearchProduct>> groups = {};
     for (final p in _results) {
@@ -1158,10 +1165,64 @@ class _HomeSearchScreenState extends State<HomeSearchScreen> {
         Dimensions.paddingSizeLarge,
       ),
       children: [
+        _buildResultTabs(),
+        const SizedBox(height: Dimensions.paddingSizeSmall),
         // Matching stores (restaurants) first — tap to open the store.
-        for (final s in _storeMatches) _storeMatchCard(s),
-        for (final entry in sortedGroups) _storeGroup(entry.value),
+        if (showStores) for (final s in _storeMatches) _storeMatchCard(s),
+        if (showProducts)
+          for (final entry in sortedGroups) _storeGroup(entry.value),
+        if (!showStores && !showProducts)
+          Padding(
+            padding: const EdgeInsets.only(top: 60),
+            child: Center(
+              child: Text('no_data_found'.tr,
+                  style: const TextStyle(
+                      fontFamily: 'Tajawal',
+                      fontWeight: FontWeight.w500,
+                      fontSize: 15,
+                      color: _chipText)),
+            ),
+          ),
       ],
+    );
+  }
+
+  /// Segmented tabs above the results: الكل / متاجر / منتجات.
+  Widget _buildResultTabs() {
+    final bool isArabic = Get.locale?.languageCode == 'ar';
+    final labels = isArabic
+        ? ['الكل', 'متاجر', 'منتجات']
+        : ['All', 'Stores', 'Products'];
+    return Row(
+      children: List.generate(labels.length, (i) {
+        final bool active = _resultTab == i;
+        return Padding(
+          padding: const EdgeInsets.only(left: 8),
+          child: InkWell(
+            onTap: () => setState(() => _resultTab = i),
+            borderRadius: BorderRadius.circular(Dimensions.radiusLarge),
+            child: Container(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              decoration: BoxDecoration(
+                color: active
+                    ? Theme.of(context).primaryColor
+                    : const Color(0xFFF1F2F4),
+                borderRadius: BorderRadius.circular(Dimensions.radiusLarge),
+              ),
+              child: Text(
+                labels[i],
+                style: TextStyle(
+                  fontFamily: 'Tajawal',
+                  fontWeight: FontWeight.w700,
+                  fontSize: 13,
+                  color: active ? Colors.white : _chipText,
+                ),
+              ),
+            ),
+          ),
+        );
+      }),
     );
   }
 
