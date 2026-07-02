@@ -373,12 +373,21 @@ class _MarketStoreScreenState extends State<MarketStoreScreen> {
     // cover stores show the cover panel as first scrollable sliver.
     return Scaffold(
       backgroundColor: Colors.white,
-      // Cover-header stores show the sticky cart bar (real-time, hidden when
-      // empty); the rest keep their bottom navigation.
-      bottomNavigationBar: widget.useCoverHeader
-          ? _StoreStickyCartBar(
-              freeDelivery: _detail?.freeDelivery ?? widget.freeDelivery)
-          : const _StoreBottomNav(),
+      // Sticky cart bar shows in EVERY store as soon as the cart has items, so
+      // adding a product always surfaces the checkout bar. When the cart is
+      // empty, cover-header stores show nothing while the rest keep their
+      // bottom navigation.
+      bottomNavigationBar: GetBuilder<CartController>(
+        builder: (cart) {
+          if (cart.cartList.isNotEmpty) {
+            return _StoreStickyCartBar(
+                freeDelivery: _detail?.freeDelivery ?? widget.freeDelivery);
+          }
+          return widget.useCoverHeader
+              ? const SizedBox.shrink()
+              : const _StoreBottomNav();
+        },
+      ),
       body: Column(
         children: [
           _MarketTopHeader(
