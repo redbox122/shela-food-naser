@@ -12,6 +12,7 @@ import 'package:sixam_mart/features/search/controllers/search_controller.dart'
 import 'package:sixam_mart/features/search/utils/search_text_utils.dart';
 import 'package:sixam_mart/features/splash/controllers/splash_controller.dart';
 import 'package:sixam_mart/features/home/screens/market_store_screen.dart';
+import 'package:sixam_mart/features/home/widgets/search/search_categories_section.dart';
 import 'package:sixam_mart/helper/price_converter.dart';
 import 'package:sixam_mart/helper/route_helper.dart';
 import 'package:sixam_mart/util/app_constants.dart';
@@ -632,6 +633,11 @@ class _HomeSearchScreenState extends State<HomeSearchScreen> {
                             crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [
                               _buildRecentSection(),
+                              // Browse-by-category grid — tapping a category opens
+                              // its stores + products. Global search only.
+                              if (widget.storeId == null)
+                                SearchCategoriesSection(
+                                    moduleId: widget.moduleId),
                               // Global discovery rails are hidden for store-scoped
                               // search (they list cross-store/restaurant content
                               // that is irrelevant inside a single store).
