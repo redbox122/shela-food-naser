@@ -26,6 +26,7 @@ dependencies:
   google_maps_flutter_web: ^0.5.10
   http: ^1.2.2
   timeago: ^3.7.0
+  agora_rtc_engine: ^6.3.0
   flutter_typeahead: ^4.3.7
   carousel_slider: ^5.0.0
   shimmer_animation: ^2.2.1
