@@ -14,6 +14,9 @@ import 'package:sixam_mart/features/notification/domain/models/notification_body
 import 'package:sixam_mart/features/notification/controllers/notification_controller.dart';
 import 'package:sixam_mart/helper/notification_helper.dart';
 import 'package:sixam_mart/helper/route_helper.dart';
+// ── Voice call (additive): open the incoming-call screen for call pushes.
+import 'package:sixam_mart/features/call/data/models/call_model.dart';
+import 'package:sixam_mart/features/call/presentation/screens/incoming_call_screen.dart';
 import 'package:sixam_mart/util/app_constants.dart';
 import 'package:sixam_mart/util/backend_message_translator.dart';
 import 'package:sixam_mart/common/utils/secure_log.dart';
@@ -152,6 +155,8 @@ class NotificationService {
   // Foreground notification
   Future<void> _onMessage(RemoteMessage message) async {
     debugPrint('Foreground message: ${message.notification?.title}');
+    // Incoming voice call (additive): show the full-screen incoming-call UI.
+    if (NotificationService._openIncomingCallIfNeeded(message.data)) return;
     if (_shouldSuppressForegroundOrderNotification(message)) {
       debugPrint(
           '🔕 NotificationService: Suppressed pending/unpaid order notification during payment webview');
@@ -321,8 +326,22 @@ class NotificationService {
   /// The SINGLE source of truth for notification routing (unifying the two
   /// previously-conflicting systems). Maps the backend `type` + `order_id` to a
   /// route via the shared [NotificationHelper.convertNotification] parser.
+  /// Voice-call routing (additive): if [data] is an incoming-call push, open the
+  /// incoming-call screen and return true so the caller stops normal handling.
+  static bool _openIncomingCallIfNeeded(Map<String, dynamic> data) {
+    if (data['type']?.toString() != 'incoming_call') return false;
+    try {
+      final payload =
+          IncomingCallPayload.fromData(Map<String, dynamic>.from(data));
+      Get.to<void>(() => IncomingCallScreen(payload: payload));
+    } catch (_) {}
+    return true;
+  }
+
   static void _navigateFromData(Map<String, dynamic> data) {
     if (data.isEmpty) return;
+    // Incoming voice call takes over routing when present.
+    if (_openIncomingCallIfNeeded(data)) return;
     try {
       final NotificationBodyModel body =
           NotificationHelper.convertNotification(Map<String, dynamic>.from(data));

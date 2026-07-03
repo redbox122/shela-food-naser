@@ -3,6 +3,9 @@
 import 'dart:async';
 import 'dart:math' as math;
 import 'package:firebase_messaging/firebase_messaging.dart';
+// Voice call (additive) — in-app call button beside the driver contact button.
+import 'package:sixam_mart/features/call/data/models/call_model.dart';
+import 'package:sixam_mart/features/call/presentation/widgets/call_button.dart';
 import 'package:sixam_mart/features/notification/domain/models/notification_body_model.dart';
 import 'package:sixam_mart/features/order/controllers/order_controller.dart';
 import 'package:sixam_mart/features/order/domain/models/order_model.dart';
@@ -826,6 +829,19 @@ class _DeliveryDetailsSection extends StatelessWidget {
             ratingCount: driver.ratingCount,
             circular: true,
             showChat: showChat,
+            // In-app voice call (Agora) — added beside the existing contact
+            // button, which is kept as-is.
+            leadingAction: CallButton(
+              orderId: orderId ?? 0,
+              customerId: null,
+              driverId: driver.id,
+              peer: CallPeer(
+                name: '${driver.fName ?? ''} ${driver.lName ?? ''}'.trim(),
+                imageUrl: driver.imageFullUrl,
+                vehicleNumber: driver.vehicleType,
+              ),
+              size: 40,
+            ),
             onContact: () => _showTrackContactSheet(
               context,
               phone: driver.phone,
@@ -1094,6 +1110,9 @@ class _ContactCard extends StatelessWidget {
   final bool circular;
   final bool showChat;
   final VoidCallback onContact;
+  // Optional extra action rendered before the contact button (e.g. a voice-call
+  // button). Null keeps the existing single-button layout unchanged.
+  final Widget? leadingAction;
   const _ContactCard({
     required this.name,
     required this.fallbackName,
@@ -1104,6 +1123,7 @@ class _ContactCard extends StatelessWidget {
     required this.circular,
     required this.showChat,
     required this.onContact,
+    this.leadingAction,
   });
 
   @override
@@ -1153,6 +1173,10 @@ class _ContactCard extends StatelessWidget {
               ],
             ),
           ),
+          if (leadingAction != null) ...[
+            leadingAction!,
+            const SizedBox(width: Dimensions.paddingSizeSmall),
+          ],
           _ActionButton(
             icon: Icons.headset_mic_outlined,
             color: Theme.of(context).primaryColor,
