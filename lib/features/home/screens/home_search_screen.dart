@@ -635,12 +635,13 @@ class _HomeSearchScreenState extends State<HomeSearchScreen> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [
-                              _buildRecentSection(),
+                              // Order: خدماتنا (all modules) → recent searches →
+                              // most-searched (module-scoped) → popular stores.
                               // "خدماتنا" services grid — tapping a service (e.g.
-                              // هايبر شله) opens its storefront (categories +
-                              // products + filter). Global search only.
+                              // هايبر شله) opens its storefront. Global search only.
                               if (widget.storeId == null)
                                 const HomeServicesGrid(),
+                              _buildRecentSection(),
                               // Global discovery rails are hidden for store-scoped
                               // search (they list cross-store/restaurant content
                               // that is irrelevant inside a single store).
