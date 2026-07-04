@@ -1275,8 +1275,6 @@ class _HomeSearchScreenState extends State<HomeSearchScreen> {
     // Result tabs: الكل / متاجر / منتجات.
     // Tab 3 = "عروض": only discounted products, no store cards.
     final bool isOffersTab = _resultTab == 3;
-    final bool showStores =
-        _resultTab != 2 && !isOffersTab && _storeMatches.isNotEmpty;
     final List<_SearchProduct> productList = isOffersTab
         ? _results.where((p) => p.discount > 0).toList()
         : _results;
@@ -1308,6 +1306,30 @@ class _HomeSearchScreenState extends State<HomeSearchScreen> {
             return score(an).compareTo(score(bn));
           });
 
+    // Stores for the "متاجر" tab: name-matched stores PLUS every store that has
+    // a matching product — so searching "دجاج" surfaces the restaurants (and
+    // other sections) that serve it, not just هايبر. De-duped by store id.
+    // On "الكل" we keep only the name-matched stores (the rest already appear as
+    // product-group headers) to avoid showing each store twice.
+    final List<BrandModel> allStoresWithMatch = [..._storeMatches];
+    final Set<int?> shownStoreIds = _storeMatches.map((s) => s.id).toSet();
+    for (final entry in sortedGroups) {
+      final _SearchProduct first = entry.value.first;
+      if (first.storeId != null && !shownStoreIds.contains(first.storeId)) {
+        shownStoreIds.add(first.storeId);
+        allStoresWithMatch.add(BrandModel(
+          id: first.storeId,
+          name: first.storeName,
+          imageFullUrl:
+              _resolvedLogo(first.storeId, first.storeName, first.storeLogo),
+        ));
+      }
+    }
+    final List<BrandModel> storesToShow =
+        _resultTab == 1 ? allStoresWithMatch : _storeMatches;
+    final bool showStores =
+        _resultTab != 2 && !isOffersTab && storesToShow.isNotEmpty;
+
     return ListView(
       padding: const EdgeInsets.fromLTRB(
         Dimensions.paddingSizeDefault,
@@ -1319,7 +1341,7 @@ class _HomeSearchScreenState extends State<HomeSearchScreen> {
         _buildResultTabs(),
         const SizedBox(height: Dimensions.paddingSizeSmall),
         // Matching stores (restaurants) first — tap to open the store.
-        if (showStores) for (final s in _storeMatches) _storeMatchCard(s),
+        if (showStores) for (final s in storesToShow) _storeMatchCard(s),
         if (showProducts)
           for (final entry in sortedGroups) _storeGroup(entry.value),
         if (!showStores && !showProducts)
