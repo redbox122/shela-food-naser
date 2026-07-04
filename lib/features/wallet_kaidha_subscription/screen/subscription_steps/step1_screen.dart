@@ -5,6 +5,7 @@ import 'package:get/get.dart';
 import 'package:sixam_mart/common/widgets/custom_button.dart';
 import 'package:sixam_mart/features/wallet_kaidha_subscription/controllers/kaidhaSub_controller.dart';
 import 'package:sixam_mart/features/wallet_kaidha_subscription/widget/personal_information.dart';
+import 'package:sixam_mart/features/wallet_kaidha_subscription/widget/before_Pdf.dart';
 import '../../../../util/dimensions.dart';
 
 class Step_1_Screen extends StatefulWidget {
@@ -55,6 +56,50 @@ class _Step_1_ScreenState extends State<Step_1_Screen> {
                                   KaidhaSubController.SendState_kaidha(
                                       'in_progress');
                                 }
+                              },
+                            ),
+                          ),
+                          // "استعراض العقد قبل التوقيع" — secondary button that
+                          // opens the contract preview filled with the entered data.
+                          Container(
+                            width: 1170,
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: Dimensions.paddingSizeSmall),
+                            child: CustomButton(
+                              color: const Color(0xFFF5F5F5),
+                              textColor: const Color(0xFF2D3633),
+                              buttonText: 'review_contract_before_signing'.tr,
+                              onPressed: () {
+                                final now = DateTime.now();
+                                final time =
+                                    '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}';
+                                const days = [
+                                  'الاثنين',
+                                  'الثلاثاء',
+                                  'الأربعاء',
+                                  'الخميس',
+                                  'الجمعة',
+                                  'السبت',
+                                  'الأحد'
+                                ];
+                                Get.to(
+                                  () => Befor_Pdf_Screen(
+                                    time: time,
+                                    day: days[now.weekday - 1],
+                                    name:
+                                        '${KaidhaSubController.firstname.text} ${KaidhaSubController.fathername.text} ${KaidhaSubController.grandfathername.text} ${KaidhaSubController.last_name.text}',
+                                    identityNumber: KaidhaSubController
+                                        .identity_card_number.text
+                                        .toString(),
+                                    nationality: KaidhaSubController.nationality
+                                        .toString(),
+                                    neighborhood: KaidhaSubController
+                                        .neighborhood.text
+                                        .toString(),
+                                    house_type: KaidhaSubController.house_type
+                                        .toString(),
+                                  ),
+                                );
                               },
                             ),
                           ),
