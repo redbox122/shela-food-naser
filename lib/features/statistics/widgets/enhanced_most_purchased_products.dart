@@ -2,11 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:sixam_mart/common/widgets/smart_image.dart';
 import '../../../util/app_colors.dart';
-import '../../../util/dimensions.dart';
+import '../../../util/images.dart';
 import '../controllers/analytics_controller.dart';
 import '../domain/models/most_purchased_product.dart';
 import '../screens/simple_product_deep_dive_screen.dart';
 
+/// "المنتجات الأكثر شراء" — the user's most-purchased products, shown as either
+/// a 2-column grid or a full-width list (toggled from the header), matching the
+/// redesigned statistics ("عام") tab.
 class EnhancedMostPurchasedProducts extends StatefulWidget {
   const EnhancedMostPurchasedProducts({super.key});
 
@@ -17,545 +20,549 @@ class EnhancedMostPurchasedProducts extends StatefulWidget {
 
 class _EnhancedMostPurchasedProductsState
     extends State<EnhancedMostPurchasedProducts> {
+  static const Color _titleColor = Color(0xFF2D3633);
+  static const Color _subtitleColor = Color(0xFF8A9199);
+
   bool _isGridView = true;
-
-  // Helper function to convert Western Arabic numerals to Eastern Arabic numerals
-  String _convertToArabicNumerals(String text) {
-    const Map<String, String> arabicNumerals = {
-      '0': '٠',
-      '1': '١',
-      '2': '٢',
-      '3': '٣',
-      '4': '٤',
-      '5': '٥',
-      '6': '٦',
-      '7': '٧',
-      '8': '٨',
-      '9': '٩'
-    };
-
-    return text.split('').map((char) => arabicNumerals[char] ?? char).join();
-  }
 
   @override
   Widget build(BuildContext context) {
     return GetX<AnalyticsController>(
       builder: (controller) {
-        return Container(
-          margin: const EdgeInsets.symmetric(
-              horizontal: Dimensions.paddingSizeDefault),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _buildHeader(controller),
-              const SizedBox(height: Dimensions.paddingSizeSmall),
-              if (controller.isLoadingProducts)
-                _buildLoadingState()
-              else if (controller.productsError.isNotEmpty)
-                _buildErrorState(controller.productsError,
-                    () => controller.loadMostPurchasedProducts())
-              else if (controller.mostPurchasedProducts.isEmpty)
-                _buildNoDataState()
-              else
-                _buildProductsList(controller),
-            ],
-          ),
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            _header(controller),
+            const SizedBox(height: 12),
+            if (controller.isLoadingProducts)
+              const SizedBox(
+                height: 160,
+                child: Center(
+                    child: CircularProgressIndicator(
+                        color: AppColors.primaryColor)),
+              )
+            else if (controller.productsError.isNotEmpty)
+              _stateBox(
+                icon: Icons.error_outline,
+                text: 'failed_to_load_products'.tr,
+                onRetry: () => controller.loadMostPurchasedProducts(),
+              )
+            else if (controller.mostPurchasedProducts.isEmpty)
+              _emptyState()
+            else if (_isGridView)
+              _grid(controller)
+            else
+              _list(controller),
+          ],
         );
       },
     );
   }
 
-  Widget _buildHeader(AnalyticsController controller) {
+  Widget _header(AnalyticsController controller) {
     return Row(
-      children: [
-        const Icon(
-          Icons.shopping_cart,
-          color: AppColors.greenColor,
-          size: 20,
-        ),
-        const SizedBox(width: Dimensions.paddingSizeSmall),
-        Text(
-          'most_purchased_products'.tr,
-          style: const TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
-            color: AppColors.title,
+      children: <Widget>[
+        Expanded(
+          child: Text(
+            'st_most_purchased'.tr,
+            style: const TextStyle(
+              fontFamily: 'Tajawal',
+              fontSize: 15,
+              fontWeight: FontWeight.w700,
+              color: _titleColor,
+            ),
           ),
         ),
-        const Spacer(),
-        _buildSortDropdown(controller),
-        const SizedBox(width: Dimensions.paddingSizeSmall),
-        _buildViewToggle(),
+        // Grid / list view toggle.
+        InkWell(
+          borderRadius: BorderRadius.circular(9),
+          onTap: () => setState(() => _isGridView = !_isGridView),
+          child: Container(
+            width: 34,
+            height: 34,
+            decoration: BoxDecoration(
+              color: const Color(0xFFF3F4F6),
+              borderRadius: BorderRadius.circular(9),
+            ),
+            child: Icon(
+              _isGridView ? Icons.view_list_rounded : Icons.grid_view_rounded,
+              size: 18,
+              color: _titleColor,
+            ),
+          ),
+        ),
+        const SizedBox(width: 8),
+        PopupMenuButton<String>(
+          onSelected: controller.sortMostPurchasedProducts,
+          itemBuilder: (BuildContext context) => controller
+              .availableSortOptions
+              .map((Map<String, String> option) => PopupMenuItem<String>(
+                    value: option['key'],
+                    child: Text(option['label'] ?? '',
+                        style: const TextStyle(fontFamily: 'Tajawal')),
+                  ))
+              .toList(),
+          child: Container(
+            height: 34,
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF3F4F6),
+              borderRadius: BorderRadius.circular(9),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                Text(
+                  _currentSortLabel(controller),
+                  style: const TextStyle(
+                    fontFamily: 'Tajawal',
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: _titleColor,
+                  ),
+                ),
+                const SizedBox(width: 4),
+                const Icon(Icons.keyboard_arrow_down,
+                    size: 18, color: _titleColor),
+              ],
+            ),
+          ),
+        ),
       ],
     );
   }
 
-  Widget _buildSortDropdown(AnalyticsController controller) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: AppColors.greenColor.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(15),
-      ),
-      child: DropdownButton<String>(
-        value: controller.currentSortBy,
-        underline: const SizedBox(),
-        icon: const Icon(Icons.arrow_drop_down, color: AppColors.greenColor),
-        style: const TextStyle(
-          color: AppColors.greenColor,
-          fontSize: 12,
-          fontWeight: FontWeight.w500,
-        ),
-        items:
-            controller.availableSortOptions.map((Map<String, String> option) {
-          return DropdownMenuItem<String>(
-            value: option['key'],
-            child: Text(option['label']!),
-          );
-        }).toList(),
-        onChanged: (String? newValue) {
-          if (newValue != null) {
-            controller.sortMostPurchasedProducts(newValue);
-          }
-        },
-      ),
-    );
+  /// Label of the currently-selected sort option (e.g. "التكرار").
+  String _currentSortLabel(AnalyticsController controller) {
+    final Map<String, String> option = controller.availableSortOptions
+        .firstWhere((Map<String, String> o) => o['key'] == controller.currentSortBy,
+            orElse: () => const <String, String>{'label': ''});
+    return option['label'] ?? '';
   }
 
-  Widget _buildViewToggle() {
-    return Container(
-      decoration: BoxDecoration(
-        color: AppColors.greenColor.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(15),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          _buildToggleButton(
-            icon: Icons.grid_view,
-            isSelected: _isGridView,
-            onTap: () => setState(() => _isGridView = true),
-          ),
-          _buildToggleButton(
-            icon: Icons.list,
-            isSelected: !_isGridView,
-            onTap: () => setState(() => _isGridView = false),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildToggleButton({
-    required IconData icon,
-    required bool isSelected,
-    required VoidCallback onTap,
-  }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.all(8),
-        decoration: BoxDecoration(
-          color: isSelected ? AppColors.greenColor : Colors.transparent,
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Icon(
-          icon,
-          color: isSelected ? AppColors.wtColor : AppColors.greenColor,
-          size: 16,
-        ),
-      ),
-    );
-  }
-
-  Widget _buildLoadingState() {
-    return SizedBox(
-      height: 200,
-      child: ListView.builder(
-        scrollDirection: Axis.horizontal,
-        itemCount: 3,
-        itemBuilder: (context, index) {
-          return Container(
-            width: 150,
-            margin: const EdgeInsets.only(right: Dimensions.paddingSizeSmall),
-            decoration: BoxDecoration(
-              color: AppColors.wtColor,
-              borderRadius: BorderRadius.circular(Dimensions.radiusDefault),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.grey.withValues(alpha: 0.1),
-                  spreadRadius: 1,
-                  blurRadius: 4,
-                  offset: const Offset(0, 2),
-                ),
-              ],
-            ),
-            child: const Center(
-              child: CircularProgressIndicator(
-                color: AppColors.greenColor,
-              ),
-            ),
-          );
-        },
-      ),
-    );
-  }
-
-  Widget _buildErrorState(String error, VoidCallback onRetry) {
-    return Container(
-      height: 200,
-      decoration: BoxDecoration(
-        color: AppColors.wtColor,
-        borderRadius: BorderRadius.circular(Dimensions.radiusDefault),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.withValues(alpha: 0.1),
-            spreadRadius: 1,
-            blurRadius: 4,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(
-              Icons.error_outline,
-              color: AppColors.redColor,
-              size: 48,
-            ),
-            const SizedBox(height: Dimensions.paddingSizeSmall),
-            Text(
-              'failed_to_load_products'.tr,
-              style: const TextStyle(
-                color: AppColors.redColor,
-                fontSize: 14,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              error.length > 40 ? '${error.substring(0, 40)}...' : error,
-              style: TextStyle(
-                color: AppColors.gryColor.withValues(alpha: 0.7),
-                fontSize: 12,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: Dimensions.paddingSizeSmall),
-            ElevatedButton.icon(
-              onPressed: onRetry,
-              icon: const Icon(Icons.refresh, size: 16),
-              label: Text('retry'.tr),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.greenColor,
-                foregroundColor: AppColors.wtColor,
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildNoDataState() {
-    return Container(
-      height: 200,
-      decoration: BoxDecoration(
-        color: AppColors.wtColor,
-        borderRadius: BorderRadius.circular(Dimensions.radiusDefault),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.withValues(alpha: 0.1),
-            spreadRadius: 1,
-            blurRadius: 4,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.shopping_cart_outlined,
-              color: AppColors.gryColor.withValues(alpha: 0.5),
-              size: 48,
-            ),
-            const SizedBox(height: Dimensions.paddingSizeSmall),
-            Text(
-              'no_products_found'.tr,
-              style: TextStyle(
-                color: AppColors.gryColor.withValues(alpha: 0.7),
-                fontSize: 14,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildProductsList(AnalyticsController controller) {
-    if (_isGridView) {
-      return _buildGridView(controller);
-    } else {
-      return _buildListView(controller);
-    }
-  }
-
-  Widget _buildGridView(AnalyticsController controller) {
-    return SizedBox(
-      height: 200,
-      child: ListView.builder(
-        scrollDirection: Axis.horizontal,
-        itemCount: controller.mostPurchasedProducts.length,
-        itemBuilder: (context, index) {
-          final product = controller.mostPurchasedProducts[index];
-          return _buildProductCard(product, controller);
-        },
-      ),
-    );
-  }
-
-  Widget _buildListView(AnalyticsController controller) {
-    return ListView.builder(
+  Widget _grid(AnalyticsController controller) {
+    return GridView.builder(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
+      padding: EdgeInsets.zero,
       itemCount: controller.mostPurchasedProducts.length,
-      itemBuilder: (context, index) {
-        final product = controller.mostPurchasedProducts[index];
-        return _buildProductListItem(product, controller);
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 2,
+        crossAxisSpacing: 12,
+        mainAxisSpacing: 12,
+        childAspectRatio: 0.66,
+      ),
+      itemBuilder: (BuildContext context, int index) {
+        return _productCard(controller.mostPurchasedProducts[index], controller);
       },
     );
   }
 
-  Widget _buildProductCard(
+  Widget _list(AnalyticsController controller) {
+    return ListView.separated(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      padding: EdgeInsets.zero,
+      itemCount: controller.mostPurchasedProducts.length,
+      separatorBuilder: (_, __) => const SizedBox(height: 12),
+      itemBuilder: (BuildContext context, int index) {
+        return _listCard(controller.mostPurchasedProducts[index], controller);
+      },
+    );
+  }
+
+  Widget _listCard(
       MostPurchasedProduct product, AnalyticsController controller) {
+    final double current = product.priceRange.current;
+    final double max = product.priceRange.max;
+    final bool hasDiscount = max > current && current > 0;
+    final int discount =
+        hasDiscount ? (((max - current) / max) * 100).round() : 0;
+
     return GestureDetector(
-      onTap: () => _navigateToProductDeepDive(product, controller),
+      onTap: () => Get.to(() => SimpleProductDeepDiveScreen(
+            product: product,
+            controller: controller,
+          )),
       child: Container(
-        width: 150,
-        margin: const EdgeInsets.only(right: Dimensions.paddingSizeSmall),
+        padding: const EdgeInsets.all(10),
         decoration: BoxDecoration(
           color: AppColors.wtColor,
-          borderRadius: BorderRadius.circular(Dimensions.radiusDefault),
-          boxShadow: [
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: const Color(0xFFF0F0F0)),
+          boxShadow: <BoxShadow>[
             BoxShadow(
-              color: Colors.grey.withValues(alpha: 0.1),
-              spreadRadius: 1,
-              blurRadius: 4,
-              offset: const Offset(0, 2),
+              color: Colors.black.withValues(alpha: 0.03),
+              blurRadius: 8,
+              offset: const Offset(0, 3),
+            ),
+          ],
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            // Image + discount badge (RTL start / right side).
+            Stack(
+              children: <Widget>[
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(10),
+                  child: SizedBox(
+                    width: 78,
+                    height: 78,
+                    child: product.image.isNotEmpty
+                        ? SmartImage(
+                            url: product.image,
+                            fit: BoxFit.cover,
+                            cacheWidth: 240,
+                            cacheHeight: 240,
+                            errorWidget: _imgPlaceholder(),
+                          )
+                        : _imgPlaceholder(),
+                  ),
+                ),
+                if (discount > 0)
+                  PositionedDirectional(
+                    top: 4,
+                    start: 4,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 5, vertical: 1),
+                      decoration: BoxDecoration(
+                        color: AppColors.redColor,
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        '-$discount%',
+                        textDirection: TextDirection.ltr,
+                        style: const TextStyle(
+                          fontFamily: 'Tajawal',
+                          fontSize: 9,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.wtColor,
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+            const SizedBox(width: 12),
+            // Name + price.
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: <Widget>[
+                  Text(
+                    product.name,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontFamily: 'Tajawal',
+                      fontSize: 15,
+                      height: 1.4,
+                      fontWeight: FontWeight.w600,
+                      color: _titleColor,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: <Widget>[
+                      Text(
+                        '﷼ ${current.toStringAsFixed(0)}',
+                        textDirection: TextDirection.ltr,
+                        style: const TextStyle(
+                          fontFamily: 'Tajawal',
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                          color: _titleColor,
+                        ),
+                      ),
+                      if (hasDiscount) ...<Widget>[
+                        const SizedBox(width: 6),
+                        Text(
+                          '﷼ ${max.toStringAsFixed(2)}',
+                          textDirection: TextDirection.ltr,
+                          style: const TextStyle(
+                            fontFamily: 'Tajawal',
+                            fontSize: 10,
+                            color: _subtitleColor,
+                            decoration: TextDecoration.lineThrough,
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            // Actions (favourite + add) on the trailing / left side.
+            Column(
+              children: <Widget>[
+                Container(
+                  width: 30,
+                  height: 30,
+                  decoration: const BoxDecoration(
+                    color: Color(0xFFF3F4F6),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.favorite_border,
+                      size: 16, color: AppColors.primaryColor),
+                ),
+                const SizedBox(height: 10),
+                Container(
+                  width: 30,
+                  height: 30,
+                  decoration: const BoxDecoration(
+                    color: AppColors.primaryColor,
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.add, size: 18, color: AppColors.wtColor),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _productCard(
+      MostPurchasedProduct product, AnalyticsController controller) {
+    final double current = product.priceRange.current;
+    final double max = product.priceRange.max;
+    final bool hasDiscount = max > current && current > 0;
+    final int discount =
+        hasDiscount ? (((max - current) / max) * 100).round() : 0;
+
+    return GestureDetector(
+      onTap: () => Get.to(() => SimpleProductDeepDiveScreen(
+            product: product,
+            controller: controller,
+          )),
+      child: Container(
+        decoration: BoxDecoration(
+          color: AppColors.wtColor,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: const Color(0xFFF0F0F0)),
+          boxShadow: <BoxShadow>[
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.03),
+              blurRadius: 8,
+              offset: const Offset(0, 3),
             ),
           ],
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildProductImage(product),
-            Padding(
-              padding: const EdgeInsets.all(Dimensions.paddingSizeSmall),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    product.name,
-                    style: const TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.title,
-                    ),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
+          children: <Widget>[
+            // Image + badges.
+            Stack(
+              children: <Widget>[
+                ClipRRect(
+                  borderRadius:
+                      const BorderRadius.vertical(top: Radius.circular(12)),
+                  child: AspectRatio(
+                    aspectRatio: 1.35,
+                    child: product.image.isNotEmpty
+                        ? SmartImage(
+                            url: product.image,
+                            fit: BoxFit.cover,
+                            cacheWidth: 300,
+                            cacheHeight: 300,
+                            errorWidget: _imgPlaceholder(),
+                          )
+                        : _imgPlaceholder(),
                   ),
-                  const SizedBox(height: 4),
-                  Text(
-                    '${_convertToArabicNumerals(product.priceRange.current.toStringAsFixed(2))} ر.س',
-                    style: const TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.greenColor,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Row(
-                    children: [
-                      const Icon(
-                        Icons.shopping_cart,
-                        size: 12,
-                        color: AppColors.gryColor,
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        '${_convertToArabicNumerals(product.purchaseCount.toString())} ${'times'.tr}',
-                        style: const TextStyle(
-                          fontSize: 10,
-                          color: AppColors.gryColor,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    _translateFrequency(product.purchaseFrequency),
-                    style: const TextStyle(
-                      fontSize: 10,
-                      color: AppColors.gryColor,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildProductListItem(
-      MostPurchasedProduct product, AnalyticsController controller) {
-    return GestureDetector(
-      onTap: () => _navigateToProductDeepDive(product, controller),
-      child: Container(
-        margin: const EdgeInsets.only(bottom: Dimensions.paddingSizeSmall),
-        padding: const EdgeInsets.all(Dimensions.paddingSizeSmall),
-        decoration: BoxDecoration(
-          color: AppColors.wtColor,
-          borderRadius: BorderRadius.circular(Dimensions.radiusDefault),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.grey.withValues(alpha: 0.1),
-              spreadRadius: 1,
-              blurRadius: 4,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        child: Row(
-          children: [
-            _buildProductImage(product, size: 60),
-            const SizedBox(width: Dimensions.paddingSizeSmall),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    product.name,
-                    style: const TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.title,
-                    ),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    '${_convertToArabicNumerals(product.priceRange.current.toStringAsFixed(2))} ر.س',
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.greenColor,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Row(
-                    children: [
-                      const Icon(
-                        Icons.shopping_cart,
-                        size: 14,
-                        color: AppColors.gryColor,
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        '${_convertToArabicNumerals(product.purchaseCount.toString())} ${'times'.tr}',
-                        style: const TextStyle(
-                          fontSize: 12,
-                          color: AppColors.gryColor,
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                      Text(
-                        _translateFrequency(product.purchaseFrequency),
-                        style: const TextStyle(
-                          fontSize: 12,
-                          color: AppColors.gryColor,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-            const Icon(
-              Icons.arrow_forward_ios,
-              color: AppColors.gryColor,
-              size: 16,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildProductImage(MostPurchasedProduct product, {double size = 80}) {
-    return Container(
-      width: size,
-      height: size,
-      decoration: BoxDecoration(
-        color: AppColors.gryColor.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(Dimensions.radiusSmall),
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(Dimensions.radiusSmall),
-        child: product.image.isNotEmpty
-            ? SmartImage(
-                url: product.image,
-                height: size,
-                width: size,
-                cacheWidth: 300,
-                cacheHeight: 300,
-                fit: BoxFit.cover,
-                errorWidget: Icon(
-                  Icons.image,
-                  color: AppColors.gryColor.withValues(alpha: 0.5),
-                  size: size * 0.5,
                 ),
-              )
-            : Icon(
-                Icons.image,
-                color: AppColors.gryColor.withValues(alpha: 0.5),
-                size: size * 0.5,
+                if (discount > 0)
+                  PositionedDirectional(
+                    top: 8,
+                    start: 8,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: AppColors.redColor,
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        '-$discount%',
+                        textDirection: TextDirection.ltr,
+                        style: const TextStyle(
+                          fontFamily: 'Tajawal',
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.wtColor,
+                        ),
+                      ),
+                    ),
+                  ),
+                PositionedDirectional(
+                  top: 6,
+                  end: 6,
+                  child: Container(
+                    width: 26,
+                    height: 26,
+                    decoration: const BoxDecoration(
+                      color: AppColors.wtColor,
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.favorite_border,
+                        size: 15, color: AppColors.primaryColor),
+                  ),
+                ),
+              ],
+            ),
+            // Details.
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Text(
+                      product.name,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontFamily: 'Tajawal',
+                        fontSize: 12,
+                        height: 1.4,
+                        fontWeight: FontWeight.w600,
+                        color: _titleColor,
+                      ),
+                    ),
+                    const Spacer(),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: <Widget>[
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: <Widget>[
+                              if (hasDiscount)
+                                Text(
+                                  '﷼ ${max.toStringAsFixed(2)}',
+                                  textDirection: TextDirection.ltr,
+                                  style: const TextStyle(
+                                    fontFamily: 'Tajawal',
+                                    fontSize: 10,
+                                    color: _subtitleColor,
+                                    decoration: TextDecoration.lineThrough,
+                                  ),
+                                ),
+                              Text(
+                                '﷼ ${current.toStringAsFixed(2)}',
+                                textDirection: TextDirection.ltr,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  fontFamily: 'Tajawal',
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w700,
+                                  color: _titleColor,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Container(
+                          width: 30,
+                          height: 30,
+                          decoration: const BoxDecoration(
+                            color: AppColors.primaryColor,
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(Icons.add,
+                              size: 18, color: AppColors.wtColor),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
               ),
+            ),
+          ],
+        ),
       ),
     );
   }
 
-  void _navigateToProductDeepDive(
-      MostPurchasedProduct product, AnalyticsController controller) {
-    Get.to(
-      () => SimpleProductDeepDiveScreen(
-        product: product,
-        controller: controller,
+  Widget _imgPlaceholder() {
+    return Container(
+      color: const Color(0xFFF3F4F6),
+      alignment: Alignment.center,
+      child: const Icon(Icons.image, color: _subtitleColor, size: 30),
+    );
+  }
+
+  Widget _stateBox({
+    required IconData icon,
+    required String text,
+    VoidCallback? onRetry,
+  }) {
+    return Container(
+      height: 160,
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: const Color(0xFFF6F7F9),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: <Widget>[
+          Icon(icon, size: 34, color: _subtitleColor),
+          const SizedBox(height: 8),
+          Text(
+            text,
+            style: const TextStyle(
+              fontFamily: 'Tajawal',
+              fontSize: 13,
+              color: _subtitleColor,
+            ),
+          ),
+          if (onRetry != null) ...<Widget>[
+            const SizedBox(height: 6),
+            TextButton(
+              onPressed: onRetry,
+              child: Text('retry'.tr,
+                  style: const TextStyle(
+                      fontFamily: 'Tajawal', color: AppColors.primaryColor)),
+            ),
+          ],
+        ],
       ),
     );
   }
 
-  String _translateFrequency(String frequency) {
-    switch (frequency.toLowerCase()) {
-      case 'daily':
-        return 'st_daily'.tr;
-      case 'weekly':
-        return 'st_weekly'.tr;
-      case 'monthly':
-        return 'st_monthly'.tr;
-      case 'yearly':
-        return 'st_yearly'.tr;
-      default:
-        return frequency;
-    }
+  Widget _emptyState() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 24),
+      child: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            Image.asset(
+              Images.empty_cart_v1,
+              width: 200,
+              fit: BoxFit.contain,
+            ),
+            const SizedBox(height: 16),
+            const Text(
+              'لا توجد منتجات للعرض',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontFamily: 'Tajawal',
+                fontSize: 15,
+                fontWeight: FontWeight.w700,
+                color: _titleColor,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }

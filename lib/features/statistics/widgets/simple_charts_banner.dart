@@ -80,18 +80,13 @@ class _SimpleChartsBannerState extends State<SimpleChartsBanner> {
   Widget _buildChartHeader(AnalyticsController controller) {
     return Row(
       children: [
-        const Icon(
-          Icons.analytics,
-          color: AppColors.greenColor,
-          size: 20,
-        ),
-        const SizedBox(width: Dimensions.paddingSizeSmall),
         Text(
           'analytics_charts'.tr,
           style: const TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
-            color: AppColors.title,
+            fontSize: 20,
+            fontFamily: 'Tajawal',
+            fontWeight: FontWeight.w700,
+            color: AppColors.bgColor,
           ),
         ),
         const Spacer(),
@@ -102,24 +97,36 @@ class _SimpleChartsBannerState extends State<SimpleChartsBanner> {
 
   Widget _buildPeriodSelector(AnalyticsController controller) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      height: 34,
+      width: 104,
+      padding: const EdgeInsets.symmetric(horizontal: 12),
       decoration: BoxDecoration(
-        color: AppColors.greenColor.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(15),
+        color: const Color(0xFFF3F4F6),
+        borderRadius: BorderRadius.circular(5),
       ),
       child: DropdownButton<String>(
         value: controller.currentTrendPeriod,
+        isDense: true,
+        isExpanded: true,
+        alignment: AlignmentDirectional.center,
         underline: const SizedBox(),
-        icon: const Icon(Icons.arrow_drop_down, color: AppColors.greenColor),
+        borderRadius: BorderRadius.circular(10),
+        icon: const Padding(
+          padding: EdgeInsets.only(right: 2),
+          child: Icon(Icons.keyboard_arrow_down,
+              size: 18, color: Color(0xFF2D3633)),
+        ),
         style: const TextStyle(
-          color: AppColors.greenColor,
-          fontSize: 12,
-          fontWeight: FontWeight.w500,
+          fontFamily: 'Tajawal',
+          color: Color(0xFF2D3633),
+          fontSize: 13,
+          fontWeight: FontWeight.w600,
         ),
         items: controller.availableTrendPeriods.map((String period) {
           return DropdownMenuItem<String>(
             value: period,
-            child: Text(period.tr),
+            child:
+                Text(period.tr, style: const TextStyle(fontFamily: 'Tajawal')),
           );
         }).toList(),
         onChanged: (String? newValue) {
@@ -150,12 +157,12 @@ class _SimpleChartsBannerState extends State<SimpleChartsBanner> {
       decoration: BoxDecoration(
         color: AppColors.wtColor,
         borderRadius: BorderRadius.circular(Dimensions.radiusDefault),
+        border: Border.all(color: const Color(0xFFF0F0F0)),
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withValues(alpha: 0.1),
-            spreadRadius: 1,
-            blurRadius: 4,
-            offset: const Offset(0, 2),
+            color: Colors.black.withValues(alpha: 0.03),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
           ),
         ],
       ),
@@ -165,17 +172,37 @@ class _SimpleChartsBannerState extends State<SimpleChartsBanner> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  'spending_trends'.tr,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.title,
-                  ),
-                ),
-                const Spacer(),
+                // Total badge → right side (RTL start).
                 _buildTrendSummary(controller.spendingTrend!),
+                const Spacer(),
+                // "تحليل الإنفاق" + month → left side.
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      'st_spending_analysis'.tr,
+                      style: TextStyle(
+                        fontFamily: 'Tajawal',
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.bgColor,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      _currentMonthYear(),
+                      style: const TextStyle(
+                        fontFamily: 'Tajawal',
+                        fontSize: 11,
+                        fontWeight: FontWeight.w400,
+                        color: Color(0xFF8A9199),
+                      ),
+                    ),
+                  ],
+                ),
               ],
             ),
             const SizedBox(height: Dimensions.paddingSizeSmall),
@@ -211,12 +238,12 @@ class _SimpleChartsBannerState extends State<SimpleChartsBanner> {
       decoration: BoxDecoration(
         color: AppColors.wtColor,
         borderRadius: BorderRadius.circular(Dimensions.radiusDefault),
+        border: Border.all(color: const Color(0xFFF0F0F0)),
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withValues(alpha: 0.1),
-            spreadRadius: 1,
-            blurRadius: 4,
-            offset: const Offset(0, 2),
+            color: Colors.black.withValues(alpha: 0.03),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
           ),
         ],
       ),
@@ -276,34 +303,63 @@ class _SimpleChartsBannerState extends State<SimpleChartsBanner> {
     );
   }
 
+  String _currentMonthYear() {
+    const List<String> months = <String>[
+      'يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو',
+      'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'
+    ];
+    final DateTime now = DateTime.now();
+    return '${months[now.month - 1]} ${now.year}';
+  }
+
   Widget _buildTrendSummary(SpendingTrendData trendData) {
-    final totalSpent =
+    final double totalSpent =
         trendData.data.fold(0.0, (sum, point) => sum + point.amount);
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
         color: AppColors.greenColor.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.greenColor.withValues(alpha: 0.3)),
+        borderRadius: BorderRadius.circular(10),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.end,
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Text(
-            '${_convertToArabicNumerals(totalSpent.toStringAsFixed(0))} ر.س',
-            style: const TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.bold,
-              color: AppColors.greenColor,
-            ),
-          ),
           Text(
             'st_total_spending'.tr,
             style: TextStyle(
+              fontFamily: 'Tajawal',
               fontSize: 10,
-              color: AppColors.greenColor.withValues(alpha: 0.7),
+              fontWeight: FontWeight.w500,
+              color: AppColors.greenColor,
             ),
+          ),
+          const SizedBox(height: 2),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                '﷼',
+                style: TextStyle(
+                  fontFamily: 'Tajawal',
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.greenColor,
+                ),
+              ),
+              const SizedBox(width: 3),
+              Text(
+                totalSpent.toStringAsFixed(2),
+                textDirection: TextDirection.ltr,
+                style: const TextStyle(
+                  fontFamily: 'Tajawal',
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.greenColor,
+                ),
+              ),
+            ],
           ),
         ],
       ),
@@ -327,26 +383,26 @@ class _SimpleChartsBannerState extends State<SimpleChartsBanner> {
                       Text(
                         _convertToArabicNumerals(
                             '${trendData.data.map((e) => e.amount).reduce((a, b) => a > b ? a : b).toInt()}'),
-                        style: const TextStyle(fontSize: 9, color: Colors.grey),
+                        style: const TextStyle(fontSize: 12, color: Colors.grey),
                       ),
                       Text(
                         _convertToArabicNumerals(
                             '${(trendData.data.map((e) => e.amount).reduce((a, b) => a > b ? a : b) * 0.75).toInt()}'),
-                        style: const TextStyle(fontSize: 9, color: Colors.grey),
+                        style: const TextStyle(fontSize: 12, color: Colors.grey),
                       ),
                       Text(
                         _convertToArabicNumerals(
                             '${(trendData.data.map((e) => e.amount).reduce((a, b) => a > b ? a : b) * 0.5).toInt()}'),
-                        style: const TextStyle(fontSize: 9, color: Colors.grey),
+                        style: const TextStyle(fontSize: 12, color: Colors.grey),
                       ),
                       Text(
                         _convertToArabicNumerals(
                             '${(trendData.data.map((e) => e.amount).reduce((a, b) => a > b ? a : b) * 0.25).toInt()}'),
-                        style: const TextStyle(fontSize: 9, color: Colors.grey),
+                        style: const TextStyle(fontSize: 12, color: Colors.grey),
                       ),
                       Text(
                         _convertToArabicNumerals('0'),
-                        style: const TextStyle(fontSize: 9, color: Colors.grey),
+                        style: const TextStyle(fontSize: 12, color: Colors.grey),
                       ),
                     ],
                   ),
@@ -377,7 +433,7 @@ class _SimpleChartsBannerState extends State<SimpleChartsBanner> {
                           child: Text(
                             _formatWeekLabel(point.bucket),
                             style: const TextStyle(
-                                fontSize: 9, color: Colors.grey),
+                                fontSize: 12, color: Colors.grey),
                             textAlign: TextAlign.center,
                             overflow: TextOverflow.ellipsis,
                           ),
@@ -896,4 +952,3 @@ class PieChartPainter extends CustomPainter {
     return colors[categoryName] ?? AppColors.gryColor;
   }
 }
-
