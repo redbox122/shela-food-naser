@@ -3,7 +3,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:sixam_mart/common/controllers/theme_controller.dart';
 import 'package:sixam_mart/features/add_delegate/controllers/delegate_controller.dart';
 import 'package:sixam_mart/features/auth/controllers/deliveryman_registration_controller.dart';
 import 'package:sixam_mart/features/auth/controllers/store_registration_controller.dart';
@@ -443,17 +442,6 @@ class _MenuScreenState extends State<MenuScreen> {
                                 title: 'اللغة',
                                 subtitle: _currentLanguageLabel(),
                                 onTap: _manageLanguageFunctionality,
-                              ),
-                              GetBuilder<ThemeController>(
-                                id: 'app_theme',
-                                builder: (theme) => ProfileMenuRow(
-                                  icon: _sectionImage(Images.dark_mode),
-                                  title: 'تفعيل الوضع الداكن',
-                                  trailing: _switch(
-                                    theme.darkTheme,
-                                    (_) => theme.toggleTheme(),
-                                  ),
-                                ),
                               ),
                               GetBuilder<AuthController>(
                                 builder: (auth) => ProfileMenuRow(
