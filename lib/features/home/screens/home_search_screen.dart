@@ -1273,12 +1273,18 @@ class _HomeSearchScreenState extends State<HomeSearchScreen> {
     }
 
     // Result tabs: الكل / متاجر / منتجات.
-    final bool showStores = _resultTab != 2 && _storeMatches.isNotEmpty;
-    final bool showProducts = _resultTab != 1 && _results.isNotEmpty;
+    // Tab 3 = "عروض": only discounted products, no store cards.
+    final bool isOffersTab = _resultTab == 3;
+    final bool showStores =
+        _resultTab != 2 && !isOffersTab && _storeMatches.isNotEmpty;
+    final List<_SearchProduct> productList = isOffersTab
+        ? _results.where((p) => p.discount > 0).toList()
+        : _results;
+    final bool showProducts = _resultTab != 1 && productList.isNotEmpty;
 
     // Group products by store.
     final Map<int?, List<_SearchProduct>> groups = {};
-    for (final p in _results) {
+    for (final p in productList) {
       (groups[p.storeId] ??= <_SearchProduct>[]).add(p);
     }
 
@@ -1332,42 +1338,46 @@ class _HomeSearchScreenState extends State<HomeSearchScreen> {
     );
   }
 
-  /// Segmented tabs above the results: الكل / متاجر / منتجات.
+  /// Segmented tabs above the results: الكل / متاجر / منتجات / عروض.
   Widget _buildResultTabs() {
     final bool isArabic = Get.locale?.languageCode == 'ar';
     final labels = isArabic
-        ? ['الكل', 'متاجر', 'منتجات']
-        : ['All', 'Stores', 'Products'];
-    return Row(
-      children: List.generate(labels.length, (i) {
-        final bool active = _resultTab == i;
-        return Padding(
-          padding: const EdgeInsets.only(left: 8),
-          child: InkWell(
-            onTap: () => setState(() => _resultTab = i),
-            borderRadius: BorderRadius.circular(Dimensions.radiusLarge),
-            child: Container(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              decoration: BoxDecoration(
-                color: active
-                    ? Theme.of(context).primaryColor
-                    : const Color(0xFFF1F2F4),
-                borderRadius: BorderRadius.circular(Dimensions.radiusLarge),
-              ),
-              child: Text(
-                labels[i],
-                style: TextStyle(
-                  fontFamily: 'Tajawal',
-                  fontWeight: FontWeight.w700,
-                  fontSize: 13,
-                  color: active ? Colors.white : _chipText,
+        ? ['الكل', 'متاجر', 'منتجات', 'عروض']
+        : ['All', 'Stores', 'Products', 'Offers'];
+    // Horizontally scrollable so the 4 tabs never overflow on narrow screens.
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        children: List.generate(labels.length, (i) {
+          final bool active = _resultTab == i;
+          return Padding(
+            padding: const EdgeInsets.only(left: 8),
+            child: InkWell(
+              onTap: () => setState(() => _resultTab = i),
+              borderRadius: BorderRadius.circular(Dimensions.radiusLarge),
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                decoration: BoxDecoration(
+                  color: active
+                      ? Theme.of(context).primaryColor
+                      : const Color(0xFFF1F2F4),
+                  borderRadius: BorderRadius.circular(Dimensions.radiusLarge),
+                ),
+                child: Text(
+                  labels[i],
+                  style: TextStyle(
+                    fontFamily: 'Tajawal',
+                    fontWeight: FontWeight.w700,
+                    fontSize: 13,
+                    color: active ? Colors.white : _chipText,
+                  ),
                 ),
               ),
             ),
-          ),
-        );
-      }),
+          );
+        }),
+      ),
     );
   }
 
