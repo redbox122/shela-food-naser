@@ -137,16 +137,47 @@ class _MarketBrandsSectionState extends State<MarketBrandsSection> {
           Padding(
             padding: const EdgeInsets.symmetric(
                 horizontal: Dimensions.paddingSizeDefault),
-            child: Text(
-              'أشهر المتاجر',
-              textAlign: TextAlign.right,
-              style: const TextStyle(
-                fontFamily: 'Tajawal',
-                fontWeight: FontWeight.w700,
-                fontSize: 20,
-                height: 1.4,
-                color: Color(0xFF121C19),
-              ),
+            child: Row(
+              children: [
+                const Expanded(
+                  child: Text(
+                    'أشهر المتاجر',
+                    textAlign: TextAlign.right,
+                    style: TextStyle(
+                      fontFamily: 'Tajawal',
+                      fontWeight: FontWeight.w700,
+                      fontSize: 20,
+                      height: 1.4,
+                      color: Color(0xFF121C19),
+                    ),
+                  ),
+                ),
+                // "عرض المزيد" opens the full stores list for this section.
+                if (!_loading && _items.isNotEmpty)
+                  InkWell(
+                    onTap: () =>
+                        Get.toNamed(RouteHelper.getAllStoreRoute('popular')),
+                    borderRadius: BorderRadius.circular(20),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF2F2F4),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: const Text(
+                        'عرض المزيد',
+                        style: TextStyle(
+                          fontFamily: 'Tajawal',
+                          fontWeight: FontWeight.w600,
+                          fontSize: 12,
+                          height: 1.4,
+                          color: Color(0xFF121C19),
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
             ),
           ),
           const SizedBox(height: Dimensions.paddingSizeSmall),
