@@ -155,8 +155,10 @@ class _MarketBrandsSectionState extends State<MarketBrandsSection> {
                 // "عرض المزيد" opens the full stores list for this section.
                 if (!_loading && _items.isNotEmpty)
                   InkWell(
+                    // Opens the full stores list (same /api/v2/stores source as
+                    // this rail), so every popular store shows with its logo.
                     onTap: () =>
-                        Get.toNamed(RouteHelper.getAllStoreRoute('popular')),
+                        Get.toNamed(RouteHelper.getAllStoreRoute('all')),
                     borderRadius: BorderRadius.circular(20),
                     child: Container(
                       padding: const EdgeInsets.symmetric(
