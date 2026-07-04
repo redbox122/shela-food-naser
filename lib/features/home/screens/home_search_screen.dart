@@ -192,13 +192,16 @@ class _HomeSearchScreenState extends State<HomeSearchScreen> {
     // then the earliest in-name match — so "نوتيلا" surfaces the chocolate
     // before furniture that merely carries "نوتيلا" as a colour mid-name.
     final String q = _normCore(text);
-    // RELEVANCE FILTER: the backend also matches on description / store name, so
-    // it can return products unrelated to the typed word (e.g. "رز" surfacing
-    // non-rice items). Keep only products whose (normalized) NAME actually
-    // contains the query. Store-name matches still appear in the store section.
-    if (q.isNotEmpty) {
-      results =
-          results.where((p) => _normCore(p.name ?? '').contains(q)).toList();
+    // RELEVANCE FILTER: the backend also matches on description / store name and
+    // even mid-word substrings, so it returns products unrelated to the typed
+    // word (e.g. "رز" surfacing "بامبرز" / "هيرز"). Keep only products where a
+    // WORD in the (normalized) name starts with the query — with a leading-alef
+    // strip so "رز" still matches "أرز"/"ارز". Store-name matches still appear in
+    // the store section below.
+    if (q.length >= 2) {
+      results = results
+          .where((p) => _nameMatchesQuery(p.name ?? '', q))
+          .toList();
     }
     int rank(_SearchProduct p) {
       final n = _normCore(p.name ?? '');
@@ -382,6 +385,22 @@ class _HomeSearchScreenState extends State<HomeSearchScreen> {
   // ── Arabic text normalization (delegates to the testable util) ────────────
   String _stripMarks(String s) => stripArabicMarks(s);
   String _normCore(String s) => normalizeArabic(s);
+
+  /// Relevance test: true when a WORD in [name] starts with the normalized
+  /// query [normQ] — not a mid-word substring (so "رز" matches "أرز"/"ارز" but
+  /// not "بامبرز"/"هيرز"). A leading alef/hamza is stripped from each word so
+  /// the colloquial "رز" still hits "أرز".
+  bool _nameMatchesQuery(String name, String normQ) {
+    final String nn = _normCore(name);
+    if (nn.contains(' $normQ') || nn.startsWith(normQ)) return true;
+    for (final String w in nn.split(RegExp(r'[\s\-/,،()\[\].]+'))) {
+      if (w.isEmpty) continue;
+      if (w.startsWith(normQ)) return true;
+      final String stripped = w.replaceFirst(RegExp(r'^[اأإآٱ]+'), '');
+      if (stripped.isNotEmpty && stripped.startsWith(normQ)) return true;
+    }
+    return false;
+  }
 
   /// Words that must never appear as a suggestion (normalized before compare).
   /// Populate with the project's profanity/blocklist terms.
