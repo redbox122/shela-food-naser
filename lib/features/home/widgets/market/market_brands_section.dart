@@ -122,6 +122,9 @@ class _MarketBrandsSectionState extends State<MarketBrandsSection> {
     }
   }
 
+  // Whether the popular-stores rail is expanded into a full grid in place.
+  bool _isExpanded = false;
+
   @override
   Widget build(BuildContext context) {
     if (!_loading && _items.isEmpty) {
@@ -152,13 +155,12 @@ class _MarketBrandsSectionState extends State<MarketBrandsSection> {
                     ),
                   ),
                 ),
-                // "عرض المزيد" opens the full stores list for this section.
-                if (!_loading && _items.isNotEmpty)
+                // "عرض المزيد" / "عرض أقل": expands the rail into a grid IN PLACE
+                // (no navigation). Only shown when there are enough stores to wrap.
+                if (!_loading && _items.length > 5)
                   InkWell(
-                    // Opens the full stores list (same /api/v2/stores source as
-                    // this rail), so every popular store shows with its logo.
                     onTap: () =>
-                        Get.toNamed(RouteHelper.getAllStoreRoute('all')),
+                        setState(() => _isExpanded = !_isExpanded),
                     borderRadius: BorderRadius.circular(20),
                     child: Container(
                       padding: const EdgeInsets.symmetric(
@@ -167,9 +169,9 @@ class _MarketBrandsSectionState extends State<MarketBrandsSection> {
                         color: const Color(0xFFF2F2F4),
                         borderRadius: BorderRadius.circular(20),
                       ),
-                      child: const Text(
-                        'عرض المزيد',
-                        style: TextStyle(
+                      child: Text(
+                        _isExpanded ? 'عرض أقل' : 'عرض المزيد',
+                        style: const TextStyle(
                           fontFamily: 'Tajawal',
                           fontWeight: FontWeight.w600,
                           fontSize: 12,
@@ -183,25 +185,40 @@ class _MarketBrandsSectionState extends State<MarketBrandsSection> {
             ),
           ),
           const SizedBox(height: Dimensions.paddingSizeSmall),
-          // Single horizontal row of circular brand logos — all brands, scroll.
+          // Collapsed: a single horizontal scrolling row of circular logos.
+          // Expanded: the SAME logos wrapped into a multi-row grid, in place.
           // While loading, Skeletonizer bones dummy logo chips.
           Skeletonizer(
             enabled: _loading,
-            child: SizedBox(
-              height: MarketBrandsSection._logoSize,
-              child: ListView.separated(
-                scrollDirection: Axis.horizontal,
-                physics: _loading
-                    ? const NeverScrollableScrollPhysics()
-                    : const AlwaysScrollableScrollPhysics(),
-                padding: const EdgeInsets.symmetric(
-                    horizontal: Dimensions.paddingSizeDefault),
-                itemCount: _loading ? 6 : _items.length,
-                separatorBuilder: (_, __) => const SizedBox(width: _rowGap),
-                itemBuilder: (_, index) =>
-                    _BrandLogo(brand: _loading ? _dummyBrand : _items[index]),
-              ),
-            ),
+            child: (_isExpanded && !_loading)
+                ? Padding(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: Dimensions.paddingSizeDefault),
+                    child: Wrap(
+                      spacing: _rowGap,
+                      runSpacing: _rowGap,
+                      alignment: WrapAlignment.start,
+                      children: [
+                        for (final b in _items) _BrandLogo(brand: b),
+                      ],
+                    ),
+                  )
+                : SizedBox(
+                    height: MarketBrandsSection._logoSize,
+                    child: ListView.separated(
+                      scrollDirection: Axis.horizontal,
+                      physics: _loading
+                          ? const NeverScrollableScrollPhysics()
+                          : const AlwaysScrollableScrollPhysics(),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: Dimensions.paddingSizeDefault),
+                      itemCount: _loading ? 6 : _items.length,
+                      separatorBuilder: (_, __) =>
+                          const SizedBox(width: _rowGap),
+                      itemBuilder: (_, index) => _BrandLogo(
+                          brand: _loading ? _dummyBrand : _items[index]),
+                    ),
+                  ),
           ),
         ],
       ),
