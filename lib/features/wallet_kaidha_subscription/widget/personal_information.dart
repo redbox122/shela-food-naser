@@ -529,15 +529,6 @@ class _PersonalInformationState extends State<PersonalInformation> {
                 KaidhaSub_Controller.updateMaritalStatus(value!);
               },
             ),
-            _buildRadioOption(
-              context: context,
-              label: 'divorced'.tr,
-              value: 'divorced',
-              groupValue: KaidhaSub_Controller.marital_status,
-              onChanged: (value) {
-                KaidhaSub_Controller.updateMaritalStatus(value!);
-              },
-            ),
           ],
         ),
       ],
@@ -1099,7 +1090,7 @@ class _PersonalInformationState extends State<PersonalInformation> {
                     ],
                     cursorColor: AppColors.bgColor,
                     decoration: InputDecoration(
-                      hintText: '5XXXXXXXX',
+                      hintText: '12 234 5678',
                       hintStyle: font10Grey500W(context, size: size_14(context)),
                       border: InputBorder.none,
                       contentPadding:
