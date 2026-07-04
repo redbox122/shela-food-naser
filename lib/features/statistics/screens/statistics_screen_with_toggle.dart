@@ -329,8 +329,8 @@ class StatisticsScreenWithToggleState extends State<StatisticsScreenWithToggle>
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
-                      'محفظة قيدها',
+                    Text(
+                      'st_qidha_wallet'.tr,
                       style: TextStyle(
                         color: Colors.white,
                         fontSize: 20,
@@ -389,8 +389,8 @@ class StatisticsScreenWithToggleState extends State<StatisticsScreenWithToggle>
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          'نظرة عامة على الرصيد',
+        Text(
+          'st_balance_overview'.tr,
           style: TextStyle(
             fontSize: 18,
             fontWeight: FontWeight.bold,
@@ -403,32 +403,32 @@ class StatisticsScreenWithToggleState extends State<StatisticsScreenWithToggle>
             scrollDirection: Axis.horizontal,
             children: [
               _buildQidhaBalanceCard(
-                'الرصيد المتاح',
+                'st_available_balance'.tr,
                 '${_convertToArabicNumerals(walletInfo.availableBalance.toStringAsFixed(2))} ر.س',
                 Icons.account_balance_wallet,
                 Colors.green,
-                'المبلغ المتاح للإنفاق',
+                'st_amount_available_spend'.tr,
               ),
               _buildQidhaBalanceCard(
-                'الرصيد المستخدم',
+                'st_used_balance'.tr,
                 '${_convertToArabicNumerals(walletInfo.usedBalance.toStringAsFixed(2))} ر.س',
                 Icons.shopping_cart,
                 Colors.orange,
-                'المبلغ المنفق حتى الآن',
+                'st_amount_spent_sofar'.tr,
               ),
               _buildQidhaBalanceCard(
-                'الحد الائتماني',
+                'st_credit_limit'.tr,
                 '${_convertToArabicNumerals(walletInfo.creditLimit.toStringAsFixed(2))} ر.س',
                 Icons.credit_card,
                 Colors.blue,
-                'الحد الأقصى المسموح',
+                'st_max_allowed'.tr,
               ),
               _buildQidhaBalanceCard(
-                'إجمالي الرصيد',
+                'st_total_balance'.tr,
                 '${_convertToArabicNumerals((walletInfo.availableBalance + walletInfo.usedBalance).toStringAsFixed(2))} ر.س',
                 Icons.account_balance,
                 AppColors.primaryColor,
-                'الرصيد الإجمالي',
+                'st_overall_balance'.tr,
               ),
             ],
           ),
@@ -530,8 +530,8 @@ class StatisticsScreenWithToggleState extends State<StatisticsScreenWithToggle>
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          'تحليل الإنفاق',
+        Text(
+          'st_spending_analysis'.tr,
           style: TextStyle(
             fontSize: 18,
             fontWeight: FontWeight.bold,
@@ -544,25 +544,25 @@ class StatisticsScreenWithToggleState extends State<StatisticsScreenWithToggle>
             scrollDirection: Axis.horizontal,
             children: [
               _buildQidhaAnalyticsCard(
-                'إجمالي الإنفاق هذا الشهر',
+                'st_total_spending_month'.tr,
                 '${_convertToArabicNumerals(spending.totalSpentThisPeriod.toStringAsFixed(2))} ر.س',
                 Icons.trending_up,
                 Colors.blue,
               ),
               _buildQidhaAnalyticsCard(
-                'متوسط الإنفاق اليومي',
+                'st_avg_daily_spending'.tr,
                 '${_convertToArabicNumerals(spending.averageDailySpending.toStringAsFixed(2))} ر.س',
                 Icons.calendar_today,
                 Colors.green,
               ),
               _buildQidhaAnalyticsCard(
-                'أعلى عملية شراء',
+                'st_highest_purchase'.tr,
                 '${_convertToArabicNumerals(spending.highestSinglePurchase.toStringAsFixed(2))} ر.س',
                 Icons.arrow_upward,
                 Colors.orange,
               ),
               _buildQidhaAnalyticsCard(
-                'اتجاه الإنفاق',
+                'st_spending_trend'.tr,
                 _getTrendText(spending.spendingTrend),
                 spending.spendingTrend == 'increasing'
                     ? Icons.trending_up
@@ -639,8 +639,8 @@ class StatisticsScreenWithToggleState extends State<StatisticsScreenWithToggle>
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          'المدفوعات المستحقة',
+        Text(
+          'st_due_payments'.tr,
           style: TextStyle(
             fontSize: 18,
             fontWeight: FontWeight.bold,
@@ -665,17 +665,17 @@ class StatisticsScreenWithToggleState extends State<StatisticsScreenWithToggle>
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
               _buildDuePaymentItem(
-                'إجمالي المستحق',
+                'st_total_due'.tr,
                 '${_convertToArabicNumerals((summary['total_due_amount'] is num ? (summary['total_due_amount'] as num).toDouble() : 0.0).toStringAsFixed(2))} ر.س',
                 Colors.red,
               ),
               _buildDuePaymentItem(
-                'عدد المدفوعات المستحقة',
+                'st_due_payments_count'.tr,
                 _convertToArabicNumerals(((summary['pending_count'] as int?) ?? 0).toString()),
                 Colors.orange,
               ),
               _buildDuePaymentItem(
-                'المتأخرة',
+                'st_overdue'.tr,
                 _convertToArabicNumerals(((summary['overdue_count'] as int?) ?? 0).toString()),
                 Colors.red,
               ),
@@ -746,8 +746,8 @@ class StatisticsScreenWithToggleState extends State<StatisticsScreenWithToggle>
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            const Text(
-              'سجل المعاملات',
+            Text(
+              'st_transactions_log'.tr,
               style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
@@ -810,8 +810,8 @@ class StatisticsScreenWithToggleState extends State<StatisticsScreenWithToggle>
                         strokeWidth: 2,
                       ),
                     )
-                  : const Text(
-                      'تحميل المزيد',
+                  : Text(
+                      'st_load_more'.tr,
                       style: TextStyle(
                         color: Colors.white,
                         fontWeight: FontWeight.bold,
@@ -863,8 +863,8 @@ class StatisticsScreenWithToggleState extends State<StatisticsScreenWithToggle>
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            const Text(
-              'فئات الإنفاق',
+            Text(
+              'st_spending_categories'.tr,
               style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
@@ -1002,8 +1002,8 @@ class StatisticsScreenWithToggleState extends State<StatisticsScreenWithToggle>
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            const Text(
-              'الاتجاهات الشهرية',
+            Text(
+              'st_monthly_trends'.tr,
               style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
@@ -1111,8 +1111,8 @@ class StatisticsScreenWithToggleState extends State<StatisticsScreenWithToggle>
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            const Text(
-              'سجل المدفوعات',
+            Text(
+              'st_payments_log'.tr,
               style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
@@ -1234,13 +1234,13 @@ class StatisticsScreenWithToggleState extends State<StatisticsScreenWithToggle>
   String _getPaymentTypeText(String paymentType) {
     switch (paymentType) {
       case 'due_payment':
-        return 'دفع مستحق';
+        return 'st_payment_due'.tr;
       case 'order_payment':
-        return 'دفع طلب';
+        return 'st_pay_order'.tr;
       case 'refund':
-        return 'استرداد';
+        return 'st_refund'.tr;
       default:
-        return 'دفع';
+        return 'st_pay'.tr;
     }
   }
 
@@ -1257,9 +1257,9 @@ class StatisticsScreenWithToggleState extends State<StatisticsScreenWithToggle>
               color: Colors.grey[100],
               borderRadius: BorderRadius.circular(16),
             ),
-            child: const Center(
+            child: Center(
               child: Text(
-                'لا توجد بيانات محفظة قيدها',
+                'st_no_qidha_data'.tr,
                 style: TextStyle(
                   fontSize: 16,
                   color: Colors.grey,
@@ -1312,8 +1312,8 @@ class StatisticsScreenWithToggleState extends State<StatisticsScreenWithToggle>
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text(
-                          'محفظة قيدها',
+                        Text(
+                          'st_qidha_wallet'.tr,
                           style: TextStyle(
                             color: Colors.white,
                             fontSize: 20,
@@ -1380,8 +1380,8 @@ class StatisticsScreenWithToggleState extends State<StatisticsScreenWithToggle>
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              'تحليل الإنفاق',
+            Text(
+              'st_spending_analysis'.tr,
               style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
@@ -1394,25 +1394,25 @@ class StatisticsScreenWithToggleState extends State<StatisticsScreenWithToggle>
                 scrollDirection: Axis.horizontal,
                 children: [
                   _buildQidhaAnalyticsCard(
-                    'إجمالي الإنفاق هذا الشهر',
+                    'st_total_spending_month'.tr,
                     '${_convertToArabicNumerals(monthlySpending.toStringAsFixed(2))} ر.س',
                     Icons.trending_up,
                     Colors.blue,
                   ),
                   _buildQidhaAnalyticsCard(
-                    'متوسط الإنفاق اليومي',
+                    'st_avg_daily_spending'.tr,
                     '${_convertToArabicNumerals(averageDailySpending.toStringAsFixed(2))} ر.س',
                     Icons.calendar_today,
                     Colors.green,
                   ),
                   _buildQidhaAnalyticsCard(
-                    'نسبة الاستخدام',
+                    'st_usage_ratio'.tr,
                     '${_convertToArabicNumerals(usagePercentage.toStringAsFixed(1))}%',
                     Icons.pie_chart,
                     Colors.orange,
                   ),
                   _buildQidhaAnalyticsCard(
-                    'الإنفاق الأسبوعي',
+                    'st_weekly_spending'.tr,
                     '${_convertToArabicNumerals(weeklySpending.toStringAsFixed(2))} ر.س',
                     Icons.trending_up,
                     AppColors.primaryColor,
@@ -1440,7 +1440,7 @@ class StatisticsScreenWithToggleState extends State<StatisticsScreenWithToggle>
           Icon(Icons.history, color: Colors.blue[400], size: 48),
           const SizedBox(height: 12),
           Text(
-            'سجل المعاملات',
+            'st_transactions_log'.tr,
             style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.bold,
@@ -1449,7 +1449,7 @@ class StatisticsScreenWithToggleState extends State<StatisticsScreenWithToggle>
           ),
           const SizedBox(height: 8),
           Text(
-            'سيتم عرض سجل المعاملات قريباً',
+            'st_transactions_soon'.tr,
             style: TextStyle(
               fontSize: 14,
               color: Colors.blue[600],
@@ -1479,7 +1479,7 @@ class StatisticsScreenWithToggleState extends State<StatisticsScreenWithToggle>
           ),
           const SizedBox(height: 12),
           Text(
-            'الاتجاهات الشهرية',
+            'st_monthly_trends'.tr,
             style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.bold,
@@ -1488,7 +1488,7 @@ class StatisticsScreenWithToggleState extends State<StatisticsScreenWithToggle>
           ),
           const SizedBox(height: 8),
           Text(
-            'سيتم عرض الاتجاهات الشهرية قريباً',
+            'st_monthly_trends_soon'.tr,
             style: TextStyle(
               fontSize: 14,
               color: AppColors.primaryColor.withValues(alpha: 0.9),
@@ -1533,15 +1533,15 @@ class StatisticsScreenWithToggleState extends State<StatisticsScreenWithToggle>
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            const Text(
-              'تقويم الإنفاق',
+            Text(
+              'st_spending_calendar'.tr,
               style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
               ),
             ),
             Text(
-              'آخر 30 يوم',
+              'st_last_30_days'.tr,
               style: TextStyle(
                 fontSize: 14,
                 color: Colors.grey[600],
@@ -1700,7 +1700,7 @@ class StatisticsScreenWithToggleState extends State<StatisticsScreenWithToggle>
         Row(
           children: [
             Text(
-              'أقل',
+              'st_less'.tr,
               style: TextStyle(
                 fontSize: 12,
                 color: Colors.grey[600],
@@ -1762,7 +1762,7 @@ class StatisticsScreenWithToggleState extends State<StatisticsScreenWithToggle>
             ),
             const SizedBox(width: 8),
             Text(
-              'أكثر',
+              'st_more'.tr,
               style: TextStyle(
                 fontSize: 12,
                 color: Colors.grey[600],
@@ -1805,8 +1805,8 @@ class StatisticsScreenWithToggleState extends State<StatisticsScreenWithToggle>
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            const Text(
-              'جدول المدفوعات المستحقة',
+            Text(
+              'st_due_payments_schedule'.tr,
               style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
@@ -1963,7 +1963,7 @@ class StatisticsScreenWithToggleState extends State<StatisticsScreenWithToggle>
                         final orderDetails = payment['order_details'] as Map<String, dynamic>?;
                         final storeName = orderDetails != null ? orderDetails['store_name'] as String? : null;
                         return Text(
-                          'المتجر: ${storeName ?? 'غير محدد'}',
+                          'المتجر: ${storeName ?? 'st_unspecified'.tr}',
                           style: TextStyle(
                             fontSize: 12,
                             color: Colors.grey[500],
@@ -2056,7 +2056,7 @@ class StatisticsScreenWithToggleState extends State<StatisticsScreenWithToggle>
               ),
               const SizedBox(width: 12),
               Text(
-                'يوم الراتب والمدفوعات المستحقة',
+                'st_payday_due'.tr,
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
@@ -2132,7 +2132,7 @@ class StatisticsScreenWithToggleState extends State<StatisticsScreenWithToggle>
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'يوم الراتب',
+                          'st_payday'.tr,
                           style: TextStyle(
                             fontSize: 14,
                             color: Colors.grey[600],
@@ -2189,7 +2189,7 @@ class StatisticsScreenWithToggleState extends State<StatisticsScreenWithToggle>
                         Text(
                           nextSalaryDate.isNotEmpty
                               ? nextSalaryDate
-                              : 'غير محدد',
+                              : 'st_unspecified'.tr,
                           style: TextStyle(
                             fontSize: 12,
                             color: Colors.grey[500],
@@ -2260,8 +2260,8 @@ class StatisticsScreenWithToggleState extends State<StatisticsScreenWithToggle>
                         ),
                       ),
                       const SizedBox(width: 12),
-                      const Text(
-                        'المدفوعات المستحقة',
+                      Text(
+                        'st_due_payments'.tr,
                         style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
@@ -2303,7 +2303,7 @@ class StatisticsScreenWithToggleState extends State<StatisticsScreenWithToggle>
                 children: [
                   Expanded(
                     child: _buildDuePaymentStat3D(
-                      'المعلقة',
+                      'st_pending'.tr,
                       pendingCount.toString(),
                       Colors.orange,
                       Icons.pending_actions,
@@ -2312,7 +2312,7 @@ class StatisticsScreenWithToggleState extends State<StatisticsScreenWithToggle>
                   const SizedBox(width: 12),
                   Expanded(
                     child: _buildDuePaymentStat3D(
-                      'المتأخرة',
+                      'st_overdue'.tr,
                       overdueCount.toString(),
                       Colors.red,
                       Icons.warning_amber_rounded,
@@ -2399,7 +2399,7 @@ class StatisticsScreenWithToggleState extends State<StatisticsScreenWithToggle>
                           ),
                         ],
                       ),
-                      child: const Row(
+                      child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           Icon(
@@ -2409,7 +2409,7 @@ class StatisticsScreenWithToggleState extends State<StatisticsScreenWithToggle>
                           ),
                           SizedBox(width: 4),
                           Text(
-                            'مدفوع مستحق',
+                            'st_paid_due'.tr,
                             style: TextStyle(
                               fontSize: 10,
                               color: Colors.white,

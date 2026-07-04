@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 import '../../../common/widgets/custom_Images.dart';
 import '../../../common/widgets/custom_text.dart';
 import '../../../util/app_colors.dart';
@@ -35,7 +36,7 @@ class StatisticsKaidhaAndContainerDetails extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Custom_Text(context,
-                        text: 'المبلغ المقدم من قيدها',
+                        text: 'st_amount_from_qidha'.tr,
                         style: font13White400W(
                           context,
                         )),
@@ -63,7 +64,7 @@ class StatisticsKaidhaAndContainerDetails extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
                     Custom_Text(context,
-                        text: 'المبلغ المتاح للشراء',
+                        text: 'st_amount_available_buy'.tr,
                         style: font13White400W(
                           context,
                         )),

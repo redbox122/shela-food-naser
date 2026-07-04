@@ -209,8 +209,8 @@ class SimpleStatisticsScreen extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          'المنتجات الأكثر شراء',
+        Text(
+          'st_most_purchased'.tr,
           style: TextStyle(
             fontSize: 18,
             fontWeight: FontWeight.bold,

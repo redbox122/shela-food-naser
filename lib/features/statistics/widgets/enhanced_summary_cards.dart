@@ -243,7 +243,7 @@ class EnhancedSummaryCards extends StatelessWidget {
 
               // Temporary fix: Use hardcoded Arabic translations
               if (title == 'spending_trend' || title.isEmpty) {
-                return 'اتجاه الإنفاق';
+                return 'st_spending_trend'.tr;
               }
               return title;
             }(),
@@ -366,7 +366,7 @@ class EnhancedSummaryCards extends StatelessWidget {
         }
         // Temporary fix: Use hardcoded Arabic translations
         if (result == 'increasing' || result.isEmpty) {
-          return 'متزايد';
+          return 'st_increasing'.tr;
         }
         return result;
       case 'decreasing':
@@ -377,7 +377,7 @@ class EnhancedSummaryCards extends StatelessWidget {
         }
         // Temporary fix: Use hardcoded Arabic translations
         if (result == 'decreasing' || result.isEmpty) {
-          return 'متناقص';
+          return 'st_decreasing'.tr;
         }
         return result;
       default:
@@ -387,7 +387,7 @@ class EnhancedSummaryCards extends StatelessWidget {
         }
         // Temporary fix: Use hardcoded Arabic translations
         if (result == 'stable' || result.isEmpty) {
-          return 'مستقر';
+          return 'st_stable'.tr;
         }
         return result;
     }

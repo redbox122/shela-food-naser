@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 import 'package:sixam_mart/util/styles.dart';
 import '../../../helper/grid_view_fix_height.dart';
 import '../../../util/app_colors.dart';
@@ -12,7 +13,7 @@ class MostPurchasedProducts extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'المنتجات الأكثر شراء',
+          'st_most_purchased'.tr,
           style: font14Black400W(context),
         ),
         const SizedBox(
@@ -52,13 +53,13 @@ class Product {
 final List<Product> products = [
   Product(
     image: 'assets/image/b2.png',
-    name: 'ليبتون 48 ظرف',
+    name: 'st_lipton_48'.tr,
     price: 10.0,
     discountPrice: 10.0,
   ),
   Product(
       image: 'assets/image/b1.png',
-      name: 'داجستيف بسكويت',
+      name: 'st_digestive_biscuit'.tr,
       price: 15.0,
       discountPrice: 15.0),
   // Add more products here

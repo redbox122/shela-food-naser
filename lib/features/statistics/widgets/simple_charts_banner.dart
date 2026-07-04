@@ -227,8 +227,8 @@ class _SimpleChartsBannerState extends State<SimpleChartsBanner> {
           children: [
             Row(
               children: [
-                const Text(
-                  'توزيع الفئات',
+                Text(
+                  'st_category_distribution'.tr,
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
@@ -243,8 +243,8 @@ class _SimpleChartsBannerState extends State<SimpleChartsBanner> {
                     color: AppColors.greenColor.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  child: const Text(
-                    'أفضل 5',
+                  child: Text(
+                    'st_top_5'.tr,
                     style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.bold,
@@ -299,7 +299,7 @@ class _SimpleChartsBannerState extends State<SimpleChartsBanner> {
             ),
           ),
           Text(
-            'إجمالي الإنفاق',
+            'st_total_spending'.tr,
             style: TextStyle(
               fontSize: 10,
               color: AppColors.greenColor.withValues(alpha: 0.7),
@@ -408,8 +408,8 @@ class _SimpleChartsBannerState extends State<SimpleChartsBanner> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          'أفضل 5 فئات',
+        Text(
+          'st_top_5_categories'.tr,
           style: TextStyle(
             fontSize: 12,
             color: AppColors.gryColor,
@@ -606,19 +606,19 @@ class _SimpleChartsBannerState extends State<SimpleChartsBanner> {
       'Technology': AppColors.orangeColor,
       'Fashion': AppColors.redColor,
       'Education': AppColors.secondaryColor,
-      'مستلزمات غسيل الملابس': AppColors.greenColor,
-      'الإلكترونيات والأجهزة': AppColors.bluColor,
-      'الأطعمة الأساسية': AppColors.orangeColor,
-      'الإلكترونيات والأجهزة المنزلية': AppColors.redColor,
-      'الأرز والمعكرونة والبقوليات': AppColors.secondaryColor,
-      'الهواتف المحمولة وأجهزة اليد الذكية': AppColors.primaryColor,
-      'أطعمة طازجة': Colors.teal,
-      'العطور ومزيلات العرق': Colors.pink,
-      'العناية بالفم': Colors.cyan,
-      'اللوازم المدرسية': Colors.amber,
-      'الحقائب': Colors.brown,
-      'منتجات الألبان و البيض': Colors.lightBlue,
-      'السوبر ماركت': Colors.deepOrange,
+      'st_laundry_supplies'.tr: AppColors.greenColor,
+      'st_electronics_devices'.tr: AppColors.bluColor,
+      'st_staple_foods'.tr: AppColors.orangeColor,
+      'st_electronics_home'.tr: AppColors.redColor,
+      'st_rice_pasta_legumes'.tr: AppColors.secondaryColor,
+      'st_mobiles_handhelds'.tr: AppColors.primaryColor,
+      'st_fresh_food'.tr: Colors.teal,
+      'st_perfumes_deodorants'.tr: Colors.pink,
+      'st_oral_care'.tr: Colors.cyan,
+      'st_school_supplies'.tr: Colors.amber,
+      'st_bags'.tr: Colors.brown,
+      'st_dairy_eggs'.tr: Colors.lightBlue,
+      'st_supermarket'.tr: Colors.deepOrange,
     };
     return colors[categoryName] ?? AppColors.gryColor;
   }
@@ -666,14 +666,14 @@ class _SimpleChartsBannerState extends State<SimpleChartsBanner> {
       // Convert to our array index (0=Sunday, 6=Saturday)
       final dayIndex = dayOfWeek == 7 ? 0 : dayOfWeek;
 
-      const arabicDays = [
-        'الأحد', // Sunday (0)
-        'الاثنين', // Monday (1)
-        'الثلاثاء', // Tuesday (2)
-        'الأربعاء', // Wednesday (3)
-        'الخميس', // Thursday (4)
-        'الجمعة', // Friday (5)
-        'السبت' // Saturday (6)
+      final arabicDays = [
+        'st_sunday'.tr, // Sunday (0)
+        'st_monday'.tr, // Monday (1)
+        'st_tuesday'.tr, // Tuesday (2)
+        'st_wednesday'.tr, // Wednesday (3)
+        'st_thursday'.tr, // Thursday (4)
+        'st_friday'.tr, // Friday (5)
+        'st_saturday'.tr // Saturday (6)
       ];
 
       return arabicDays[dayIndex];
@@ -879,19 +879,19 @@ class PieChartPainter extends CustomPainter {
       'Technology': AppColors.orangeColor,
       'Fashion': AppColors.redColor,
       'Education': AppColors.secondaryColor,
-      'مستلزمات غسيل الملابس': AppColors.greenColor,
-      'الإلكترونيات والأجهزة': AppColors.bluColor,
-      'الأطعمة الأساسية': AppColors.orangeColor,
-      'الإلكترونيات والأجهزة المنزلية': AppColors.redColor,
-      'الأرز والمعكرونة والبقوليات': AppColors.secondaryColor,
-      'الهواتف المحمولة وأجهزة اليد الذكية': AppColors.primaryColor,
-      'أطعمة طازجة': Colors.teal,
-      'العطور ومزيلات العرق': Colors.pink,
-      'العناية بالفم': Colors.cyan,
-      'اللوازم المدرسية': Colors.amber,
-      'الحقائب': Colors.brown,
-      'منتجات الألبان و البيض': Colors.lightBlue,
-      'السوبر ماركت': Colors.deepOrange,
+      'st_laundry_supplies'.tr: AppColors.greenColor,
+      'st_electronics_devices'.tr: AppColors.bluColor,
+      'st_staple_foods'.tr: AppColors.orangeColor,
+      'st_electronics_home'.tr: AppColors.redColor,
+      'st_rice_pasta_legumes'.tr: AppColors.secondaryColor,
+      'st_mobiles_handhelds'.tr: AppColors.primaryColor,
+      'st_fresh_food'.tr: Colors.teal,
+      'st_perfumes_deodorants'.tr: Colors.pink,
+      'st_oral_care'.tr: Colors.cyan,
+      'st_school_supplies'.tr: Colors.amber,
+      'st_bags'.tr: Colors.brown,
+      'st_dairy_eggs'.tr: Colors.lightBlue,
+      'st_supermarket'.tr: Colors.deepOrange,
     };
     return colors[categoryName] ?? AppColors.gryColor;
   }

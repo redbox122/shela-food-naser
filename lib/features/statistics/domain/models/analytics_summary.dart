@@ -1,4 +1,5 @@
 import 'package:sixam_mart/common/utils/json_parser.dart';
+import 'package:get/get.dart';
 
 class AnalyticsSummary {
   final double monthlySpending;
@@ -65,7 +66,7 @@ class SpendingTrend {
   final double weeklyChange;
   final String trendDirection;
 
-  const SpendingTrend({
+  SpendingTrend({
     required this.monthlyChange,
     required this.weeklyChange,
     required this.trendDirection,

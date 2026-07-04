@@ -132,7 +132,7 @@ class _SimpleProductDeepDiveScreenState
         elevation: 0,
         centerTitle: true,
         title: Text(
-          _tr('product_deep_dive_product_details', 'تفاصيل المنتج'),
+          _tr('product_deep_dive_product_details', 'st_product_details'.tr),
           style: const TextStyle(
             color: AppColors.wtColor,
             fontSize: 16,
@@ -172,7 +172,7 @@ class _SimpleProductDeepDiveScreenState
           ),
           const SizedBox(height: Dimensions.paddingSizeDefault),
           Text(
-            _tr('failed_to_load_analytics', 'فشل في تحميل التحليلات'),
+            _tr('failed_to_load_analytics', 'st_analytics_load_failed'.tr),
             style: TextStyle(
               color: AppColors.gryColor.withValues(alpha: 0.7),
               fontSize: 16,
@@ -185,7 +185,7 @@ class _SimpleProductDeepDiveScreenState
               backgroundColor: AppColors.greenColor,
               foregroundColor: AppColors.wtColor,
             ),
-            child: Text(_tr('retry', 'إعادة المحاولة')),
+            child: Text(_tr('retry', 'st_retry'.tr)),
           ),
         ],
       ),
@@ -318,7 +318,7 @@ class _SimpleProductDeepDiveScreenState
           child: _buildAnalyticsCard(
             icon: Icons.shopping_cart,
             title:
-                _tr('product_deep_dive_total_transactions', 'إجمالي المعاملات'),
+                _tr('product_deep_dive_total_transactions', 'st_total_transactions'.tr),
             value:
                 _convertToArabicNumerals((analytics['total_purchases'] ?? 0).toString()),
             color: AppColors.greenColor,
@@ -329,7 +329,7 @@ class _SimpleProductDeepDiveScreenState
           child: _buildAnalyticsCard(
             icon: Icons.account_balance_wallet,
             title: _tr(
-                    'product_deep_dive_spent_on_product', 'المنفق على المنتج')
+                    'product_deep_dive_spent_on_product', 'st_spent_on_product'.tr)
                 .replaceAll('{amount}',
                     _convertToArabicNumerals((analytics['total_spent'] ?? 0).toString()))
                 .replaceAll('{months}', '1'),
@@ -419,7 +419,7 @@ class _SimpleProductDeepDiveScreenState
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            _tr('price_history', 'تاريخ الأسعار'),
+            _tr('price_history', 'st_price_history'.tr),
             style: const TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.bold,
@@ -459,7 +459,7 @@ class _SimpleProductDeepDiveScreenState
         children: [
           Text(
             _tr('product_deep_dive_smart_stats_analytics',
-                'إحصائيات ذكية وتحليلات'),
+                'st_smart_stats'.tr),
             style: const TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.bold,
@@ -468,11 +468,11 @@ class _SimpleProductDeepDiveScreenState
           ),
           const SizedBox(height: Dimensions.paddingSizeDefault),
           _buildDetailRow(
-              _tr('product_deep_dive_average_quantity', 'متوسط الكمية'),
+              _tr('product_deep_dive_average_quantity', 'st_avg_quantity'.tr),
               '${_convertToArabicNumerals((_productAnalytics!['analytics']?['average_order_value'] ?? 'N/A').toString())} ر.س'),
           _buildDetailRow(
               _tr('product_deep_dive_purchase_frequency_days',
-                  'تكرار الشراء (أيام)'), () {
+                  'st_purchase_frequency_days'.tr), () {
             final String frequency = _productAnalytics!['analytics']
                         ?['purchase_frequency']
                     ?.toString() ??
@@ -481,25 +481,25 @@ class _SimpleProductDeepDiveScreenState
             // Hardcoded Arabic translations as fallback
             switch (frequency.toLowerCase()) {
               case 'daily':
-                return 'يومي';
+                return 'st_daily'.tr;
               case 'weekly':
-                return 'أسبوعي';
+                return 'st_weekly'.tr;
               case 'monthly':
-                return 'شهري';
+                return 'st_monthly'.tr;
               case 'yearly':
-                return 'سنوي';
+                return 'st_yearly'.tr;
               default:
                 return frequency;
             }
           }()),
           _buildDetailRow(
-              _tr('product_deep_dive_last_purchase_date', 'تاريخ آخر شراء'),
+              _tr('product_deep_dive_last_purchase_date', 'st_last_purchase_date'.tr),
               _convertToArabicNumerals(_productAnalytics!['analytics']
                           ?['last_purchase']
                       ?.toString() ??
                   'N/A')),
           _buildDetailRow(
-              _tr('product_deep_dive_trend_analysis', 'تحليل الاتجاه'), () {
+              _tr('product_deep_dive_trend_analysis', 'st_trend_analysis'.tr), () {
             final String trend = _productAnalytics!['analytics']?['purchase_pattern']
                         ?['seasonal_trend']
                     ?.toString() ??
@@ -508,15 +508,15 @@ class _SimpleProductDeepDiveScreenState
             // Hardcoded Arabic translations as fallback
             switch (trend.toLowerCase()) {
               case 'stable':
-                return 'مستقر';
+                return 'st_stable'.tr;
               case 'increasing':
-                return 'متزايد';
+                return 'st_increasing'.tr;
               case 'decreasing':
-                return 'متناقص';
+                return 'st_decreasing'.tr;
               case 'up':
-                return 'صاعد';
+                return 'st_rising'.tr;
               case 'down':
-                return 'هابط';
+                return 'st_falling'.tr;
               default:
                 return trend;
             }
@@ -587,7 +587,7 @@ class _SimpleProductDeepDiveScreenState
               ),
               const SizedBox(width: Dimensions.paddingSizeSmall),
               Text(
-                _tr('recommendations', 'التوصيات'),
+                _tr('recommendations', 'st_recommendations'.tr),
                 style: const TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
@@ -660,7 +660,7 @@ class _SimpleProductDeepDiveScreenState
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              _tr('product_deep_dive_transaction_history', 'تاريخ المعاملات'),
+              _tr('product_deep_dive_transaction_history', 'st_transactions_date'.tr),
               style: const TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
@@ -679,7 +679,7 @@ class _SimpleProductDeepDiveScreenState
                   const SizedBox(height: 8),
                   Text(
                     _tr('product_deep_dive_no_transactions_found',
-                        'لم يتم العثور على معاملات'),
+                        'st_no_transactions'.tr),
                     style: const TextStyle(
                       color: AppColors.textColor,
                       fontSize: 14,
@@ -716,7 +716,7 @@ class _SimpleProductDeepDiveScreenState
                 flex: 2,
                 child: Text(
                   _tr('product_deep_dive_transaction_history',
-                      'تاريخ المعاملات'),
+                      'st_transactions_date'.tr),
                   style: const TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
@@ -728,7 +728,7 @@ class _SimpleProductDeepDiveScreenState
               const SizedBox(width: 8),
               Flexible(
                 child: Text(
-                  '${purchaseHistory.length} ${_tr('all_transactions', 'كل الحركات المالية')}',
+                  '${purchaseHistory.length} ${_tr('all_transactions', 'st_all_transactions'.tr)}',
                   style: const TextStyle(
                     fontSize: 12,
                     color: AppColors.greyColor,
@@ -846,7 +846,7 @@ class _SimpleProductDeepDiveScreenState
                               ],
                             ),
                             Text(
-                              _tr('total_price', 'السعر الإجمالي'),
+                              _tr('total_price', 'st_total_price'.tr),
                               style: const TextStyle(
                                 fontSize: 10,
                                 color: AppColors.greyColor,

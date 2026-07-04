@@ -547,13 +547,13 @@ class _EnhancedMostPurchasedProductsState
   String _translateFrequency(String frequency) {
     switch (frequency.toLowerCase()) {
       case 'daily':
-        return 'يومي';
+        return 'st_daily'.tr;
       case 'weekly':
-        return 'أسبوعي';
+        return 'st_weekly'.tr;
       case 'monthly':
-        return 'شهري';
+        return 'st_monthly'.tr;
       case 'yearly':
-        return 'سنوي';
+        return 'st_yearly'.tr;
       default:
         return frequency;
     }

@@ -9,7 +9,7 @@ class ProductTransactionItemWidget extends StatelessWidget {
   final int index;
   final VoidCallback? onTap;
 
-  const ProductTransactionItemWidget({
+  ProductTransactionItemWidget({
     super.key,
     required this.transaction,
     required this.index,

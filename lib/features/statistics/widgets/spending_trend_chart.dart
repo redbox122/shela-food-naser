@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 import 'package:sixam_mart/common/widgets/custom_text.dart';
 import 'package:sixam_mart/util/app_colors.dart';
 import 'package:sixam_mart/util/styles.dart';
@@ -50,7 +51,7 @@ class SpendingTrendChart extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Icon(
+          Icon(
             Icons.trending_up,
             size: 48,
             color: AppColors.primaryColor,
@@ -82,7 +83,7 @@ class SpendingTrendChart extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Icon(
+          Icon(
             Icons.trending_up,
             size: 48,
             color: AppColors.gryColor_2,
