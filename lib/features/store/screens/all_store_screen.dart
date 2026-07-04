@@ -11,6 +11,9 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:sixam_mart/common/widgets/error_state_view.dart';
 import 'package:sixam_mart/common/widgets/web_page_title_widget.dart';
+// Additive: reusable sort/filter bar for the module store list.
+import 'package:sixam_mart/features/restaurant/controllers/restaurant_filter_controller.dart';
+import 'package:sixam_mart/features/restaurant/widgets/restaurant_filter_bar.dart';
 
 class AllStoreScreen extends StatefulWidget {
   final bool isPopular;
@@ -59,9 +62,36 @@ class _AllStoreScreenState extends State<AllStoreScreen> {
     return '${'new_on'.tr} ${AppConstants.appName}';
   }
 
+  late final String _filterTag;
+
+  void _reloadStoresForFilter() {
+    final StoreController sc = Get.find<StoreController>();
+    if (widget.isFeatured) {
+      sc.getFeaturedStoreList();
+    } else if (widget.isPopular) {
+      sc.getPopularStoreList(true, sc.type, false);
+    } else if (widget.isTopOfferStore) {
+      sc.getTopOfferStoreList(true, false);
+    } else {
+      sc.getStoreList(1, true, limit: _pageLimit);
+    }
+  }
+
   @override
   void initState() {
     super.initState();
+
+    // Additive: register a per-module filter controller and wire "apply" to a
+    // reload. UI-only for now (server-side params wired later).
+    _filterTag =
+        Get.find<SplashController>().module?.moduleType?.toString() ??
+            'restaurants';
+    if (!Get.isRegistered<RestaurantFilterController>(tag: _filterTag)) {
+      Get.put(RestaurantFilterController(moduleType: _filterTag),
+          tag: _filterTag);
+    }
+    Get.find<RestaurantFilterController>(tag: _filterTag).onApply =
+        (_) => _reloadStoresForFilter();
 
     final bool isAllPage =
         !widget.isFeatured && !widget.isPopular && !widget.isTopOfferStore;
@@ -205,6 +235,9 @@ class _AllStoreScreenState extends State<AllStoreScreen> {
                       ],
                     ),
                   ),
+                  // Additive: sort/filter bar (UI). RTL, scrollable.
+                  RestaurantFilterBar(moduleType: _filterTag),
+                  const SizedBox(height: Dimensions.paddingSizeExtraSmall),
                   if (isRestaurantLikeModule)
                     Padding(
                       padding: const EdgeInsets.symmetric(
