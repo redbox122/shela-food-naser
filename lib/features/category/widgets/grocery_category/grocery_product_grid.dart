@@ -20,10 +20,17 @@ import 'package:sixam_mart/util/styles.dart';
 
 class GroceryProductGrid extends StatelessWidget {
   final List<Item> items;
+  // Added (additive) for the transferred offers screen: an optional list layout
+  // and an inStore flag. Defaults keep the existing grid behaviour identical for
+  // every current caller (which passes neither).
+  final bool isListView;
+  final bool inStore;
 
   const GroceryProductGrid({
     super.key,
     required this.items,
+    this.isListView = false,
+    this.inStore = true,
   });
 
   @override
@@ -46,6 +53,19 @@ class GroceryProductGrid extends StatelessWidget {
             ),
           ),
         ),
+      );
+    }
+
+    // Optional list layout (used by the offers screen). The grid path below is
+    // untouched, so callers that don't pass isListView see the exact same grid.
+    if (isListView) {
+      return ListView.separated(
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        itemCount: items.length,
+        separatorBuilder: (_, __) =>
+            const SizedBox(height: Dimensions.paddingSizeSmall),
+        itemBuilder: (context, index) => _buildListItem(context, items[index]),
       );
     }
 
@@ -72,6 +92,107 @@ class GroceryProductGrid extends StatelessWidget {
     );
   }
 
+  /// List-row layout for the offers screen: image · name · discounted + original
+  /// price · discount badge · add button. Reuses the same navigation as the grid.
+  Widget _buildListItem(BuildContext context, Item item) {
+    final bool hasDiscount = item.discount != null && item.discount! > 0;
+    final double discountedPrice =
+        hasDiscount ? (item.price ?? 0) - (item.discount ?? 0) : item.price ?? 0;
+    final int pct = (hasDiscount && (item.price ?? 0) > 0)
+        ? (((item.discount ?? 0) / (item.price ?? 1)) * 100).round()
+        : 0;
+
+    return GestureDetector(
+      onTap: () => Get.find<ItemController>()
+          .navigateToItemPage(item, context, inStore: inStore),
+      child: Container(
+        padding: const EdgeInsets.all(Dimensions.paddingSizeSmall),
+        decoration: BoxDecoration(
+          color: Theme.of(context).cardColor,
+          borderRadius: BorderRadius.circular(Dimensions.radiusDefault),
+          border: Border.all(color: const Color(0xFFEDEDED)),
+        ),
+        child: Row(
+          textDirection: TextDirection.rtl,
+          children: [
+            Stack(
+              children: [
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(Dimensions.radiusSmall),
+                  child: CustomImage(
+                    image: item.displayImage ?? '',
+                    width: 74,
+                    height: 74,
+                    fit: BoxFit.cover,
+                    placeholder: Images.placeholder,
+                  ),
+                ),
+                if (pct > 0)
+                  Positioned(
+                    top: 4,
+                    right: 4,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 5, vertical: 1),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFE7557A),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text('-$pct%',
+                          style: robotoRegular.copyWith(
+                              color: Colors.white, fontSize: 9)),
+                    ),
+                  ),
+              ],
+            ),
+            const SizedBox(width: Dimensions.paddingSizeSmall),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(item.name ?? '',
+                      textAlign: TextAlign.right,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: robotoRegular.copyWith(
+                          fontSize: 13, color: AppColors.textColor)),
+                  const SizedBox(height: 6),
+                  Row(
+                    textDirection: TextDirection.rtl,
+                    children: [
+                      Text(PriceConverter.convertPrice(discountedPrice),
+                          style: robotoMedium.copyWith(
+                              fontSize: 13, color: const Color(0xFF31A342))),
+                      if (hasDiscount) ...[
+                        const SizedBox(width: 8),
+                        Text(PriceConverter.convertPrice(item.price ?? 0),
+                            style: robotoRegular.copyWith(
+                                fontSize: 11,
+                                color: AppColors.gryColor_2,
+                                decoration: TextDecoration.lineThrough)),
+                      ],
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            GestureDetector(
+              onTap: () => Get.find<ItemController>()
+                  .navigateToItemPage(item, context, inStore: inStore),
+              child: Container(
+                width: 30,
+                height: 30,
+                decoration: const BoxDecoration(
+                    color: Color(0xFF31A342), shape: BoxShape.circle),
+                child: const Icon(Icons.add, color: Colors.white, size: 20),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildProductCard(BuildContext context, Item item, double width) {
     final hasDiscount = item.discount != null && item.discount! > 0;
     final discountedPrice = hasDiscount
@@ -88,7 +209,7 @@ class GroceryProductGrid extends StatelessWidget {
         Get.find<ItemController>().navigateToItemPage(
           item,
           context,
-          inStore: true, // Items are shown within store context
+          inStore: inStore, // configurable (default true)
         );
       },
       child: Container(
@@ -135,7 +256,7 @@ class GroceryProductGrid extends StatelessWidget {
                         Get.find<ItemController>().navigateToItemPage(
                           item,
                           context,
-                          inStore: true,
+                          inStore: inStore,
                         );
                       },
                       child: Container(

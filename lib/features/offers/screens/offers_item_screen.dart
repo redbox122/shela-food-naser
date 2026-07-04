@@ -1,19 +1,23 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:sixam_mart/common/widgets/custom_app_bar.dart';
+import 'package:sixam_mart/helper/route_helper.dart';
 import 'package:sixam_mart/common/widgets/footer_view.dart';
-import 'package:sixam_mart/common/widgets/item_view.dart';
+import 'package:sixam_mart/features/category/widgets/grocery_category/grocery_product_grid.dart';
 import 'package:sixam_mart/common/widgets/loading/loading.dart';
 import 'package:sixam_mart/common/widgets/error_state_view.dart';
-import 'package:shimmer_animation/shimmer_animation.dart';
 import 'package:sixam_mart/common/widgets/web_page_title_widget.dart';
+import 'package:sixam_mart/features/offers/widgets/offers_loading_shimmer.dart';
+import 'package:sixam_mart/features/offers/widgets/offers_searching_indicator.dart';
+import 'package:sixam_mart/features/offers/widgets/offers_no_results_view.dart';
+import 'package:sixam_mart/features/offers/widgets/offers_filter_controls_row.dart';
+import 'package:sixam_mart/features/offers/widgets/offers_filter_sheet.dart';
 import 'package:sixam_mart/features/item/domain/models/item_model.dart';
 import 'package:sixam_mart/features/category/controllers/category_controller.dart';
 import 'package:sixam_mart/features/splash/controllers/splash_controller.dart';
 import 'package:sixam_mart/helper/responsive_helper.dart';
-import 'package:sixam_mart/theme/app_color_tokens.dart';
 import 'package:sixam_mart/util/dimensions.dart';
+import 'package:sixam_mart/util/images.dart';
 import 'package:sixam_mart/util/styles.dart';
 
 import '../controllers/offers_controller.dart';
@@ -84,28 +88,10 @@ class _OffersItemScreen extends State<OffersItemScreen> {
     required OffersController controller,
     required String message,
   }) {
-    final bool canReset = _hasActiveOffersFilters(controller);
-    return Center(
-      child: Padding(
-        padding: EdgeInsets.only(
-          top: ResponsiveHelper.isDesktop(context)
-              ? context.height * 0.3
-              : context.height * 0.4,
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(message, textAlign: TextAlign.center),
-            if (canReset) ...[
-              const SizedBox(height: Dimensions.paddingSizeSmall),
-              OutlinedButton(
-                onPressed: () => _resetOffersFiltersAndReload(controller),
-                child: Text('reset'.tr),
-              ),
-            ],
-          ],
-        ),
-      ),
+    return OffersNoResultsView(
+      message: message,
+      canReset: _hasActiveOffersFilters(controller),
+      onReset: () => _resetOffersFiltersAndReload(controller),
     );
   }
 
@@ -197,7 +183,54 @@ class _OffersItemScreen extends State<OffersItemScreen> {
     final bool isDesktop = ResponsiveHelper.isDesktop(context);
 
     return Scaffold(
-      appBar: CustomAppBar(title: widget.offerName),
+      backgroundColor: Theme.of(context).colorScheme.surface,
+      // White header: centered title + cart icon at the end (RTL: left).
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        surfaceTintColor: Colors.white,
+        // Soft drop shadow under the header (always visible).
+        elevation: 4,
+        scrolledUnderElevation: 4,
+        shadowColor: Colors.black.withValues(alpha: 0.15),
+        centerTitle: true,
+        iconTheme: IconThemeData(
+          color: Theme.of(context).textTheme.bodyLarge?.color,
+        ),
+        leading: IconButton(
+          icon: Icon(
+            Icons.arrow_back_ios_new,
+            color: Theme.of(context).textTheme.bodyLarge?.color,
+          ),
+          onPressed: () => Navigator.of(context).maybePop(),
+        ),
+        title: Text(
+          'offers_and_discounts'.tr,
+          textAlign: TextAlign.center,
+          style: tajawalBold.copyWith(
+            fontSize: 18,
+            height: 1.6,
+            letterSpacing: 0,
+            color: Theme.of(context).textTheme.bodyLarge?.color,
+          ),
+        ),
+        actions: [
+          Padding(
+            padding: const EdgeInsets.only(left: Dimensions.paddingSizeSmall),
+            child: InkWell(
+              borderRadius: BorderRadius.circular(50),
+              onTap: () => Get.toNamed(RouteHelper.getCartRoute()),
+              child: Padding(
+                padding: const EdgeInsets.all(8),
+                child: Image.asset(
+                  Images.navBag,
+                  width: 24,
+                  height: 24,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
       body: SafeArea(
         top: false,
         bottom: true,
@@ -205,209 +238,94 @@ class _OffersItemScreen extends State<OffersItemScreen> {
         right: false,
         minimum: EdgeInsets.zero,
         child: GetBuilder<OffersController>(builder: (offersController) {
-        final bool hasNoOfferItems =
-            (offersController.offersItemList == null ||
-                offersController.offersItemList!.isEmpty);
-        final bool shouldShowOffersNetworkError =
-            (!Get.find<SplashController>().hasConnection ||
-                    offersController.hasItemsError) &&
-                !offersController.isItemsLoading &&
-                !offersController.isSearching &&
-                hasNoOfferItems;
-        if (shouldShowOffersNetworkError) {
-          return ErrorStateView(
-            onRetry: () {
-              offersController.getOffersItemList(
-                id: widget.offerId.toString(),
-                offset: 1,
-                forceRefresh: true,
-              );
-            },
-          );
-        }
-        // Show loading screen for initial load
-        if (offersController.offersItemList == null &&
-            !offersController.isItemsLoading &&
-            !offersController.isSearching) {
-          return const Center(
-            child: LoadingWidget(),
-          );
-        }
-        return GetBuilder<CategoryController>(builder: (categoryController) {
-          final theme = Theme.of(context);
-          final tokens = theme.extension<AppColorTokens>()!;
-          final Color selectedChipColor = tokens.successSoft;
-          final Color selectedChipTextColor = theme.primaryColor;
-          final bool hasActiveFilters =
-              _selectedSort != 'popular' ||
-              (_minPrice.isNotEmpty && _minPrice != '0') ||
-              (_maxPrice.isNotEmpty && _maxPrice != '0') ||
-              offersController.selectedCategoryIds.isNotEmpty ||
-              _searchController.text.trim().isNotEmpty;
-          return Stack(
-            children: [
-              RefreshIndicator(
-                onRefresh: () async {
-                  await Get.find<OffersController>().getOffersItemList(
-                    id: widget.offerId.toString(),
-                    offset: 1,
-                  );
-                },
-                child: SingleChildScrollView(
-                  controller: scrollController,
-                  child: FooterView(
-                    child: Column(children: [
-                      WebScreenTitleWidget(title: widget.offerName),
+          final bool hasNoOfferItems =
+              (offersController.offersItemList == null ||
+                  offersController.offersItemList!.isEmpty);
+          final bool shouldShowOffersNetworkError =
+              (!Get.find<SplashController>().hasConnection ||
+                      offersController.hasItemsError) &&
+                  !offersController.isItemsLoading &&
+                  !offersController.isSearching &&
+                  hasNoOfferItems;
+          if (shouldShowOffersNetworkError) {
+            return ErrorStateView(
+              onRetry: () {
+                offersController.getOffersItemList(
+                  id: widget.offerId.toString(),
+                  offset: 1,
+                  forceRefresh: true,
+                );
+              },
+            );
+          }
+          // Show loading screen for initial load
+          if (offersController.offersItemList == null &&
+              !offersController.isItemsLoading &&
+              !offersController.isSearching) {
+            return const Center(
+              child: LoadingWidget(),
+            );
+          }
+          return GetBuilder<CategoryController>(builder: (categoryController) {
+            final bool hasActiveFilters = _selectedSort != 'popular' ||
+                (_minPrice.isNotEmpty && _minPrice != '0') ||
+                (_maxPrice.isNotEmpty && _maxPrice != '0') ||
+                offersController.selectedCategoryIds.isNotEmpty ||
+                _searchController.text.trim().isNotEmpty;
+            return Stack(
+              children: [
+                RefreshIndicator(
+                  onRefresh: () async {
+                    await Get.find<OffersController>().getOffersItemList(
+                      id: widget.offerId.toString(),
+                      offset: 1,
+                    );
+                  },
+                  child: SingleChildScrollView(
+                    controller: scrollController,
+                    child: FooterView(
+                      child: Column(children: [
+                        WebScreenTitleWidget(title: widget.offerName),
 
-                      // Search and Filter Section
-                      Container(
-                        width: Dimensions.webMaxWidth,
-                        padding:
-                            const EdgeInsets.all(Dimensions.paddingSizeSmall),
-                        child: Column(
-                          children: [
-                            // Filter Controls
-                            Row(
-                              children: [
-                                // Grid/List Toggle
-                                InkWell(
-                                  onTap: () {
-                                    offersController.setVerticalItems(
-                                        !offersController.isVertical);
-                                  },
-                                  child: Container(
-                                    decoration: BoxDecoration(
-                                      borderRadius: BorderRadius.circular(
-                                          Dimensions.radiusDefault),
-                                      color: Theme.of(context)
-                                          .primaryColor
-                                          .withValues(alpha: 0.1),
-                                    ),
-                                    padding: const EdgeInsets.all(
-                                        Dimensions.paddingSizeExtraSmall),
-                                    child: Icon(
-                                        offersController.isVertical
-                                            ? Icons.list
-                                            : Icons.grid_view,
-                                        size: 24,
-                                        color: Theme.of(context).primaryColor),
-                                  ),
-                                ),
-
-                                const SizedBox(
-                                    width: Dimensions.paddingSizeSmall),
-
-                                // Price Sort Toggle
-                                InkWell(
-                                  onTap: () {
-                                    offersController.setPrice(
-                                        !offersController.isPriceAscending);
-                                  },
-                                  child: Container(
-                                    decoration: BoxDecoration(
-                                      borderRadius: BorderRadius.circular(
-                                          Dimensions.radiusDefault),
-                                      color: offersController.isPriceAscending
-                                          ? Theme.of(context)
-                                              .primaryColor
-                                              .withValues(alpha: 0.1)
-                                          : selectedChipColor,
-                                    ),
-                                    padding: const EdgeInsets.all(
-                                        Dimensions.paddingSizeExtraSmall),
-                                    child: Icon(
-                                        offersController.isPriceAscending
-                                            ? Icons.trending_down
-                                            : Icons.trending_up,
-                                        size: 28,
-                                        color: Theme.of(context).primaryColor),
-                                  ),
-                                ),
-
-                                const SizedBox(
-                                    width: Dimensions.paddingSizeSmall),
-
-                                // Filter Categories Button
-                                InkWell(
-                                  onTap: () {
-                                    _showFilterBottomSheet(
-                                        context, offersController);
-                                  },
-                                  child: Container(
-                                    decoration: BoxDecoration(
-                                      borderRadius: BorderRadius.circular(
-                                          Dimensions.radiusDefault),
-                                      color: hasActiveFilters
-                                          ? selectedChipColor
-                                          : Theme.of(context)
-                                              .primaryColor
-                                              .withValues(alpha: 0.1),
-                                    ),
-                                    padding: const EdgeInsets.symmetric(
-                                        horizontal: Dimensions.paddingSizeSmall,
-                                        vertical:
-                                            Dimensions.paddingSizeExtraSmall),
-                                    child: Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        Icon(
-                                          Icons.filter_list,
-                                          size: 20,
-                                          color: hasActiveFilters
-                                              ? selectedChipTextColor
-                                              : Theme.of(context).primaryColor,
-                                        ),
-                                        const SizedBox(width: 4),
-                                        Text(
-                                          'filter'.tr,
-                                          style: robotoMedium.copyWith(
-                                            fontSize: Dimensions.fontSizeSmall,
-                                            color: hasActiveFilters
-                                                ? selectedChipTextColor
-                                                : Theme.of(context).primaryColor,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-
-                                const Expanded(child: SizedBox()),
-                              ],
-                            ),
-
-                            const SizedBox(height: Dimensions.paddingSizeSmall),
-                          ],
+                        // Search and Filter Section
+                        OffersFilterControlsRow(
+                          controller: offersController,
+                          hasActiveFilters: hasActiveFilters,
+                          onFilterTap: () =>
+                              _showFilterBottomSheet(context, offersController),
                         ),
-                      ),
 
-                      SizedBox(
-                        width: Dimensions.webMaxWidth,
-                        child: _buildOffersContent(
-                          context,
-                          offersController,
-                          isDesktop,
+                        SizedBox(
+                          width: Dimensions.webMaxWidth,
+                          child: _buildOffersContent(
+                            context,
+                            offersController,
+                            isDesktop,
+                          ),
                         ),
-                      ),
 
-                      offersController.isItemsLoading
-                          ? Center(
-                              child: Padding(
-                              padding: const EdgeInsets.all(
-                                  Dimensions.paddingSizeSmall),
-                              child: CircularProgressIndicator(
-                                  valueColor: AlwaysStoppedAnimation<Color>(
-                                      Theme.of(context).primaryColor)),
-                            ))
-                          : const SizedBox(),
-                    ]),
+                        // Footer spinner only during pagination (items already
+                        // loaded). The initial load shows the shimmer alone.
+                        (offersController.isItemsLoading &&
+                                offersController.offersItemList != null &&
+                                offersController.offersItemList!.isNotEmpty)
+                            ? Center(
+                                child: Padding(
+                                padding: const EdgeInsets.all(
+                                    Dimensions.paddingSizeSmall),
+                                child: CircularProgressIndicator(
+                                    valueColor: AlwaysStoppedAnimation<Color>(
+                                        Theme.of(context).primaryColor)),
+                              ))
+                            : const SizedBox(),
+                      ]),
+                    ),
                   ),
                 ),
-              ),
-            ],
-          );
-        });
-      }),
+              ],
+            );
+          });
+        }),
       ),
     );
   }
@@ -421,7 +339,7 @@ class _OffersItemScreen extends State<OffersItemScreen> {
       if (offersController.isLiveSearching) {
         final liveResults = offersController.liveSearchResults;
         if (offersController.isItemsLoading || liveResults == null) {
-          return _buildSearchingIndicator(context);
+          return const OffersSearchingIndicator();
         }
         if (liveResults.isNotEmpty) {
           return _buildOffersItemsView(liveResults, isSearching: true);
@@ -435,7 +353,7 @@ class _OffersItemScreen extends State<OffersItemScreen> {
 
       if (offersController.isItemsLoading &&
           offersController.offersSearchItemModel == null) {
-        return _buildSearchingIndicator(context);
+        return const OffersSearchingIndicator();
       }
 
       final List<Item> searchItems =
@@ -466,7 +384,7 @@ class _OffersItemScreen extends State<OffersItemScreen> {
     }
 
     if (offersController.isItemsLoading) {
-      return _buildLoadingShimmer();
+      return OffersLoadingShimmer(isListView: !offersController.isVertical);
     }
 
     return Center(
@@ -501,295 +419,23 @@ class _OffersItemScreen extends State<OffersItemScreen> {
     );
   }
 
-  Widget _buildSearchingIndicator(BuildContext context) {
-    return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          CircularProgressIndicator(
-            valueColor:
-                AlwaysStoppedAnimation<Color>(Theme.of(context).primaryColor),
-          ),
-          const SizedBox(height: Dimensions.paddingSizeSmall),
-          Text(
-            'searching_for_products'.tr,
-            style: robotoMedium.copyWith(
-              fontSize: Dimensions.fontSizeDefault,
-              color: Theme.of(context).textTheme.bodyMedium?.color,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   void _showFilterBottomSheet(
       BuildContext context, OffersController controller) {
-    showModalBottomSheet<void>(
+    // Sort/price selections update the screen's filter state (the source of
+    // truth for client-side filtering) without rebuilding while the sheet is
+    // open — the controller rebuild on "done" refreshes the list.
+    OffersFilterSheet.show(
       context: context,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (context) => StatefulBuilder(
-        builder: (context, modalSetState) => DraggableScrollableSheet(
-          initialChildSize: 0.9,
-          minChildSize: 0.5,
-          maxChildSize: 0.95,
-          expand: false,
-          builder: (context, scrollController) => SafeArea(
-            top: false,
-            bottom: true,
-            left: false,
-            right: false,
-            minimum: EdgeInsets.zero,
-            child: Container(
-            padding: const EdgeInsets.all(Dimensions.paddingSizeDefault),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Text(
-                      'filter'.tr,
-                      style: robotoBold.copyWith(
-                        fontSize: Dimensions.fontSizeLarge,
-                      ),
-                    ),
-                    const Spacer(),
-                    IconButton(
-                      onPressed: () => Navigator.pop(context),
-                      icon: const Icon(Icons.close),
-                    ),
-                  ],
-                ),
-                const Divider(),
-                Expanded(
-                  child: SingleChildScrollView(
-                    controller: scrollController,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        _buildSectionTitle('sort_by'.tr),
-                        _buildSortChips(modalSetState: modalSetState),
-                        const SizedBox(height: Dimensions.paddingSizeDefault),
-                        _buildSectionTitle('product_name'.tr),
-                        TextField(
-                          controller: _searchController,
-                          decoration: InputDecoration(
-                            hintText: 'search_for_items'.tr,
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(
-                                  Dimensions.radiusDefault),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: Dimensions.paddingSizeDefault),
-                        _buildSectionTitle('price_range'.tr),
-                        _buildPriceRangeChips(modalSetState: modalSetState),
-                        const SizedBox(height: Dimensions.paddingSizeDefault),
-                        _buildSectionTitle('filter_categories'.tr),
-                        _buildCategoryChips(controller,
-                            modalSetState: modalSetState),
-                        const SizedBox(height: Dimensions.paddingSizeLarge),
-                      ],
-                    ),
-                  ),
-                ),
-                Row(
-                  children: [
-                    Expanded(
-                      child: OutlinedButton(
-                        onPressed: () {
-                          controller.resetFilters();
-                          modalSetState(() {
-                            _selectedSort = 'popular';
-                            _selectedPriceLabel = 'all';
-                            _minPrice = '';
-                            _maxPrice = '';
-                            _searchController.clear();
-                          });
-                        },
-                        style: OutlinedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(
-                              vertical: Dimensions.paddingSizeDefault),
-                        ),
-                        child: Text('reset'.tr),
-                      ),
-                    ),
-                    const SizedBox(width: Dimensions.paddingSizeSmall),
-                    Expanded(
-                      child: ElevatedButton(
-                        onPressed: () {
-                          if (_selectedSort == 'ascending') {
-                            controller.setPrice(true);
-                          } else if (_selectedSort == 'descending') {
-                            controller.setPrice(false);
-                          }
-                          final String query = _searchController.text.trim();
-                          if (query.isNotEmpty) {
-                            controller.getOffersSearchItemList(
-                              query,
-                              offerId: widget.offerId.toString(),
-                              offset: 1,
-                            );
-                          } else {
-                            controller.clearLiveSearch();
-                            controller.applyCategoryFilter();
-                          }
-                          Navigator.pop(context);
-                        },
-                        style: ElevatedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(
-                              vertical: Dimensions.paddingSizeDefault),
-                          backgroundColor: Theme.of(context).primaryColor,
-                        ),
-                        child: Text(
-                          'apply'.tr,
-                          style: const TextStyle(color: Colors.white),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildSectionTitle(String title) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: Dimensions.paddingSizeSmall),
-      child: Text(
-        title,
-        style: robotoBold.copyWith(
-          fontSize: Dimensions.fontSizeDefault,
-        ),
-      ),
-    );
-  }
-
-  Widget _buildSortChips({StateSetter? modalSetState}) {
-    final theme = Theme.of(context);
-    final tokens = theme.extension<AppColorTokens>()!;
-    final Color selectedChipColor = tokens.successSoft;
-    final Color selectedChipTextColor = theme.primaryColor;
-    const values = <String>['popular', 'ascending', 'descending'];
-    return Wrap(
-      spacing: Dimensions.paddingSizeSmall,
-      runSpacing: Dimensions.paddingSizeSmall,
-      children: values.map((value) {
-        final bool isSelected = _selectedSort == value;
-        final String label = value == 'popular'
-            ? 'popular'.tr
-            : value == 'ascending'
-                ? 'ascending'.tr
-                : 'descending'.tr;
-        return ChoiceChip(
-          label: Text(label),
-          selected: isSelected,
-          showCheckmark: true,
-          checkmarkColor: selectedChipTextColor,
-          onSelected: (selected) {
-            if (!selected) return;
-            final updater = modalSetState ?? setState;
-            updater(() {
-              _selectedSort = value;
-            });
-          },
-          selectedColor: selectedChipColor,
-          labelStyle: TextStyle(
-            color: isSelected
-                ? selectedChipTextColor
-                : Theme.of(context).textTheme.bodyLarge?.color,
-          ),
-        );
-      }).toList(),
-    );
-  }
-
-  Widget _buildPriceRangeChips({StateSetter? modalSetState}) {
-    final theme = Theme.of(context);
-    final tokens = theme.extension<AppColorTokens>()!;
-    final Color selectedChipColor = tokens.successSoft;
-    final Color selectedChipTextColor = theme.primaryColor;
-    return Wrap(
-      spacing: Dimensions.paddingSizeSmall,
-      runSpacing: Dimensions.paddingSizeSmall,
-      children: _priceRanges.map((range) {
-        final bool isSelected = _selectedPriceLabel == range['label'];
-        final String label =
-            range['label'] == 'all' ? 'all'.tr : range['label']!;
-        return ChoiceChip(
-          label: Text(label),
-          selected: isSelected,
-          showCheckmark: true,
-          checkmarkColor: selectedChipTextColor,
-          onSelected: (selected) {
-            if (!selected) return;
-            final updater = modalSetState ?? setState;
-            updater(() {
-              _selectedPriceLabel = range['label']!;
-              _minPrice = range['min']!;
-              _maxPrice = range['max']!;
-            });
-          },
-          selectedColor: selectedChipColor,
-          labelStyle: TextStyle(
-            color: isSelected
-                ? selectedChipTextColor
-                : Theme.of(context).textTheme.bodyLarge?.color,
-          ),
-        );
-      }).toList(),
-    );
-  }
-
-  Widget _buildCategoryChips(OffersController controller,
-      {StateSetter? modalSetState}) {
-    if (controller.categoryList == null || controller.categoryList!.isEmpty) {
-      return Text(
-        'no_categories_available'.tr,
-        style: robotoRegular.copyWith(
-          fontSize: Dimensions.fontSizeDefault,
-          color: Theme.of(context).disabledColor,
-        ),
-      );
-    }
-
-    final theme = Theme.of(context);
-    final tokens = theme.extension<AppColorTokens>()!;
-    final Color selectedChipColor = tokens.successSoft;
-    final Color selectedChipTextColor = theme.primaryColor;
-    return Wrap(
-      spacing: Dimensions.paddingSizeSmall,
-      runSpacing: Dimensions.paddingSizeSmall,
-      children: controller.categoryList!.map((category) {
-        final int categoryId = category.id ?? 0;
-        final bool isSelected =
-            controller.selectedCategoryIds.contains(categoryId);
-        return ChoiceChip(
-          label: Text(category.name ?? ''),
-          selected: isSelected,
-          showCheckmark: true,
-          checkmarkColor: selectedChipTextColor,
-          onSelected: (_) {
-            controller.toggleCategorySelection(categoryId);
-            final updater = modalSetState ?? setState;
-            updater(() {});
-          },
-          selectedColor: selectedChipColor,
-          labelStyle: TextStyle(
-            color: isSelected
-                ? selectedChipTextColor
-                : Theme.of(context).textTheme.bodyLarge?.color,
-          ),
-        );
-      }).toList(),
+      controller: controller,
+      priceRanges: _priceRanges,
+      initialSort: _selectedSort,
+      initialPriceLabel: _selectedPriceLabel,
+      onSortSelected: (sort) => _selectedSort = sort,
+      onPriceRangeSelected: (label, min, max) {
+        _selectedPriceLabel = label;
+        _minPrice = min;
+        _maxPrice = max;
+      },
     );
   }
 
@@ -826,249 +472,28 @@ class _OffersItemScreen extends State<OffersItemScreen> {
         });
       }
 
-      return ItemsView(
-        isStore: false,
-        stores: null,
-        items: filteredItems,
-        verticalItem: offersController.isVertical,
+      if (filteredItems.isEmpty) {
+        return _buildNoResultsWithReset(
+          context: context,
+          controller: offersController,
+          message: _hasActiveOffersFilters(offersController)
+              ? 'ما في نتائج بهاي الفلاتر.\nجرّب كلمة ثانية أو صفّر الفلتر.'
+              : 'no_item_available'.tr,
+        );
+      }
+
+      return Padding(
         padding: const EdgeInsets.symmetric(
-          horizontal: Dimensions.paddingSizeSmall,
+          horizontal: 16,
           vertical: Dimensions.paddingSizeSmall,
         ),
-        noDataText: _hasActiveOffersFilters(offersController)
-            ? 'ما في نتائج بهاي الفلاتر.\nجرّب كلمة ثانية أو صفّر الفلتر.'
-            : 'no_item_available'.tr,
-        noDataActionText: 'reset'.tr,
-        onNoDataActionTap: _hasActiveOffersFilters(offersController)
-            ? () => _resetOffersFiltersAndReload(offersController)
-            : null,
+        child: GroceryProductGrid(
+          items: filteredItems,
+          // offers: isVertical == grid (2 columns), otherwise list rows
+          isListView: !offersController.isVertical,
+          inStore: false,
+        ),
       );
     });
   }
-
-  /// ⚡ TASK 3: Neutral Grey Shimmer - No purple gradients
-  Widget _buildLoadingShimmer() {
-    return ListView.builder(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      itemCount: 6,
-      itemBuilder: (context, index) {
-        return Padding(
-          padding: const EdgeInsets.only(bottom: Dimensions.paddingSizeSmall),
-          child: Shimmer(
-            duration: const Duration(seconds: 2),
-            child: Container(
-              height: 100,
-              decoration: BoxDecoration(
-                color: Colors.grey[300],
-                borderRadius: BorderRadius.circular(Dimensions.radiusDefault),
-              ),
-              child: Row(
-                children: [
-                  // Image placeholder - neutral grey only
-                  Container(
-                    width: 80,
-                    height: 80,
-                    margin: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: Colors.grey[300],
-                      borderRadius:
-                          BorderRadius.circular(Dimensions.radiusDefault),
-                    ),
-                  ),
-                  Expanded(
-                    child: Padding(
-                      padding: const EdgeInsets.all(8.0),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          // Title placeholder
-                          Container(
-                            height: 16,
-                            width: double.infinity,
-                            decoration: BoxDecoration(
-                              color: Colors.grey[300],
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                            margin: const EdgeInsets.only(bottom: 8),
-                          ),
-                          // Subtitle placeholder
-                          Container(
-                            height: 14,
-                            width: double.infinity,
-                            decoration: BoxDecoration(
-                              color: Colors.grey[300],
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                            margin: const EdgeInsets.only(bottom: 8),
-                          ),
-                          // Price and icon row
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Container(
-                                height: 16,
-                                width: 60,
-                                decoration: BoxDecoration(
-                                  color: Colors.grey[300],
-                                  borderRadius: BorderRadius.circular(4),
-                                ),
-                              ),
-                              Container(
-                                height: 20,
-                                width: 20,
-                                decoration: BoxDecoration(
-                                  color: Colors.grey[300],
-                                  shape: BoxShape.circle,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        );
-      },
-    );
-  }
 }
-
-// class BrandItemScreenShimmer extends StatelessWidget {
-//   const BrandItemScreenShimmer({super.key});
-
-//   @override
-//   Widget build(BuildContext context) {
-//     return ResponsiveHelper.isDesktop(context)
-//         ? GridView.builder(
-//             shrinkWrap: true,
-//             gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-//               crossAxisCount: 3,
-//               mainAxisExtent: 150,
-//             ),
-//             itemCount: 12,
-//             itemBuilder: (context, index) {
-//               return Shimmer(
-//                 duration: const Duration(seconds: 2),
-//                 enabled: true,
-//                 colorOpacity: 0.1,
-//                 child: Container(
-//                   height: 100,
-//                   margin: const EdgeInsets.all(Dimensions.paddingSizeSmall),
-//                   padding: const EdgeInsets.all(Dimensions.paddingSizeSmall),
-//                   decoration: BoxDecoration(
-//                     color: Get.isDarkMode ? Colors.white.withValues(alpha: 0.05) : Colors.grey[300],
-//                     borderRadius: BorderRadius.circular(Dimensions.radiusDefault),
-//                     boxShadow: [
-//                       BoxShadow(
-//                           color: Get.isDarkMode ? Colors.black12 : Colors.grey.withValues(alpha: 0.1),
-//                           spreadRadius: 1,
-//                           blurRadius: 5,
-//                           offset: const Offset(0, 1))
-//                     ],
-//                   ),
-//                   child: Row(children: [
-//                     Container(
-//                       height: 80,
-//                       width: 80,
-//                       decoration: BoxDecoration(
-//                         borderRadius: BorderRadius.circular(Dimensions.radiusDefault),
-//                         color: Get.isDarkMode ? Theme.of(context).disabledColor.withValues(alpha: 0.2) : Theme.of(context).cardColor,
-//                       ),
-//                     ),
-//                     const SizedBox(width: Dimensions.paddingSizeSmall),
-//                     Expanded(
-//                       child:
-//                           Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisAlignment: MainAxisAlignment.center, children: [
-//                         Container(
-//                             height: 20,
-//                             width: double.maxFinite,
-//                             color:
-//                                 Get.isDarkMode ? Theme.of(context).disabledColor.withValues(alpha: 0.2) : Theme.of(context).cardColor),
-//                         const SizedBox(height: Dimensions.paddingSizeSmall),
-//                         Container(
-//                             height: 15,
-//                             width: double.maxFinite,
-//                             color:
-//                                 Get.isDarkMode ? Theme.of(context).disabledColor.withValues(alpha: 0.2) : Theme.of(context).cardColor),
-//                         const SizedBox(height: Dimensions.paddingSizeSmall),
-//                         Container(
-//                             height: 15,
-//                             width: double.maxFinite,
-//                             color:
-//                                 Get.isDarkMode ? Theme.of(context).disabledColor.withValues(alpha: 0.2) : Theme.of(context).cardColor),
-//                       ]),
-//                     ),
-//                   ]),
-//                 ),
-//               );
-//             },
-//           )
-//         : ListView.builder(
-//             itemCount: 8,
-//             shrinkWrap: true,
-//             physics: const NeverScrollableScrollPhysics(),
-//             itemBuilder: (context, index) {
-//               return Shimmer(
-//                 duration: const Duration(seconds: 2),
-//                 enabled: true,
-//                 colorOpacity: 0.1,
-//                 child: Container(
-//                   height: 100,
-//                   margin: const EdgeInsets.all(Dimensions.paddingSizeSmall),
-//                   padding: const EdgeInsets.all(Dimensions.paddingSizeSmall),
-//                   decoration: BoxDecoration(
-//                     color: Get.isDarkMode ? Colors.white.withValues(alpha: 0.05) : Colors.grey[300],
-//                     borderRadius: BorderRadius.circular(Dimensions.radiusDefault),
-//                     boxShadow: [
-//                       BoxShadow(
-//                           color: Get.isDarkMode ? Colors.black12 : Colors.grey.withValues(alpha: 0.1),
-//                           spreadRadius: 1,
-//                           blurRadius: 5,
-//                           offset: const Offset(0, 1))
-//                     ],
-//                   ),
-//                   child: Row(children: [
-//                     Container(
-//                       height: 80,
-//                       width: 80,
-//                       decoration: BoxDecoration(
-//                         borderRadius: BorderRadius.circular(Dimensions.radiusDefault),
-//                         color: Get.isDarkMode ? Theme.of(context).disabledColor.withValues(alpha: 0.2) : Theme.of(context).cardColor,
-//                       ),
-//                     ),
-//                     const SizedBox(width: Dimensions.paddingSizeSmall),
-//                     Expanded(
-//                       child:
-//                           Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisAlignment: MainAxisAlignment.center, children: [
-//                         Container(
-//                             height: 20,
-//                             width: double.maxFinite,
-//                             color:
-//                                 Get.isDarkMode ? Theme.of(context).disabledColor.withValues(alpha: 0.2) : Theme.of(context).cardColor),
-//                         const SizedBox(height: Dimensions.paddingSizeSmall),
-//                         Container(
-//                             height: 15,
-//                             width: double.maxFinite,
-//                             color:
-//                                 Get.isDarkMode ? Theme.of(context).disabledColor.withValues(alpha: 0.2) : Theme.of(context).cardColor),
-//                         const SizedBox(height: Dimensions.paddingSizeSmall),
-//                         Container(
-//                             height: 15,
-//                             width: double.maxFinite,
-//                             color:
-//                                 Get.isDarkMode ? Theme.of(context).disabledColor.withValues(alpha: 0.2) : Theme.of(context).cardColor),
-//                       ]),
-//                     ),
-//                   ]),
-//                 ),
-//               );
-//             },
-//           );
-//   }
-// }

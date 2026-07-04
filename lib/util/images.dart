@@ -63,6 +63,10 @@ class Images {
   static const String discount_shape_v2_active =
       'assets/image/discount-shape_v2_active.png';
   static const String bag_v2 = 'assets/image/bag_v2.png';
+  // Added for the transferred offers screen (offers list/grid + filter icons).
+  static const String navBag = 'assets/image/bag_v2.png';
+  static const String filter_v2 = 'assets/image/filter_v2.png';
+  static const String grid_2 = 'assets/image/grid-2.png';
   static const String not_found = 'assets/image/not_found.png';
   // Store-screen category tile backgrounds (cycled by index).
   static const List<String> categoryBackgrounds = [

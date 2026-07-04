@@ -320,6 +320,84 @@ class OffersController extends GetxController implements GetxService {
     return offersMode;
   }
 
+  /// Aggregate active offers across multiple modules. Used on the multi-module
+  /// home (no single module selected) so the "عروض وخصومات" section shows offers
+  /// from whichever modules actually have them (e.g. Cafes / Restaurants),
+  /// instead of only Module 3. Merges + de-dupes by offer id, then restores the
+  /// previous module id in the API headers.
+  Future<void> getAggregatedOffers(List<int> moduleIds) async {
+    if (_isLoading || moduleIds.isEmpty) {
+      return;
+    }
+
+    final bool hasExistingOffers =
+        offersMode != null && offersMode!.data.isNotEmpty;
+    if (!hasExistingOffers) {
+      _isLoading = true;
+      update();
+    }
+
+    final apiClient = Get.find<ApiClient>();
+    final sharedPreferences = Get.find<SharedPreferences>();
+    final AddressModel? addressModel =
+        AddressHelper.getUserAddressFromSharedPref();
+    final String? previousModuleId = apiClient.getHeader()['module-id'];
+
+    final List<Datum> merged = <Datum>[];
+    final Set<int?> seenIds = <int?>{};
+
+    try {
+      for (final int moduleId in moduleIds) {
+        apiClient.updateHeader(
+          apiClient.token,
+          addressModel?.zoneIds,
+          addressModel?.areaIds,
+          sharedPreferences.getString(AppConstants.languageCode),
+          moduleId,
+          addressModel?.latitude,
+          addressModel?.longitude,
+        );
+        try {
+          final OffersModel res = await offersServiceInterface.getOffers().timeout(
+            const Duration(seconds: 8),
+            onTimeout: () =>
+                OffersModel(success: false, data: [], message: 'timeout'),
+          );
+          if (res.success == true && res.data.isNotEmpty) {
+            for (final Datum d in res.data) {
+              if (seenIds.add(d.id)) {
+                merged.add(d);
+              }
+            }
+          }
+        } catch (e) {
+          if (kDebugMode) {
+            debugPrint(
+                '⚠️ OffersController.getAggregatedOffers: module $moduleId failed - $e');
+          }
+        }
+      }
+    } finally {
+      // Restore the previous module id in the API headers.
+      apiClient.updateHeader(
+        apiClient.token,
+        addressModel?.zoneIds,
+        addressModel?.areaIds,
+        sharedPreferences.getString(AppConstants.languageCode),
+        previousModuleId != null ? int.tryParse(previousModuleId) : null,
+        addressModel?.latitude,
+        addressModel?.longitude,
+      );
+      offersMode = OffersModel(success: true, data: merged, message: '');
+      _isLoading = false;
+      update();
+      if (kDebugMode) {
+        debugPrint(
+            '✅ OffersController.getAggregatedOffers: merged ${merged.length} offers from ${moduleIds.length} modules');
+      }
+    }
+  }
+
   /// Set offers data directly from cache (handles both OffersModel and raw JSON)
   void setOffersFromCache(dynamic data) {
     if (data == null) return;
