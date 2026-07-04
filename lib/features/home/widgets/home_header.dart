@@ -76,18 +76,18 @@ class _HomeHeaderState extends State<HomeHeader> {
                 ),
               ),
             ),
-            _HeaderIconButton(
-              image: Images.search,
-              icon: CupertinoIcons.search,
-              // Carry the active module so the search stays scoped (rule #1)
-              // instead of falling back to a fixed vertical.
-              onTap: () => Get.to<void>(() => HomeSearchScreen(
-                    moduleId: Get.isRegistered<SplashController>()
-                        ? Get.find<SplashController>().module?.id
-                        : null,
-                  )),
-            ),
-            const SizedBox(width: Dimensions.paddingSizeSmall),
+            // Search lens hidden on the HOME screen (per request). The code is
+            // kept for easy restore; the module storefronts keep their own search.
+            // _HeaderIconButton(
+            //   image: Images.search,
+            //   icon: CupertinoIcons.search,
+            //   onTap: () => Get.to<void>(() => HomeSearchScreen(
+            //         moduleId: Get.isRegistered<SplashController>()
+            //             ? Get.find<SplashController>().module?.id
+            //             : null,
+            //       )),
+            // ),
+            // const SizedBox(width: Dimensions.paddingSizeSmall),
             const _NotificationBell(),
           ],
         ),
