@@ -1,11 +1,9 @@
-
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
-import '../../../common/widgets/appBar.dart';
 import '../../../util/app_colors.dart';
 import '../../../util/dimensions.dart';
-import '../../../util/styles.dart';
+import '../../../util/images.dart';
 import '../controllers/analytics_controller.dart';
 import '../widgets/enhanced_summary_cards.dart';
 import '../widgets/simple_charts_banner.dart';
@@ -60,10 +58,27 @@ class StatisticsScreenWithToggleState extends State<StatisticsScreenWithToggle>
       builder: (controller) {
         return Scaffold(
           backgroundColor: AppColors.wtColor,
-          appBar: custom_AppBar(context,
-              title: 'statistics'.tr,
-              icon: Icons.arrow_back_sharp,
-              titleIcon: Icons.shopping_bag_outlined),
+          appBar: AppBar(
+            backgroundColor: AppColors.wtColor,
+            elevation: 0,
+            scrolledUnderElevation: 0,
+            centerTitle: true,
+            automaticallyImplyLeading: false,
+            title: const Text(
+              'إحصائيات',
+              style: TextStyle(
+                fontFamily: 'Tajawal',
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
+                color: Color(0xFF2D3633),
+              ),
+            ),
+            leading: IconButton(
+              icon: const Icon(Icons.arrow_back_ios_new,
+                  size: 18, color: Color(0xFF2D3633)),
+              onPressed: () => Get.back(),
+            ),
+          ),
           body: Column(
             children: [
               _buildStyledTabBar(context),
@@ -84,29 +99,54 @@ class StatisticsScreenWithToggleState extends State<StatisticsScreenWithToggle>
   }
 
   Widget _buildStyledTabBar(BuildContext context) {
-    return Card(
-      margin: const EdgeInsets.all(Dimensions.paddingSizeDefault),
-      color: Theme.of(context).cardColor,
-      child: TabBar(
-        controller: _tabController,
-        dividerColor: Colors.transparent,
-        indicator: const UnderlineTabIndicator(
-          borderSide: BorderSide(
-            width: 3.0,
-            color: AppColors.primaryColor,
-          ),
-          insets: EdgeInsets.symmetric(horizontal: 50),
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+      child: Container(
+        height: 46,
+        padding: const EdgeInsets.all(4),
+        decoration: BoxDecoration(
+          color: const Color(0xFFEDEFF2),
+          borderRadius: BorderRadius.circular(12),
         ),
-        tabs: [
-          Padding(
-            padding: const EdgeInsets.all(12),
-            child: Text('general'.tr, style: robotoBold),
+        child: Directionality(
+          textDirection: TextDirection.ltr,
+          child: Row(
+            children: <Widget>[
+              _tabSegment('قيدها', 1),
+              _tabSegment('عام', 0),
+            ],
           ),
-          Padding(
-            padding: const EdgeInsets.all(12),
-            child: Text('qidha'.tr, style: robotoBold),
+        ),
+      ),
+    );
+  }
+
+  Widget _tabSegment(String text, int index) {
+    final bool selected = selectedTabIndex == index;
+    return Expanded(
+      child: GestureDetector(
+        onTap: () {
+          _tabController.animateTo(index);
+          setState(() => selectedTabIndex = index);
+        },
+        behavior: HitTestBehavior.opaque,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: selected ? AppColors.primaryColor : Colors.transparent,
+            borderRadius: BorderRadius.circular(9),
           ),
-        ],
+          child: Text(
+            text,
+            style: TextStyle(
+              fontFamily: 'Tajawal',
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
+              color: selected ? AppColors.wtColor : const Color(0xFF8A9199),
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -177,19 +217,14 @@ class StatisticsScreenWithToggleState extends State<StatisticsScreenWithToggle>
               : SingleChildScrollView(
                   physics: const AlwaysScrollableScrollPhysics(),
                   child: Padding(
-                    padding: const EdgeInsets.all(Dimensions.paddingSizeDefault),
+                    padding:
+                        const EdgeInsets.all(Dimensions.paddingSizeDefault),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // Qidha Wallet Header (using API data)
+                        // Qidha Wallet main balance card (with balance tiles)
                         _buildQidhaWalletHeader(qidhaController),
                         const SizedBox(height: Dimensions.paddingSizeLarge),
-
-                        // Qidha Wallet Balance Overview (using API data)
-                        _buildQidhaBalanceOverview(qidhaController),
-                        const SizedBox(
-                            height: Dimensions
-                                .paddingSizeDefault), // Reduced from Large
 
                         // Qidha Wallet Spending Analytics (using API data)
                         _buildQidhaSpendingAnalytics(qidhaController),
@@ -256,8 +291,6 @@ class StatisticsScreenWithToggleState extends State<StatisticsScreenWithToggle>
     return text.split('').map((char) => arabicNumerals[char] ?? char).join();
   }
 
-
-
   String _getTrendText(String trendDirection) {
     switch (trendDirection.toLowerCase()) {
       case 'increasing':
@@ -271,107 +304,244 @@ class StatisticsScreenWithToggleState extends State<StatisticsScreenWithToggle>
     }
   }
 
-  // Qidha Wallet Header
+  // Qidha Wallet main balance card (built on the card_quidha.jpg background).
+  // Renders even with no data yet (shows 0.00) so the empty state matches design.
   Widget _buildQidhaWalletHeader(QidhaWalletController controller) {
     if (controller.isLoadingAnalytics) {
       return const SizedBox(
-        height: 100,
+        height: 180,
         child: Center(child: CircularProgressIndicator()),
       );
     }
 
-    if (controller.analyticsSummary == null) {
-      return const SizedBox.shrink();
-    }
+    final walletInfo = controller.analyticsSummary?.walletInfo;
+    final bool active = walletInfo?.status == 'Active';
+    final double available = walletInfo?.availableBalance ?? 0.0;
+    final double used = walletInfo?.usedBalance ?? 0.0;
+    final double creditLimit = walletInfo?.creditLimit ?? 0.0;
+    final double total = available + used;
 
-    final walletInfo = controller.analyticsSummary!.walletInfo;
-
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            AppColors.primaryColor,
-            AppColors.primaryColor.withValues(alpha: 0.8)
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.primaryColor.withValues(alpha: 0.3),
-            spreadRadius: 2,
-            blurRadius: 8,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+    return Padding(
+      // Reserve room for the tiles that overhang the card's bottom edge.
+      padding: const EdgeInsets.only(bottom: 40),
+      child: Stack(
+        clipBehavior: Clip.none,
         children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.2),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: const Icon(
-                  Icons.account_balance_wallet,
-                  color: Colors.white,
-                  size: 28,
-                ),
+          Container(
+            // Extra bottom padding leaves green behind the overhanging tiles.
+            padding: const EdgeInsets.fromLTRB(20, 34, 20, 72),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(18),
+              image: const DecorationImage(
+                image: AssetImage(Images.card_quidha),
+                fit: BoxFit.cover,
               ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
+              boxShadow: [
+                BoxShadow(
+                  color: Color(0xffE8F5E9),
+                  blurRadius: 12,
+                  offset: const Offset(0, 6),
+                ),
+              ],
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Available balance → right side (RTL start).
+                Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
-                      'st_qidha_wallet'.tr,
+                      'st_available_balance'.tr,
                       style: TextStyle(
+                        fontFamily: 'Tajawal',
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
                         color: Colors.white,
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
                       ),
                     ),
+                    const SizedBox(height: 4),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Text(
+                          available.toStringAsFixed(2),
+                          textDirection: TextDirection.ltr,
+                          style: const TextStyle(
+                            fontFamily: 'Tajawal',
+                            fontSize: 32,
+                            fontWeight: FontWeight.w800,
+                            color: Colors.white,
+                          ),
+                        ),
+                        const SizedBox(width: 5),
+                        const Padding(
+                          padding: EdgeInsets.only(bottom: 4),
+                          child: Text(
+                            '﷼',
+                            style: TextStyle(
+                              fontFamily: 'Tajawal',
+                              fontSize: 16,
+                              fontWeight: FontWeight.w700,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                     Text(
-                      'الحالة: ${walletInfo.status == 'Active' ? 'نشط' : 'غير نشط'}',
+                      'قد تتغيّر قبل نهاية الدقيقة',
                       style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.9),
-                        fontSize: 14,
+                        fontFamily: 'Tajawal',
+                        fontSize: 9,
+                        color: Colors.white.withValues(alpha: 0.8),
                       ),
                     ),
                   ],
                 ),
-              ),
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                decoration: BoxDecoration(
-                  color:
-                      walletInfo.status == 'Active' ? Colors.green : Colors.red,
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Text(
-                  walletInfo.status == 'Active' ? 'نشط' : 'غير نشط',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-            ],
+                const Spacer(),
+                // "نشط" badge → left side.
+                _qidhaStatusBadge(active),
+              ],
+            ),
+          ),
+          // Balance tiles overhanging the card's bottom edge.
+          PositionedDirectional(
+            start: 14,
+            end: 14,
+            bottom: -34,
+            child: Row(
+              children: [
+                _qidhaMiniTile('st_total_balance'.tr, total, 'st_overall_balance'.tr),
+                const SizedBox(width: 10),
+                _qidhaMiniTile(
+                    'st_credit_limit'.tr, creditLimit, 'st_max_allowed'.tr),
+                const SizedBox(width: 10),
+                _qidhaMiniTile(
+                    'st_used_balance'.tr, used, 'st_amount_spent_sofar'.tr),
+              ],
+            ),
           ),
         ],
       ),
     );
   }
 
-  // Qidha Wallet Balance Overview
+  Widget _qidhaStatusBadge(bool active) {
+    final Color color = active ? AppColors.wtColor : AppColors.redColor;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: Color(0xff5FA56B),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 7,
+            height: 7,
+            decoration: BoxDecoration(shape: BoxShape.circle, color: color),
+          ),
+          const SizedBox(width: 5),
+          Text(
+            active ? 'نشط' : 'غير نشط',
+            style: TextStyle(
+              fontFamily: 'Tajawal',
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+              color: color,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _qidhaMiniTile(String label, double value, String subtitle) {
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 12),
+        decoration: BoxDecoration(
+          color: const Color(0xFFE8F5E9),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.28)),
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.primaryColor.withValues(alpha: 0.25),
+              blurRadius: 8,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontFamily: 'Tajawal',
+                fontSize: 11,
+                fontWeight: FontWeight.w500,
+                color: Color(0xff135017),
+              ),
+            ),
+            const SizedBox(height: 6),
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Flexible(
+                  child: Text(
+                    value.toStringAsFixed(2),
+                    textDirection: TextDirection.ltr,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontFamily: 'Tajawal',
+                      fontSize: 20,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xff135017),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 3),
+                const Text(
+                  '﷼',
+                  style: TextStyle(
+                    fontFamily: 'Tajawal',
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xff135017),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            Text(
+              subtitle,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontFamily: 'Tajawal',
+                fontSize: 9,
+                fontWeight: FontWeight.w400,
+                color: Color(0xff135017),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // Qidha Wallet Balance Overview — superseded by the balance tiles inside the
+  // main card; kept for reference.
+  // ignore: unused_element
   Widget _buildQidhaBalanceOverview(QidhaWalletController controller) {
     if (controller.isLoadingAnalytics) {
       return const SizedBox(
@@ -585,7 +755,7 @@ class StatisticsScreenWithToggleState extends State<StatisticsScreenWithToggle>
       margin: const EdgeInsets.only(right: 6), // Reduced from 8
       padding: const EdgeInsets.all(12), // Reduced from 16
       decoration: BoxDecoration(
-        color: AppColors.wtColor,
+        color: Color(0xffF6F5F8),
         borderRadius: BorderRadius.circular(8),
         boxShadow: [
           BoxShadow(
@@ -604,7 +774,7 @@ class StatisticsScreenWithToggleState extends State<StatisticsScreenWithToggle>
           Text(
             title,
             style: const TextStyle(
-              fontSize: 10, // Reduced from 12
+              fontSize: 12,
               color: Colors.grey,
             ),
           ),
@@ -612,7 +782,7 @@ class StatisticsScreenWithToggleState extends State<StatisticsScreenWithToggle>
           Text(
             value,
             style: const TextStyle(
-              fontSize: 14, // Reduced from 16
+              fontSize: 18,
               fontWeight: FontWeight.bold,
             ),
           ),
@@ -671,12 +841,14 @@ class StatisticsScreenWithToggleState extends State<StatisticsScreenWithToggle>
               ),
               _buildDuePaymentItem(
                 'st_due_payments_count'.tr,
-                _convertToArabicNumerals(((summary['pending_count'] as int?) ?? 0).toString()),
+                _convertToArabicNumerals(
+                    ((summary['pending_count'] as int?) ?? 0).toString()),
                 Colors.orange,
               ),
               _buildDuePaymentItem(
                 'st_overdue'.tr,
-                _convertToArabicNumerals(((summary['overdue_count'] as int?) ?? 0).toString()),
+                _convertToArabicNumerals(
+                    ((summary['overdue_count'] as int?) ?? 0).toString()),
                 Colors.red,
               ),
             ],
@@ -926,13 +1098,14 @@ class StatisticsScreenWithToggleState extends State<StatisticsScreenWithToggle>
                                   child: SizedBox(
                                     width: 20,
                                     height: 20,
-                                    child: CircularProgressIndicator(strokeWidth: 2),
+                                    child: CircularProgressIndicator(
+                                        strokeWidth: 2),
                                   ),
                                 ),
-                                errorWidget: const Icon(Icons.category),
+                                errorWidget: _categoryImageFallback(),
                               ),
                             )
-                          : const Icon(Icons.category),
+                          : _categoryImageFallback(),
                     ),
                     const SizedBox(width: 12),
                     Expanded(
@@ -984,107 +1157,150 @@ class StatisticsScreenWithToggleState extends State<StatisticsScreenWithToggle>
     );
   }
 
+  /// Fallback shown when a spending category has no image (or it fails to
+  /// load): a placeholder image instead of a static icon.
+  Widget _categoryImageFallback() {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(4),
+      child: Image.asset(
+        Images.placeholder,
+        width: 40,
+        height: 40,
+        fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) =>
+            const Icon(Icons.image_outlined, color: Colors.grey),
+      ),
+    );
+  }
+
   Widget _buildQidhaMonthlyTrends(QidhaWalletController controller) {
     if (controller.isLoadingTrends) {
       return const SizedBox(
-        height: 200,
+        height: 160,
         child: Center(child: CircularProgressIndicator()),
       );
-    }
-
-    if (controller.monthlyTrends.isEmpty) {
-      return const SizedBox.shrink();
     }
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(
-              'st_monthly_trends'.tr,
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            Text(
-              '${_convertToArabicNumerals(controller.monthlyTrends.length.toString())} شهر',
-              style: const TextStyle(
-                fontSize: 14,
-                color: Colors.grey,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 16),
-        SizedBox(
-          height: 200,
-          child: ListView(
-            scrollDirection: Axis.horizontal,
-            physics: const AlwaysScrollableScrollPhysics(),
-            children: controller.monthlyTrends
-                .map(
-                  (trend) => Container(
-                    width: 160,
-                    margin: const EdgeInsets.only(right: 12),
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: AppColors.wtColor,
-                      borderRadius: BorderRadius.circular(12),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.grey.withValues(alpha: 0.1),
-                          spreadRadius: 1,
-                          blurRadius: 4,
-                          offset: const Offset(0, 2),
-                        ),
-                      ],
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          trend.monthNameAr,
-                          style: const TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          '${_convertToArabicNumerals(trend.totalSpent.toStringAsFixed(2))} ر.س',
-                          style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.green,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          '${_convertToArabicNumerals(trend.transactionCount.toString())} عملية',
-                          style: const TextStyle(
-                            fontSize: 12,
-                            color: Colors.grey,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          'متوسط: ${_convertToArabicNumerals(trend.averageOrderValue.toStringAsFixed(2))} ر.س',
-                          style: const TextStyle(
-                            fontSize: 11,
-                            color: Colors.blue,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                )
-                .toList(),
+        Text(
+          'st_monthly_trends'.tr,
+          style: TextStyle(
+            fontFamily: 'Tajawal',
+            fontSize: 16,
+            fontWeight: FontWeight.w700,
+            color: Color(0xFF2D3633),
           ),
         ),
+        const SizedBox(height: 12),
+        if (controller.monthlyTrends.isEmpty)
+          _qidhaEmptyMessage('لا توجد إحصائيات لعرضها حتى الآن')
+        else
+          SizedBox(
+            height: 120,
+            child: ListView(
+              scrollDirection: Axis.horizontal,
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: EdgeInsets.zero,
+              children: controller.monthlyTrends
+                  .map((trend) => _qidhaTrendCard(trend))
+                  .toList(),
+            ),
+          ),
       ],
+    );
+  }
+
+  Widget _qidhaTrendCard(dynamic trend) {
+    return Container(
+      width: 141,
+      margin: const EdgeInsetsDirectional.only(end: 12),
+      padding: const EdgeInsets.fromLTRB(14, 8, 14, 8),
+      decoration: BoxDecoration(
+        color: AppColors.wtColor,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: const Color(0xFFF0F0F0)),
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Text(
+            trend.monthNameAr as String,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              fontFamily: 'Tajawal',
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+              color: Color(0xFF2D3633),
+            ),
+          ),
+          const SizedBox(height: 6),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                '﷼',
+                style: TextStyle(
+                  fontFamily: 'Tajawal',
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.primaryColor,
+                ),
+              ),
+              const SizedBox(width: 3),
+              Text(
+                (trend.totalSpent as num).toDouble().toStringAsFixed(2),
+                textDirection: TextDirection.ltr,
+                style: const TextStyle(
+                  fontFamily: 'Tajawal',
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.primaryColor,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text(
+            '${trend.transactionCount} عملية',
+            style: const TextStyle(
+              fontFamily: 'Tajawal',
+              fontSize: 10,
+              color: Color(0xFF8A9199),
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            'متوسط ${(trend.averageOrderValue as num).toDouble().toStringAsFixed(2)} ﷼',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              fontFamily: 'Tajawal',
+              fontSize: 10,
+              color: Color(0xFF8A9199),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _qidhaEmptyMessage(String text) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(vertical: 22),
+      alignment: Alignment.center,
+      child: Text(
+        text,
+        style: const TextStyle(
+          fontFamily: 'Tajawal',
+          fontSize: 13,
+          fontWeight: FontWeight.w500,
+          color: Color(0xFF8A9199),
+        ),
+      ),
     );
   }
 
@@ -1155,13 +1371,15 @@ class StatisticsScreenWithToggleState extends State<StatisticsScreenWithToggle>
                     Container(
                       padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
-                        color: _getPaymentTypeColor(payment['payment_type'] as String)
+                        color: _getPaymentTypeColor(
+                                payment['payment_type'] as String)
                             .withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Icon(
                         _getPaymentTypeIcon(payment['payment_type'] as String),
-                        color: _getPaymentTypeColor(payment['payment_type'] as String),
+                        color: _getPaymentTypeColor(
+                            payment['payment_type'] as String),
                         size: 20,
                       ),
                     ),
@@ -1171,7 +1389,8 @@ class StatisticsScreenWithToggleState extends State<StatisticsScreenWithToggle>
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            _getPaymentTypeText(payment['payment_type'] as String),
+                            _getPaymentTypeText(
+                                payment['payment_type'] as String),
                             style: const TextStyle(
                               fontWeight: FontWeight.bold,
                               fontSize: 14,
@@ -1191,7 +1410,8 @@ class StatisticsScreenWithToggleState extends State<StatisticsScreenWithToggle>
                       '${_convertToArabicNumerals((payment['amount'] is num ? (payment['amount'] as num).toDouble() : 0.0).toStringAsFixed(2))} ر.س',
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
-                        color: _getPaymentTypeColor(payment['payment_type'] as String),
+                        color: _getPaymentTypeColor(
+                            payment['payment_type'] as String),
                         fontSize: 16,
                       ),
                     ),
@@ -1468,7 +1688,8 @@ class StatisticsScreenWithToggleState extends State<StatisticsScreenWithToggle>
       decoration: BoxDecoration(
         color: AppColors.primaryColor.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.primaryColor.withValues(alpha: 0.25)),
+        border:
+            Border.all(color: AppColors.primaryColor.withValues(alpha: 0.25)),
       ),
       child: Column(
         children: [
@@ -1517,7 +1738,8 @@ class StatisticsScreenWithToggleState extends State<StatisticsScreenWithToggle>
     final Map<String, double> dailySpending = {};
     for (final transaction in controller.transactions) {
       if (transaction.type == 'debit') {
-        final String date = transaction.createdAt.split('T')[0]; // Get YYYY-MM-DD
+        final String date =
+            transaction.createdAt.split('T')[0]; // Get YYYY-MM-DD
         dailySpending[date] = (dailySpending[date] ?? 0) + transaction.amount;
       }
     }
@@ -1841,7 +2063,8 @@ class StatisticsScreenWithToggleState extends State<StatisticsScreenWithToggle>
   Widget _buildTimelineItem(Map<String, dynamic> payment, bool isLast) {
     final String dueDate = (payment['due_date'] as String?) ?? '';
     final String status = (payment['status'] as String?) ?? '';
-    final double amount = double.tryParse(payment['due_amount'].toString()) ?? 0.0;
+    final double amount =
+        double.tryParse(payment['due_amount'].toString()) ?? 0.0;
     final int daysOverdue = (payment['days_overdue'] as int?) ?? 0;
 
     // Parse due date
@@ -1960,8 +2183,11 @@ class StatisticsScreenWithToggleState extends State<StatisticsScreenWithToggle>
                   if (payment['order_details'] != null)
                     Builder(
                       builder: (context) {
-                        final orderDetails = payment['order_details'] as Map<String, dynamic>?;
-                        final storeName = orderDetails != null ? orderDetails['store_name'] as String? : null;
+                        final orderDetails =
+                            payment['order_details'] as Map<String, dynamic>?;
+                        final storeName = orderDetails != null
+                            ? orderDetails['store_name'] as String?
+                            : null;
                         return Text(
                           'المتجر: ${storeName ?? 'st_unspecified'.tr}',
                           style: TextStyle(
@@ -1995,7 +2221,7 @@ class StatisticsScreenWithToggleState extends State<StatisticsScreenWithToggle>
 
     if (controller.isLoadingAnalytics) {
       return const SizedBox(
-        height: 200,
+        height: 160,
         child: Center(child: CircularProgressIndicator()),
       );
     }
@@ -2011,11 +2237,8 @@ class StatisticsScreenWithToggleState extends State<StatisticsScreenWithToggle>
 
     // Get salary day data from analytics summary
     final int userSalaryDay = salaryDayInfo.salaryDay;
-    final String nextSalaryDate = salaryDayInfo.nextSalaryDate;
     final int daysUntilSalary = salaryDayInfo.daysUntilSalary;
     final double salaryAmount = salaryDayInfo.salaryAmount;
-    final double duePaymentsRatio = salaryDayInfo.duePaymentsVsSalaryRatio;
-    final bool isPaymentDue = salaryDayInfo.isPaymentDue;
 
     // Calculate total due amount from duePayments data
     final double totalDueAmount = duePaymentsData.totalDueAmount;
@@ -2023,403 +2246,195 @@ class StatisticsScreenWithToggleState extends State<StatisticsScreenWithToggle>
     final int pendingCount =
         duePaymentsData.duePaymentsCount - duePaymentsData.overduePayments;
 
+    const Color darkColor = Color(0xFF2D3633);
+    const Color subtitleGrey = Color(0xFF8A9199);
+    const Color purple = Color(0xFF7B61FF);
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Professional Header with 3D Effect
+        // SECTION 1 — Salary day & monthly payments
+        const Text(
+          'يوم الراتب والمدفوعات الشهرية',
+          style: TextStyle(
+            fontFamily: 'Tajawal',
+            fontSize: 16,
+            fontWeight: FontWeight.w700,
+            color: darkColor,
+          ),
+        ),
+        const SizedBox(height: 12),
         Container(
-          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+          decoration: BoxDecoration(
+            color: AppColors.wtColor,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: const Color(0xFFF0F0F0)),
+          ),
+          padding: const EdgeInsets.all(14),
           child: Row(
             children: [
               Container(
-                padding: const EdgeInsets.all(8),
+                width: 48,
+                height: 48,
                 decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [Colors.blue[400]!, Colors.blue[600]!],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
+                  color: purple.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(12),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.blue.withValues(alpha: 0.3),
-                      blurRadius: 8,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
                 ),
-                child: const Icon(
-                  Icons.account_balance_wallet,
-                  color: Colors.white,
-                  size: 20,
-                ),
+                child: const Icon(Icons.calendar_today,
+                    color: purple, size: 24),
               ),
               const SizedBox(width: 12),
-              Text(
-                'st_payday_due'.tr,
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.grey[800],
-                  shadows: [
-                    Shadow(
-                      color: Colors.grey.withValues(alpha: 0.3),
-                      offset: const Offset(0, 1),
-                      blurRadius: 2,
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 20),
-
-        // Salary Day Card with 3D Effect
-        Container(
-          padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [Colors.white, Colors.grey[50]!],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-            borderRadius: BorderRadius.circular(20),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.blue.withValues(alpha: 0.1),
-                blurRadius: 20,
-                offset: const Offset(0, 8),
-              ),
-              BoxShadow(
-                color: Colors.grey.withValues(alpha: 0.1),
-                blurRadius: 10,
-                offset: const Offset(0, 4),
-              ),
-            ],
-          ),
-          child: Column(
-            children: [
-              Row(
-                children: [
-                  // 3D Icon Container
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [Colors.blue[400]!, Colors.blue[600]!],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
-                      borderRadius: BorderRadius.circular(16),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.blue.withValues(alpha: 0.4),
-                          blurRadius: 12,
-                          offset: const Offset(0, 6),
-                        ),
-                      ],
-                    ),
-                    child: const Icon(
-                      Icons.calendar_today,
-                      color: Colors.white,
-                      size: 28,
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'st_payday'.tr,
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: Colors.grey[600],
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          '${_convertToArabicNumerals(userSalaryDay.toString())} من كل شهر',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.grey[800],
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 12, vertical: 6),
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              colors: [Colors.green[400]!, Colors.green[600]!],
-                            ),
-                            borderRadius: BorderRadius.circular(20),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.green.withValues(alpha: 0.3),
-                                blurRadius: 8,
-                                offset: const Offset(0, 4),
-                              ),
-                            ],
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              const Icon(
-                                Icons.schedule,
-                                color: Colors.white,
-                                size: 16,
-                              ),
-                              const SizedBox(width: 6),
-                              Text(
-                                'بعد ${_convertToArabicNumerals(daysUntilSalary.toString())} يوم',
-                                style: const TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.white,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          nextSalaryDate.isNotEmpty
-                              ? nextSalaryDate
-                              : 'st_unspecified'.tr,
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Colors.grey[500],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-
-        const SizedBox(height: 20),
-
-        // Due Payments Summary with 3D Effect
-        Container(
-          padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [Colors.white, Colors.grey[50]!],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-            borderRadius: BorderRadius.circular(20),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.red.withValues(alpha: 0.1),
-                blurRadius: 20,
-                offset: const Offset(0, 8),
-              ),
-              BoxShadow(
-                color: Colors.grey.withValues(alpha: 0.1),
-                blurRadius: 10,
-                offset: const Offset(0, 4),
-              ),
-            ],
-          ),
-          child: Column(
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            colors: [Colors.red[400]!, Colors.red[600]!],
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                          ),
-                          borderRadius: BorderRadius.circular(12),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.red.withValues(alpha: 0.3),
-                              blurRadius: 8,
-                              offset: const Offset(0, 4),
-                            ),
-                          ],
-                        ),
-                        child: const Icon(
-                          Icons.payment,
-                          color: Colors.white,
-                          size: 20,
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Text(
-                        'st_due_payments'.tr,
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ],
-                  ),
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [Colors.red[400]!, Colors.red[600]!],
-                      ),
-                      borderRadius: BorderRadius.circular(20),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.red.withValues(alpha: 0.3),
-                          blurRadius: 8,
-                          offset: const Offset(0, 4),
-                        ),
-                      ],
-                    ),
-                    child: Text(
-                      '${_convertToArabicNumerals(totalDueAmount.toStringAsFixed(2))} ر.س',
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-
-              // Status Cards with 3D Effects
-              Row(
-                children: [
-                  Expanded(
-                    child: _buildDuePaymentStat3D(
-                      'st_pending'.tr,
-                      pendingCount.toString(),
-                      Colors.orange,
-                      Icons.pending_actions,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: _buildDuePaymentStat3D(
-                      'st_overdue'.tr,
-                      overdueCount.toString(),
-                      Colors.red,
-                      Icons.warning_amber_rounded,
-                    ),
-                  ),
-                ],
-              ),
-
-              const SizedBox(height: 16),
-
-              // Enhanced Progress Bar with 3D Effect
-              Container(
-                height: 12,
-                decoration: BoxDecoration(
-                  color: Colors.grey[200],
-                  borderRadius: BorderRadius.circular(6),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.grey.withValues(alpha: 0.2),
-                      blurRadius: 4,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
-                ),
-                child: Row(
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Expanded(
-                      flex: duePaymentsRatio.round(),
-                      child: Container(
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            colors: isPaymentDue
-                                ? [Colors.red[400]!, Colors.red[600]!]
-                                : [Colors.orange[400]!, Colors.orange[600]!],
-                          ),
-                          borderRadius: BorderRadius.circular(6),
-                          boxShadow: [
-                            BoxShadow(
-                              color: (isPaymentDue ? Colors.red : Colors.orange)
-                                  .withValues(alpha: 0.3),
-                              blurRadius: 6,
-                              offset: const Offset(0, 3),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                    Expanded(
-                      flex: 100 - duePaymentsRatio.round(),
-                      child: Container(),
-                    ),
-                  ],
-                ),
-              ),
-
-              const SizedBox(height: 12),
-
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Expanded(
-                    child: Text(
-                      'المبلغ المستحق: ${_convertToArabicNumerals(totalDueAmount.toStringAsFixed(2))} ر.س من أصل ${_convertToArabicNumerals(salaryAmount.toStringAsFixed(0))} ر.س',
+                    Text(
+                      'st_payday'.tr,
                       style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.grey[600],
+                        fontFamily: 'Tajawal',
+                        fontSize: 11,
+                        color: subtitleGrey,
                       ),
                     ),
-                  ),
-                  if (isPaymentDue)
+                    const SizedBox(height: 4),
+                    Text(
+                      '$userSalaryDay من كل شهر',
+                      style: const TextStyle(
+                        fontFamily: 'Tajawal',
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
+                        color: darkColor,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
                     Container(
                       padding: const EdgeInsets.symmetric(
                           horizontal: 12, vertical: 6),
                       decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          colors: [Colors.red[400]!, Colors.red[600]!],
-                        ),
+                        color: purple,
                         borderRadius: BorderRadius.circular(20),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.red.withValues(alpha: 0.3),
-                            blurRadius: 8,
-                            offset: const Offset(0, 4),
-                          ),
-                        ],
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(
-                            Icons.priority_high,
-                            color: Colors.white,
-                            size: 14,
-                          ),
-                          SizedBox(width: 4),
+                          const Icon(Icons.schedule,
+                              size: 15, color: AppColors.wtColor),
+                          const SizedBox(width: 6),
                           Text(
-                            'st_paid_due'.tr,
-                            style: TextStyle(
-                              fontSize: 10,
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
+                            'بعد $daysUntilSalary يوم',
+                            style: const TextStyle(
+                              fontFamily: 'Tajawal',
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.wtColor,
                             ),
                           ),
                         ],
                       ),
                     ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 20),
+
+        // SECTION 2 — Due payments
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                'st_due_payments'.tr,
+                style: TextStyle(
+                  fontFamily: 'Tajawal',
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                  color: darkColor,
+                ),
+              ),
+            ),
+            Container(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+              decoration: BoxDecoration(
+                color: AppColors.redColor.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    totalDueAmount.toStringAsFixed(2),
+                    textDirection: TextDirection.ltr,
+                    style: const TextStyle(
+                      fontFamily: 'Tajawal',
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.redColor,
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  const Text(
+                    '﷼',
+                    style: TextStyle(
+                      fontFamily: 'Tajawal',
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.redColor,
+                    ),
+                  ),
                 ],
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Expanded(
+              child: _dueStatCard('st_overdue'.tr, overdueCount,
+                  AppColors.redColor, Icons.event_busy_outlined),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _dueStatCard('st_pending'.tr, pendingCount,
+                  const Color(0xFFF5A623), Icons.pending_actions),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+          decoration: BoxDecoration(
+            color: const Color(0xFFF6F7F9),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              const Text(
+                'المبلغ المستحق',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontFamily: 'Tajawal',
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: subtitleGrey,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                '${totalDueAmount.toStringAsFixed(2)} ﷼ من أصل ${salaryAmount.toStringAsFixed(2)} ﷼',
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontFamily: 'Tajawal',
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF2D3633),
+                ),
               ),
             ],
           ),
@@ -2428,83 +2443,43 @@ class StatisticsScreenWithToggleState extends State<StatisticsScreenWithToggle>
     );
   }
 
-  // Enhanced 3D version of due payment stat
-  Widget _buildDuePaymentStat3D(
-      String label, String value, Color color, IconData icon) {
+  Widget _dueStatCard(String label, int count, Color color, IconData icon) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [color.withValues(alpha: 0.1), color.withValues(alpha: 0.05)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: color.withValues(alpha: 0.2),
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: color.withValues(alpha: 0.1),
-            blurRadius: 8,
-            offset: const Offset(0, 4),
-          ),
-        ],
+        color: color.withValues(alpha: 0.18),
+        borderRadius: BorderRadius.circular(12),
       ),
       child: Row(
         children: [
+          // Icon on the right (RTL start).
           Container(
-            padding: const EdgeInsets.all(10),
+            width: 34,
+            height: 34,
             decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [color.withValues(alpha: 0.8), color],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-              borderRadius: BorderRadius.circular(12),
-              boxShadow: [
-                BoxShadow(
-                  color: color.withValues(alpha: 0.3),
-                  blurRadius: 6,
-                  offset: const Offset(0, 3),
-                ),
-              ],
-            ),
-            child: Icon(
-              icon,
-              color: Colors.white,
-              size: 20,
-            ),
+                color: color.withValues(alpha: 0.28),
+                borderRadius: BorderRadius.circular(9)),
+            child: Icon(icon, size: 18, color: color),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 10),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  label,
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: color.withValues(alpha: 0.8),
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  _convertToArabicNumerals(value),
-                  style: TextStyle(
-                    fontSize: 18,
-                    color: color,
-                    fontWeight: FontWeight.bold,
-                    shadows: [
-                      Shadow(
-                        color: color.withValues(alpha: 0.3),
-                        offset: const Offset(0, 1),
-                        blurRadius: 2,
-                      ),
-                    ],
-                  ),
-                ),
+                Text(label,
+                    style: TextStyle(
+                        fontFamily: 'Tajawal',
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: color)),
+                const SizedBox(height: 6),
+                Text('$count',
+                    textDirection: TextDirection.ltr,
+                    style: TextStyle(
+                        fontFamily: 'Tajawal',
+                        fontSize: 18,
+                        fontWeight: FontWeight.w700,
+                        color: color)),
               ],
             ),
           ),
