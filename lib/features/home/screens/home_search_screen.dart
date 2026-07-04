@@ -151,7 +151,7 @@ class _HomeSearchScreenState extends State<HomeSearchScreen> {
           // Normalize the typed text (strip diacritics/tatweel) so "جُبن" and
           // "جبن" hit the same rows. (Hamza/ال unification is applied to the
           // ranking below; matching those on the backend needs a parity step.)
-          '/api/v1/items/search?name=${Uri.encodeQueryComponent(_stripMarks(text))}'
+          '/api/v1/items/search?name=${Uri.encodeQueryComponent(_serverQuery(text))}'
           '&offset=1&limit=50'
           '${storeScoped ? '&store_id=${widget.storeId}' : ''}'
           '${scopeModuleId != null ? '&module_id=$scopeModuleId' : ''}',
@@ -191,7 +191,9 @@ class _HomeSearchScreenState extends State<HomeSearchScreen> {
     // Relevance ranking: an exact name, then a name that STARTS with the query,
     // then the earliest in-name match — so "نوتيلا" surfaces the chocolate
     // before furniture that merely carries "نوتيلا" as a colour mid-name.
-    final String q = _normCore(text);
+    // Dedup key: strips the leading "ال" article + normalizes, so "الأرز",
+    // "أرز" and "رز" all reduce to the same core ("ارز") for filtering/ranking.
+    final String q = arabicDedupKey(text);
     // RELEVANCE FILTER: the backend also matches on description / store name and
     // even mid-word substrings, so it returns products unrelated to the typed
     // word (e.g. "رز" surfacing "بامبرز" / "هيرز"). Keep only products where a
@@ -386,20 +388,25 @@ class _HomeSearchScreenState extends State<HomeSearchScreen> {
   String _stripMarks(String s) => stripArabicMarks(s);
   String _normCore(String s) => normalizeArabic(s);
 
-  /// Relevance test: true when a WORD in [name] starts with the normalized
-  /// query [normQ] — not a mid-word substring (so "رز" matches "أرز"/"ارز" but
-  /// not "بامبرز"/"هيرز"). A leading alef/hamza is stripped from each word so
-  /// the colloquial "رز" still hits "أرز".
+  /// Relevance test: true when a WORD in [name] starts with the query [normQ]
+  /// (both compared via [arabicDedupKey], which strips the leading "ال" article
+  /// and normalizes forms). So "رز"/"أرز"/"الأرز" all reduce to "ارز" and match
+  /// "أرز تايلندي" — but NOT a mid-word substring like "بامبرز"/"هيرز".
+  /// [normQ] must already be arabicDedupKey(query).
   bool _nameMatchesQuery(String name, String normQ) {
-    final String nn = _normCore(name);
-    if (nn.contains(' $normQ') || nn.startsWith(normQ)) return true;
-    for (final String w in nn.split(RegExp(r'[\s\-/,،()\[\].]+'))) {
-      if (w.isEmpty) continue;
-      if (w.startsWith(normQ)) return true;
-      final String stripped = w.replaceFirst(RegExp(r'^[اأإآٱ]+'), '');
-      if (stripped.isNotEmpty && stripped.startsWith(normQ)) return true;
+    for (final String w in name.split(RegExp(r'[\s\-/,،()\[\].]+'))) {
+      if (w.trim().isEmpty) continue;
+      if (arabicDedupKey(w).startsWith(normQ)) return true;
     }
     return false;
+  }
+
+  /// Backend query: strip marks (keep the hamza so LIKE still matches "أرز")
+  /// then drop a leading "ال" article so "الأرز" returns products named "أرز".
+  String _serverQuery(String s) {
+    final String t = _stripMarks(s).trim();
+    if (t.startsWith('ال') && (t.length - 2) >= 3) return t.substring(2);
+    return t;
   }
 
   /// Words that must never appear as a suggestion (normalized before compare).
