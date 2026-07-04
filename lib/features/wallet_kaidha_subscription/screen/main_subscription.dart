@@ -13,8 +13,6 @@ import 'package:sixam_mart/features/wallet_kaidha_subscription/screen/subscripti
 import 'package:sixam_mart/features/wallet_kaidha_subscription/screen/subscription_steps/step3_screen.dart';
 import 'package:sixam_mart/features/wallet_kaidha_subscription/widget/stages_widget.dart';
 import 'package:sixam_mart/util/dimensions.dart';
-import 'package:sixam_mart/util/images.dart';
-import '../../../common/widgets/appBar.dart';
 import '../../../util/app_colors.dart';
 
 class KiadaWalletSubscriptionScreen extends StatefulWidget {
@@ -116,18 +114,33 @@ class _KiadaWalletSubscriptionScreenState
 
             return Scaffold(
               backgroundColor: AppColors.wtColor,
-              appBar: custom_AppBar(
-                context,
-                title: 'KiadaWallet_Subscription'.tr,
-                icon: Icons.arrow_back_sharp,
-                img_icon: Images.KiadaWalletSubscription,
-                onPressed: () {
-                  if (KaidhaSubController.currentStage == 1) {
-                    Get.back();
-                  } else {
-                    KaidhaSubController.nextStage(context, isNext: false);
-                  }
-                },
+              appBar: AppBar(
+                backgroundColor: AppColors.wtColor,
+                surfaceTintColor: Colors.transparent,
+                scrolledUnderElevation: 0,
+                elevation: 0,
+                centerTitle: true,
+                automaticallyImplyLeading: false,
+                title: const Text(
+                  'محفظة قيدها',
+                  style: TextStyle(
+                    fontFamily: 'Tajawal',
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFF2D3633),
+                  ),
+                ),
+                leading: IconButton(
+                  icon: const Icon(Icons.arrow_back_ios_new,
+                      color: Color(0xFF2D3633), size: 20),
+                  onPressed: () {
+                    if (KaidhaSubController.currentStage == 1) {
+                      Get.back();
+                    } else {
+                      KaidhaSubController.nextStage(context, isNext: false);
+                    }
+                  },
+                ),
               ),
               body: KaidhaSubController.isLoading_Show_Pdf
                   ? const Center(child: CircularProgressIndicator())
@@ -157,14 +170,42 @@ class _KiadaWalletSubscriptionScreenState
                           ? const ShowPdfScreen()
                           : Column(
                               children: [
+                                const SizedBox(height: 4),
+                                const Padding(
+                                  padding: EdgeInsets.symmetric(horizontal: 16),
+                                  child: Align(
+                                    alignment: AlignmentDirectional.centerStart,
+                                    child: Text(
+                                      'الاشتراك في قيدها',
+                                      textAlign: TextAlign.start,
+                                      style: TextStyle(
+                                        fontFamily: 'Tajawal',
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w700,
+                                        color: Color(0xFF111B18),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
                                 const StagesWidget(),
+                                const SizedBox(height: 8),
                                 Expanded(
-                                  child: SingleChildScrollView(
-                                    controller: _scrollController,
-                                    child: Column(
-                                      children: [
-                                        KaidhaSubController.currentStage == 1
-                                            ? const Step_1_Screen()
+                                  child: Container(
+                                    width: double.infinity,
+                                    decoration: const BoxDecoration(
+                                      color: Color(0xFFF0F0F2),
+                                      borderRadius: BorderRadius.only(
+                                        topLeft: Radius.circular(20),
+                                        topRight: Radius.circular(20),
+                                      ),
+                                    ),
+                                    child: SingleChildScrollView(
+                                      controller: _scrollController,
+                                      child: Column(
+                                        children: [
+                                          KaidhaSubController.currentStage == 1
+                                              ? const Step_1_Screen()
                                             : KaidhaSubController
                                                         .currentStage ==
                                                     2
@@ -180,7 +221,8 @@ class _KiadaWalletSubscriptionScreenState
                                                             const Step3Screen(),
                                                       )
                                                     : const SizedBox(),
-                                      ],
+                                        ],
+                                      ),
                                     ),
                                   ),
                                 ),

@@ -594,4 +594,8 @@ class Images {
   static const String empty_cart_v1 = 'assets/image/empty_cart_v1.png';
   static const String Hands_Coin = 'assets/image/Hands_Coin.png';
   static const String no_transaction = 'assets/image/no_transaction.png';
+  static const String document_v2 = 'assets/image/document_v2.png';
+  static const String myWalletIcon = 'assets/image/my_wallet.png';
+  static const String shield_tick = 'assets/image/shield-tick.png';
+  static const String verify_step = 'assets/image/verify_step.png';
 }

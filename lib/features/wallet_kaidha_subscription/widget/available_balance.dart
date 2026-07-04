@@ -1,11 +1,13 @@
-
 import 'package:flutter/material.dart';
-import 'package:get/get_state_manager/src/simple/get_state.dart';
-import 'package:sixam_mart/common/widgets/custom_text.dart';
+import 'package:get/get.dart';
 import 'package:sixam_mart/features/wallet_kaidha_subscription/controllers/kaidhaSub_controller.dart';
 import 'package:sixam_mart/features/wallet_kaidha_subscription/domain/models/wallet_kaidha_model.dart';
-import 'package:sixam_mart/helper/price_converter.dart';
-import 'package:sixam_mart/util/styles.dart';
+import 'package:sixam_mart/util/images.dart';
+
+const String _fontTajawal = 'Tajawal';
+const Color _primary = Color(0xFF31A342);
+const Color _title = Color(0xFF000000);
+const Color _outline = Color(0xFFE5E5E5);
 
 class PaymentOptions extends StatefulWidget {
   final Wallet wallet;
@@ -26,93 +28,137 @@ class _PaymentOptionsState extends State<PaymentOptions> {
 
   @override
   Widget build(BuildContext context) {
-    final double usedBalanceAmount = _parseToDouble(widget.wallet.usedBalance) ?? 0.0;
-    final double minimumDueAmount = _parseToDouble(widget.wallet.minimumDueLimit) ?? 0.0;
-    
+    final double usedBalanceAmount =
+        _parseToDouble(widget.wallet.usedBalance) ?? 0.0;
+    final double minimumDueAmount =
+        _parseToDouble(widget.wallet.minimumDueLimit) ?? 0.0;
+
     final List<Map<String, dynamic>> list = [
-      {
-        'title': 'المبلغ المستحق بالكامل',
-        'amount': usedBalanceAmount,
-      },
-      {
-        'title': 'المبلغ الأدنى المستحق',
-        'amount': minimumDueAmount,
-      },
+      {'title': 'المبلغ المستحق بالكامل', 'amount': usedBalanceAmount},
+      {'title': 'المبلغ الأدنى المستحق', 'amount': minimumDueAmount},
     ];
+
     return GetBuilder<KaidhaSubscriptionController>(
         builder: (KaidhaSubController) {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Custom_Text(context,
-                  text: 'خيارات الدفع', style: font14Black500W(context)),
-              Column(
-                children: List.generate(
-                  list.length,
-                  (int index) => Padding(
-                    padding: const EdgeInsets.only(top: 20),
-                    child: GestureDetector(
-                      onTap: () {
-                        // Select payment option (0=Full, 1=Minimum)
-                        KaidhaSubController.selectPaymentOption(index);
-                      },
-                      child: Container(
-                          decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(8),
-                              border: Border.all(color: Colors.grey)),
-                          child: Padding(
-                            padding: const EdgeInsets.all(5.0),
-                            child: Row(
-                              children: [
-                                Padding(
-                                  padding: const EdgeInsets.only(right: 10),
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Custom_Text(context,
-                                          text: list[index]['title'] as String,
-                                          style: font13Black400W(context)),
-                                      const SizedBox(height: 5),
-                                      PriceConverter.convertPrice2(
-                                          list[index]['amount'] as double)
-                                    ],
-                                  ),
-                                ),
-                                const Spacer(),
-                                // ignore: deprecated_member_use
-                                Radio<int>(
-                                  value: index,
-                                  // ignore: deprecated_member_use
-                                  groupValue: KaidhaSubController.selectedPaymentOption,
-                                  // ignore: deprecated_member_use
-                                  onChanged: (int? value) {
-                                    // Select payment option (0=Full, 1=Minimum)
-                                    if (value != null) {
-                                      KaidhaSubController.selectPaymentOption(value);
-                                    }
-                                  },
-                                  fillColor: WidgetStateProperty.resolveWith<Color>((states) {
-                                    if (states.contains(WidgetState.selected)) {
-                                      return Colors.green;
-                                    }
-                                    return Theme.of(context).unselectedWidgetColor;
-                                  }),
-                                )
-                              ],
-                            ),
-                          )),
+          const Text(
+            'خيارات الدفع',
+            style: TextStyle(
+              fontFamily: _fontTajawal,
+              fontSize: 17,
+              fontWeight: FontWeight.w700,
+              color: _title,
+            ),
+          ),
+          ...List.generate(list.length, (int index) {
+            final bool isSelected =
+                KaidhaSubController.selectedPaymentOption == index;
+            return Padding(
+              padding: const EdgeInsets.only(top: 12),
+              child: GestureDetector(
+                onTap: () => KaidhaSubController.selectPaymentOption(index),
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                  decoration: BoxDecoration(
+                    color: isSelected
+                        ? const Color(0xFFEBFEEB)
+                        : const Color(0xFFF6F5F8),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(
+                      color: isSelected ? _primary : _outline,
+                      width: isSelected ? 1.6 : 1,
                     ),
+                  ),
+                  child: Row(
+                    children: [
+                      // النص والسعر بنفس العمود
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              list[index]['title'] as String,
+                              style: const TextStyle(
+                                fontFamily: _fontTajawal,
+                                fontSize: 13,
+                                fontWeight: FontWeight.w700,
+                                color: _title,
+                              ),
+                            ),
+                            const SizedBox(height: 6),
+                            _AmountText(
+                                amount: list[index]['amount'] as double),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      // زر الاختيار في النهاية
+                      _RadioDot(selected: isSelected),
+                    ],
                   ),
                 ),
               ),
-            ],
-          )
+            );
+          }),
         ],
       );
     });
+  }
+}
+
+class _RadioDot extends StatelessWidget {
+  final bool selected;
+  const _RadioDot({required this.selected});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 26,
+      height: 26,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: Colors.white,
+        border: Border.all(
+          color: selected ? _primary : const Color(0xFFC5C5C5),
+          width: 6,
+        ),
+      ),
+    );
+  }
+}
+
+class _AmountText extends StatelessWidget {
+  final double amount;
+  const _AmountText({required this.amount});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          amount.toStringAsFixed(2),
+          style: const TextStyle(
+            fontFamily: _fontTajawal,
+            fontSize: 14,
+            fontWeight: FontWeight.w700,
+            color: _title,
+          ),
+        ),
+        const SizedBox(width: 4),
+        Image.asset(
+          Images.sar,
+          width: 14,
+          height: 14,
+          cacheWidth: 42,
+          cacheHeight: 42,
+          color: _title,
+        ),
+      ],
+    );
   }
 }
