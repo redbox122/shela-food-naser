@@ -228,7 +228,13 @@ class _HomeSearchScreenState extends State<HomeSearchScreen> {
       return i < 0 ? 1000000 : 100 + i;
     }
 
-    results = [...results]..sort((a, b) => rank(a).compareTo(rank(b)));
+    // Food first, tools second — then by name relevance within each group.
+    int foodFirst(_SearchProduct p) => _isKitchenTool(p.name ?? '') ? 1 : 0;
+    results = [...results]..sort((a, b) {
+      final int t = foodFirst(a).compareTo(foodFirst(b));
+      if (t != 0) return t;
+      return rank(a).compareTo(rank(b));
+    });
     // Stores whose name matches the query (restaurants etc.) — name-start first.
     // Primary: pre-fetched _brands list.
     final List<BrandModel> storeMatches = _brands
@@ -422,6 +428,25 @@ class _HomeSearchScreenState extends State<HomeSearchScreen> {
     final String t = _stripMarks(s).trim();
     if (t.startsWith('ال') && (t.length - 2) >= 3) return t.substring(2);
     return t;
+  }
+
+  /// Kitchen-tool / kitchenware keywords (already normalized: ة→ه, hamza→ا) used
+  /// to rank ACTUAL food above tools that merely carry the term (e.g. real rice
+  /// above "ملعقة أرز" / "مصفاة أرز" when searching "أرز").
+  static const List<String> _kitchenToolWords = <String>[
+    'ملعقه', 'مصفاه', 'مضرب', 'قالب', 'طقم', 'سكين', 'مقلاه', 'طنجره',
+    'صينيه', 'مبشره', 'خلاط', 'عصاره', 'غلايه', 'ماكينه', 'اناء', 'وعا',
+    'شوكه', 'كباب', 'مبراه', 'قدح', 'كوب', 'حافظه', 'مغرفه', 'منخل',
+  ];
+
+  /// True when the product name looks like a kitchen tool/utensil rather than a
+  /// food item (used only for ranking — never to hide results).
+  bool _isKitchenTool(String name) {
+    final String n = _normCore(name);
+    for (final String w in _kitchenToolWords) {
+      if (n.contains(w)) return true;
+    }
+    return false;
   }
 
   /// Words that must never appear as a suggestion (normalized before compare).
