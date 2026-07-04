@@ -11,6 +11,8 @@ class RestaurantFilterBar extends StatelessWidget {
   const RestaurantFilterBar({super.key, required this.moduleType});
 
   void _openSheet(BuildContext context, Widget sheet) {
+    // Snapshot applied → draft once, before the sheet builds (never during build).
+    Get.find<RestaurantFilterController>(tag: moduleType).beginEditing();
     showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,

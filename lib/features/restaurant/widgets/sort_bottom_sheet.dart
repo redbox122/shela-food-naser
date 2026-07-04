@@ -20,9 +20,6 @@ class SortBottomSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final RestaurantFilterController c =
-        Get.find<RestaurantFilterController>(tag: moduleType);
-    c.beginEditing();
     final Color primary = Theme.of(context).primaryColor;
     return Container(
       decoration: BoxDecoration(

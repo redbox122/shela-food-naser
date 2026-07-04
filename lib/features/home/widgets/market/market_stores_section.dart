@@ -6,6 +6,9 @@ import 'package:sixam_mart/core/cache/simple_json_cache.dart';
 import 'package:sixam_mart/common/widgets/card_design/store_list_card.dart';
 import 'package:sixam_mart/features/home/screens/market_store_screen.dart';
 import 'package:sixam_mart/features/home/widgets/market/market_store_filters.dart';
+// Additive: reusable sort/filter bar (top bar + bottom sheets).
+import 'package:sixam_mart/features/restaurant/controllers/restaurant_filter_controller.dart';
+import 'package:sixam_mart/features/restaurant/widgets/restaurant_filter_bar.dart';
 import 'package:sixam_mart/helper/address_helper.dart';
 import 'package:sixam_mart/util/app_constants.dart';
 import 'package:sixam_mart/util/dimensions.dart';
@@ -130,9 +133,18 @@ class _MarketStoresSectionState extends State<MarketStoresSection> {
   // The enclosing (home) scroll position — we load the next page near its end.
   ScrollPosition? _parentScroll;
 
+  // Additive: per-module filter controller tag for the new sort/filter bar.
+  late final String _filterTag = 'module_${widget.moduleId ?? 'all'}';
+
   @override
   void initState() {
     super.initState();
+    if (!Get.isRegistered<RestaurantFilterController>(tag: _filterTag)) {
+      Get.put(RestaurantFilterController(moduleType: _filterTag),
+          tag: _filterTag);
+    }
+    Get.find<RestaurantFilterController>(tag: _filterTag).onApply =
+        (_) => _fetch();
     WidgetsBinding.instance.addPostFrameCallback((_) => _fetch());
   }
 
@@ -319,6 +331,10 @@ class _MarketStoresSectionState extends State<MarketStoresSection> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Additive: new sort/filter bar (☰ filters + quick chips + sort)
+          // above the existing category filter chips.
+          RestaurantFilterBar(moduleType: _filterTag),
+          const SizedBox(height: Dimensions.paddingSizeExtraSmall),
           // Filter chips lead the stores section (matches the design — no
           // plain "المتاجر" header above them).
           MarketStoreFilters(
