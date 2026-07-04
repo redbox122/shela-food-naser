@@ -46,6 +46,7 @@ class PriceConverter {
     String? discountType,
     TextStyle? textStyle,
     String? prefixText,
+    Color? symbolColor,
   }) {
     if (price == null) {
       return const SizedBox();
@@ -92,6 +93,7 @@ class PriceConverter {
             Images.sar,
             width: 15,
             height: 15,
+            color: symbolColor,
             cacheWidth: 48,
             cacheHeight: 48,
           ),
@@ -106,6 +108,7 @@ class PriceConverter {
           Images.sar,
           width: 15,
           height: 15,
+          color: symbolColor,
           cacheWidth: 48,
           cacheHeight: 48,
         ),

@@ -592,4 +592,6 @@ class Images {
   static const String couboun = 'assets/image/couboun.png';
   static const String card_quidha = 'assets/image/card_quidha.jpg';
   static const String empty_cart_v1 = 'assets/image/empty_cart_v1.png';
+  static const String Hands_Coin = 'assets/image/Hands_Coin.png';
+  static const String no_transaction = 'assets/image/no_transaction.png';
 }

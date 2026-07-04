@@ -2,7 +2,6 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:just_the_tooltip/just_the_tooltip.dart';
-import 'package:sixam_mart/common/widgets/appBar.dart';
 import 'package:sixam_mart/features/profile/controllers/profile_controller.dart';
 import 'package:sixam_mart/features/wallet/controllers/wallet_controller.dart';
 import 'package:sixam_mart/features/wallet/widgets/bonus_banner_widget.dart';
@@ -16,6 +15,8 @@ import 'package:sixam_mart/common/widgets/web_page_title_widget.dart';
 import 'package:sixam_mart/features/wallet/widgets/wallet_card_widget.dart';
 import 'package:sixam_mart/features/wallet/widgets/wallet_history_widget.dart';
 import 'package:sixam_mart/features/wallet/widgets/web_bonus_banner_widget.dart';
+import 'package:sixam_mart/features/wallet/widgets/add_fund_dialogue_widget.dart';
+import 'package:sixam_mart/util/styles.dart';
 import '../widgets/balance_container_widget.dart';
 
 class WalletScreen extends StatefulWidget {
@@ -164,12 +165,67 @@ class _WalletScreenState extends State<WalletScreen> {
 
     return Scaffold(
       backgroundColor: Theme.of(context).cardColor,
-      appBar: custom_AppBar(
-        context,
-        title: 'my_wallet'.tr,
-        icon: Icons.arrow_back_sharp,
-        titleIcon: Icons.account_balance_wallet_outlined,
+      appBar: AppBar(
+        backgroundColor: Theme.of(context).cardColor,
+        surfaceTintColor: Colors.transparent,
+        scrolledUnderElevation: 0,
+        elevation: 0,
+        centerTitle: true,
+        automaticallyImplyLeading: false,
+        title: Text(
+          'my_wallet'.tr,
+          style: const TextStyle(
+            fontFamily: 'Tajawal',
+            fontSize: 18,
+            fontWeight: FontWeight.w700,
+            color: Color(0xFF2D3633),
+          ),
+        ),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_new,
+              color: Color(0xFF2D3633), size: 20),
+          onPressed: () => Navigator.pop(context),
+        ),
       ),
+      bottomNavigationBar: (isLoggedIn && !ResponsiveHelper.isDesktop(context))
+          ? SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
+                child: SizedBox(
+                  height: 54,
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Theme.of(context).primaryColor,
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                    ),
+                    onPressed: () {
+                      Get.dialog(
+                        const Dialog(
+                          backgroundColor: Colors.transparent,
+                          surfaceTintColor: Colors.transparent,
+                          child: SizedBox(
+                            width: 500,
+                            child: SingleChildScrollView(
+                                child: AddFundDialogueWidget()),
+                          ),
+                        ),
+                      );
+                    },
+                    child: Text(
+                      'wallet_add_fund'.tr,
+                      style: robotoBold.copyWith(
+                          color: Colors.white,
+                          fontSize: Dimensions.fontSizeLarge),
+                    ),
+                  ),
+                ),
+              ),
+            )
+          : null,
       body: GetBuilder<ProfileController>(builder: (profileController) {
         return isLoggedIn
             ? profileController.userInfoModel != null
