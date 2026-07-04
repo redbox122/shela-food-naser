@@ -136,54 +136,69 @@ class _HomeSearchScreenState extends State<HomeSearchScreen> {
         // to that store's products via store_id; otherwise we fall back to the
         // (food-module) cross-module behaviour.
         final bool storeScoped = widget.storeId != null;
+        // HOME lens (no explicit module, not inside a store): search EVERY
+        // section so a term like "أرز" surfaces food rice from grocery AND rice
+        // dishes from restaurants — not just the last-opened module. The
+        // ApiClient injects a default module header, so we request each module
+        // explicitly and merge. Scoped searches keep the single-module behaviour.
+        final bool crossModule =
+            widget.moduleId == null && widget.storeId == null;
         final int? currentModuleId = Get.isRegistered<SplashController>()
             ? Get.find<SplashController>().module?.id
             : null;
-        // RULE #1 (scoped search): the CURRENT section's module must always win
-        // so an in-restaurants search never leaks hyper/ecommerce results (and
-        // vice-versa). Prefer the module passed from the section — the store
-        // screen forwards the store's REAL resolved module — then the live
-        // selected module. When NEITHER exists (the multi-module landing) we
-        // send NO module_id (a deliberate cross-module search) instead of
-        // forcing food. store_id narrows store-scoped searches further.
-        final int? scopeModuleId = widget.moduleId ?? currentModuleId;
-        final r = await Get.find<ApiClient>().getData(
-          // Normalize the typed text (strip diacritics/tatweel) so "جُبن" and
-          // "جبن" hit the same rows. (Hamza/ال unification is applied to the
-          // ranking below; matching those on the backend needs a parity step.)
-          '/api/v1/items/search?name=${Uri.encodeQueryComponent(_serverQuery(text))}'
-          '&offset=1&limit=50'
-          '${storeScoped ? '&store_id=${widget.storeId}' : ''}'
-          '${scopeModuleId != null ? '&module_id=$scopeModuleId' : ''}',
-          headers: scopeModuleId != null
-              ? {AppConstants.moduleId: scopeModuleId.toString()}
-              : null,
-          useEtag: false,
-        );
-        final body = r.body;
-        final list = body is Map ? body['products'] : null;
-        if (list is List) {
-          results = list
-              .whereType<Map>()
-              .map((e) => _SearchProduct.fromJson(Map<String, dynamic>.from(e)))
-              .toList();
-          // RULE #1 defence-in-depth: never trust the backend's scoping alone.
-          if (storeScoped) {
-            // Store search: drop any product that isn't from this store.
-            results = results
-                .where((p) => p.storeId == null || p.storeId == widget.storeId)
-                .toList();
-          } else {
-            // Section search: second layer — keep only products whose module
-            // matches the current section (lenient: unknown module_type kept).
-            final String? sectionType = _sectionModuleType();
-            if (sectionType != null && sectionType.isNotEmpty) {
-              results = results
-                  .where((p) =>
-                      (p.moduleType ?? '').isEmpty ||
-                      p.moduleType!.toLowerCase() == sectionType)
-                  .toList();
+        final List<int?> searchModuleIds = crossModule
+            ? _allModuleIds()
+            : <int?>[widget.moduleId ?? currentModuleId];
+
+        // Fire every module's request in parallel to keep the search snappy.
+        final List<List> pages = await Future.wait(
+          searchModuleIds.map((int? smid) async {
+            try {
+              final r = await Get.find<ApiClient>().getData(
+                '/api/v1/items/search?name=${Uri.encodeQueryComponent(_serverQuery(text))}'
+                '&offset=1&limit=50'
+                '${storeScoped ? '&store_id=${widget.storeId}' : ''}'
+                '${smid != null ? '&module_id=$smid' : ''}',
+                headers: smid != null
+                    ? {AppConstants.moduleId: smid.toString()}
+                    : null,
+                useEtag: false,
+              );
+              final body = r.body;
+              final list = body is Map ? body['products'] : null;
+              return list is List ? list.whereType<Map>().toList() : const [];
+            } catch (_) {
+              return const [];
             }
+          }),
+        );
+        final List<_SearchProduct> merged = [];
+        final Set<int> seenItemKeys = {};
+        for (final List page in pages) {
+          for (final e in page.whereType<Map>()) {
+            final p = _SearchProduct.fromJson(Map<String, dynamic>.from(e));
+            final int key = p.id ?? Object.hash(p.name, p.storeId);
+            if (seenItemKeys.add(key)) merged.add(p);
+          }
+        }
+        results = merged;
+        // RULE #1 defence-in-depth: never trust the backend's scoping alone.
+        if (storeScoped) {
+          // Store search: drop any product that isn't from this store.
+          results = results
+              .where((p) => p.storeId == null || p.storeId == widget.storeId)
+              .toList();
+        } else if (!crossModule) {
+          // Single-section search: keep only products whose module matches the
+          // current section (lenient: unknown module_type kept). Cross-module
+          // (home-lens) search intentionally keeps every section's results.
+          final String? sectionType = _sectionModuleType();
+          if (sectionType != null && sectionType.isNotEmpty) {
+            results = results
+                .where((p) =>
+                    (p.moduleType ?? '').isEmpty ||
+                    p.moduleType!.toLowerCase() == sectionType)
+                .toList();
           }
         }
       }
