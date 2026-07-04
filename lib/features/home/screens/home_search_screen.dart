@@ -109,6 +109,12 @@ class _HomeSearchScreenState extends State<HomeSearchScreen> {
       });
       return;
     }
+    // Don't hit the server for a single character (too broad / irrelevant);
+    // local suggestions still render via the isNotEmpty branch in build().
+    if (text.length < 2) {
+      if (_showResults) setState(() => _showResults = false);
+      return;
+    }
     _debounce =
         Timer(const Duration(milliseconds: 300), () => _runSearch(text));
   }
@@ -186,6 +192,14 @@ class _HomeSearchScreenState extends State<HomeSearchScreen> {
     // then the earliest in-name match — so "نوتيلا" surfaces the chocolate
     // before furniture that merely carries "نوتيلا" as a colour mid-name.
     final String q = _normCore(text);
+    // RELEVANCE FILTER: the backend also matches on description / store name, so
+    // it can return products unrelated to the typed word (e.g. "رز" surfacing
+    // non-rice items). Keep only products whose (normalized) NAME actually
+    // contains the query. Store-name matches still appear in the store section.
+    if (q.isNotEmpty) {
+      results =
+          results.where((p) => _normCore(p.name ?? '').contains(q)).toList();
+    }
     int rank(_SearchProduct p) {
       final n = _normCore(p.name ?? '');
       if (n == q) return 0;
@@ -338,6 +352,23 @@ class _HomeSearchScreenState extends State<HomeSearchScreen> {
           ? Get.find<SplashController>().module?.id
           : null);
 
+  /// All available module ids (restaurants/cafes/grocery/pharmacy …) used to
+  /// pull a variety of stores for the HOME-lens discovery rails. Falls back to
+  /// the current section when the module list isn't available.
+  List<int?> _allModuleIds() {
+    if (Get.isRegistered<SplashController>()) {
+      final modules = Get.find<SplashController>().moduleList;
+      if (modules != null && modules.isNotEmpty) {
+        final List<int?> ids = <int?>[];
+        for (final m in modules) {
+          if (m.id != null && !ids.contains(m.id)) ids.add(m.id);
+        }
+        if (ids.isNotEmpty) return ids;
+      }
+    }
+    return <int?>[_sectionModuleId()];
+  }
+
   /// The current section's module type (e.g. 'pharmacy', 'food', 'ecommerce').
   String? _sectionModuleType() {
     final int? id = _sectionModuleId();
@@ -457,10 +488,10 @@ class _HomeSearchScreenState extends State<HomeSearchScreen> {
     final api = Get.find<ApiClient>();
 
     try {
-      // Most-searched keywords for THIS section only (rule #1): send module_id
-      // explicitly so e.g. pharmacy never surfaces food terms. Over-fetch (20)
-      // because cleaning/de-dup trims the list down to ≤10.
-      final int? mid = _sectionModuleId();
+      // Most-searched keywords: scoped only when opened inside a specific
+      // section; on the HOME lens (no module) we fetch cross-module popular
+      // terms. Over-fetch (20) because cleaning/de-dup trims to ≤10.
+      final int? mid = widget.moduleId;
       final r = await api.getData(
         '/api/v2/search/popular?limit=20'
         '${mid != null ? '&module_id=$mid' : ''}',
@@ -485,28 +516,40 @@ class _HomeSearchScreenState extends State<HomeSearchScreen> {
     }
 
     try {
-      // The rail shows this context's STORES (e.g. restaurants) — not
-      // cross-module brands — scoped to the screen's module. Each chip opens
-      // that store. Reuses [BrandModel] purely as a {id, name, image} holder.
-      // Rule #1: scope to the current section (no blind food fallback).
-      final int? railModuleId = _sectionModuleId();
-      // Over-fetch (50) so name-search has good coverage; the rail/names trim.
-      final r = await api.getData(
-        '/api/v2/stores?module_id=${railModuleId ?? ''}&limit=500&offset=0',
-        useEtag: false,
-        headers: railModuleId != null
-            ? {AppConstants.moduleId: railModuleId.toString()}
-            : null,
-      );
-      final dynamic body = r.body;
-      final List raw = (body is Map && body['stores'] is List)
-          ? body['stores'] as List
-          : (body is List ? body : const []);
+      // The rails ("أشهر المتاجر" / "الأكثر بحثاً"). When opened from the HOME
+      // lens (no explicit module) we pull stores from EVERY section and merge
+      // them so the rails show a variety across restaurants/cafes/grocery/
+      // pharmacy — the ApiClient injects a default module header, so we must
+      // request each module explicitly. When opened inside a section
+      // (widget.moduleId set) we keep the single scoped fetch.
+      final List<int?> railModuleIds = widget.moduleId != null
+          ? <int?>[widget.moduleId]
+          : _allModuleIds();
+      final List<Map<String, dynamic>> storeList = [];
+      final Set<int> seenStoreIds = {};
+      final bool scoped = widget.moduleId != null;
+      for (final int? rmid in railModuleIds) {
+        try {
+          final r = await api.getData(
+            '/api/v2/stores?module_id=${rmid ?? ''}&limit=${scoped ? 500 : 40}&offset=0',
+            useEtag: false,
+            headers: rmid != null
+                ? {AppConstants.moduleId: rmid.toString()}
+                : null,
+          );
+          final dynamic body = r.body;
+          final List raw = (body is Map && body['stores'] is List)
+              ? body['stores'] as List
+              : (body is List ? body : const []);
+          for (final e in raw.whereType<Map>()) {
+            final Map<String, dynamic> m = Map<String, dynamic>.from(e);
+            final int? id = int.tryParse('${m['id']}');
+            if (id == null || !seenStoreIds.add(id)) continue;
+            storeList.add(m);
+          }
+        } catch (_) {}
+      }
       if (mounted) {
-        final List<Map<String, dynamic>> storeList = raw
-            .whereType<Map>()
-            .map((e) => Map<String, dynamic>.from(e))
-            .toList();
 
         _brands = storeList
             // Rule #2: a store with no logo is hidden from "popular stores".
