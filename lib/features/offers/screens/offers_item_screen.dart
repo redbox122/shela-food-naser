@@ -492,6 +492,7 @@ class _OffersItemScreen extends State<OffersItemScreen> {
           // offers: isVertical == grid (2 columns), otherwise list rows
           isListView: !offersController.isVertical,
           inStore: false,
+          offersStyle: true,
         ),
       );
     });
