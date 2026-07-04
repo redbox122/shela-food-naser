@@ -132,6 +132,15 @@ class Item {
   List<Item>? recommendedItems;
   List<Preset>? presets;
   Nutrition? nutrition;
+  String? wishlistedAt;
+
+  /// When the user added this item to favourites (null if the API omits it).
+  DateTime? get wishlistedAtDate {
+    if (wishlistedAt != null && wishlistedAt!.isNotEmpty) {
+      return DateTime.tryParse(wishlistedAt!)?.toLocal();
+    }
+    return null;
+  }
 
   Item({
     this.id,
@@ -192,6 +201,9 @@ class Item {
     }
     
     id = json.parseInt('id');
+    wishlistedAt = json.parseString('wishlisted_at') ??
+        json.parseString('favorited_at') ??
+        json.parseString('wishlist_created_at');
     name = json.parseString('name');
     description = json.parseString('description');
     // 🎯 TASK 3: Ensure JPEG format in image URLs (backend forces JPEG to prevent decode crashes)

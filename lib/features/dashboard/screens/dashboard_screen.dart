@@ -23,6 +23,11 @@ import 'package:sixam_mart/features/order/screens/my_orders_screen.dart';
 import 'package:sixam_mart/features/cart/screens/cart_screen.dart';
 import 'package:sixam_mart/features/discount/screens/discount_screen.dart';
 import 'package:sixam_mart/features/profile/screens/profile_screen.dart';
+// Transferred profile design (white "حسابي" sectioned menu) shown in the
+// profile tab instead of the legacy green ProfileScreen.
+import 'package:sixam_mart/features/menu/screens/menu_screen.dart';
+// Favourites tab replaces the Discounts tab in the bottom nav.
+import 'package:sixam_mart/features/favourite/screens/favourite_screen.dart';
 import 'package:sixam_mart/features/dashboard/widgets/home_bottom_nav_bar.dart';
 import 'package:sixam_mart/util/images.dart';
 import 'package:sixam_mart/common/models/module_model.dart';
@@ -101,9 +106,9 @@ class DashboardScreenState extends State<DashboardScreen> {
     _screens = [
       _buildHomeRoot(),
       const CartScreen(fromNav: true),
-      const DiscountScreen(),
       const MyOrdersScreen(),
-      const ProfileScreen(),
+      const FavouriteScreen(),
+      const MenuScreen(),
     ];
 
     // ⚡ PERF FIX: Preload other modules AFTER splash completes.
@@ -359,8 +364,8 @@ class DashboardScreenState extends State<DashboardScreen> {
                 isTaxi
                     ? const OrderScreen(index: 1)
                     : const MyOrdersScreen(),
-                const DiscountScreen(),
-                const ProfileScreen(),
+                const FavouriteScreen(),
+                const MenuScreen(),
               ];
 
               const navItems = <HomeNavBarItem>[
@@ -378,9 +383,9 @@ class DashboardScreenState extends State<DashboardScreen> {
                     activeIcon: Images.receipt_ext_v2_active,
                     label: 'nav_orders'),
                 HomeNavBarItem(
-                    icon: Images.discount_shape_v2,
-                    activeIcon: Images.discount_shape_v2_active,
-                    label: 'nav_discounts'),
+                    icon: Images.heart_v2,
+                    activeIcon: Images.heart_v2,
+                    label: 'nav_favourite'),
                 HomeNavBarItem(
                     icon: Images.profile_v2,
                     activeIcon: Images.profile_v2_active,

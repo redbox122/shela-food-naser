@@ -28,6 +28,14 @@ class ProfileController extends GetxController implements GetxService {
   XFile? _pickedFile;
   XFile? get pickedFile => _pickedFile;
 
+  XFile? _originalPickedFile;
+  XFile? get originalPickedFile => _originalPickedFile;
+
+  /// Locally hides the existing (server) avatar after the user removes their
+  /// photo, until a new one is picked. UI-only.
+  bool _avatarCleared = false;
+  bool get avatarCleared => _avatarCleared;
+
   bool _isLoading = false;
   bool get isLoading => _isLoading;
 
@@ -287,11 +295,40 @@ class ProfileController extends GetxController implements GetxService {
 
   void pickImage() async {
     _pickedFile = await profileServiceInterface.pickImageFromGallery();
+    _originalPickedFile = _pickedFile;
+    _avatarCleared = false;
+    update();
+  }
+
+  /// Sets the profile avatar to an externally-produced file (e.g. camera +
+  /// crop flow). Raw pick, so it also becomes [originalPickedFile].
+  void setPickedFile(XFile file) {
+    _pickedFile = file;
+    _originalPickedFile = file;
+    _avatarCleared = false;
+    update();
+  }
+
+  /// Sets only the framed (zoomed/cropped) preview, keeping
+  /// [originalPickedFile] intact so the zoom stays reversible.
+  void setFramedFile(XFile file) {
+    _pickedFile = file;
+    _avatarCleared = false;
+    update();
+  }
+
+  /// Removes the currently chosen/shown avatar (local preview only).
+  void removePickedFile() {
+    _pickedFile = null;
+    _originalPickedFile = null;
+    _avatarCleared = true;
     update();
   }
 
   void initData({bool isUpdate = false}) {
     _pickedFile = null;
+    _originalPickedFile = null;
+    _avatarCleared = false;
     if (isUpdate) {
       update();
     }

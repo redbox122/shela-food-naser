@@ -110,6 +110,15 @@ class Store {
   /// MD5 hash of pricing fields (minimum_order, shipping charges, tax, etc.)
   /// When this changes, pricing data has changed and cache should be invalidated
   String? versionHash;
+  String? wishlistedAt;
+
+  /// When the user added this store to favourites (null if the API omits it).
+  DateTime? get wishlistedAtDate {
+    if (wishlistedAt != null && wishlistedAt!.isNotEmpty) {
+      return DateTime.tryParse(wishlistedAt!)?.toLocal();
+    }
+    return null;
+  }
 
   Store({
     this.id,
@@ -178,6 +187,9 @@ class Store {
     // ⚡ BFF API v2: Match Laravel BFF v2 response exactly
     // ⚡ TASK 1: TYPE-SAFE PARSING - Explicit type conversions
     id = json.parseInt('id');
+    wishlistedAt = json.parseString('wishlisted_at') ??
+        json.parseString('favorited_at') ??
+        json.parseString('wishlist_created_at');
     name = json.parseString('name');
     description = json.parseString('description');
     phone = json.parseString('phone');

@@ -564,4 +564,26 @@ class Images {
   static const String office_building = 'assets/image/office_building.png';
   static const String villa = 'assets/image/villa.png';
   static const String apartment = 'assets/image/apartment.png';
+
+  // === added: profile/menu screen assets (transferred design) ===
+  static const String my_points = 'assets/image/my_points.png';
+  static const String my_wallet_profile = 'assets/image/my_wallet_profile.png';
+  static const String quidha_wallet_profile =
+      'assets/image/quidha_wallet_profile.png';
+  static const String couboun_icon = 'assets/image/couboun_icon.png';
+  static const String logout = 'assets/image/logout.png';
+  static const String shop = 'assets/image/shop.png';
+  static const String dark_mode = 'assets/image/dark_mode.png';
+  static const String captin_delivery = 'assets/image/captin_delivery.png';
+  static const String Delivery_representative =
+      'assets/image/Delivery_representative.png';
+  static const String headerNotification = 'assets/image/notification_v2.png';
+  static const String language_square = 'assets/image/language-square.png';
+  static const String profile_add = 'assets/image/profile-add.png';
+  static const String status_up = 'assets/image/status-up.png';
+  static const String message_question = 'assets/image/message-question.png';
+  static const String messages_v2 = 'assets/image/messages_v2.png';
+  static const String navProfileActive = 'assets/image/profile_v2_active.png';
+  static const String no_favourit = 'assets/image/no_favourit.png';
+  static const String edit_avatar = 'assets/image/edit_avatar.png';
 }

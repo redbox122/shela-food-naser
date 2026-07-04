@@ -144,22 +144,24 @@ class _NavItem extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             _buildIcon(context),
-            if (isSelected) ...[
-              const SizedBox(height: 2),
-              Text(
-                item.label,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  fontFamily: 'Tajawal',
-                  fontWeight: FontWeight.w500,
-                  fontSize: 14,
-                  height: 1.83,
-                  color: HomeBottomNavBar._activeLabelColor,
-                ),
+            // Always show the label under every icon; the selected tab uses the
+            // active label colour, the rest use the muted inactive colour.
+            const SizedBox(height: 2),
+            Text(
+              item.label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontFamily: 'Tajawal',
+                fontWeight: FontWeight.w500,
+                fontSize: 12,
+                height: 1.4,
+                color: isSelected
+                    ? HomeBottomNavBar._activeLabelColor
+                    : HomeBottomNavBar._inactiveColor,
               ),
-            ],
+            ),
           ],
         ),
       ),
