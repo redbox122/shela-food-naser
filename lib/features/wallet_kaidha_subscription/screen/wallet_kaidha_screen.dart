@@ -15,10 +15,20 @@ import 'package:sixam_mart/util/dimensions.dart';
 import 'package:sixam_mart/util/images.dart';
 import 'package:sixam_mart/util/styles.dart';
 import 'package:sixam_mart/helper/route_helper.dart';
-import '../../../common/widgets/appBar.dart';
 import '../../../common/widgets/custom_image.dart';
 import '../../../util/app_colors.dart';
 import '../widget/payment_details.dart';
+
+// خط Tajawal لشاشة محفظة قيدها
+TextStyle _tajawal(double size, FontWeight weight,
+    {Color color = const Color(0xFF2D3633)}) {
+  return TextStyle(
+    fontFamily: 'Tajawal',
+    fontSize: size,
+    fontWeight: weight,
+    color: color,
+  );
+}
 
 class WalletKaidhaScreen extends StatefulWidget {
   const WalletKaidhaScreen({super.key});
@@ -58,13 +68,15 @@ class _WalletKaidhaScreenState extends State<WalletKaidhaScreen> {
 
       if (_customAmountFocusNode.hasFocus) {
         if (kDebugMode) {
-          debugPrint('💳 [WalletKaidhaScreen] Custom amount field focused - switching to custom payment option');
+          debugPrint(
+              '💳 [WalletKaidhaScreen] Custom amount field focused - switching to custom payment option');
         }
         // Select custom payment option when field gains focus
         controller.selectPaymentOption(2);
       } else {
         if (kDebugMode) {
-          debugPrint('💳 [WalletKaidhaScreen] Custom amount field blurred - validating minimum amount');
+          debugPrint(
+              '💳 [WalletKaidhaScreen] Custom amount field blurred - validating minimum amount');
         }
         // Validate minimum amount when field loses focus (onBlur)
         controller.validateMinimumAmount();
@@ -100,40 +112,49 @@ class _WalletKaidhaScreenState extends State<WalletKaidhaScreen> {
       debugPrint('   ⏰ Timestamp: ${DateTime.now().toIso8601String()}');
       debugPrint('═══════════════════════════════════════════════════════════');
     }
-    
+
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       final controller = Get.find<KaidhaSubscriptionController>();
-      
+
       // ⚡ TASK 3: SWR Pattern - Show UI instantly with partial data from Profile
       _safeSetState(() {});
-      
+
       // Reset to default state: Full Amount (option 0) selected by default
       controller.selectedPaymentOption = 0;
       controller.another_amount.text = '0.00';
-      
+
       if (kDebugMode) {
-        debugPrint('💳 [WalletKaidhaScreen] UI shown instantly with existing data');
-        debugPrint('   💰 Wallet status: ${controller.walletKaidhaModel?.wallet?.status}');
-        debugPrint('   💵 availableBalance: ${controller.walletKaidhaModel?.wallet?.availableBalance}');
+        debugPrint(
+            '💳 [WalletKaidhaScreen] UI shown instantly with existing data');
+        debugPrint(
+            '   💰 Wallet status: ${controller.walletKaidhaModel?.wallet?.status}');
+        debugPrint(
+            '   💵 availableBalance: ${controller.walletKaidhaModel?.wallet?.availableBalance}');
       }
-      
+
       // ⚡ TASK 3: Background fetch full details from lean 500-byte endpoint (non-blocking)
       if (!await _ensureProfileReady()) {
         return;
       }
       controller.get_Wallet_Kaidh(forceRefresh: true).then((_) {
         if (kDebugMode) {
-          debugPrint('💳 [WalletKaidhaScreen] Background wallet fetch completed');
-          debugPrint('   💰 Wallet status: ${controller.walletKaidhaModel?.wallet?.status}');
-          debugPrint('   💵 usedBalance: ${controller.walletKaidhaModel?.wallet?.usedBalance}');
-          debugPrint('   💵 minimumDueLimit: ${controller.walletKaidhaModel?.wallet?.minimumDueLimit}');
-          debugPrint('   💵 availableBalance: ${controller.walletKaidhaModel?.wallet?.availableBalance}');
+          debugPrint(
+              '💳 [WalletKaidhaScreen] Background wallet fetch completed');
+          debugPrint(
+              '   💰 Wallet status: ${controller.walletKaidhaModel?.wallet?.status}');
+          debugPrint(
+              '   💵 usedBalance: ${controller.walletKaidhaModel?.wallet?.usedBalance}');
+          debugPrint(
+              '   💵 minimumDueLimit: ${controller.walletKaidhaModel?.wallet?.minimumDueLimit}');
+          debugPrint(
+              '   💵 availableBalance: ${controller.walletKaidhaModel?.wallet?.availableBalance}');
         }
-        
+
         if (controller.hasNoWallet &&
             Get.currentRoute != RouteHelper.KiadaWalletSubscription) {
           if (kDebugMode) {
-            debugPrint('💳 [WalletKaidhaScreen] No wallet - redirecting to subscription');
+            debugPrint(
+                '💳 [WalletKaidhaScreen] No wallet - redirecting to subscription');
           }
           showCustomSnackBar('لا توجد محفظة. الرجاء الاشتراك أولاً.');
           Get.offNamed(RouteHelper.getKiadaWalletSubscription());
@@ -142,11 +163,12 @@ class _WalletKaidhaScreenState extends State<WalletKaidhaScreen> {
 
         // ⚡ TASK 4: Payment validation retry - load payment methods after data arrives
         _loadPaymentMethodsWithRetry(controller);
-        
+
         _safeSetState(() {});
       }).catchError((e) {
         if (kDebugMode) {
-          debugPrint('💳 [WalletKaidhaScreen] ⚠️ Background wallet fetch failed: $e');
+          debugPrint(
+              '💳 [WalletKaidhaScreen] ⚠️ Background wallet fetch failed: $e');
         }
         // Silent fail - user already sees partial data
       });
@@ -155,68 +177,79 @@ class _WalletKaidhaScreenState extends State<WalletKaidhaScreen> {
 
   /// ⚡ TASK 4: Payment validation retry - loads payment methods with retry logic
   /// If usedBalance is missing/invalid, forces wallet fetch and retries
-  Future<void> _loadPaymentMethodsWithRetry(KaidhaSubscriptionController controller) async {
+  Future<void> _loadPaymentMethodsWithRetry(
+      KaidhaSubscriptionController controller) async {
     if (controller.hasNoWallet) {
       if (kDebugMode) {
-        debugPrint('💳 [WalletKaidhaScreen] No wallet detected - skipping payment methods load');
+        debugPrint(
+            '💳 [WalletKaidhaScreen] No wallet detected - skipping payment methods load');
       }
       return;
     }
 
     final usedBalanceValue = controller.walletKaidhaModel?.wallet?.usedBalance;
-    
+
     // Validate usedBalance is a valid number
-    final double? maximumDueAmount = usedBalanceValue != null && 
-                                     usedBalanceValue.toString().trim().isNotEmpty
-      ? (usedBalanceValue is num 
-          ? usedBalanceValue.toDouble() 
-          : double.tryParse(usedBalanceValue.toString()))
-      : null;
+    final double? maximumDueAmount = usedBalanceValue != null &&
+            usedBalanceValue.toString().trim().isNotEmpty
+        ? (usedBalanceValue is num
+            ? usedBalanceValue.toDouble()
+            : double.tryParse(usedBalanceValue.toString()))
+        : null;
 
     if (maximumDueAmount != null && maximumDueAmount >= 0) {
       // Valid usedBalance - proceed with payment methods
       if (maximumDueAmount > 0) {
         if (kDebugMode) {
-          debugPrint('💳 [WalletKaidhaScreen] Loading payment methods with MAXIMUM due amount');
+          debugPrint(
+              '💳 [WalletKaidhaScreen] Loading payment methods with MAXIMUM due amount');
           debugPrint('   💵 Maximum due amount: $maximumDueAmount SAR');
-          debugPrint('   ⚡ Note: Payment methods support up to maximum due - user can pay less if needed');
+          debugPrint(
+              '   ⚡ Note: Payment methods support up to maximum due - user can pay less if needed');
         }
         await controller.loadQidhaPaymentMethods(maximumDueAmount);
       } else {
         if (kDebugMode) {
-          debugPrint('💳 [WalletKaidhaScreen] ⚠️ Maximum due amount is 0 - skipping payment methods load');
+          debugPrint(
+              '💳 [WalletKaidhaScreen] ⚠️ Maximum due amount is 0 - skipping payment methods load');
         }
       }
     } else {
       // ⚡ TASK 2: Invalid usedBalance - use nuclear fetch to bypass all cache
       if (kDebugMode) {
-        debugPrint('💳 [WalletKaidhaScreen] ⚠️ Invalid usedBalance - triggering nuclear remote fetch');
-        debugPrint('   📊 walletKaidhaModel: ${controller.walletKaidhaModel != null ? "EXISTS" : "NULL"}');
-        debugPrint('   📊 wallet: ${controller.walletKaidhaModel?.wallet != null ? "EXISTS" : "NULL"}');
+        debugPrint(
+            '💳 [WalletKaidhaScreen] ⚠️ Invalid usedBalance - triggering nuclear remote fetch');
+        debugPrint(
+            '   📊 walletKaidhaModel: ${controller.walletKaidhaModel != null ? "EXISTS" : "NULL"}');
+        debugPrint(
+            '   📊 wallet: ${controller.walletKaidhaModel?.wallet != null ? "EXISTS" : "NULL"}');
         debugPrint('   💵 usedBalance value: $usedBalanceValue');
       }
-      
+
       // ⚡ TASK 2: Use nuclear fetch to bypass all ETags and cache
       await controller.nuclearRemoteFetch();
-      
+
       // Retry payment methods load after fetch
-      final retryUsedBalance = controller.walletKaidhaModel?.wallet?.usedBalance;
-      final retryAmount = retryUsedBalance != null && 
-                          retryUsedBalance.toString().trim().isNotEmpty
-        ? (retryUsedBalance is num 
-            ? retryUsedBalance.toDouble() 
-            : double.tryParse(retryUsedBalance.toString()) ?? 0.0)
-        : 0.0;
-      
+      final retryUsedBalance =
+          controller.walletKaidhaModel?.wallet?.usedBalance;
+      final retryAmount = retryUsedBalance != null &&
+              retryUsedBalance.toString().trim().isNotEmpty
+          ? (retryUsedBalance is num
+              ? retryUsedBalance.toDouble()
+              : double.tryParse(retryUsedBalance.toString()) ?? 0.0)
+          : 0.0;
+
       if (retryAmount > 0) {
         if (kDebugMode) {
-          debugPrint('💳 [WalletKaidhaScreen] Retry: Loading payment methods after wallet fetch');
+          debugPrint(
+              '💳 [WalletKaidhaScreen] Retry: Loading payment methods after wallet fetch');
           debugPrint('   💵 Retry amount: $retryAmount SAR');
         }
         await controller.loadQidhaPaymentMethods(retryAmount);
       } else {
         if (kDebugMode) {
-          debugPrint('💳 [WalletKaidhaScreen] ⚠️ Retry failed - usedBalance still invalid after fetch');
+          debugPrint(
+              '💳 [WalletKaidhaScreen] ⚠️ Retry failed - usedBalance still invalid after fetch');
         }
       }
     }
@@ -241,17 +274,17 @@ class _WalletKaidhaScreenState extends State<WalletKaidhaScreen> {
   /// Normalize MyFatoorah image URL - ensure it has https:// prefix
   String _normalizeImageUrl(String url) {
     if (url.isEmpty) return '';
-    
+
     // If URL already has protocol, return as-is
     if (url.startsWith('http://') || url.startsWith('https://')) {
       return url;
     }
-    
+
     // If URL starts with domain (e.g., sa.myfatoorah.com), add https://
     if (url.contains('myfatoorah.com') || url.contains('myfatoorah')) {
       return 'https://$url';
     }
-    
+
     // Otherwise return as-is (might be a relative path or already correct)
     return url;
   }
@@ -325,11 +358,13 @@ class _WalletKaidhaScreenState extends State<WalletKaidhaScreen> {
         itemBuilder: (context, index) {
           final paymentMethod = controller.qidhaPaymentMethods[index];
           final isSelected = controller.qidhaPaymentMethodsSelected[index];
-          
+
           // Debug: Log image URL for troubleshooting
           if (kDebugMode && index == 0) {
-            debugPrint('💳 [WalletKaidhaScreen] Payment method image URL: ${paymentMethod.imageUrl}');
-            debugPrint('   - Normalized: ${_normalizeImageUrl(paymentMethod.imageUrl ?? '')}');
+            debugPrint(
+                '💳 [WalletKaidhaScreen] Payment method image URL: ${paymentMethod.imageUrl}');
+            debugPrint(
+                '   - Normalized: ${_normalizeImageUrl(paymentMethod.imageUrl ?? '')}');
           }
 
           return GestureDetector(
@@ -342,8 +377,7 @@ class _WalletKaidhaScreenState extends State<WalletKaidhaScreen> {
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
                 color: isSelected
-                    ? (tokens?.successSoft ??
-                        theme.colorScheme.primary.withValues(alpha: 0.16))
+                    ? const Color(0xFFEBFEEB)
                     : theme.colorScheme.surface,
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(
@@ -379,13 +413,12 @@ class _WalletKaidhaScreenState extends State<WalletKaidhaScreen> {
                   const SizedBox(height: 8),
                   Text(
                     paymentMethod.paymentMethodAr ?? '',
-                    style: TextStyle(
-                      fontSize: 12,
+                    style: _tajawal(
+                      12,
+                      isSelected ? FontWeight.w700 : FontWeight.w700,
                       color: isSelected
-                          ? theme.colorScheme.primary
+                          ? theme.colorScheme.onSurface
                           : theme.colorScheme.onSurface,
-                      fontWeight:
-                          isSelected ? FontWeight.bold : FontWeight.normal,
                     ),
                     textAlign: TextAlign.center,
                     maxLines: 2,
@@ -400,16 +433,37 @@ class _WalletKaidhaScreenState extends State<WalletKaidhaScreen> {
     );
   }
 
+  /// هيدر شاشة محفظة قيدها: خلفية بيضاء، العنوان في المنتصف وسهم على اليمين.
+  PreferredSizeWidget _buildHeader(BuildContext context) {
+    final theme = Theme.of(context);
+    return AppBar(
+      backgroundColor: Colors.white,
+      surfaceTintColor: Colors.transparent,
+      elevation: 0,
+      scrolledUnderElevation: 0,
+      centerTitle: true,
+      automaticallyImplyLeading: false,
+      titleSpacing: 0,
+      leading: IconButton(
+        icon: Icon(Icons.arrow_back_ios_new,
+            size: 20, color: theme.colorScheme.onSurface),
+        onPressed: () => Navigator.of(context).maybePop(),
+      ),
+      title: Text(
+        'kiadha_wallet'.tr,
+        style:
+            _tajawal(18, FontWeight.w700, color: theme.colorScheme.onSurface),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final tokens = theme.extension<AppColorTokens>();
     return Scaffold(
-      backgroundColor: theme.colorScheme.surface,
-      appBar: custom_AppBar(context,
-          title: 'kiadha_wallet'.tr,
-          icon: Icons.arrow_back_sharp,
-          titleIcon: Icons.account_balance_wallet_outlined),
+      backgroundColor: Colors.white,
+      appBar: _buildHeader(context),
       body: GetBuilder<KaidhaSubscriptionController>(
           builder: (KaidhaSubController) {
         final wallet = KaidhaSubController.walletKaidhaModel?.wallet;
@@ -429,271 +483,231 @@ class _WalletKaidhaScreenState extends State<WalletKaidhaScreen> {
                               RouteHelper.getKiadaWalletSubscription()),
                         ),
                       )
-                : wallet == null
-                    ? const Center(
-                        child: PaymentDetailsShimmer(),
-                      )
-                    : Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          //
-                          PaymentDetails(
-                              wallet: wallet),
+                    : wallet == null
+                        ? const Center(
+                            child: PaymentDetailsShimmer(),
+                          )
+                        : Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              //
+                              PaymentDetails(wallet: wallet),
 
-                          //
+                              //
 
-                          const SizedBox(height: 20),
+                              const SizedBox(height: 20),
 
-                          //
+                              //
 
-                          // Show status message if wallet is not active
-                          wallet.status
-                                      ?.toString()
-                                      .toLowerCase() !=
-                                  'active'
-                              ? Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Container(
-                                      width: double.infinity,
-                                      padding: const EdgeInsets.all(16),
-                                      decoration: BoxDecoration(
-                                        color: tokens?.warningSoft ??
-                                            theme.colorScheme.errorContainer
-                                                .withValues(alpha: 0.28),
-                                        borderRadius: BorderRadius.circular(12),
-                                        border: Border.all(
-                                            color: (tokens?.warningText ??
-                                                    theme.colorScheme.error)
-                                                .withValues(alpha: 0.35)),
-                                      ),
-                                      child: Column(
-                                        children: [
-                                          Icon(
-                                            Icons.info_outline,
-                                            color: tokens?.warningText ??
-                                                theme.colorScheme.error,
-                                            size: 32,
+                              // Show status message if wallet is not active
+                              wallet.status?.toString().toLowerCase() !=
+                                      'active'
+                                  ? Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Container(
+                                          width: double.infinity,
+                                          padding: const EdgeInsets.all(16),
+                                          decoration: BoxDecoration(
+                                            color: tokens?.warningSoft ??
+                                                theme.colorScheme.errorContainer
+                                                    .withValues(alpha: 0.28),
+                                            borderRadius:
+                                                BorderRadius.circular(12),
+                                            border: Border.all(
+                                                color: (tokens?.warningText ??
+                                                        theme.colorScheme.error)
+                                                    .withValues(alpha: 0.35)),
                                           ),
-                                          const SizedBox(height: 12),
-                                          Text(
-                                            _getStatusMessage(
-                                                wallet.status
-                                                    ?.toString()
-                                                    .toLowerCase()),
-                                            style: TextStyle(
-                                              fontSize: 16,
-                                              fontWeight: FontWeight.w600,
-                                              color: tokens?.warningText ??
-                                                  theme.colorScheme.error,
-                                            ),
-                                            textAlign: TextAlign.center,
-                                          ),
-                                          const SizedBox(height: 8),
-                                          Text(
-                                            _getStatusDescription(
-                                                wallet.status
-                                                    ?.toString()
-                                                    .toLowerCase()),
-                                            style: TextStyle(
-                                              fontSize: 14,
-                                              color: (tokens?.warningText ??
-                                                      theme.colorScheme.error)
-                                                  .withValues(alpha: 0.92),
-                                            ),
-                                            textAlign: TextAlign.center,
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                    const SizedBox(height: 20),
-                                  ],
-                                )
-                              : Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    PaymentOptions(
-                                        wallet: wallet),
-
-                                    //
-
-                                    const SizedBox(height: 20),
-
-                                    // Custom Amount Section with Visual Selection
-                                    GestureDetector(
-                                      onTap: () {
-                                        // Select custom payment option when tapping the field
-                                        KaidhaSubController.selectPaymentOption(
-                                            2);
-                                      },
-                                      child: Container(
-                                        padding: const EdgeInsets.all(12),
-                                        decoration: BoxDecoration(
-                                          borderRadius:
-                                              BorderRadius.circular(12),
-                                          border: Border.all(
-                                            color: KaidhaSubController
-                                                        .selectedPaymentOption ==
-                                                    2
-                                                ? theme.colorScheme.primary
-                                                : (tokens?.outlineSoft ??
-                                                    theme.colorScheme
-                                                        .outlineVariant),
-                                            width: KaidhaSubController
-                                                        .selectedPaymentOption ==
-                                                    2
-                                                ? 2
-                                                : 1,
-                                          ),
-                                          boxShadow: KaidhaSubController
-                                                      .selectedPaymentOption ==
-                                                  2
-                                              ? [
-                                                  BoxShadow(
-                                                    color: theme
-                                                        .colorScheme.primary
-                                                        .withValues(alpha: 0.25),
-                                                    blurRadius: 8,
-                                                    offset: const Offset(0, 2),
-                                                  )
-                                                ]
-                                              : null,
-                                        ),
-                                        child: Column(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                          children: [
-                                            Text('أدخل مبلغ آخر',
-                                                style:
-                                                    font13Black400W(context)),
-                                            const SizedBox(height: 10),
-                                            CustomTextField(
-                                              labelText: '',
-                                              controller: KaidhaSubController
-                                                  .another_amount,
-                                              focusNode: _customAmountFocusNode,
-                                              suffixChild: Column(
-                                                mainAxisAlignment:
-                                                    MainAxisAlignment.center,
-                                                children: [
-                                                  Image.asset(
-                                                    Images.sar,
-                                                    width: 20,
-                                                    height: 20,
-                                                    cacheWidth: 56,
-                                                    cacheHeight: 56,
-                                                  ),
-                                                ],
+                                          child: Column(
+                                            children: [
+                                              Icon(
+                                                Icons.info_outline,
+                                                color: tokens?.warningText ??
+                                                    theme.colorScheme.error,
+                                                size: 32,
                                               ),
-                                              onChanged: (String value) {
-                                                // Call controller method which handles validation and selection
-                                                KaidhaSubController
-                                                    .onChange_another_amount(
-                                                        value);
-                                              },
-                                            ),
-                                          ],
+                                              const SizedBox(height: 12),
+                                              Text(
+                                                _getStatusMessage(wallet.status
+                                                    ?.toString()
+                                                    .toLowerCase()),
+                                                style: TextStyle(
+                                                  fontSize: 16,
+                                                  fontWeight: FontWeight.w600,
+                                                  color: tokens?.warningText ??
+                                                      theme.colorScheme.error,
+                                                ),
+                                                textAlign: TextAlign.center,
+                                              ),
+                                              const SizedBox(height: 8),
+                                              Text(
+                                                _getStatusDescription(wallet
+                                                    .status
+                                                    ?.toString()
+                                                    .toLowerCase()),
+                                                style: TextStyle(
+                                                  fontSize: 14,
+                                                  color: (tokens?.warningText ??
+                                                          theme.colorScheme
+                                                              .error)
+                                                      .withValues(alpha: 0.92),
+                                                ),
+                                                textAlign: TextAlign.center,
+                                              ),
+                                            ],
+                                          ),
                                         ),
-                                      ),
-                                    ),
+                                        const SizedBox(height: 20),
+                                      ],
+                                    )
+                                  : Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        PaymentOptions(wallet: wallet),
 
-                                    // Payment Method Selection
-                                    const SizedBox(height: 20),
-                                    Text('اختر طريقة الدفع',
-                                        style: font13Black400W(context)),
-                                    const SizedBox(height: 10),
-                                    _buildPaymentMethodSelector(
-                                        KaidhaSubController),
+                                        //
 
-                                    const SizedBox(height: 20),
+                                        const SizedBox(height: 20),
 
-                                    // payment button
+                                        // Custom Amount Section - النص خارج بدون كونتنر والحقل كما هو
+                                        Text(
+                                          'أدخل مبلغ آخر',
+                                          style: _tajawal(
+                                            16,
+                                            FontWeight.w700,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 10),
+                                        CustomTextField(
+                                          labelText: '',
+                                          controller: KaidhaSubController
+                                              .another_amount,
+                                          focusNode: _customAmountFocusNode,
+                                          suffixChild: Column(
+                                            mainAxisAlignment:
+                                                MainAxisAlignment.center,
+                                            children: [
+                                              Image.asset(
+                                                Images.sar,
+                                                width: 20,
+                                                height: 20,
+                                                cacheWidth: 56,
+                                                cacheHeight: 56,
+                                              ),
+                                            ],
+                                          ),
+                                          onChanged: (String value) {
+                                            // Call controller method which handles validation and selection
+                                            KaidhaSubController
+                                                .onChange_another_amount(value);
+                                          },
+                                        ),
 
-                                    GetBuilder<CheckoutController>(
-                                        builder: (checkoutController) {
-                                      return TextButtonWidget(
-                                        text: 'الدفع الآن',
-                                        backgroundColor:
-                                            AppColors.secondaryColor,
-                                        textStyle: font13White400W(context),
-                                        height: 60,
-                                        width: double.infinity,
-                                        radius: 16,
-                                        verticalPadd: 0,
-                                        horizontalPadd: 0,
-                                        onPressed: () async {
-                                          // Get the selected payment amount based on option
-                                          final double paymentAmount =
-                                              KaidhaSubController
-                                                  .getSelectedPaymentAmount();
+                                        // Payment Method Selection
+                                        const SizedBox(height: 20),
+                                        Text('اختر طريقة الدفع',
+                                            style:
+                                                _tajawal(14, FontWeight.w700)),
+                                        const SizedBox(height: 10),
+                                        _buildPaymentMethodSelector(
+                                            KaidhaSubController),
 
-                                          // Check if there's a valid payment amount
-                                          if (paymentAmount <= 0) {
-                                            // If custom option is selected but empty
-                                            if (KaidhaSubController
-                                                    .selectedPaymentOption ==
-                                                2) {
-                                              showCustomSnackBar(
-                                                  'يرجى إدخال المبلغ المراد دفعه');
-                                              return;
-                                            }
-                                            // If full or minimum due is 0
-                                            showCustomSnackBar(
-                                                'لا يوجد مبلغ مستحق للدفع');
-                                            return;
-                                          }
+                                        const SizedBox(height: 20),
 
-                                          // Validate custom amount is within allowed range
-                                          if (KaidhaSubController
-                                                  .selectedPaymentOption ==
-                                              2) {
-                                            final double fullDueAmount = double
-                                                    .tryParse(KaidhaSubController
-                                                            .walletKaidhaModel
-                                                            ?.wallet
-                                                            ?.usedBalance
-                                                            ?.toString() ??
-                                                        '0') ??
-                                                0.0;
+                                        // payment button
 
-                                            final double minimumDue = double.tryParse(
-                                                    KaidhaSubController
-                                                            .walletKaidhaModel
-                                                            ?.wallet
-                                                            ?.minimumDueLimit
-                                                            ?.toString() ??
-                                                        '0') ??
-                                                0.0;
+                                        GetBuilder<CheckoutController>(
+                                            builder: (checkoutController) {
+                                          return TextButtonWidget(
+                                            text: 'ادفع الآن',
+                                            backgroundColor:
+                                                AppColors.primaryColor,
+                                            textStyle: _tajawal(
+                                                16, FontWeight.w700,
+                                                color: Colors.white),
+                                            height: 60,
+                                            width: double.infinity,
+                                            radius: 16,
+                                            verticalPadd: 0,
+                                            horizontalPadd: 0,
+                                            onPressed: () async {
+                                              // Get the selected payment amount based on option
+                                              final double paymentAmount =
+                                                  KaidhaSubController
+                                                      .getSelectedPaymentAmount();
 
-                                            // Check maximum
-                                            if (paymentAmount > fullDueAmount) {
-                                              showCustomSnackBar(
-                                                  'المبلغ المدخل يتجاوز المبلغ المستحق الكامل');
-                                              return;
-                                            }
+                                              // Check if there's a valid payment amount
+                                              if (paymentAmount <= 0) {
+                                                // If custom option is selected but empty
+                                                if (KaidhaSubController
+                                                        .selectedPaymentOption ==
+                                                    2) {
+                                                  showCustomSnackBar(
+                                                      'يرجى إدخال المبلغ المراد دفعه');
+                                                  return;
+                                                }
+                                                // If full or minimum due is 0
+                                                showCustomSnackBar(
+                                                    'لا يوجد مبلغ مستحق للدفع');
+                                                return;
+                                              }
 
-                                            // Check minimum
-                                            if (minimumDue > 0 &&
-                                                paymentAmount < minimumDue) {
-                                              showCustomSnackBar(
-                                                  'المبلغ المدخل أقل من الحد الأدنى المسموح: ${minimumDue.toStringAsFixed(2)} ريال');
-                                              return;
-                                            }
-                                          }
+                                              // Validate custom amount is within allowed range
+                                              if (KaidhaSubController
+                                                      .selectedPaymentOption ==
+                                                  2) {
+                                                final double fullDueAmount =
+                                                    double.tryParse(KaidhaSubController
+                                                                .walletKaidhaModel
+                                                                ?.wallet
+                                                                ?.usedBalance
+                                                                ?.toString() ??
+                                                            '0') ??
+                                                        0.0;
 
-                                          await KaidhaSubController
-                                              .Send_Pay_Credit(
-                                            context,
-                                            paymentAmount,
+                                                final double minimumDue = double
+                                                        .tryParse(KaidhaSubController
+                                                                .walletKaidhaModel
+                                                                ?.wallet
+                                                                ?.minimumDueLimit
+                                                                ?.toString() ??
+                                                            '0') ??
+                                                    0.0;
+
+                                                // Check maximum
+                                                if (paymentAmount >
+                                                    fullDueAmount) {
+                                                  showCustomSnackBar(
+                                                      'المبلغ المدخل يتجاوز المبلغ المستحق الكامل');
+                                                  return;
+                                                }
+
+                                                // Check minimum
+                                                if (minimumDue > 0 &&
+                                                    paymentAmount <
+                                                        minimumDue) {
+                                                  showCustomSnackBar(
+                                                      'المبلغ المدخل أقل من الحد الأدنى المسموح: ${minimumDue.toStringAsFixed(2)} ريال');
+                                                  return;
+                                                }
+                                              }
+
+                                              await KaidhaSubController
+                                                  .Send_Pay_Credit(
+                                                context,
+                                                paymentAmount,
+                                              );
+                                            },
                                           );
-                                        },
-                                      );
-                                    })
-                                  ],
-                                ),
-                        ],
-                      ),
+                                        })
+                                      ],
+                                    ),
+                            ],
+                          ),
           ),
         );
       }),

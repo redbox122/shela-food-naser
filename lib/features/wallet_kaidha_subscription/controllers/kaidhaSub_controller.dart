@@ -1996,8 +1996,6 @@ class KaidhaSubscriptionController extends GetxController
     isIdentityCardEmpty = identity_card_number.text.isEmpty;
     isPhoneEmpty = phoneController.text.isEmpty;
     isNeighborhoodEmpty = neighborhood.text.isEmpty;
-    isEmployerEmpty = name_of_employer.text.isEmpty;
-    isTotalSalaryEmpty = total_salary.text.isEmpty;
     isBirthDateEmpty = birthDate.isEmpty;
     isNationalityEmpty = nationality.isEmpty;
     isMaritalStatusEmpty = marital_status.isEmpty;
@@ -2164,15 +2162,6 @@ class KaidhaSubscriptionController extends GetxController
         },
       );
     }
-    if (isEmployerEmpty) {
-      return _blockQidhaStepValidation(
-        context: context,
-        step: '1',
-        field: 'name_of_employer',
-        message: _requiredFieldMessage('employer_name'),
-        afterBlock: () => FocusScope.of(context).requestFocus(employerFocus),
-      );
-    }
     if (isNeighborhoodEmpty) {
       return _blockQidhaStepValidation(
         context: context,
@@ -2180,25 +2169,6 @@ class KaidhaSubscriptionController extends GetxController
         field: 'neighborhood',
         message: _requiredFieldMessage('neighborhood'),
         afterBlock: () => FocusScope.of(context).requestFocus(neighborhoodFocus),
-      );
-    }
-    if (total_salary.text.isEmpty) {
-      isTotalSalaryEmpty = true;
-      return _blockQidhaStepValidation(
-        context: context,
-        step: '1',
-        field: 'total_salary',
-        message: _requiredFieldMessage('total_salary'),
-        afterBlock: () {
-          if (totalSalaryKey.currentContext != null) {
-            Scrollable.ensureVisible(
-              totalSalaryKey.currentContext!,
-              duration: const Duration(milliseconds: 500),
-              curve: Curves.easeInOut,
-            );
-          }
-          totalSalaryFocus.requestFocus();
-        },
       );
     }
 
@@ -2251,6 +2221,38 @@ class KaidhaSubscriptionController extends GetxController
     }
 
     // 1. Form Validation & Data Preparation
+    // حقول الدخل المنقولة من الخطوة 1 (اسم جهة العمل + إجمالي الراتب)
+    isEmployerEmpty = name_of_employer.text.isEmpty;
+    if (isEmployerEmpty) {
+      _blockQidhaStepValidation(
+        context: context,
+        step: '2',
+        field: 'name_of_employer',
+        message: _requiredFieldMessage('employer_name'),
+        afterBlock: () => FocusScope.of(context).requestFocus(employerFocus),
+      );
+      return;
+    }
+    isTotalSalaryEmpty = total_salary.text.isEmpty;
+    if (isTotalSalaryEmpty) {
+      _blockQidhaStepValidation(
+        context: context,
+        step: '2',
+        field: 'total_salary',
+        message: _requiredFieldMessage('total_salary'),
+        afterBlock: () {
+          if (totalSalaryKey.currentContext != null) {
+            Scrollable.ensureVisible(
+              totalSalaryKey.currentContext!,
+              duration: const Duration(milliseconds: 500),
+              curve: Curves.easeInOut,
+            );
+          }
+          totalSalaryFocus.requestFocus();
+        },
+      );
+      return;
+    }
     if (jobSpecification.isEmpty) {
       isJobSpecificationEmpty = true;
       _blockQidhaStepValidation(

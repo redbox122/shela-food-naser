@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:sixam_mart/common/widgets/custom_text.dart';
+import 'package:sixam_mart/common/widgets/labeled_input_field.dart';
 import 'package:sixam_mart/features/auth/controllers/auth_controller.dart';
 import 'package:sixam_mart/features/profile/controllers/profile_controller.dart';
 import 'package:sixam_mart/features/wallet_kaidha_subscription/controllers/kaidhaSub_controller.dart';
@@ -272,12 +273,19 @@ class _PersonalInformationState extends State<PersonalInformation> {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              'personal_information'.tr,
-              textAlign: TextAlign.center,
-              style: robotoRegular.copyWith(fontSize: Dimensions.fontSizeSmall),
-            ),
+            _sectionTitle('personal_information'.tr),
+            const SizedBox(height: 12),
 
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.fromLTRB(14, 16, 14, 2),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
             _customTextFormAuth(
               KaidhaSub_Controller,
               context: context,
@@ -434,9 +442,24 @@ class _PersonalInformationState extends State<PersonalInformation> {
             const SizedBox(height: 25),
 
             _buildPhoneField(context, KaidhaSub_Controller),
+                ],
+              ),
+            ),
 
-            const SizedBox(height: 20),
+            const SizedBox(height: 16),
+            _sectionTitle('بيانات السكن'),
+            const SizedBox(height: 12),
 
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.fromLTRB(14, 16, 14, 14),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
             _buildHouseType(context),
 
             const SizedBox(height: 10),
@@ -453,75 +476,23 @@ class _PersonalInformationState extends State<PersonalInformation> {
               focusNode: KaidhaSub_Controller.neighborhoodFocus,
               isEmpty: KaidhaSub_Controller.isNeighborhoodEmpty,
             ),
-
-            // AddressDetailsWidget(addressDetails: address),
-
-            // ===============
-
-            const SizedBox(height: 20),
-
-            _customTextFormAuth(
-              KaidhaSub_Controller,
-              mycontroller: KaidhaSub_Controller.name_of_employer,
-              text: 'employer_name'.tr,
-              context: context,
-              focusNode: KaidhaSub_Controller.employerFocus,
-              isEmpty: KaidhaSub_Controller.isEmployerEmpty,
+                ],
+              ),
             ),
-
-            _custom_number(
-              KaidhaSub_Controller,
-              mycontroller: KaidhaSub_Controller.total_salary,
-              text: 'total_salary'.tr,
-              context: context,
-              focusNode: KaidhaSub_Controller.totalSalaryFocus,
-              containerKey: KaidhaSubscriptionController.totalSalaryKey,
-              isEmpty: KaidhaSub_Controller.isTotalSalaryEmpty,
-            ),
-
-            _buildInstallments(context),
           ],
         ),
       );
     });
   }
 
-  Widget _buildInstallments(BuildContext context) {
-    final KaidhaSub_Controller = Get.find<KaidhaSubscriptionController>();
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'installments'.tr,
-          textAlign: TextAlign.center,
-          style: robotoBold.copyWith(fontSize: Dimensions.fontSizeSmall),
-        ),
-        Row(
-          children: [
-            _buildRadioOption(
-              context: context,
-              label: 'yes'.tr,
-              value: 'yes',
-              groupValue: KaidhaSub_Controller.Installments,
-              onChanged: (value) {
-                KaidhaSub_Controller.updateInstallments(value!);
-                KaidhaSub_Controller.debouncedSaveState();
-              },
-            ),
-            _buildRadioOption(
-              context: context,
-              label: 'no'.tr,
-              value: 'no',
-              groupValue: KaidhaSub_Controller.Installments,
-              onChanged: (value) {
-                KaidhaSub_Controller.updateInstallments(value!);
-                KaidhaSub_Controller.debouncedSaveState();
-              },
-            ),
-          ],
-        ),
-      ],
+  Widget _sectionTitle(String text) {
+    return Text(
+      text,
+      style: tajawalBold.copyWith(
+        fontSize: 17,
+        fontWeight: FontWeight.w700,
+        color: const Color(0xFF111B18),
+      ),
     );
   }
 
@@ -973,77 +944,33 @@ class _PersonalInformationState extends State<PersonalInformation> {
     KaidhaSubscriptionController KaidhaSub_Controller, {
     String? hintText,
     bool isNumber = false,
-    bool? obscureText,
     TextEditingController? mycontroller,
     required FocusNode? focusNode,
     required String text,
     required BuildContext context,
     required bool isEmpty,
   }) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Custom_Text(
-          context,
-          text: text,
-          style: font11Black500W(context, size: size_14(context)),
-        ),
-        const SizedBox(height: 10),
-
-        Container(
-          margin: const EdgeInsets.only(bottom: 20),
-          child: TextFormField(
-            focusNode: focusNode,
-            controller: mycontroller,
-            keyboardType: isNumber
-                ? const TextInputType.numberWithOptions(decimal: true)
-                : TextInputType.text,
-            cursorColor: AppColors.bgColor,
-            obscureText: obscureText ?? false,
-            validator: (value) {
-              if (value == null || value.isEmpty) {
-                return 'هذا الحقل مطلوب';
-              }
-              return null;
-            },
-            onChanged: (value) {
-              KaidhaSub_Controller.debouncedSaveState();
-            },
-            decoration: InputDecoration(
-              hintText: hintText,
-              hintStyle: font10Grey500W(context, size: size_14(context)),
-              floatingLabelBehavior: FloatingLabelBehavior.always,
-              contentPadding: const EdgeInsets.symmetric(vertical: 5, horizontal: 20),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(10),
-                borderSide: BorderSide(
-                  color: isEmpty == true && mycontroller!.text.isEmpty
-                      ? Colors.red
-                      : AppColors.gryColor_3,
-                  width: isEmpty ? 1.5 : 1.0,
-                ),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(10),
-                borderSide: BorderSide(
-                  color: isEmpty == true && mycontroller!.text.isEmpty
-                      ? AppColors.redColor
-                      : AppColors.greenColor,
-                  width: isEmpty ? 1.5 : 1.0,
-                ),
-              ),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(10),
-                borderSide: BorderSide(
-                  color: isEmpty ? Colors.red : AppColors.gryColor_3,
-                ),
-              ),
-            ),
-          ),
-        ),
-
-        //
-      ],
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: LabeledInputField(
+        label: text,
+        hint: hintText ?? text,
+        required: true,
+        controller: mycontroller,
+        focusNode: focusNode,
+        inputType: isNumber
+            ? const TextInputType.numberWithOptions(decimal: true)
+            : TextInputType.text,
+        onChanged: (value) {
+          KaidhaSub_Controller.debouncedSaveState();
+        },
+        validator: (value) {
+          if (value == null || value.isEmpty) {
+            return 'هذا الحقل مطلوب';
+          }
+          return null;
+        },
+      ),
     );
   }
 
@@ -1162,6 +1089,9 @@ class _PersonalInformationState extends State<PersonalInformation> {
                   child: TextFormField(
                     controller: ctrl.phoneController,
                     keyboardType: TextInputType.phone,
+                    // Phone digits always read left-to-right even in the RTL form.
+                    textDirection: TextDirection.ltr,
+                    textAlign: TextAlign.left,
                     inputFormatters: [
                       FilteringTextInputFormatter.digitsOnly,
                       // 9 local digits (SA) + a bit of slack for other regions
