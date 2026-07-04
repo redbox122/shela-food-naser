@@ -166,7 +166,6 @@ class _PaymentMethodBottomSheetState extends State<PaymentMethodBottomSheet> {
   Widget _buildDigitalPaymentMethodsList(
       CheckoutController checkoutController) {
     final theme = Theme.of(context);
-    final tokens = theme.extension<AppColorTokens>();
     if (_isLoadingPaymentMethods) {
       return Center(
         child: Column(
@@ -199,80 +198,139 @@ class _PaymentMethodBottomSheetState extends State<PaymentMethodBottomSheet> {
     final filteredPaymentMethods =
         _filterPaymentMethodsByPlatform(checkoutController.paymentMethods);
 
-    return GridView.builder(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: ResponsiveHelper.isDesktop(context) ? 4 : 3,
-        mainAxisSpacing: Dimensions.paddingSizeDefault,
-        crossAxisSpacing: Dimensions.paddingSizeDefault,
-        childAspectRatio: ResponsiveHelper.isDesktop(context) ? 1.15 : 1.28,
-      ),
-      itemCount: filteredPaymentMethods.length,
-      itemBuilder: (context, index) {
-        final paymentMethod = filteredPaymentMethods[index];
-        final int originalIndex =
-            checkoutController.paymentMethods.indexOf(paymentMethod);
-        final bool isSelected = originalIndex >= 0 &&
-            originalIndex < checkoutController.isSelected.length &&
-            checkoutController.isSelected[originalIndex];
-
-        return GestureDetector(
-          onTap: () {
-            if (originalIndex == -1) {
-              return;
-            }
-            checkoutController.selectPaymentMethod(originalIndex);
-            setState(() {});
+    // Professional list: one clean, tappable card per method + a secure-payment
+    // trust line. Selection logic (selectPaymentMethod / filtering / MyFatoorah)
+    // is unchanged — only the visual card was upgraded.
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(bottom: Dimensions.paddingSizeSmall),
+          child: Row(
+            children: [
+              Icon(Icons.lock_outline,
+                  size: 15, color: Theme.of(context).primaryColor),
+              const SizedBox(width: 6),
+              Text('دفع آمن ومشفّر',
+                  style: robotoRegular.copyWith(
+                      fontSize: Dimensions.fontSizeSmall,
+                      color: Theme.of(context).hintColor)),
+            ],
+          ),
+        ),
+        ListView.separated(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          itemCount: filteredPaymentMethods.length,
+          separatorBuilder: (_, __) =>
+              const SizedBox(height: Dimensions.paddingSizeSmall),
+          itemBuilder: (context, index) {
+            final paymentMethod = filteredPaymentMethods[index];
+            final int originalIndex =
+                checkoutController.paymentMethods.indexOf(paymentMethod);
+            final bool isSelected = originalIndex >= 0 &&
+                originalIndex < checkoutController.isSelected.length &&
+                checkoutController.isSelected[originalIndex];
+            return _buildProMethodTile(paymentMethod, isSelected, () {
+              if (originalIndex == -1) return;
+              checkoutController.selectPaymentMethod(originalIndex);
+              setState(() {});
+            });
           },
-          child: Container(
-            padding: const EdgeInsets.all(Dimensions.paddingSizeSmall),
-            decoration: BoxDecoration(
-              color: isSelected
-                  ? Theme.of(context).primaryColor.withValues(alpha: 0.12)
-                  : (tokens?.surfaceSoft ?? Theme.of(context).cardColor),
-              borderRadius: BorderRadius.circular(Dimensions.radiusDefault),
-              border: Border.all(
-                color: isSelected
-                    ? Theme.of(context).primaryColor
-                    : Theme.of(context).dividerColor,
-                width: isSelected ? 2 : 1,
+        ),
+      ],
+    );
+  }
+
+  /// Professional payment-method row: radio · name · logo. Purely visual — the
+  /// selection is driven by the same controller call as before.
+  Widget _buildProMethodTile(
+      dynamic paymentMethod, bool isSelected, VoidCallback onTap) {
+    final theme = Theme.of(context);
+    final tokens = theme.extension<AppColorTokens>();
+    final String name =
+        (paymentMethod.paymentMethodAr ?? paymentMethod.paymentMethodEn ?? '')
+            .toString();
+    final Color primary = theme.primaryColor;
+
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        padding: const EdgeInsets.symmetric(
+            horizontal: Dimensions.paddingSizeDefault, vertical: 12),
+        decoration: BoxDecoration(
+          color: isSelected
+              ? primary.withValues(alpha: 0.07)
+              : (tokens?.surfaceSoft ?? theme.cardColor),
+          borderRadius: BorderRadius.circular(Dimensions.radiusDefault),
+          border: Border.all(
+            color: isSelected ? primary : theme.dividerColor,
+            width: isSelected ? 1.6 : 1,
+          ),
+          boxShadow: isSelected
+              ? [
+                  BoxShadow(
+                      color: primary.withValues(alpha: 0.12),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2))
+                ]
+              : null,
+        ),
+        child: Row(
+          textDirection: TextDirection.rtl,
+          children: [
+            // Radio indicator.
+            Container(
+              width: 22,
+              height: 22,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: isSelected ? primary : Colors.transparent,
+                border: Border.all(
+                    color: isSelected ? primary : theme.dividerColor,
+                    width: 2),
+              ),
+              child: isSelected
+                  ? const Icon(Icons.check, size: 14, color: Colors.white)
+                  : null,
+            ),
+            const SizedBox(width: Dimensions.paddingSizeSmall),
+            // Name.
+            Expanded(
+              child: Text(
+                name,
+                textAlign: TextAlign.right,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: robotoMedium.copyWith(
+                  fontSize: Dimensions.fontSizeDefault,
+                  color: isSelected
+                      ? primary
+                      : theme.textTheme.bodyLarge?.color,
+                ),
               ),
             ),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                SizedBox(
-                  height: 36,
-                  width: 36,
-                  child: SmartImage(
-                    url: paymentMethod.imageUrl ?? '',
-                    height: 36,
-                    width: 36,
-                    fit: BoxFit.contain,
-                    cacheWidth: 300,
-                    cacheHeight: 300,
-                    errorWidget: const Icon(Icons.image_not_supported),
-                  ),
-                ),
-                const SizedBox(height: Dimensions.paddingSizeExtraSmall),
-                Text(
-                  paymentMethod.paymentMethodEn ?? '',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  textAlign: TextAlign.center,
-                  style: robotoMedium.copyWith(
-                    fontSize: Dimensions.fontSizeSmall,
-                    color: isSelected
-                        ? Theme.of(context).primaryColor
-                        : Theme.of(context).textTheme.bodyMedium?.color,
-                  ),
-                ),
-              ],
+            const SizedBox(width: Dimensions.paddingSizeSmall),
+            // Logo.
+            Container(
+              width: 46,
+              height: 30,
+              alignment: Alignment.center,
+              child: SmartImage(
+                url: (paymentMethod.imageUrl ?? '').toString(),
+                height: 30,
+                width: 46,
+                fit: BoxFit.contain,
+                cacheWidth: 300,
+                cacheHeight: 300,
+                errorWidget: Icon(Icons.credit_card,
+                    color: theme.hintColor, size: 24),
+              ),
             ),
-          ),
-        );
-      },
+          ],
+        ),
+      ),
     );
   }
 
