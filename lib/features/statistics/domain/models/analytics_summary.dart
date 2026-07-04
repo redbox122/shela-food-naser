@@ -66,7 +66,7 @@ class SpendingTrend {
   final double weeklyChange;
   final String trendDirection;
 
-  SpendingTrend({
+  const SpendingTrend({
     required this.monthlyChange,
     required this.weeklyChange,
     required this.trendDirection,
