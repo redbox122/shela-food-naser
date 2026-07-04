@@ -588,4 +588,6 @@ class Images {
   static const String edit_avatar = 'assets/image/edit_avatar.png';
   static const String active_navbag = 'assets/image/active_navbag.png';
   static const String information_v2 = 'assets/image/information_v2.png';
+  static const String coupoun_img = 'assets/image/coupoun_img.png';
+  static const String couboun = 'assets/image/couboun.png';
 }
