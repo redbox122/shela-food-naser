@@ -2,31 +2,32 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
-import 'package:shimmer_animation/shimmer_animation.dart';
 import 'package:sixam_mart/features/cart/controllers/cart_controller.dart';
 import 'package:sixam_mart/features/item/controllers/item_controller.dart';
-import 'package:sixam_mart/features/language/controllers/language_controller.dart';
 import 'package:sixam_mart/features/checkout/domain/models/place_order_body_model.dart';
 import 'package:sixam_mart/features/cart/domain/models/cart_model.dart';
 import 'package:sixam_mart/features/item/domain/models/item_model.dart';
-import 'package:sixam_mart/helper/price_converter.dart';
 import 'package:sixam_mart/helper/responsive_helper.dart';
 import 'package:sixam_mart/helper/route_helper.dart';
 import 'package:sixam_mart/util/dimensions.dart';
 import 'package:sixam_mart/util/app_constants.dart';
-import 'package:sixam_mart/util/styles.dart';
 import 'package:sixam_mart/common/widgets/cart_snackbar.dart';
 import 'package:sixam_mart/common/widgets/custom_app_bar.dart';
-import 'package:sixam_mart/common/widgets/custom_button.dart';
-import 'package:sixam_mart/common/widgets/custom_snackbar.dart';
 import 'package:sixam_mart/features/checkout/screens/checkout_screen.dart';
 import 'package:sixam_mart/features/item/widgets/details_app_bar_widget.dart';
 import 'package:sixam_mart/features/item/widgets/details_web_view_widget.dart';
 import 'package:sixam_mart/features/item/widgets/item_image_view_widget.dart';
-import 'package:sixam_mart/features/item/widgets/item_title_view_widget.dart';
 import 'package:sixam_mart/common/widgets/food_variation_section.dart';
-
-import '../../../common/widgets/item_widget.dart';
+import 'package:sixam_mart/features/item/widgets/item_image_carousel.dart';
+import 'package:sixam_mart/features/item/widgets/item_info_header.dart';
+import 'package:sixam_mart/features/item/widgets/item_floating_cart_bar.dart';
+import 'package:sixam_mart/features/item/widgets/item_details_skeleton.dart';
+import 'package:sixam_mart/features/item/widgets/item_add_to_cart_row.dart';
+import 'package:sixam_mart/features/item/widgets/item_total_amount_strip.dart';
+import 'package:sixam_mart/features/item/widgets/ecommerce_variation_selector.dart';
+import 'package:sixam_mart/features/item/widgets/item_prescription_badge.dart';
+import 'package:sixam_mart/features/item/widgets/item_extra_info_sections.dart';
+import 'package:sixam_mart/features/item/widgets/item_sold_with_grid.dart';
 
 class ItemDetailsScreen extends StatefulWidget {
   final Item? item;
@@ -45,9 +46,17 @@ class ItemDetailsScreen extends StatefulWidget {
 }
 
 class _ItemDetailsScreenState extends State<ItemDetailsScreen> {
+  // 🎨 UI-only: hide info sections not present in the new design
+  // (description, nutrition, allergies). Logic/data loading stays intact.
+  static const bool _showExtraInfoSections = false;
+
   final Size size = Get.size;
   final GlobalKey<ScaffoldMessengerState> _globalKey = GlobalKey();
   final GlobalKey<DetailsAppBarWidgetState> _key = GlobalKey();
+
+  // 🎨 NEW DESIGN: tracks whether the user picked a quantity yet.
+  // false → show the circular "+" button; true → show the "- N +" counter pill.
+  bool _quantitySelected = false;
 
   @override
   void initState() {
@@ -89,6 +98,77 @@ class _ItemDetailsScreenState extends State<ItemDetailsScreen> {
     }
   }
 
+  /// Live cart-driven quantity change for the details counter.
+  ///
+  /// Mirrors the cart screen's stepper so the cart badge/totals update
+  /// automatically and directly:
+  /// - not in cart + increment → add the item (qty 1), respecting required
+  ///   variation selection;
+  /// - in cart + increment/decrement → mutate the real cart line via
+  ///   [CartController.setQuantityById] (optimistic, no navigation/snackbar);
+  /// - in cart + decrement at qty 1 → remove the line and collapse the pill.
+  ///
+  /// Campaign items keep the local-preview behaviour (they use the campaign
+  /// checkout flow, not the cart).
+  Future<void> _applyCartQuantityChange({
+    required bool isIncrement,
+    required CartController cartController,
+    required ItemController itemController,
+    required CartModel? cartModel,
+    required OnlineCart? cart,
+    required int stock,
+  }) async {
+    final Item? item = itemController.item;
+    if (item?.id == null) return;
+
+    final bool isCampaign = item!.availableDateStarts != null;
+    if (isCampaign) {
+      itemController.setQuantity(isIncrement, stock, item.quantityLimit);
+      return;
+    }
+
+    final int? cartId = cartController.getCartIdByItemId(item.id!);
+
+    // Not in cart yet → first increment adds it to the cart.
+    if (cartId == null) {
+      if (!isIncrement) {
+        if (mounted) setState(() => _quantitySelected = false);
+        return;
+      }
+      if (cartModel == null || cart == null) return;
+      if (!itemController.ensureRequiredVariationsSelected()) return;
+      final bool ok = await cartController.addToCartWithFallback(
+        cartModel: cartModel,
+        onlineCart: cart,
+      );
+      if (ok && mounted) {
+        await itemController.setExistInCart(item, null, notify: true);
+      }
+      return;
+    }
+
+    // Already in cart → mutate the real line live.
+    final int idx = cartController.cartList.indexWhere((e) => e.id == cartId);
+    final int currentQty =
+        idx != -1 ? (cartController.cartList[idx].quantity ?? 1) : 1;
+
+    if (isIncrement) {
+      await cartController.setQuantityById(
+          true, cartId, stock, item.quantityLimit);
+    } else if (currentQty > 1) {
+      await cartController.setQuantityById(
+          false, cartId, stock, item.quantityLimit);
+    } else {
+      await cartController.removeFromCartById(cartId,
+          item: item, reason: 'item_details_decrement');
+      if (mounted) setState(() => _quantitySelected = false);
+    }
+
+    if (mounted) {
+      await itemController.setExistInCart(item, null, notify: true);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return GetBuilder<CartController>(builder: (cartController) {
@@ -116,8 +196,8 @@ class _ItemDetailsScreenState extends State<ItemDetailsScreen> {
                             priceWithAddOns: priceWithAddons,
                             cart: cart,
                           )
-                        : Column(children: [
-                            Expanded(
+                        : Stack(children: [
+                            Positioned.fill(
                               child: SingleChildScrollView(
                                 padding: const EdgeInsets.all(
                                     Dimensions.paddingSizeSmall),
@@ -129,23 +209,91 @@ class _ItemDetailsScreenState extends State<ItemDetailsScreen> {
                                       crossAxisAlignment:
                                           CrossAxisAlignment.start,
                                       children: [
-                                        ItemImageViewWidget(
-                                            item: itemController.item,
-                                            isCampaign:
-                                                widget.isCampaign ?? false),
+                                        // 🎨 NEW DESIGN: centered 194×194 product image
+                                        // (carousel + dot indicators when multiple).
+                                        ItemImageCarousel(
+                                          item: itemController.item!,
+                                          onTap: (widget.isCampaign ?? false)
+                                              ? null
+                                              : () => Navigator.of(context)
+                                                      .pushNamed(
+                                                    RouteHelper
+                                                        .getItemImagesRoute(
+                                                            itemController
+                                                                .item!),
+                                                    arguments:
+                                                        ItemImageViewWidget(
+                                                            item: itemController
+                                                                .item),
+                                                  ),
+                                        ),
                                         const SizedBox(height: 20),
 
-                                        Builder(builder: (context) {
-                                          return ItemTitleViewWidget(
-                                            item: itemController.item,
-                                            inStorePage: widget.inStorePage,
-                                            isCampaign: itemController.item!
-                                                    .availableDateStarts !=
-                                                null,
-                                            inStock: false,
-                                          );
-                                        }),
-                                        const Divider(height: 20, thickness: 2),
+                                        // 🎨 NEW DESIGN: info header — favourite on
+                                        // the start edge, name / description / unit
+                                        // right-aligned beside it.
+                                        ItemInfoHeader(
+                                            item: itemController.item!),
+                                        // ✅ DATA-DRIVEN MORPHING: Priority 3 - Simple Product (no variations - direct add to cart)
+
+                                        // 🎨 NEW DESIGN: morphing add-to-cart control
+                                        // - out of stock   → pill "product_not_available"
+                                        // - no qty picked  → circular "+" button
+                                        // - qty picked     → green "- N +" counter pill
+                                        ItemAddToCartRow(
+                                          itemController: itemController,
+                                          quantitySelected: _quantitySelected,
+                                          onActivate: () {
+                                            HapticFeedback.lightImpact();
+                                            setState(() =>
+                                                _quantitySelected = true);
+                                            _applyCartQuantityChange(
+                                              isIncrement: true,
+                                              cartController:
+                                                  Get.find<CartController>(),
+                                              itemController: itemController,
+                                              cartModel: cartModel,
+                                              cart: cart,
+                                              stock: stock,
+                                            );
+                                          },
+                                          onIncrement: () {
+                                            HapticFeedback.lightImpact();
+                                            _applyCartQuantityChange(
+                                              isIncrement: true,
+                                              cartController:
+                                                  Get.find<CartController>(),
+                                              itemController: itemController,
+                                              cartModel: cartModel,
+                                              cart: cart,
+                                              stock: stock,
+                                            );
+                                          },
+                                          onDecrement: () {
+                                            HapticFeedback.lightImpact();
+                                            _applyCartQuantityChange(
+                                              isIncrement: false,
+                                              cartController:
+                                                  Get.find<CartController>(),
+                                              itemController: itemController,
+                                              cartModel: cartModel,
+                                              cart: cart,
+                                              stock: stock,
+                                            );
+                                          },
+                                        ),
+
+                                        // Total amount — only once a quantity is picked
+                                        if (_quantitySelected &&
+                                            (itemController.item?.stock ?? 1) >
+                                                0) ...[
+                                          const SizedBox(
+                                              height: Dimensions
+                                                  .paddingSizeDefault),
+                                          ItemTotalAmountStrip(
+                                              priceWithAddons: priceWithAddons),
+                                        ],
+
 
                                         // ✅ DATA-DRIVEN MORPHING: Priority 1 - Food Variations (Coffee, Food modules)
                                         if (itemController
@@ -185,652 +333,31 @@ class _ItemDetailsScreenState extends State<ItemDetailsScreen> {
                                                 .isNotEmpty &&
                                             itemController.variationIndex !=
                                                 null)
-                                          Column(
-                                            children: [
-                                              ListView.builder(
-                                                shrinkWrap: true,
-                                                itemCount: itemController.item!
-                                                    .choiceOptions!.length,
-                                                physics:
-                                                    const NeverScrollableScrollPhysics(),
-                                                itemBuilder: (context, index) {
-                                                  return Column(
-                                                      crossAxisAlignment:
-                                                          CrossAxisAlignment
-                                                              .start,
-                                                      children: [
-                                                        Text(
-                                                            itemController
-                                                                .item!
-                                                                .choiceOptions![
-                                                                    index]
-                                                                .title!,
-                                                            style: robotoMedium
-                                                                .copyWith(
-                                                                    fontSize:
-                                                                        Dimensions
-                                                                            .fontSizeLarge)),
-                                                        const SizedBox(
-                                                            height: Dimensions
-                                                                .paddingSizeExtraSmall),
-                                                        GridView.builder(
-                                                          gridDelegate:
-                                                              const SliverGridDelegateWithFixedCrossAxisCount(
-                                                            crossAxisCount: 3,
-                                                            crossAxisSpacing:
-                                                                20,
-                                                            mainAxisSpacing: 10,
-                                                            childAspectRatio:
-                                                                (1 / 0.25),
-                                                          ),
-                                                          shrinkWrap: true,
-                                                          physics:
-                                                              const NeverScrollableScrollPhysics(),
-                                                          itemCount:
-                                                              itemController
-                                                                  .item!
-                                                                  .choiceOptions![
-                                                                      index]
-                                                                  .options!
-                                                                  .length,
-                                                          itemBuilder:
-                                                              (context, i) {
-                                                            return InkWell(
-                                                              onTap: () {
-                                                                itemController
-                                                                    .setCartVariationIndex(
-                                                                        index,
-                                                                        i,
-                                                                        itemController
-                                                                            .item);
-                                                              },
-                                                              child: Container(
-                                                                alignment:
-                                                                    Alignment
-                                                                        .center,
-                                                                padding: const EdgeInsets
-                                                                    .symmetric(
-                                                                    horizontal:
-                                                                        Dimensions
-                                                                            .paddingSizeExtraSmall),
-                                                                decoration:
-                                                                    BoxDecoration(
-                                                                  color: (itemController.variationIndex !=
-                                                                              null &&
-                                                                          index <
-                                                                              itemController
-                                                                                  .variationIndex!.length &&
-                                                                          itemController.variationIndex![index] !=
-                                                                              i)
-                                                                      ? Theme.of(
-                                                                              context)
-                                                                          .disabledColor
-                                                                      : Theme.of(
-                                                                              context)
-                                                                          .primaryColor,
-                                                                  borderRadius:
-                                                                      BorderRadius
-                                                                          .circular(
-                                                                              5),
-                                                                  border: (itemController.variationIndex !=
-                                                                              null &&
-                                                                          index <
-                                                                              itemController
-                                                                                  .variationIndex!.length &&
-                                                                          itemController.variationIndex![index] !=
-                                                                              i)
-                                                                      ? Border.all(
-                                                                          color: Theme.of(context)
-                                                                              .disabledColor,
-                                                                          width:
-                                                                              2)
-                                                                      : null,
-                                                                ),
-                                                                child: Text(
-                                                                  itemController
-                                                                      .item!
-                                                                      .choiceOptions![
-                                                                          index]
-                                                                      .options![
-                                                                          i]
-                                                                      .trim(),
-                                                                  maxLines: 1,
-                                                                  overflow:
-                                                                      TextOverflow
-                                                                          .ellipsis,
-                                                                  style: robotoRegular
-                                                                      .copyWith(
-                                                                    color: (itemController.variationIndex !=
-                                                                                null &&
-                                                                            index <
-                                                                                itemController
-                                                                                    .variationIndex!.length &&
-                                                                            itemController.variationIndex![index] !=
-                                                                                i)
-                                                                        ? Colors
-                                                                            .black
-                                                                        : Colors
-                                                                            .white,
-                                                                  ),
-                                                                ),
-                                                              ),
-                                                            );
-                                                          },
-                                                        ),
-                                                        SizedBox(
-                                                            height: index !=
-                                                                    itemController
-                                                                            .item!
-                                                                            .choiceOptions!
-                                                                            .length -
-                                                                        1
-                                                                ? Dimensions
-                                                                    .paddingSizeLarge
-                                                                : 0),
-                                                      ]);
-                                                },
-                                              ),
-                                              const SizedBox(
-                                                  height: Dimensions
-                                                      .paddingSizeLarge),
-                                            ],
-                                          ),
-                                        // ✅ DATA-DRIVEN MORPHING: Priority 3 - Simple Product (no variations - direct add to cart)
-
-                                        // Quantity
-
-                                        GetBuilder<CartController>(
-                                            builder: (cartController) {
-                                          return Row(children: [
-                                            Text('quantity'.tr,
-                                                style: robotoMedium.copyWith(
-                                                    fontSize: Dimensions
-                                                        .fontSizeLarge)),
-                                            const Expanded(child: SizedBox()),
-                                            Container(
-                                              decoration: BoxDecoration(
-                                                  color: Theme.of(context)
-                                                      .disabledColor,
-                                                  borderRadius:
-                                                      BorderRadius.circular(5)),
-                                              child: Row(children: [
-                                                // -
-
-                                                InkWell(
-                                                  onTap:
-                                                      cartController.isLoading
-                                                          ? null
-                                                          : () {
-                                                              HapticFeedback
-                                                                  .lightImpact();
-                                                              if (itemController
-                                                                      .quantity! >
-                                                                  1) {
-                                                                itemController.setQuantity(
-                                                                    false,
-                                                                    stock,
-                                                                    itemController
-                                                                        .item!
-                                                                        .quantityLimit);
-                                                              }
-                                                            },
-                                                  child: const Padding(
-                                                    padding: EdgeInsets.symmetric(
-                                                        horizontal: Dimensions
-                                                            .paddingSizeSmall,
-                                                        vertical: Dimensions
-                                                            .paddingSizeExtraSmall),
-                                                    child: Icon(Icons.remove,
-                                                        size: 20),
-                                                  ),
-                                                ),
-
-                                                //
-
-                                                Text(
-                                                  itemController.quantity
-                                                      .toString(),
-                                                  style: robotoMedium.copyWith(
-                                                      fontSize: Dimensions
-                                                          .fontSizeExtraLarge),
-                                                ),
-
-                                                // +
-
-                                                InkWell(
-                                                  onTap:
-                                                      cartController.isLoading
-                                                          ? null
-                                                          : () {
-                                                              HapticFeedback
-                                                                  .lightImpact();
-                                                              itemController.setQuantity(
-                                                                  true,
-                                                                  stock,
-                                                                  itemController
-                                                                      .item!
-                                                                      .quantityLimit);
-                                                            },
-                                                  child: const Padding(
-                                                    padding: EdgeInsets.symmetric(
-                                                        horizontal: Dimensions
-                                                            .paddingSizeSmall,
-                                                        vertical: Dimensions
-                                                            .paddingSizeExtraSmall),
-                                                    child: Icon(Icons.add,
-                                                        size: 20),
-                                                  ),
-                                                ),
-                                              ]),
-                                            ),
-                                          ]);
-                                        }),
-
-                                        //
-
-                                        const SizedBox(
-                                            height:
-                                                Dimensions.paddingSizeLarge),
-
-                                        Row(children: [
-                                          Text('${'total_amount'.tr}:',
-                                              style: robotoMedium.copyWith(
-                                                  fontSize: Dimensions
-                                                      .fontSizeLarge)),
-                                          const SizedBox(
-                                              width: Dimensions
-                                                  .paddingSizeExtraSmall),
-                                          PriceConverter.convertPrice2(
-                                            priceWithAddons,
-                                            textStyle: robotoBold.copyWith(
-                                              color: Theme.of(context)
-                                                  .primaryColor,
-                                              fontSize:
-                                                  Dimensions.fontSizeLarge,
-                                            ),
-                                          ),
-                                        ]),
-
-                                        //
-
+                                          EcommerceVariationSelector(
+                                              itemController: itemController),
                                         const SizedBox(
                                             height: Dimensions
                                                 .paddingSizeExtraLarge),
 
-                                        // ⚠️ FIX: Null-safe check for isPrescriptionRequired to prevent crash
-                                        // Mini-cache may not include this field, so check safely
-                                        (itemController.item
-                                                    ?.isPrescriptionRequired ==
-                                                true)
-                                            ? Container(
-                                                padding: const EdgeInsets
-                                                    .symmetric(
-                                                    horizontal: Dimensions
-                                                        .paddingSizeSmall,
-                                                    vertical: Dimensions
-                                                        .paddingSizeExtraSmall),
-                                                margin: const EdgeInsets.only(
-                                                    bottom: Dimensions
-                                                        .paddingSizeSmall),
-                                                decoration: BoxDecoration(
-                                                  color: Theme.of(context)
-                                                      .colorScheme
-                                                      .error
-                                                      .withValues(alpha: 0.1),
-                                                  borderRadius:
-                                                      BorderRadius.circular(
-                                                          Dimensions
-                                                              .radiusSmall),
-                                                ),
-                                                child: Text(
-                                                  '* ${'prescription_required'.tr}',
-                                                  style: robotoRegular.copyWith(
-                                                      fontSize: Dimensions
-                                                          .fontSizeSmall,
-                                                      color: Theme.of(context)
-                                                          .colorScheme
-                                                          .error),
-                                                ),
-                                              )
-                                            : const SizedBox(),
+                                        ItemPrescriptionBadge(
+                                            item: itemController.item),
 
-                                        (itemController.item!.description !=
-                                                    null &&
-                                                itemController.item!
-                                                    .description!.isNotEmpty)
-                                            ? Column(
-                                                crossAxisAlignment:
-                                                    CrossAxisAlignment.start,
-                                                children: [
-                                                  Text('description'.tr,
-                                                      style: robotoMedium),
-                                                  const SizedBox(
-                                                      height: Dimensions
-                                                          .paddingSizeExtraSmall),
-                                                  Text(
-                                                      itemController
-                                                          .item!.description!,
-                                                      style: robotoRegular),
-                                                  const SizedBox(
-                                                      height: Dimensions
-                                                          .paddingSizeLarge),
-                                                ],
-                                              )
-                                            : const SizedBox(),
+                                        // Description / nutrition / allergies —
+                                        // hidden by the new design, data intact.
+                                        ItemExtraInfoSections(
+                                          show: _showExtraInfoSections,
+                                          controllerItem: itemController.item,
+                                          widgetItem: widget.item,
+                                        ),
 
-                                        // Nutrition values (calories, protein, carbs, etc.)
-                                        (_hasNutritionData(itemController))
-                                            ? (itemController.item?.nutrition !=
-                                                    null)
-                                                ? Column(
-                                                    crossAxisAlignment:
-                                                        CrossAxisAlignment
-                                                            .start,
-                                                    children: [
-                                                      Text(
-                                                          'nutrition_details'
-                                                              .tr,
-                                                          style: robotoMedium),
-                                                      const SizedBox(
-                                                          height: Dimensions
-                                                              .paddingSizeExtraSmall),
-                                                      // Calories
-                                                      if (itemController
-                                                                  .item!
-                                                                  .nutrition!
-                                                                  .calories !=
-                                                              null &&
-                                                          itemController
-                                                                  .item!
-                                                                  .nutrition!
-                                                                  .calories! >
-                                                              0)
-                                                        Padding(
-                                                          padding:
-                                                              const EdgeInsets
-                                                                  .only(
-                                                                  bottom: 8.0),
-                                                          child: Row(
-                                                            children: [
-                                                              Icon(
-                                                                Icons
-                                                                    .local_fire_department,
-                                                                size: 18,
-                                                                color: Theme.of(
-                                                                        context)
-                                                                    .primaryColor,
-                                                              ),
-                                                              const SizedBox(
-                                                                  width: 8),
-                                                              Text(
-                                                                '${itemController.item!.nutrition!.calories} ${'calories'.tr}',
-                                                                style:
-                                                                    robotoMedium
-                                                                        .copyWith(
-                                                                  fontSize:
-                                                                      Dimensions
-                                                                          .fontSizeDefault,
-                                                                ),
-                                                              ),
-                                                            ],
-                                                          ),
-                                                        ),
-                                                      // Nutrition breakdown
-                                                      if (itemController
-                                                                  .item!
-                                                                  .nutrition!
-                                                                  .protein !=
-                                                              null ||
-                                                          itemController
-                                                                  .item!
-                                                                  .nutrition!
-                                                                  .carbs !=
-                                                              null ||
-                                                          itemController
-                                                                  .item!
-                                                                  .nutrition!
-                                                                  .fat !=
-                                                              null ||
-                                                          itemController
-                                                                  .item!
-                                                                  .nutrition!
-                                                                  .fiber !=
-                                                              null)
-                                                        Padding(
-                                                          padding:
-                                                              const EdgeInsets
-                                                                  .only(
-                                                                  top: 8.0),
-                                                          child: Wrap(
-                                                            spacing: 16,
-                                                            runSpacing: 8,
-                                                            children: [
-                                                              if (itemController
-                                                                      .item!
-                                                                      .nutrition!
-                                                                      .protein !=
-                                                                  null)
-                                                                _buildNutritionItem(
-                                                                  context,
-                                                                  'protein'.tr,
-                                                                  '${itemController.item!.nutrition!.protein!.toStringAsFixed(1)}g',
-                                                                ),
-                                                              if (itemController
-                                                                      .item!
-                                                                      .nutrition!
-                                                                      .carbs !=
-                                                                  null)
-                                                                _buildNutritionItem(
-                                                                  context,
-                                                                  'carbs'.tr,
-                                                                  '${itemController.item!.nutrition!.carbs!.toStringAsFixed(1)}g',
-                                                                ),
-                                                              if (itemController
-                                                                      .item!
-                                                                      .nutrition!
-                                                                      .fat !=
-                                                                  null)
-                                                                _buildNutritionItem(
-                                                                  context,
-                                                                  'fat'.tr,
-                                                                  '${itemController.item!.nutrition!.fat!.toStringAsFixed(1)}g',
-                                                                ),
-                                                              if (itemController
-                                                                      .item!
-                                                                      .nutrition!
-                                                                      .fiber !=
-                                                                  null)
-                                                                _buildNutritionItem(
-                                                                  context,
-                                                                  'fiber'.tr,
-                                                                  '${itemController.item!.nutrition!.fiber!.toStringAsFixed(1)}g',
-                                                                ),
-                                                            ],
-                                                          ),
-                                                        ),
-                                                      // Nutrition tags (if available)
-                                                      if (widget.item!
-                                                                  .nutritionsName !=
-                                                              null &&
-                                                          widget
-                                                              .item!
-                                                              .nutritionsName!
-                                                              .isNotEmpty) ...[
-                                                        const SizedBox(
-                                                            height: Dimensions
-                                                                .paddingSizeSmall),
-                                                        Wrap(
-                                                            children: List.generate(
-                                                                widget
-                                                                    .item!
-                                                                    .nutritionsName!
-                                                                    .length,
-                                                                (index) {
-                                                          return Text(
-                                                            '${widget.item!.nutritionsName![index]}${widget.item!.nutritionsName!.length - 1 == index ? '.' : ', '}',
-                                                            style: robotoRegular
-                                                                .copyWith(
-                                                              color: Theme.of(
-                                                                      context)
-                                                                  .textTheme
-                                                                  .bodyLarge!
-                                                                  .color
-                                                                  ?.withValues(
-                                                                      alpha:
-                                                                          0.5),
-                                                            ),
-                                                          );
-                                                        })),
-                                                      ],
-                                                      const SizedBox(
-                                                          height: Dimensions
-                                                              .paddingSizeLarge),
-                                                    ],
-                                                  )
-                                                // Fallback to nutrition tags only if nutrition object is null
-                                                : (widget.item!.nutritionsName !=
-                                                            null &&
-                                                        widget
-                                                            .item!
-                                                            .nutritionsName!
-                                                            .isNotEmpty)
-                                                    ? Column(
-                                                        crossAxisAlignment:
-                                                            CrossAxisAlignment
-                                                                .start,
-                                                        children: [
-                                                          Text(
-                                                              'nutrition_details'
-                                                                  .tr,
-                                                              style:
-                                                                  robotoMedium),
-                                                          const SizedBox(
-                                                              height: Dimensions
-                                                                  .paddingSizeExtraSmall),
-                                                          Wrap(
-                                                              children: List.generate(
-                                                                  widget
-                                                                      .item!
-                                                                      .nutritionsName!
-                                                                      .length,
-                                                                  (index) {
-                                                            return Text(
-                                                              '${widget.item!.nutritionsName![index]}${widget.item!.nutritionsName!.length - 1 == index ? '.' : ', '}',
-                                                              style: robotoRegular.copyWith(
-                                                                  color: Theme.of(
-                                                                          context)
-                                                                      .textTheme
-                                                                      .bodyLarge!
-                                                                      .color
-                                                                      ?.withValues(
-                                                                          alpha:
-                                                                              0.5)),
-                                                            );
-                                                          })),
-                                                          const SizedBox(
-                                                              height: Dimensions
-                                                                  .paddingSizeLarge),
-                                                        ],
-                                                      )
-                                                    : const SizedBox()
-                                            : const SizedBox(),
-
-                                        (_shouldShowAllergies(
-                                                widget.item!.allergiesName))
-                                            ? Column(
-                                                crossAxisAlignment:
-                                                    CrossAxisAlignment.start,
-                                                children: [
-                                                  Text(
-                                                      'allergic_ingredients'.tr,
-                                                      style: robotoMedium),
-                                                  const SizedBox(
-                                                      height: Dimensions
-                                                          .paddingSizeExtraSmall),
-                                                  Wrap(
-                                                      children: List.generate(
-                                                          widget
-                                                              .item!
-                                                              .allergiesName!
-                                                              .length, (index) {
-                                                    return Text(
-                                                      '${widget.item!.allergiesName![index]}${widget.item!.allergiesName!.length - 1 == index ? '.' : ', '}',
-                                                      style: robotoRegular
-                                                          .copyWith(
-                                                              color: Theme.of(
-                                                                      context)
-                                                                  .textTheme
-                                                                  .bodyLarge!
-                                                                  .color
-                                                                  ?.withValues(
-                                                                      alpha:
-                                                                          0.5)),
-                                                    );
-                                                  })),
-                                                  const SizedBox(
-                                                      height: Dimensions
-                                                          .paddingSizeLarge),
-                                                ],
-                                              )
-                                            : const SizedBox(),
-
-                                        itemController.similarProductsList !=
-                                                    null &&
-                                                itemController
-                                                    .similarProductsList!
-                                                    .isNotEmpty
-                                            ? Container(
-                                                padding:
-                                                    const EdgeInsets.symmetric(
-                                                        vertical: 5,
-                                                        horizontal: 10),
-                                                child: Column(
-                                                  children: [
-                                                    Text('Similar_products'.tr,
-                                                        style: robotoMedium),
-                                                  ],
-                                                ),
-                                              )
-                                            : Container(),
-                                        itemController.similarProductsList !=
-                                                    null &&
-                                                itemController
-                                                    .similarProductsList!
-                                                    .isNotEmpty
-                                            ? Container(
-                                                padding:
-                                                    const EdgeInsets.symmetric(
-                                                        vertical: 5,
-                                                        horizontal: 10),
-                                                height: 240,
-                                                child: ListView.builder(
-                                                  scrollDirection:
-                                                      Axis.horizontal,
-                                                  itemCount: itemController
-                                                      .similarProductsList!
-                                                      .length,
-                                                  padding: const EdgeInsets
-                                                      .only(
-                                                      left: Dimensions
-                                                          .paddingSizeSmall),
-                                                  physics:
-                                                      const BouncingScrollPhysics(),
-                                                  itemBuilder:
-                                                      (context, index) {
-                                                    return Padding(
-                                                      padding:
-                                                          const EdgeInsets.all(
-                                                              8.0),
-                                                      child: SimilarItemWidget(
-                                                        item: itemController
-                                                                .similarProductsList![
-                                                            index],
-                                                      ),
-                                                    );
-                                                  },
-                                                ),
-                                              )
-                                            : const Column(),
+                                        // 🎨 NEW DESIGN: "يُباع معها أيضاً" —
+                                        // horizontal strip of 167×190 cards.
+                                        ItemSoldWithGrid(
+                                            items: itemController
+                                                .similarProductsList),
+                                        // Breathing room so the floating cart
+                                        // doesn't cover the last row.
+                                        const SizedBox(height: 100),
                                       ],
                                     ),
                                   ),
@@ -838,326 +365,86 @@ class _ItemDetailsScreenState extends State<ItemDetailsScreen> {
                               ),
                             ),
 
-                            // الازرار
+                            // Bottom action bar (bag + search)
 
                             GetBuilder<CartController>(
                                 builder: (cartController) {
-                              return Padding(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 8.0,
-                                  vertical: 6.0,
-                                ),
-                                child: LayoutBuilder(
-                                  builder: (context, constraints) {
-                                    final bool useStackedButtons =
-                                        constraints.maxWidth < 320;
-                                    final Widget continueShoppingButton =
-                                        CustomButton(
-                                      buttonText: 'أكمل التسوق'.tr,
-                                      onPressed: () {
-                                        Get.back<void>();
-                                      },
-                                    );
-                                    final Widget actionButton = CustomButton(
-                                      isLoading: cartController.isLoading,
-                                      buttonText: (itemController
-                                                  .item?.availableDateStarts !=
-                                              null)
-                                          ? 'order_now'.tr
-                                          : 'add_to_cart'.tr,
-                                      onPressed: () async {
-                                        HapticFeedback.lightImpact();
-                                        if (!itemController
-                                            .ensureRequiredVariationsSelected()) {
-                                          return;
-                                        }
-                                        if (itemController
-                                                .item?.availableDateStarts !=
-                                            null) {
-                                          Get.toNamed<void>(
-                                              RouteHelper
-                                                  .getCampaignCheckoutRoute(),
-                                              arguments: CheckoutScreen(
-                                                storeId: null,
-                                                fromCart: false,
-                                                cartList: [cartModel],
-                                              ));
-                                        } else {
-                                          // Use smart fallback flow for both new/existing items.
-                                          // This avoids stale cartIndex/cartId failures and supports repeated adds.
-                                          await cartController
-                                              .addToCartWithFallback(
-                                            cartModel: cartModel!,
-                                            onlineCart: cart!,
-                                          )
-                                              .then((success) {
-                                            if (success && mounted) {
-                                              itemController.setExistInCart(
-                                                  widget.item, null);
-                                              if (!context.mounted) {
-                                                return;
-                                              }
-                                              showCartSnackBar(context);
-                                              Get.toNamed<dynamic>(
-                                                  RouteHelper.getCartRoute());
-                                              _key.currentState!.shake();
-                                            }
-                                          });
-                                        }
-                                      },
-                                    );
-                                    if (useStackedButtons) {
-                                      return Column(
-                                        children: [
-                                          SizedBox(
-                                            width: double.infinity,
-                                            child: continueShoppingButton,
-                                          ),
-                                          const SizedBox(
-                                              height: Dimensions
-                                                  .paddingSizeExtraSmall),
-                                          SizedBox(
-                                            width: double.infinity,
-                                            child: actionButton,
-                                          ),
-                                        ],
-                                      );
+                              final bool isCampaign =
+                                  itemController.item?.availableDateStarts !=
+                                      null;
+
+                              Future<void> onAddToCart() async {
+                                HapticFeedback.lightImpact();
+                                if (!itemController
+                                    .ensureRequiredVariationsSelected()) {
+                                  return;
+                                }
+                                if (isCampaign) {
+                                  Get.toNamed<void>(
+                                      RouteHelper.getCampaignCheckoutRoute(),
+                                      arguments: CheckoutScreen(
+                                        storeId: null,
+                                        fromCart: false,
+                                        cartList: [cartModel],
+                                      ));
+                                } else {
+                                  // Cart is now driven live by the +/- counter.
+                                  // If the item is already in the cart, just
+                                  // open the cart instead of appending its
+                                  // quantity again (prevents double-counting).
+                                  final int? existingCartId =
+                                      itemController.item?.id != null
+                                          ? cartController.getCartIdByItemId(
+                                              itemController.item!.id!)
+                                          : null;
+                                  if (existingCartId != null) {
+                                    showCartSnackBar(context);
+                                    Get.toNamed<dynamic>(
+                                        RouteHelper.getCartRoute());
+                                    return;
+                                  }
+                                  // Use smart fallback flow for both new/existing items.
+                                  // This avoids stale cartIndex/cartId failures and supports repeated adds.
+                                  await cartController
+                                      .addToCartWithFallback(
+                                    cartModel: cartModel!,
+                                    onlineCart: cart!,
+                                  )
+                                      .then((success) {
+                                    if (success && mounted) {
+                                      itemController.setExistInCart(
+                                          widget.item, null);
+                                      if (!context.mounted) {
+                                        return;
+                                      }
+                                      showCartSnackBar(context);
+                                      Get.toNamed<dynamic>(
+                                          RouteHelper.getCartRoute());
+                                      _key.currentState!.shake();
                                     }
-                                    return Row(
-                                      children: [
-                                        Expanded(child: continueShoppingButton),
-                                        const SizedBox(
-                                            width: Dimensions.paddingSizeSmall),
-                                        Expanded(child: actionButton),
-                                      ],
-                                    );
-                                  },
+                                  });
+                                }
+                              }
+
+                              return Align(
+                                alignment: Alignment.bottomCenter,
+                                child: Padding(
+                                  padding: const EdgeInsets.only(bottom: 20),
+                                  child: ItemFloatingCartBar(
+                                    isCampaign: isCampaign,
+                                    isLoading: cartController.isLoading,
+                                    onAddToCart: onAddToCart,
+                                    onSearch: () => Get.toNamed<void>(
+                                        RouteHelper.getSearchRoute()),
+                                  ),
                                 ),
                               );
                             }),
                           ])
-                    : const _ItemDetailsSkeleton()),
+                    : const ItemDetailsSkeleton()),
           );
         },
       );
     });
-  }
-
-  Widget _buildNutritionItem(BuildContext context, String label, String value) {
-    return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: Dimensions.paddingSizeSmall,
-        vertical: Dimensions.paddingSizeExtraSmall,
-      ),
-      decoration: BoxDecoration(
-        color: Theme.of(context).primaryColor.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(Dimensions.radiusSmall),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
-            label,
-            style: robotoRegular.copyWith(
-              fontSize: Dimensions.fontSizeSmall,
-              color: Theme.of(context).textTheme.bodyLarge!.color,
-            ),
-          ),
-          const SizedBox(width: 4),
-          Text(
-            value,
-            style: robotoMedium.copyWith(
-              fontSize: Dimensions.fontSizeSmall,
-              color: Theme.of(context).primaryColor,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  /// Check if text contains English characters (A-Z, a-z)
-  bool _containsEnglishText(String text) {
-    // ignore: deprecated_member_use
-    return RegExp(r'[A-Za-z]').hasMatch(text);
-  }
-
-  /// Check if nutrition section has any data to display
-  bool _hasNutritionData(ItemController itemController) {
-    final nutrition = itemController.item?.nutrition;
-    if (nutrition == null) {
-      return widget.item?.nutritionsName != null &&
-          widget.item!.nutritionsName!.isNotEmpty;
-    }
-    return (nutrition.calories != null && nutrition.calories! > 0) ||
-        nutrition.protein != null ||
-        nutrition.carbs != null ||
-        nutrition.fat != null ||
-        nutrition.fiber != null ||
-        (widget.item?.nutritionsName != null &&
-            widget.item!.nutritionsName!.isNotEmpty);
-  }
-
-  /// Check if allergies should be shown
-  /// Returns false if app is in Arabic and allergies are in English
-  bool _shouldShowAllergies(List<String>? allergiesName) {
-    if (allergiesName == null || allergiesName.isEmpty) {
-      return false;
-    }
-    try {
-      final isArabic =
-          Get.find<LocalizationController>().locale.languageCode == 'ar';
-      if (isArabic) {
-        // Check if any allergy name contains English text
-        for (final String allergy in allergiesName) {
-          if (_containsEnglishText(allergy)) {
-            return false; // Don't show if in Arabic mode and contains English
-          }
-        }
-      }
-      return true;
-    } catch (e) {
-      // If LocalizationController is not available, show anyway
-      return true;
-    }
-  }
-}
-
-class _ItemDetailsSkeleton extends StatelessWidget {
-  const _ItemDetailsSkeleton();
-
-  @override
-  Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(Dimensions.paddingSizeSmall),
-      physics: const BouncingScrollPhysics(),
-      child: Center(
-        child: SizedBox(
-          width: Dimensions.webMaxWidth,
-          child: Shimmer(
-            duration: const Duration(seconds: 2),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _skeletonBox(height: 220),
-                const SizedBox(height: 16),
-                _skeletonBox(height: 20, width: 220),
-                const SizedBox(height: 8),
-                _skeletonBox(height: 16, width: 140),
-                const SizedBox(height: 16),
-                _skeletonBox(height: 60),
-                const SizedBox(height: 16),
-                _skeletonBox(height: 16, width: 180),
-                const SizedBox(height: 8),
-                _skeletonBox(height: 16, width: 200),
-                const SizedBox(height: 16),
-                Row(
-                  children: [
-                    Expanded(child: _skeletonBox(height: 44)),
-                    const SizedBox(width: 12),
-                    Expanded(child: _skeletonBox(height: 44)),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                _skeletonBox(height: 120),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _skeletonBox({required double height, double? width}) {
-    return Container(
-      height: height,
-      width: width ?? double.infinity,
-      decoration: BoxDecoration(
-        color: Colors.grey[300],
-        borderRadius: BorderRadius.circular(Dimensions.radiusSmall),
-      ),
-    );
-  }
-}
-
-class QuantityButton extends StatelessWidget {
-  final bool isIncrement;
-  final int? quantity;
-  final bool isCartWidget;
-  final int? stock;
-  final bool isExistInCart;
-  final int cartIndex;
-  final int? quantityLimit;
-  final CartController cartController;
-  const QuantityButton({
-    super.key,
-    required this.isIncrement,
-    required this.quantity,
-    required this.stock,
-    required this.isExistInCart,
-    required this.cartIndex,
-    this.isCartWidget = false,
-    this.quantityLimit,
-    required this.cartController,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: () {
-        HapticFeedback.lightImpact();
-        if (isExistInCart) {
-          final cartController = Get.find<CartController>();
-          if (cartIndex >= 0 && cartIndex < cartController.cartList.length) {
-            final cartItem = cartController.cartList[cartIndex];
-            if (!isIncrement && quantity! > 1) {
-              // 🔥 FIX: Use cart_id instead of index
-              if (cartItem.id == null) {
-                showCustomSnackBar('something_went_wrong'.tr);
-                return;
-              }
-              cartController.setQuantityById(
-                  false, cartItem.id!, stock, quantityLimit);
-            } else if (isIncrement && quantity! > 0) {
-              // TEMP: stock validation is intentionally disabled.
-              if (cartItem.id == null) {
-                showCustomSnackBar('something_went_wrong'.tr);
-                return;
-              }
-              cartController.setQuantityById(
-                  true, cartItem.id!, stock, quantityLimit);
-            }
-          }
-        } else {
-          if (!isIncrement && quantity! > 1) {
-            Get.find<ItemController>().setQuantity(false, stock, quantityLimit);
-          } else if (isIncrement && quantity! > 0) {
-            // TEMP: stock validation is intentionally disabled.
-            Get.find<ItemController>().setQuantity(true, stock, quantityLimit);
-          }
-        }
-      },
-      child: Container(
-        height: 30,
-        width: 30,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          color: (quantity! == 1 && !isIncrement) || cartController.isLoading
-              ? Theme.of(context).disabledColor
-              : Theme.of(context).primaryColor,
-        ),
-        child: Center(
-          child: Icon(
-            isIncrement ? Icons.add : Icons.remove,
-            color: isIncrement
-                ? Colors.white
-                : quantity! == 1
-                    ? Colors.black
-                    : Colors.white,
-            size: isCartWidget ? 26 : 20,
-          ),
-        ),
-      ),
-    );
   }
 }

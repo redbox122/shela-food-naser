@@ -18,7 +18,7 @@ import 'package:sixam_mart/common/widgets/custom_button.dart';
 import 'package:sixam_mart/common/widgets/custom_image.dart';
 import 'package:sixam_mart/common/widgets/footer_view.dart';
 import 'package:sixam_mart/features/checkout/screens/checkout_screen.dart';
-import 'package:sixam_mart/features/item/screens/item_details_screen.dart';
+import 'package:sixam_mart/features/item/widgets/quantity_button.dart';
 import 'package:sixam_mart/features/item/widgets/item_title_view_widget.dart';
 
 class DetailsWebViewWidget extends StatelessWidget {

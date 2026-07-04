@@ -13,8 +13,9 @@ class CustomFavouriteWidget extends StatefulWidget {
   final bool isWished;
   final double? size;
   final int? storeId;
+  final Color? unselectedColor;
   const CustomFavouriteWidget(
-      {super.key, this.store, this.item, this.isStore = false, required this.isWished, this.size = 25, this.storeId});
+      {super.key, this.store, this.item, this.isStore = false, required this.isWished, this.size = 25, this.storeId, this.unselectedColor});
 
   @override
   State<CustomFavouriteWidget> createState() => _CustomFavouriteWidgetState();
@@ -57,7 +58,10 @@ class _CustomFavouriteWidgetState extends State<CustomFavouriteWidget> with Sing
       child: ScaleTransition(
         scale: Tween(begin: 0.7, end: 1.0).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOut)),
         child: Icon(widget.isWished ? Icons.favorite : Icons.favorite_border_rounded,
-            color: Theme.of(context).primaryColor, size: widget.size),
+            color: widget.isWished
+                ? Theme.of(context).primaryColor
+                : (widget.unselectedColor ?? Theme.of(context).primaryColor),
+            size: widget.size),
         // child: CustomAssetImageWidget(widget.isWished ? Images.favouriteIcon : Images.unFavouriteIcon, height: widget.size, width: widget.size),
       ),
     );

@@ -586,4 +586,6 @@ class Images {
   static const String navProfileActive = 'assets/image/profile_v2_active.png';
   static const String no_favourit = 'assets/image/no_favourit.png';
   static const String edit_avatar = 'assets/image/edit_avatar.png';
+  static const String active_navbag = 'assets/image/active_navbag.png';
+  static const String information_v2 = 'assets/image/information_v2.png';
 }
