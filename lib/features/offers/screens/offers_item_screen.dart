@@ -40,6 +40,8 @@ class _OffersItemScreen extends State<OffersItemScreen> {
   final ScrollController scrollController = ScrollController();
   final TextEditingController _searchController = TextEditingController();
   bool _isLoadingMore = false; // Prevent multiple simultaneous pagination calls
+  bool _showSearchBar = false; // Toggled by the AppBar search (lens) icon.
+  final FocusNode _searchFocusNode = FocusNode();
   String _selectedSort = 'popular';
   String _selectedPriceLabel = 'all';
   String _minPrice = '';
@@ -56,6 +58,22 @@ class _OffersItemScreen extends State<OffersItemScreen> {
     {'label': '500 - 700', 'min': '500', 'max': '700'},
     {'label': '700 - 1000', 'min': '700', 'max': '1000'},
   ];
+
+  // Show/hide the inline search bar from the AppBar lens icon.
+  void _toggleSearchBar() {
+    setState(() {
+      _showSearchBar = !_showSearchBar;
+      if (_showSearchBar) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          _searchFocusNode.requestFocus();
+        });
+      } else {
+        _searchController.clear();
+        _searchFocusNode.unfocus();
+        Get.find<OffersController>().clearLiveSearch();
+      }
+    });
+  }
 
   bool _hasActiveOffersFilters(OffersController controller) {
     return _selectedSort != 'popular' ||
@@ -171,6 +189,7 @@ class _OffersItemScreen extends State<OffersItemScreen> {
   void dispose() {
     super.dispose();
     _searchController.dispose();
+    _searchFocusNode.dispose();
     scrollController.dispose();
     _isLoadingMore = false; // Reset loading flag
     // Reset controller states when leaving the screen
@@ -214,6 +233,20 @@ class _OffersItemScreen extends State<OffersItemScreen> {
           ),
         ),
         actions: [
+          // Search (lens) icon — sits next to the cart. Toggles an inline
+          // search bar wired to the existing live-search logic.
+          InkWell(
+            borderRadius: BorderRadius.circular(50),
+            onTap: _toggleSearchBar,
+            child: Padding(
+              padding: const EdgeInsets.all(8),
+              child: Icon(
+                _showSearchBar ? Icons.close : Icons.search,
+                size: 26,
+                color: Theme.of(context).textTheme.bodyLarge?.color,
+              ),
+            ),
+          ),
           Padding(
             padding: const EdgeInsets.only(left: Dimensions.paddingSizeSmall),
             child: InkWell(
@@ -230,6 +263,61 @@ class _OffersItemScreen extends State<OffersItemScreen> {
             ),
           ),
         ],
+        // Inline search field, only visible when the lens is toggled on.
+        bottom: _showSearchBar
+            ? PreferredSize(
+                preferredSize: const Size.fromHeight(58),
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(
+                    Dimensions.paddingSizeDefault,
+                    0,
+                    Dimensions.paddingSizeDefault,
+                    Dimensions.paddingSizeSmall,
+                  ),
+                  child: TextField(
+                    controller: _searchController,
+                    focusNode: _searchFocusNode,
+                    textInputAction: TextInputAction.search,
+                    onChanged: (value) => Get.find<OffersController>()
+                        .performLiveSearch(value),
+                    onSubmitted: (value) => Get.find<OffersController>()
+                        .performLiveSearch(value),
+                    style: tajawalRegular.copyWith(fontSize: 14),
+                    decoration: InputDecoration(
+                      hintText: 'ابحث في العروض...',
+                      hintStyle: tajawalRegular.copyWith(
+                        fontSize: 14,
+                        color: Theme.of(context).hintColor,
+                      ),
+                      prefixIcon: Icon(Icons.search,
+                          color: Theme.of(context).hintColor, size: 22),
+                      suffixIcon: _searchController.text.trim().isNotEmpty
+                          ? IconButton(
+                              icon: const Icon(Icons.clear, size: 20),
+                              onPressed: () {
+                                _searchController.clear();
+                                Get.find<OffersController>().clearLiveSearch();
+                                setState(() {});
+                              },
+                            )
+                          : null,
+                      isDense: true,
+                      contentPadding: const EdgeInsets.symmetric(
+                          vertical: 10, horizontal: 12),
+                      filled: true,
+                      fillColor: Theme.of(context)
+                          .colorScheme
+                          .surfaceContainerHighest
+                          .withValues(alpha: 0.4),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide.none,
+                      ),
+                    ),
+                  ),
+                ),
+              )
+            : null,
       ),
       body: SafeArea(
         top: false,
