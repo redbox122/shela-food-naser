@@ -1477,7 +1477,7 @@ class CheckoutScreenState extends State<CheckoutScreen>
                           controller.resetPaymentState();
                         } else {
                           showCustomSnackBar(
-                              'جاري تنفيذ الطلب، الرجاء الانتظار...');
+                              'pay_processing_order'.tr);
                           controller.finishPlaceOrder();
                           return;
                         }
@@ -1505,7 +1505,7 @@ class CheckoutScreenState extends State<CheckoutScreen>
 
                         // Require payment method selection.
                         if (selectedPaymentIndex == -1) {
-                          showCustomSnackBar('يرجى اختيار طريقة الدفع',
+                          showCustomSnackBar('pay_please_choose'.tr,
                               isError: true);
                           controller.setLoading(false, ids: ['payment']);
                           return;
@@ -1550,7 +1550,7 @@ class CheckoutScreenState extends State<CheckoutScreen>
                           if (kaidhaStatus != 'active') {
                             debugPrint(
                                 '[Qidha][SUBMIT-BLOCK] wallet status=$kaidhaStatus (not active)');
-                            showCustomSnackBar('محفظة قيدها غير مفعّلة',
+                            showCustomSnackBar('pay_qidha_inactive'.tr,
                                 isError: true);
                             controller.setLoading(false, ids: ['payment']);
                             return;
@@ -1566,13 +1566,13 @@ class CheckoutScreenState extends State<CheckoutScreen>
                             controller.setLoading(false, ids: ['payment']);
                             Get.dialog(
                               AlertDialog(
-                                title: const Text('محفظة قيدها'),
-                                content: const Text(
-                                    'لم يتم توقيع عقد محفظة قيدها بعد. يجب إكمال خطوة توقيع العقد لتفعيل الدفع.'),
+                                title: Text('pay_qidha_wallet'.tr),
+                                content: Text(
+                                    'pay_qidha_unsigned'.tr),
                                 actions: [
                                   TextButton(
                                     onPressed: () => Get.back(),
-                                    child: const Text('إغلاق'),
+                                    child: Text('pay_close'.tr),
                                   ),
                                   ElevatedButton(
                                     onPressed: () {
@@ -1580,7 +1580,7 @@ class CheckoutScreenState extends State<CheckoutScreen>
                                       Get.toNamed(RouteHelper
                                           .getKiadaWalletSubscription());
                                     },
-                                    child: const Text('إكمال التحقق'),
+                                    child: Text('pay_complete_verify'.tr),
                                   ),
                                 ],
                               ),
@@ -1643,7 +1643,7 @@ class CheckoutScreenState extends State<CheckoutScreen>
                         }
 
                         if (checkoutController.distance == null) {
-                          showCustomSnackBar('انتظر لحظات، يتم حساب التوصيل');
+                          showCustomSnackBar('pay_calc_delivery_wait'.tr);
                           return;
                         }
 
@@ -1741,7 +1741,7 @@ class CheckoutScreenState extends State<CheckoutScreen>
                         // 4) If no payment method was chosen, open payment selector.
                         else if (selectedPaymentIndex == -1) {
                           if (ResponsiveHelper.isDesktop(context)) {
-                            Get.dialog<void>(const Dialog(
+                            Get.dialog<void>(Dialog(
                               backgroundColor: Colors.transparent,
                               child: PaymentMethodBottomSheet(),
                             ));
@@ -1951,7 +1951,7 @@ class CheckoutScreenState extends State<CheckoutScreen>
                             if (couponRevalidation !=
                                 CouponRevalidationResult.unchanged) {
                               showCustomSnackBar(
-                                  'تم تحديث الكوبون، يرجى مراجعة الإجمالي وإعادة تأكيد الطلب');
+                                  'pay_coupon_updated'.tr);
                               return; // finally resets loading + lock; UI rebuilds
                             }
                             final bool hasOrderCoupon =

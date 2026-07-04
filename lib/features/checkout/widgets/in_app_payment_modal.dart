@@ -228,10 +228,10 @@ class _InAppPaymentModalState extends State<InAppPaymentModal>
       id: 'payment', // ✅ استخدام ID لتحديث جزئي
       builder: (checkoutController) {
         if (checkoutController.paymentMethods.isEmpty) {
-          return const Center(
+          return Center(
             child: Padding(
               padding: EdgeInsets.all(Dimensions.paddingSizeLarge),
-              child: Text('لا توجد وسائل دفع متاحة'),
+              child: Text('pay_no_methods2'.tr),
             ),
           );
         }

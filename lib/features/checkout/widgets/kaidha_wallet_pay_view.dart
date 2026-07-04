@@ -52,7 +52,7 @@ class _Kaidha_Wallet_Pay_BottomSheetState
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     const SizedBox(height: 10),
-                    Text('دفع بقيدها',
+                    Text('pay_pay_qidha'.tr,
                         style: TextStyle(
                             fontSize: 20, fontWeight: FontWeight.bold)),
                     const SizedBox(height: 20),
@@ -95,7 +95,7 @@ class _Kaidha_Wallet_Pay_BottomSheetState
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
                               Text(
-                                'معلومات المحفظة',
+                                'pay_wallet_info'.tr,
                                 style: robotoMedium.copyWith(
                                   fontSize: Dimensions.fontSizeLarge,
                                   color: Theme.of(context).primaryColor,
@@ -165,7 +165,7 @@ class _Kaidha_Wallet_Pay_BottomSheetState
                             Navigator.of(context).pop();
 
                             // Show success message
-                            showCustomSnackBar('تم اختيار محفظة قيدها للدفع',
+                            showCustomSnackBar('pay_qidha_wallet_selected'.tr,
                                 isError: false);
                           },
                           child: Container(

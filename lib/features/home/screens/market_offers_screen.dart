@@ -244,8 +244,8 @@ class _OfferFilterSheetState extends State<_OfferFilterSheet> {
                       size: 22, color: Color(0xFF717885)),
                 ),
                 const Spacer(),
-                const Text(
-                  'فلتر',
+                Text(
+                  'pay_filter'.tr,
                   style: TextStyle(
                     fontFamily: 'Tajawal',
                     fontWeight: FontWeight.w700,
@@ -267,7 +267,7 @@ class _OfferFilterSheetState extends State<_OfferFilterSheet> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   _section(
-                    'الترتيب حسب',
+                    'pay_sort_by'.tr,
                     Wrap(
                       textDirection: TextDirection.rtl,
                       spacing: 8,
@@ -300,7 +300,7 @@ class _OfferFilterSheetState extends State<_OfferFilterSheet> {
                   if (widget.subCats.length > 1) ...[
                     const SizedBox(height: 20),
                     _section(
-                      'المنتجات',
+                      'pay_products'.tr,
                       Wrap(
                         textDirection: TextDirection.rtl,
                         spacing: 8,
@@ -320,7 +320,7 @@ class _OfferFilterSheetState extends State<_OfferFilterSheet> {
                   ],
                   const SizedBox(height: 20),
                   _section(
-                    'النطاق السعري',
+                    'pay_price_range'.tr,
                     Wrap(
                       textDirection: TextDirection.rtl,
                       spacing: 8,
@@ -357,8 +357,8 @@ class _OfferFilterSheetState extends State<_OfferFilterSheet> {
                             borderRadius: BorderRadius.circular(12)),
                         elevation: 0,
                       ),
-                      child: const Text(
-                        'تم',
+                      child: Text(
+                        'pay_done'.tr,
                         style: TextStyle(
                           fontFamily: 'Tajawal',
                           fontWeight: FontWeight.w700,
@@ -375,8 +375,8 @@ class _OfferFilterSheetState extends State<_OfferFilterSheet> {
                       _price = null;
                       _cat = null;
                     }),
-                    child: const Text(
-                      'إعادة الضبط',
+                    child: Text(
+                      'pay_reset'.tr,
                       style: TextStyle(
                         fontFamily: 'Tajawal',
                         fontWeight: FontWeight.w600,
@@ -750,7 +750,7 @@ class _MarketOffersScreenState extends State<MarketOffersScreen> {
   @override
   Widget build(BuildContext context) {
     return AnnotatedRegion<SystemUiOverlayStyle>(
-      value: const SystemUiOverlayStyle(
+      value: SystemUiOverlayStyle(
         statusBarColor: Colors.transparent,
         statusBarIconBrightness: Brightness.light,
         statusBarBrightness: Brightness.dark,

@@ -106,13 +106,13 @@ class _MFEmbeddedCardSheetState extends State<MFEmbeddedCardSheet> {
         Get.back<String?>(result: _invoiceId);
       } else {
         setState(() => _processing = false);
-        showCustomSnackBar('تعذّر إتمام الدفع بالبطاقة، حاول مرة أخرى',
+        showCustomSnackBar('pay_card_failed_retry'.tr,
             isError: true);
       }
     } catch (e) {
       debugPrint('[MF][embedded] pay failed: $e');
       if (mounted) setState(() => _processing = false);
-      showCustomSnackBar('تعذّر إتمام الدفع بالبطاقة', isError: true);
+      showCustomSnackBar('pay_card_failed'.tr, isError: true);
     }
   }
 
@@ -136,7 +136,7 @@ class _MFEmbeddedCardSheetState extends State<MFEmbeddedCardSheet> {
         children: [
           Row(
             children: [
-              Text('الدفع بالبطاقة',
+              Text('pay_card_payment'.tr,
                   style: robotoBold.copyWith(
                       fontSize: Dimensions.fontSizeLarge)),
               const Spacer(),
@@ -182,7 +182,7 @@ class _MFEmbeddedCardSheetState extends State<MFEmbeddedCardSheet> {
                           child: CircularProgressIndicator(
                               strokeWidth: 2, color: Colors.white),
                         )
-                      : Text('ادفع الآن',
+                      : Text('pay_pay_now'.tr,
                           style: robotoBold.copyWith(
                               color: Colors.white,
                               fontSize: Dimensions.fontSizeLarge)),
@@ -192,7 +192,7 @@ class _MFEmbeddedCardSheetState extends State<MFEmbeddedCardSheet> {
           ),
           const SizedBox(height: 8),
           Text(
-            'يتم حفظ البطاقة بأمان في MyFatoorah',
+            'pay_card_saved'.tr,
             textAlign: TextAlign.center,
             style: robotoRegular.copyWith(
                 fontSize: Dimensions.fontSizeExtraSmall,

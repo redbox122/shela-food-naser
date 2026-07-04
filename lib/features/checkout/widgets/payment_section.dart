@@ -385,7 +385,7 @@ class _PaymentSectionState extends State<PaymentSection> {
     if (profileController.userInfoModel == null ||
         profileController.userInfoModel!.walletBalance == null ||
         profileController.userInfoModel!.walletBalance == 0.0) {
-      showCustomSnackBar('المحفظه فارغة من الرصيد');
+      showCustomSnackBar('pay_wallet_empty'.tr);
       return;
     }
 
@@ -445,16 +445,16 @@ class _PaymentSectionState extends State<PaymentSection> {
       return;
     }
     if (!isActive) {
-      showCustomSnackBar('محفظة قيدها قيد التفعيل، يرجى المحاولة لاحقًا');
+      showCustomSnackBar('pay_qidha_activating'.tr);
       return;
     }
     if (walletBalance < widget.total) {
-      showCustomSnackBar('رصيد قيدها غير كافٍ');
+      showCustomSnackBar('pay_qidha_insufficient'.tr);
       return;
     }
     if (kaidhaController.walletKaidhaModel == null ||
         kaidhaController.walletKaidhaModel!.wallet == null) {
-      showCustomSnackBar('محفظة قيدها غير متاحة - يرجى المحاولة لاحقًا');
+      showCustomSnackBar('pay_qidha_unavailable'.tr);
       return;
     }
 
@@ -526,21 +526,21 @@ class _PaymentSectionState extends State<PaymentSection> {
   Future<void> _showQidhaSubscriptionRequiredDialog() async {
     await Get.dialog<void>(
       AlertDialog(
-        title: const Text('الاشتراك في قيدها مطلوب'),
-        content: const Text(
-          'لاستخدام محفظة قيدها، يجب الاشتراك وتفعيل المحفظة أولًا.',
+        title: Text('pay_qidha_sub_required'.tr),
+        content: Text(
+          'pay_qidha_use_note'.tr,
         ),
         actions: <Widget>[
           TextButton(
             onPressed: () => Get.back(),
-            child: const Text('لاحقًا'),
+            child: Text('pay_later'.tr),
           ),
           ElevatedButton(
             onPressed: () {
               Get.back();
               Get.toNamed(RouteHelper.getKiadaWalletSubscription());
             },
-            child: const Text('اشترك الآن'),
+            child: Text('pay_subscribe_now'.tr),
           ),
         ],
       ),
@@ -550,19 +550,19 @@ class _PaymentSectionState extends State<PaymentSection> {
   Future<void> _showQidhaSignatureRequiredDialog() async {
     await Get.dialog<void>(
       AlertDialog(
-        title: const Text('توقيع قيدها مطلوب'),
-        content: const Text('يرجى إكمال توقيع اتفاقية قيدها أولًا'),
+        title: Text('pay_qidha_sign_required'.tr),
+        content: Text('pay_sign_qidha_first'.tr),
         actions: <Widget>[
           TextButton(
             onPressed: () => Get.back(),
-            child: const Text('لاحقًا'),
+            child: Text('pay_later'.tr),
           ),
           ElevatedButton(
             onPressed: () {
               Get.back();
               Get.toNamed(RouteHelper.getKiadaWalletSubscription());
             },
-            child: const Text('اشترك الآن'),
+            child: Text('pay_subscribe_now'.tr),
           ),
         ],
       ),

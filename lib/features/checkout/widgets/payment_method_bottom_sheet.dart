@@ -83,7 +83,7 @@ class _PaymentMethodBottomSheetState extends State<PaymentMethodBottomSheet> {
           _isLoadingPaymentMethods = false;
         });
       }
-      showCustomSnackBar('خطأ في تحميل طرق الدفع');
+      showCustomSnackBar('pay_load_methods_error'.tr);
     }
   }
 
@@ -132,7 +132,7 @@ class _PaymentMethodBottomSheetState extends State<PaymentMethodBottomSheet> {
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           const SizedBox(height: 10),
-                          const Text('اختر طريقة الدفع',
+                          Text('pay_choose_method'.tr,
                               style: TextStyle(
                                   fontSize: 20, fontWeight: FontWeight.bold)),
                           const SizedBox(height: 20),
@@ -173,7 +173,7 @@ class _PaymentMethodBottomSheetState extends State<PaymentMethodBottomSheet> {
           children: [
             CircularProgressIndicator(),
             SizedBox(height: 16),
-            Text('جاري تحميل طرق الدفع...'),
+            Text('pay_loading_methods'.tr),
           ],
         ),
       );
@@ -187,7 +187,7 @@ class _PaymentMethodBottomSheetState extends State<PaymentMethodBottomSheet> {
             Icon(Icons.payment,
                 size: 48, color: theme.colorScheme.onSurfaceVariant),
             const SizedBox(height: 16),
-            Text('لا توجد طرق دفع متاحة',
+            Text('pay_no_methods'.tr,
                 style: TextStyle(color: theme.colorScheme.onSurfaceVariant)),
           ],
         ),
@@ -211,7 +211,7 @@ class _PaymentMethodBottomSheetState extends State<PaymentMethodBottomSheet> {
               Icon(Icons.lock_outline,
                   size: 15, color: Theme.of(context).primaryColor),
               const SizedBox(width: 6),
-              Text('دفع آمن ومشفّر',
+              Text('pay_secure_encrypted'.tr,
                   style: robotoRegular.copyWith(
                       fontSize: Dimensions.fontSizeSmall,
                       color: Theme.of(context).hintColor)),
@@ -341,7 +341,7 @@ class _PaymentMethodBottomSheetState extends State<PaymentMethodBottomSheet> {
           child: TextButton(
             onPressed: () => Navigator.of(context).pop(),
             child: Text(
-              'إلغاء',
+              'pay_cancel'.tr,
               style: robotoMedium.copyWith(
                 color: Theme.of(context).colorScheme.onSurfaceVariant,
                 fontSize: Dimensions.fontSizeLarge,
@@ -371,7 +371,7 @@ class _PaymentMethodBottomSheetState extends State<PaymentMethodBottomSheet> {
                     ),
                   )
                 : Text(
-                    'اختيار طريقة الدفع',
+                    'pay_select_method'.tr,
                     style: robotoMedium.copyWith(
                       color: Colors.white,
                       fontSize: Dimensions.fontSizeLarge,
@@ -391,7 +391,7 @@ class _PaymentMethodBottomSheetState extends State<PaymentMethodBottomSheet> {
       // Close the modal first
       Navigator.of(context).pop();
     } else {
-      showCustomSnackBar('يرجى اختيار طريقة دفع أولاً');
+      showCustomSnackBar('pay_please_choose_first'.tr);
     }
   }
 

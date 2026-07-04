@@ -232,10 +232,10 @@ class CheckoutController extends GetxController implements GetxService {
             Get.find<CouponController>().removeCouponData(true);
           }
         } catch (_) {}
-        showCustomSnackBar('تم إزالة الكوبون لأنه لم يعد صالحًا', isError: true);
+        showCustomSnackBar('pay_coupon_removed'.tr, isError: true);
       } else {
         showCustomSnackBar(
-            'الإجمالي غير صحيح، برجاء تحديث السلة والمحاولة مرة أخرى',
+            'pay_total_invalid'.tr,
             isError: true);
       }
       return false;
@@ -401,7 +401,7 @@ class CheckoutController extends GetxController implements GetxService {
     }
     await _refreshRunningOrdersFromServer();
     final String message =
-        _digitalFailureMessage ?? 'فشلت العملية، يرجى المحاولة في وقت آخر';
+        _digitalFailureMessage ?? 'pay_op_failed'.tr;
     _digitalFailureMessage = null;
     showCustomSnackBar(message);
   }
@@ -576,7 +576,7 @@ class CheckoutController extends GetxController implements GetxService {
         case MyFatoorahPaymentResult.paid:
           await clearPendingPaymentContext(reason: 'paid');
           clearCartOnPaymentConfirmed();
-          showCustomSnackBar('تم تأكيد دفع طلبك بنجاح', isError: false);
+          showCustomSnackBar('pay_order_confirmed'.tr, isError: false);
           if (orderId != null) {
             Get.toNamed(RouteHelper.getOrderDetailsRoute(orderId));
           } else {
@@ -586,12 +586,12 @@ class CheckoutController extends GetxController implements GetxService {
         case MyFatoorahPaymentResult.pending:
           // Keep the context so a later resume can confirm. NOT a failure.
           showCustomSnackBar(
-              'الدفع لم يكتمل بعد، يمكنك متابعة حالة الطلب من طلباتي');
+              'pay_not_complete_orders'.tr);
           break;
         case MyFatoorahPaymentResult.failed:
           await clearPendingPaymentContext(reason: 'failed');
           showCustomSnackBar(
-              'تعذّر إتمام عملية الدفع ولم يتم خصم أي مبلغ. يمكنك المحاولة مرة أخرى.');
+              'pay_failed_no_charge'.tr);
           break;
       }
     } finally {
@@ -702,16 +702,16 @@ class CheckoutController extends GetxController implements GetxService {
     switch (result) {
       case MyFatoorahPaymentResult.paid:
         await _clearPendingContextIfMatches(orderId, reason: 'explicit_paid');
-        showCustomSnackBar('تم تأكيد دفع طلبك بنجاح', isError: false);
+        showCustomSnackBar('pay_order_confirmed'.tr, isError: false);
         break;
       case MyFatoorahPaymentResult.pending:
         showCustomSnackBar(
-            'الدفع لم يكتمل بعد، يمكنك المحاولة مرة أخرى أو متابعة الطلب من هنا');
+            'pay_not_complete_retry'.tr);
         break;
       case MyFatoorahPaymentResult.failed:
         await _clearPendingContextIfMatches(orderId, reason: 'explicit_failed');
         showCustomSnackBar(
-            'فشل الدفع أو تم إلغاؤه. يرجى المحاولة مرة أخرى.');
+            'pay_failed_cancelled'.tr);
         break;
     }
     return result;
@@ -902,7 +902,7 @@ class CheckoutController extends GetxController implements GetxService {
     final double parsedAmount = double.tryParse(amount) ?? 0.0;
     if (parsedAmount <= 0) {
       debugPrint('❌ Invalid payment amount: $amount - Must be greater than 0');
-      showCustomSnackBar('مبلغ الدفع غير صحيح - يجب أن يكون أكبر من صفر');
+      showCustomSnackBar('pay_amount_invalid'.tr);
       return;
     }
 
@@ -971,7 +971,7 @@ class CheckoutController extends GetxController implements GetxService {
           paymentMethods = [];
           isSelected = [];
           showCustomSnackBar((responseData['message'] as String?) ??
-              'خطأ في تحميل وسائل الدفع');
+              'pay_load_methods_error2'.tr);
           update();
         }
       } else {
@@ -990,7 +990,7 @@ class CheckoutController extends GetxController implements GetxService {
               (errorData?['message'] as String?) ?? 'خطأ في البيانات المرسلة';
           showCustomSnackBar(errorMessage);
         } else {
-          showCustomSnackBar('خطأ في تحميل وسائل الدفع');
+          showCustomSnackBar('pay_load_methods_error2'.tr);
         }
         update();
       }
@@ -998,7 +998,7 @@ class CheckoutController extends GetxController implements GetxService {
       debugPrint('❌ Error loading payment methods from backend: $e');
       paymentMethods = [];
       isSelected = [];
-      showCustomSnackBar('خطأ في تحميل وسائل الدفع');
+      showCustomSnackBar('pay_load_methods_error2'.tr);
       update();
     }
   }
@@ -1033,7 +1033,7 @@ class CheckoutController extends GetxController implements GetxService {
     // CRITICAL: Prevent double payment attempts
     if (_isPaymentInProgress) {
       debugPrint('?? Payment already in progress - preventing double payment');
-      showCustomSnackBar('عملية دفع قيد التنفيذ، يرجى الانتظار');
+      showCustomSnackBar('pay_in_progress'.tr);
       return false;
     }
 
@@ -1041,13 +1041,13 @@ class CheckoutController extends GetxController implements GetxService {
     if (_currentOrderId != null && _isOrderPaid) {
       debugPrint(
           '?? Order $_currentOrderId is already paid - preventing double payment');
-      showCustomSnackBar('هذا الطلب مدفوع مسبقًا');
+      showCustomSnackBar('pay_prepaid'.tr);
       return false;
     }
 
     final int? orderId = _currentOrderId;
     if (orderId == null) {
-      showCustomSnackBar('لا يوجد طلب للدفع');
+      showCustomSnackBar('pay_no_order'.tr);
       return false;
     }
 
@@ -1055,7 +1055,7 @@ class CheckoutController extends GetxController implements GetxService {
     final double parsedAmount = double.tryParse(amount) ?? 0.0;
     if (parsedAmount <= 0) {
       debugPrint('? Invalid payment amount: $amount - Must be greater than 0');
-      showCustomSnackBar('مبلغ الدفع غير صحيح - يجب أن يكون أكبر من صفر');
+      showCustomSnackBar('pay_amount_invalid'.tr);
       return false;
     }
 
@@ -1071,7 +1071,7 @@ class CheckoutController extends GetxController implements GetxService {
 
     if (paymentMethods.isEmpty) {
       debugPrint('? No payment methods available after initiation');
-      showCustomSnackBar('لا توجد وسائل دفع متاحة');
+      showCustomSnackBar('pay_no_methods2'.tr);
       _isPaymentInProgress = false;
       return false;
     }
@@ -1079,7 +1079,7 @@ class CheckoutController extends GetxController implements GetxService {
     if (select_payment_Methods == null ||
         select_payment_Methods!.paymentMethodId == null) {
       debugPrint('? No payment method selected!');
-      showCustomSnackBar('يرجى اختيار طريقة الدفع');
+      showCustomSnackBar('pay_please_choose'.tr);
       _isPaymentInProgress = false;
       return false;
     }
@@ -1167,7 +1167,7 @@ class CheckoutController extends GetxController implements GetxService {
 
       if (customerPhone.isEmpty) {
         _isPaymentInProgress = false;
-        showCustomSnackBar('رقم الهاتف مطلوب لبدء الدفع');
+        showCustomSnackBar('pay_phone_required'.tr);
         return false;
       }
 
@@ -1195,7 +1195,7 @@ class CheckoutController extends GetxController implements GetxService {
         debugPrint(
             '? MyFatoorah process failed: ${response.statusCode} ${response.statusText}');
         _isPaymentInProgress = false;
-        showCustomSnackBar('فشل بدء الدفع - تحقق من بيانات الطلب');
+        showCustomSnackBar('pay_start_failed_data'.tr);
         return false;
       }
 
@@ -1222,7 +1222,7 @@ class CheckoutController extends GetxController implements GetxService {
       if (paymentUrl == null || paymentUrl.isEmpty) {
         debugPrint('? MyFatoorah process returned no payment_url');
         _isPaymentInProgress = false;
-        showCustomSnackBar('فشل بدء الدفع - لم يتم استلام رابط الدفع');
+        showCustomSnackBar('pay_start_failed_link'.tr);
         return false;
       }
 
@@ -1302,7 +1302,7 @@ class CheckoutController extends GetxController implements GetxService {
           // resume / checkout re-open can re-verify the real status.
           _isOrderPaid = false;
           _digitalFailureMessage =
-              'الدفع لم يكتمل بعد، يمكنك متابعة حالة الطلب من طلباتي';
+              'pay_not_complete_orders'.tr;
           // If the user explicitly chose "go to my orders" from the back
           // dialog, take them there.
           if (webResult == 'go_to_orders') {
@@ -1315,7 +1315,7 @@ class CheckoutController extends GetxController implements GetxService {
           _digitalFailureMessage =
               (_lastGatewayFailureReason?.trim().isNotEmpty ?? false)
                   ? _lastGatewayFailureReason!.trim()
-                  : 'فشل الدفع أو تم إلغاؤه. يرجى المحاولة مرة أخرى.';
+                  : 'pay_failed_cancelled'.tr;
           _lastGatewayFailureReason = null;
           await clearPendingPaymentContext(reason: 'failed_in_flow');
           return false;
@@ -1588,7 +1588,7 @@ class CheckoutController extends GetxController implements GetxService {
 
       final bool sdkReady = await _ensureMyFatoorahSdkInitialized();
       if (!sdkReady) {
-        showCustomSnackBar('فشل تهيئة الدفع: مفتاح MyFatoorah غير مضبوط');
+        showCustomSnackBar('pay_init_failed_key'.tr);
         return false;
       }
 
@@ -1610,11 +1610,11 @@ class CheckoutController extends GetxController implements GetxService {
               'Digital wallet payment successful. Invoice ID: $invoiceId');
           _lastInvoiceId = invoiceId;
           paymentSuccess = true;
-          showCustomSnackBar('تمت عملية الدفع بنجاح', isError: false);
+          showCustomSnackBar('pay_process_success'.tr, isError: false);
           update();
         } else {
           debugPrint('No invoice ID received for digital wallet payment.');
-          showCustomSnackBar('لم يتم استلام رقم الفاتورة بعد الدفع.');
+          showCustomSnackBar('pay_no_invoice'.tr);
         }
       });
 
@@ -1753,7 +1753,7 @@ class CheckoutController extends GetxController implements GetxService {
     try {
       final bool sdkReady = await _ensureMyFatoorahSdkInitialized();
       if (!sdkReady) {
-        showCustomSnackBar('فشل تهيئة الدفع: مفتاح MyFatoorah غير مضبوط');
+        showCustomSnackBar('pay_init_failed_key'.tr);
         return false;
       }
 
@@ -1778,11 +1778,11 @@ class CheckoutController extends GetxController implements GetxService {
           debugPrint('Card payment successful. Invoice ID: $invoiceId');
           _lastInvoiceId = invoiceId;
           paymentSuccess = true;
-          showCustomSnackBar('تمت عملية الدفع بنجاح', isError: false);
+          showCustomSnackBar('pay_process_success'.tr, isError: false);
           update();
         } else {
           debugPrint('No invoice ID received for card payment.');
-          showCustomSnackBar('لم يتم استلام رقم الفاتورة بعد الدفع.');
+          showCustomSnackBar('pay_no_invoice'.tr);
         }
       });
 
@@ -2701,7 +2701,7 @@ class CheckoutController extends GetxController implements GetxService {
           _paymentFlowState = PaymentFlowState.failed;
           _isLoading = false;
           update();
-          showCustomSnackBar('فشل في إنشاء الطلب - لم يتم إرجاع رقم الطلب');
+          showCustomSnackBar('pay_create_failed_id'.tr);
           return '';
         }
       } else {
@@ -2755,7 +2755,7 @@ class CheckoutController extends GetxController implements GetxService {
       // ❌ لا Navigation - فقط عرض الرسالة
       // ✅ UX: عرض رسالة واضحة مع تفاصيل الخطأ
       final String errorMessage = e.toString().contains('timeout')
-          ? 'انتهت مهلة الاتصال - يرجى المحاولة مرة أخرى'
+          ? 'pay_timeout'.tr
           : 'حدث خطأ أثناء إنشاء الطلب: ${e.toString()}';
       showCustomSnackBar(errorMessage);
       _isLoading = false;
@@ -2808,7 +2808,7 @@ class CheckoutController extends GetxController implements GetxService {
     final bool isArabic = Get.locale?.languageCode.toLowerCase() == 'ar';
     if (normalizedCode == 'order_time') {
       return isArabic
-          ? 'المتجر مغلق الآن ولا يمكن إنشاء الطلب في هذا الوقت. برجاء المحاولة خلال ساعات العمل أو اختيار متجر آخر.'
+          ? 'pay_store_closed_now'.tr
           : 'The store is closed now, so the order cannot be placed at this time. Please try during working hours or choose another store.';
     }
     if (backendMessage.trim().isNotEmpty &&
@@ -2906,13 +2906,13 @@ class CheckoutController extends GetxController implements GetxService {
     if (_paymentFlowState == PaymentFlowState.failed) {
       debugPrint(
           '⛔ Payment flow failed previously - reset required before retry');
-      showCustomSnackBar('فشلت العملية السابقة. يرجى المحاولة مرة أخرى');
+      showCustomSnackBar('pay_prev_failed'.tr);
       return '';
     }
 
     if (_currentOrderId == null) {
       _paymentFlowState = PaymentFlowState.failed;
-      showCustomSnackBar('لا يوجد طلب للدفع');
+      showCustomSnackBar('pay_no_order'.tr);
       return '';
     }
 
@@ -3130,7 +3130,7 @@ class CheckoutController extends GetxController implements GetxService {
 
         final bool isDigitalPayment = isDigitalPaymentSelected;
         final String successMessage = isDigitalPayment
-            ? 'تم الدفع بنجاح'
+            ? 'pay_success'.tr
             : 'تم انشاء الطلب وتم الدفع بنجاح';
 
         if (isDigitalPayment) {

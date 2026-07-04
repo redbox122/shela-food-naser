@@ -10,6 +10,8 @@
 /// - بدون أي تنقل
 library;
 
+import 'package:get/get.dart';
+
 class CheckoutErrorResponse {
   final bool success;
   final String? code;
@@ -29,7 +31,7 @@ class CheckoutErrorResponse {
     return CheckoutErrorResponse(
       success: json['success'] as bool? ?? false,
       code: json['code']?.toString(),
-      message: json['message']?.toString() ?? 'حدث خطأ غير متوقع',
+      message: json['message']?.toString() ?? 'pay_unexpected_error'.tr,
       data: json['data'] as Map<String, dynamic>?,
       errors: json['errors'] != null
           ? (json['errors'] as List).map((e) => e.toString()).toList()
@@ -93,17 +95,17 @@ class CheckoutErrorResponse {
     // إذا كان هناك code محدد، استخدم رسالة مخصصة
     switch (code) {
       case 'CONTACT_NAME_REQUIRED':
-        return 'يرجى إدخال اسم المستلم لإكمال الطلب';
+        return 'pay_enter_recipient'.tr;
       case 'CONTACT_NUMBER_REQUIRED':
-        return 'يرجى إدخال رقم الهاتف لإكمال الطلب';
+        return 'pay_enter_phone'.tr;
       case 'PAYMENT_METHOD_REQUIRED':
-        return 'يرجى اختيار طريقة الدفع';
+        return 'pay_please_choose'.tr;
       case 'INSUFFICIENT_BALANCE':
-        return 'الرصيد غير كافي لإكمال عملية الدفع';
+        return 'pay_insufficient_balance'.tr;
       case 'ORDER_CREATION_FAILED':
-        return 'فشل في إنشاء الطلب. يرجى المحاولة مرة أخرى';
+        return 'pay_create_failed'.tr;
       case 'PAYMENT_FAILED':
-        return 'فشلت عملية الدفع. يرجى التحقق من طريقة الدفع والمحاولة مرة أخرى';
+        return 'pay_failed_check'.tr;
       default:
         return message;
     }
@@ -125,7 +127,7 @@ CheckoutErrorResponse? extractCheckoutError(dynamic responseBody) {
         success: false,
         message: responseBody['message']?.toString() ?? 
                  responseBody['error']?.toString() ?? 
-                 'حدث خطأ غير متوقع',
+                 'pay_unexpected_error'.tr,
         code: responseBody['code']?.toString(),
       );
     }

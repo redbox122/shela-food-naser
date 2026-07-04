@@ -111,7 +111,7 @@ Widget PartialPayView(BuildContext context, {required totalPrice, required isPre
                             debugPrint('[PaymentMethod][BOTTOM_CLOSE]');
                           }
                           Navigator.of(context).pop();
-                          showCustomSnackBar('تم اختيار المحفظة العادية للدفع', isError: false);
+                          showCustomSnackBar('pay_regular_wallet_selected'.tr, isError: false);
                         },
                         child: Container(
                           decoration: BoxDecoration(
@@ -176,8 +176,8 @@ Widget PartialPayView(BuildContext context, {required totalPrice, required isPre
                           ),
                           const SizedBox(height: 10),
                           const Icon(Icons.contactless, color: Colors.green, size: 100),
-                          const Text('أختر', style: TextStyle(fontSize: 16)),
-                          const Text('اي طريقه دفع مناسبة'),
+                          Text('pay_choose'.tr, style: TextStyle(fontSize: 16)),
+                          Text('pay_any_method'.tr),
                           const SizedBox(height: 20),
                           
                           // Wallet Balance Information Card
@@ -201,7 +201,7 @@ Widget PartialPayView(BuildContext context, {required totalPrice, required isPre
                                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                   children: [
                                     Text(
-                                      'معلومات المحفظة',
+                                      'pay_wallet_info'.tr,
                                       style: robotoMedium.copyWith(
                                         fontSize: Dimensions.fontSizeLarge,
                                         color: Theme.of(context).primaryColor,
@@ -302,7 +302,7 @@ Widget PartialPayView(BuildContext context, {required totalPrice, required isPre
                                         debugPrint('[PaymentMethod][BOTTOM_CLOSE]');
                                       }
                                       Navigator.of(context).pop();
-                                      showCustomSnackBar('تم اختيار المحفظة العادية للدفع', isError: false);
+                                      showCustomSnackBar('pay_regular_wallet_selected'.tr, isError: false);
                                     },
                                     child: Container(
                                       width: 130,

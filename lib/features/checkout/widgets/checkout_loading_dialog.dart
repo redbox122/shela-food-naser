@@ -117,13 +117,13 @@ class _CheckoutLoadingDialogState extends State<CheckoutLoadingDialog> {
   String _getArabicMessage(int index) {
     switch (index) {
       case 0:
-        return 'جارٍ تجهيز طلبك...';
+        return 'pay_preparing_order'.tr;
       case 1:
-        return 'جارٍ حساب رسوم التوصيل...';
+        return 'pay_calc_delivery'.tr;
       case 2:
-        return 'أوشكنا على الانتهاء...';
+        return 'pay_almost_done'.tr;
       default:
-        return 'جارٍ التحميل...';
+        return 'pay_loading'.tr;
     }
   }
 }
