@@ -456,7 +456,8 @@ class _HomeScreenState extends State<HomeScreen> {
 
                                   // Old "عروض وخصومات" promo design (OffersView)
                                   // shown alongside — additive, nothing removed.
-                                  const SliverToBoxAdapter(child: OffersView()),
+                                  const SliverToBoxAdapter(
+                                      child: _OldOffersSection()),
 
                                   // "اكتشف خدمات أكثر" promo banner removed.
 
@@ -527,4 +528,40 @@ class _HomeScreenState extends State<HomeScreen> {
       });
     });
   }
+}
+
+/// Additive wrapper for the old "عروض وخصومات" design on the unified home:
+/// loads offers across the available modules (once, if empty) so [OffersView]
+/// has data, then renders it. Nothing existing is touched.
+class _OldOffersSection extends StatefulWidget {
+  const _OldOffersSection();
+
+  @override
+  State<_OldOffersSection> createState() => _OldOffersSectionState();
+}
+
+class _OldOffersSectionState extends State<_OldOffersSection> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _load());
+  }
+
+  Future<void> _load() async {
+    if (!Get.isRegistered<OffersController>() ||
+        !Get.isRegistered<SplashController>()) {
+      return;
+    }
+    final controller = Get.find<OffersController>();
+    if (controller.offersMode?.data.isNotEmpty ?? false) return; // already loaded
+    final ids = (Get.find<SplashController>().moduleList ?? const [])
+        .map((m) => m.id)
+        .whereType<int>()
+        .toList();
+    if (ids.isEmpty) return;
+    await controller.getAggregatedOffers(ids);
+  }
+
+  @override
+  Widget build(BuildContext context) => const OffersView();
 }
