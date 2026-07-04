@@ -111,7 +111,7 @@ class OrderDetailsRedesignView extends StatelessWidget {
             _cancelledBanner(),
             const SizedBox(height: Dimensions.paddingSizeLarge),
           ],
-          _sectionTitle('تفاصيل الطلب', accent: accent),
+          _sectionTitle('ord_order_details'.tr, accent: accent),
           const SizedBox(height: Dimensions.paddingSizeDefault),
           if (!parcel && order.store != null) ...[
             _storeCard(),
@@ -126,11 +126,11 @@ class OrderDetailsRedesignView extends StatelessWidget {
           _paymentBlock(),
           const SizedBox(height: Dimensions.paddingSizeLarge),
           if (!parcel && (order.deliveryAddress?.address ?? '').isNotEmpty) ...[
-            _detailBlock('عنوان توصيل', order.deliveryAddress!.address!),
+            _detailBlock('ord_delivery_address'.tr, order.deliveryAddress!.address!),
             const SizedBox(height: Dimensions.paddingSizeLarge),
           ],
           if ((order.createdAt ?? '').isNotEmpty) ...[
-            _detailBlock('تاريخ الطلب',
+            _detailBlock('ord_order_date'.tr,
                 DateConverter.dateTimeStringToDateTime(order.createdAt!)),
             const SizedBox(height: Dimensions.paddingSizeLarge),
           ],
@@ -159,7 +159,7 @@ class OrderDetailsRedesignView extends StatelessWidget {
         children: [
           Expanded(
             child: Text(
-              date.isEmpty ? 'تم إلغاء الطلب' : 'تم إلغاء الطلب بتاريخ $date',
+              date.isEmpty ? 'ord_order_cancelled'.tr : 'تم إلغاء الطلب بتاريخ $date',
               style: const TextStyle(
                 fontFamily: 'Tajawal',
                 fontWeight: FontWeight.w700,
@@ -189,8 +189,8 @@ class OrderDetailsRedesignView extends StatelessWidget {
           ),
         ),
         onPressed: _confirmReorder,
-        child: const Text(
-          'أعد طلب الأوردر',
+        child: Text(
+          'ord_reorder'.tr,
           textAlign: TextAlign.center,
           style: TextStyle(
             fontFamily: 'Tajawal',
@@ -230,8 +230,8 @@ class OrderDetailsRedesignView extends StatelessWidget {
               ),
             ),
             const SizedBox(height: Dimensions.paddingSizeLarge),
-            const Text(
-              'هل ترغب في إعادة طلبك مرة أخرى الآن',
+            Text(
+              'ord_reorder_confirm'.tr,
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontFamily: 'Tajawal',
@@ -257,8 +257,8 @@ class OrderDetailsRedesignView extends StatelessWidget {
                   Get.back<void>();
                   _reorder();
                 },
-                child: const Text(
-                  'نعم، أعد طلب الأوردر',
+                child: Text(
+                  'ord_yes_reorder'.tr,
                   style: TextStyle(
                     fontFamily: 'Tajawal',
                     fontWeight: FontWeight.w700,
@@ -280,8 +280,8 @@ class OrderDetailsRedesignView extends StatelessWidget {
                   ),
                 ),
                 onPressed: () => Get.back<void>(),
-                child: const Text(
-                  'إلغاء',
+                child: Text(
+                  'ord_cancel'.tr,
                   style: TextStyle(
                     fontFamily: 'Tajawal',
                     fontWeight: FontWeight.w700,
@@ -333,7 +333,7 @@ class OrderDetailsRedesignView extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        _blockLabel('طريقة الدفع'),
+        _blockLabel('ord_payment_method'.tr),
         const SizedBox(height: Dimensions.paddingSizeSmall),
         Container(
           padding: const EdgeInsets.symmetric(
@@ -580,16 +580,16 @@ class OrderDetailsRedesignView extends StatelessWidget {
       ),
       child: Column(
         children: [
-          _summaryRow('إجمالي المنتجات', subTotal),
-          if (shipping > 0) _summaryRow('مصاريف الشحن', shipping),
+          _summaryRow('ord_items_total'.tr, subTotal),
+          if (shipping > 0) _summaryRow('ord_shipping_fees'.tr, shipping),
           if (extraPackagingCharge > 0)
-            _summaryRow('رسوم التغليف', extraPackagingCharge),
-          if (!taxIncluded && tax > 0) _summaryRow('الضريبة', tax),
-          if (dmTips > 0) _summaryRow('إكرامية المندوب', dmTips),
+            _summaryRow('ord_packing_fee'.tr, extraPackagingCharge),
+          if (!taxIncluded && tax > 0) _summaryRow('ord_tax'.tr, tax),
+          if (dmTips > 0) _summaryRow('ord_driver_tip'.tr, dmTips),
           if (totalDiscount > 0)
-            _summaryRow('الخصم', totalDiscount, negative: true),
+            _summaryRow('ord_discount'.tr, totalDiscount, negative: true),
           if (couponDiscount > 0)
-            _summaryRow('كود خصم', couponDiscount, negative: true),
+            _summaryRow('ord_coupon_code'.tr, couponDiscount, negative: true),
           const Padding(
             padding:
                 EdgeInsets.symmetric(vertical: Dimensions.paddingSizeSmall),
@@ -597,8 +597,8 @@ class OrderDetailsRedesignView extends StatelessWidget {
           ),
           Row(
             children: [
-              const Text(
-                'إجمالي الطلب',
+              Text(
+                'ord_order_total'.tr,
                 style: TextStyle(
                   fontFamily: 'Tajawal',
                   fontWeight: FontWeight.w700,
@@ -698,7 +698,7 @@ class OrderDetailsRedesignView extends StatelessWidget {
       case 'partial_payment':
         return 'partial_payment'.tr;
       case 'wallet_qidha':
-        return 'قيدها';
+        return 'ord_qidha'.tr;
       case 'offline_payment':
         return 'offline_payment'.tr;
       case 'digital_payment':
@@ -727,7 +727,7 @@ class OrderDetailsRedesignView extends StatelessWidget {
         children: [
           _statusHeader(status),
           const SizedBox(height: Dimensions.paddingSizeLarge),
-          _sectionTitle('تفاصيل الطلب'),
+          _sectionTitle('ord_order_details'.tr),
           const SizedBox(height: Dimensions.paddingSizeSmall),
           if (!parcel && order.store != null) ...[
             _storeCard(),
@@ -742,11 +742,11 @@ class OrderDetailsRedesignView extends StatelessWidget {
           _paymentBlock(),
           const SizedBox(height: Dimensions.paddingSizeLarge),
           if (!parcel && (order.deliveryAddress?.address ?? '').isNotEmpty) ...[
-            _detailBlock('عنوان توصيل', order.deliveryAddress!.address!),
+            _detailBlock('ord_delivery_address'.tr, order.deliveryAddress!.address!),
             const SizedBox(height: Dimensions.paddingSizeLarge),
           ],
           if ((order.createdAt ?? '').isNotEmpty)
-            _detailBlock('تاريخ الطلب',
+            _detailBlock('ord_order_date'.tr,
                 DateConverter.dateTimeStringToDateTime(order.createdAt!)),
         ],
       ),
@@ -838,8 +838,8 @@ class OrderDetailsRedesignView extends StatelessWidget {
             children: [
               Icon(Icons.lock_clock_outlined, size: 18, color: status.accent),
               const SizedBox(width: 6),
-              const Text(
-                'رمز التسليم',
+              Text(
+                'ord_delivery_code'.tr,
                 style: TextStyle(
                   fontFamily: 'Tajawal',
                   fontWeight: FontWeight.w700,
@@ -881,8 +881,8 @@ class OrderDetailsRedesignView extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 8),
-          const Text(
-            'أعطِ هذا الرمز للسائق عند استلام طلبك',
+          Text(
+            'ord_give_code_driver'.tr,
             textAlign: TextAlign.center,
             style: TextStyle(
               fontFamily: 'Tajawal',
@@ -915,15 +915,15 @@ class _StatusVisual {
       case 'handover':
       case 'picked_up':
       case 'out_for_delivery':
-        return const _StatusVisual(
-          title: 'طلبك في الطريق إليك',
+        return _StatusVisual(
+          title: 'ord_on_the_way'.tr,
           illustration: Images.onTheWayImage,
           accent: Color(0xFF1FA64A),
         );
       default:
         // pending / accepted / confirmed / processing
-        return const _StatusVisual(
-          title: 'طلبك تحت الإعداد',
+        return _StatusVisual(
+          title: 'ord_being_prepared'.tr,
           illustration: Images.orderProccedImage,
           accent: Color(0xFF6B4EFF),
         );

@@ -314,7 +314,7 @@ class OrderTrackingScreenState extends State<OrderTrackingScreen> {
 /// Big status title + estimated-time-of-arrival badge.
 class _StatusHeader extends StatelessWidget {
   final OrderModel track;
-  const _StatusHeader({required this.track});
+  _StatusHeader({required this.track});
 
   @override
   Widget build(BuildContext context) {
@@ -398,25 +398,25 @@ String? _notificationText(String status, String driverName) {
   switch (status) {
     case 'pending':
       return isArabic
-          ? 'تم استلام طلبك، بانتظار تأكيد المتجر'
+          ? 'ord_received_awaiting'.tr
           : 'Order received, waiting for store confirmation';
     case 'accepted':
     case 'confirmed':
-      return isArabic ? 'أكّد المتجر طلبك ✅' : 'The store confirmed your order ✅';
+      return isArabic ? 'ord_store_confirmed'.tr : 'The store confirmed your order ✅';
     case 'processing':
       return isArabic
-          ? 'المتجر يجهّز طلبك 👨‍🍳'
+          ? 'ord_store_preparing2'.tr
           : 'The store is preparing your order 👨‍🍳';
     case 'handover':
       return isArabic
-          ? '${driverName.isEmpty ? 'المندوب' : driverName} في طريقه لاستلام طلبك 🛵'
+          ? '${driverName.isEmpty ? 'ord_driver'.tr : driverName} في طريقه لاستلام طلبك 🛵'
           : '${driverName.isEmpty ? 'The courier' : driverName} is picking up your order 🛵';
     case 'picked_up':
     case 'on_the_way':
-      return isArabic ? 'طلبك في الطريق إليك' : 'Your order is on the way';
+      return isArabic ? 'ord_on_the_way'.tr : 'Your order is on the way';
     case 'delivered':
       return isArabic
-          ? 'تم تسليم طلبك، بالهناء والشفاء 🎉 — قيّم تجربتك'
+          ? 'ord_delivered_rate'.tr
           : 'Your order was delivered 🎉 — rate your experience';
     default:
       return null;
@@ -427,20 +427,20 @@ String _statusMessage(String status, bool takeAway) {
   final bool isArabic = Get.locale?.languageCode == 'ar';
   switch (status) {
     case 'pending':
-      return isArabic ? 'بانتظار تأكيد المتجر' : 'Waiting for store confirmation';
+      return isArabic ? 'ord_awaiting_store'.tr : 'Waiting for store confirmation';
     case 'accepted':
     case 'confirmed':
-      return isArabic ? 'تم تأكيد طلبك' : 'Your order is confirmed';
+      return isArabic ? 'ord_order_confirmed'.tr : 'Your order is confirmed';
     case 'processing':
-      return isArabic ? 'المتجر يجهّز طلبك الآن' : 'The store is preparing your order';
+      return isArabic ? 'ord_store_preparing'.tr : 'The store is preparing your order';
     case 'handover':
     case 'picked_up':
     case 'on_the_way':
       return takeAway
-          ? (isArabic ? 'طلبك جاهز للاستلام' : 'Your order is ready')
-          : (isArabic ? 'المندوب في الطريق إليك' : 'Your courier is on the way');
+          ? (isArabic ? 'ord_ready_pickup'.tr : 'Your order is ready')
+          : (isArabic ? 'ord_driver_on_way'.tr : 'Your courier is on the way');
     case 'delivered':
-      return isArabic ? 'تم توصيل طلبك بنجاح 🎉' : 'Your order was delivered 🎉';
+      return isArabic ? 'ord_delivered_success'.tr : 'Your order was delivered 🎉';
     default:
       return '';
   }
@@ -663,14 +663,14 @@ class _NotificationsBannerState extends State<_NotificationsBanner> {
           Expanded(
             child: Text(
               isArabic
-                  ? 'فعّل الإشعارات لتلقّي تحديثات طلبك'
+                  ? 'ord_enable_notif'.tr
                   : 'Enable notifications for order updates',
               style: robotoMedium.copyWith(fontSize: Dimensions.fontSizeSmall),
             ),
           ),
           TextButton(
             onPressed: _enable,
-            child: Text(isArabic ? 'تفعيل' : 'Enable',
+            child: Text(isArabic ? 'ord_enable'.tr : 'Enable',
                 style: robotoBold.copyWith(color: Colors.orange)),
           ),
         ],
@@ -705,7 +705,7 @@ class _DeliveryGuaranteeCard extends StatelessWidget {
               children: [
                 Text(
                   isArabic
-                      ? 'ضمان التوصيل في الوقت المحدد'
+                      ? 'ord_ontime_guarantee'.tr
                       : 'On-time delivery guarantee',
                   style: robotoBold.copyWith(
                       color: Theme.of(context).primaryColor),
@@ -713,7 +713,7 @@ class _DeliveryGuaranteeCard extends StatelessWidget {
                 const SizedBox(height: 2),
                 Text(
                   isArabic
-                      ? 'لو تأخّر طلبك عن الوقت المتوقّع، نعوّضك بقسيمة خصم'
+                      ? 'ord_late_compensation'.tr
                       : 'If your order is late, we’ll make it up with a coupon',
                   style: robotoRegular.copyWith(
                       fontSize: Dimensions.fontSizeExtraSmall,
@@ -749,7 +749,7 @@ class _DeliveredCard extends StatelessWidget {
           Expanded(
             child: Text(
               Get.locale?.languageCode == 'ar'
-                  ? 'وصل طلبك! يسعدنا تقييمك للتجربة'
+                  ? 'ord_arrived_rate'.tr
                   : 'Delivered! We’d love your rating',
               style: robotoMedium,
             ),
@@ -778,7 +778,7 @@ class _DeliveryDetailsSection extends StatelessWidget {
   final int? orderId;
   final bool showChat;
   final Future<void> Function(NotificationBodyModel) onChat;
-  const _DeliveryDetailsSection(
+  _DeliveryDetailsSection(
       {required this.track,
       required this.orderId,
       required this.showChat,
@@ -1004,8 +1004,8 @@ String? _tripDistanceText(OrderModel track) {
   final km = _distanceKm(store, customer);
   if (km <= 0 || km > 300) return null; // sanity cap for a delivery
   final bool isArabic = Get.locale?.languageCode == 'ar';
-  if (km < 1) return '${(km * 1000).round()} ${isArabic ? 'م' : 'm'}';
-  return '${km.toStringAsFixed(1)} ${isArabic ? 'كم' : 'km'}';
+  if (km < 1) return '${(km * 1000).round()} ${isArabic ? 'ord_meter'.tr : 'm'}';
+  return '${km.toStringAsFixed(1)} ${isArabic ? 'ord_km'.tr : 'km'}';
 }
 
 /// Unified contact options sheet: WhatsApp · phone call · in-app chat. Each row
@@ -1336,13 +1336,13 @@ class _OtpCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  isArabic ? 'رمز التسليم' : 'Delivery code',
+                  isArabic ? 'ord_delivery_code'.tr : 'Delivery code',
                   style: robotoBold.copyWith(color: Colors.white),
                 ),
                 const SizedBox(height: 2),
                 Text(
                   isArabic
-                      ? 'أعطِ هذا الرمز للسائق عند الاستلام'
+                      ? 'ord_give_code_driver2'.tr
                       : 'Give this code to the courier on delivery',
                   style: robotoRegular.copyWith(
                       color: Colors.white.withValues(alpha: 0.9),
@@ -1381,13 +1381,13 @@ void _showHelpSheet(BuildContext context, OrderModel track) {
   final bool driverAssigned = track.deliveryMan != null;
   final options = isArabic
       ? <String>[
-          'كيف ألغي طلبي؟',
-          'أريد تغيير الأصناف',
-          'تغيير العنوان أو الملاحظات',
-          'المتجر مغلق',
-          'صنف غير متوفّر',
-          'لماذا لم يُقبل طلبي؟',
-          'غير ذلك',
+          'ord_how_cancel'.tr,
+          'ord_change_items'.tr,
+          'ord_change_address_notes'.tr,
+          'ord_store_closed'.tr,
+          'ord_item_unavailable'.tr,
+          'ord_why_not_accepted'.tr,
+          'ord_other'.tr,
         ]
       : <String>[
           'How do I cancel my order?',
@@ -1423,7 +1423,7 @@ void _showHelpSheet(BuildContext context, OrderModel track) {
                 ),
               ),
             ),
-            Text(isArabic ? 'مساعدة في الطلب' : 'Order help',
+            Text(isArabic ? 'ord_order_help'.tr : 'Order help',
                 style: robotoBold.copyWith(fontSize: Dimensions.fontSizeLarge)),
             // Order summary line.
             Padding(
@@ -1462,7 +1462,7 @@ void _showHelpSheet(BuildContext context, OrderModel track) {
                     Expanded(
                       child: Text(
                         isArabic
-                            ? 'بعد تعيين السائق، يتم الإلغاء عبر الدعم الفني فقط'
+                            ? 'ord_cancel_after_driver'.tr
                             : 'After a courier is assigned, cancellation is via support only',
                         style: robotoRegular.copyWith(
                             fontSize: Dimensions.fontSizeExtraSmall),
@@ -1482,7 +1482,7 @@ void _showHelpSheet(BuildContext context, OrderModel track) {
 /// full invoice. Ticket look via a dashed divider.
 class _ReceiptCard extends StatelessWidget {
   final OrderModel track;
-  const _ReceiptCard({required this.track});
+  _ReceiptCard({required this.track});
 
   String _money(double v) => v == v.roundToDouble()
       ? v.toStringAsFixed(0)
@@ -1494,7 +1494,7 @@ class _ReceiptCard extends StatelessWidget {
     final double total = track.orderAmount ?? 0;
     final double delivery = track.deliveryCharge ?? 0;
     final String pay = (track.paymentMethod ?? '').replaceAll('_', ' ');
-    final String cur = isArabic ? 'ر.س' : 'SAR';
+    final String cur = isArabic ? 'ord_sar'.tr : 'SAR';
 
     return Container(
       margin: const EdgeInsets.only(bottom: Dimensions.paddingSizeDefault),
@@ -1510,12 +1510,12 @@ class _ReceiptCard extends StatelessWidget {
             padding: const EdgeInsets.all(Dimensions.paddingSizeDefault),
             child: Column(
               children: [
-                _row(context, isArabic ? 'رسوم التوصيل' : 'Delivery fee',
+                _row(context, isArabic ? 'ord_delivery_fee'.tr : 'Delivery fee',
                     '${_money(delivery)} $cur'),
                 const SizedBox(height: 6),
                 _row(
                   context,
-                  isArabic ? 'الإجمالي' : 'Total',
+                  isArabic ? 'ord_total'.tr : 'Total',
                   '${_money(total)} $cur',
                   bold: true,
                 ),
@@ -1544,7 +1544,7 @@ class _ReceiptCard extends StatelessWidget {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Text(isArabic ? 'تفاصيل الطلب' : 'Order details',
+                  Text(isArabic ? 'ord_order_details'.tr : 'Order details',
                       style: robotoBold.copyWith(
                           color: Theme.of(context).primaryColor)),
                   const SizedBox(width: 4),

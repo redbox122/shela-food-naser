@@ -1,4 +1,5 @@
 import 'package:sixam_mart/common/utils/json_parser.dart';
+import 'package:get/get.dart';
 
 class SupportModel {
   int? totalSize;

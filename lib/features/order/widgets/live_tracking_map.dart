@@ -25,7 +25,7 @@ import 'package:sixam_mart/util/images.dart';
 /// camera re-fit — so the map stays in sync with the order's state.
 class LiveTrackingMap extends StatefulWidget {
   final OrderModel track;
-  const LiveTrackingMap({super.key, required this.track});
+  LiveTrackingMap({super.key, required this.track});
 
   @override
   State<LiveTrackingMap> createState() => _LiveTrackingMapState();
@@ -387,8 +387,8 @@ class _DistanceBubble extends StatelessWidget {
   Widget build(BuildContext context) {
     final bool isArabic = Get.locale?.languageCode == 'ar';
     final String dist = km < 1
-        ? '${(km * 1000).round()} ${isArabic ? 'م' : 'm'}'
-        : '${km.toStringAsFixed(1)} ${isArabic ? 'كم' : 'km'}';
+        ? '${(km * 1000).round()} ${isArabic ? 'ord_meter'.tr : 'm'}'
+        : '${km.toStringAsFixed(1)} ${isArabic ? 'ord_km'.tr : 'km'}';
     final String label =
         isArabic ? 'السائق يبعد عنك $dist' : 'Courier is $dist away';
     return Container(

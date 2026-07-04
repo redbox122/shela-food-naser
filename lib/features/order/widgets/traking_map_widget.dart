@@ -20,7 +20,7 @@ import 'dart:ui';
 
 class TrackingMapWidget extends StatefulWidget {
   final OrderModel? track;
-  const TrackingMapWidget({super.key, required this.track});
+  TrackingMapWidget({super.key, required this.track});
 
   @override
   State<TrackingMapWidget> createState() => _TrackingMapWidgetState();

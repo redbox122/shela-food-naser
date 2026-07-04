@@ -14,7 +14,7 @@ class GuestCustomStepperWidget extends StatelessWidget {
   final double height;
   final String? statusImage;
   final Widget? trailing;
-  const GuestCustomStepperWidget({super.key,
+  GuestCustomStepperWidget({super.key,
     required this.title, required this.isActive,
     this.child, this.haveTopBar = true, this.height = 30,
     this.statusImage = Images.orders, this.subTitle,

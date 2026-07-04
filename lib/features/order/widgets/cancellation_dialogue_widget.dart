@@ -16,27 +16,26 @@ class CancellationDialogueWidget extends StatefulWidget {
 }
 
 class _CancellationDialogueWidgetState extends State<CancellationDialogueWidget> {
-  static const String _introMessageAr =
-      'عزيزنا العميل، رأيك يهمنا لنرتقي بخدمتك!\n'
-      'يؤسفنا رغبتك في إلغاء الطلب، واختيارك للسبب بدقة يساعدنا على تطوير تجربتك في المرات القادمة وتقديم خدمة تليق بتوقعاتك.';
+  String get _introMessageAr =>
+      'ord_dear_customer'.tr + 'ord_cancel_intro'.tr;
 
-  static const Map<String, List<String>> _groupedReasonsAr = <String, List<String>>{
-    '1. قرارات الشراء والتعديل:': <String>[
-      'أود تغيير وسيلة الدفع.',
-      'أرغب في إضافة منتجات أخرى (تعديل الطلب).',
-      'لم أعد بحاجة للمنتج في الوقت الحالي.',
-    ],
-    '2. ملاحظات الشحن والخدمات اللوجستية:': <String>[
-      'مدة التوصيل المتوقعة لا تناسبني.',
-      'تكلفة الشحن مرتفعة.',
-      'تم تكرار الطلب عن طريق الخطأ.',
-    ],
-    '3. تفاصيل المنتج والعروض:': <String>[
-      'اختيار خاطئ لبيانات المنتج (المقاس/اللون/النوع).',
-      'وجدت عرضاً أفضل في مكان آخر.',
-      'أرغب في إعادة الطلب لاستخدام كود الخصم.',
-    ],
-  };
+  Map<String, List<String>> get _groupedReasonsAr => <String, List<String>>{
+        'ord_reasons_purchase'.tr: <String>[
+          'ord_reason_change_payment'.tr,
+          'ord_reason_add_items'.tr,
+          'ord_reason_no_need'.tr,
+        ],
+        'ord_reasons_shipping'.tr: <String>[
+          'ord_reason_eta'.tr,
+          'ord_reason_high_shipping'.tr,
+          'ord_reason_duplicate'.tr,
+        ],
+        'ord_reasons_product'.tr: <String>[
+          'ord_reason_wrong_variant'.tr,
+          'ord_reason_better_offer'.tr,
+          'ord_reason_reorder_coupon'.tr,
+        ],
+      };
 
   @override
   void initState() {

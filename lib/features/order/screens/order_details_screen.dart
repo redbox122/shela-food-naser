@@ -244,13 +244,13 @@ class OrderDetailsScreenState extends State<OrderDetailsScreen> {
           elevation: 0.5,
           centerTitle: true,
           automaticallyImplyLeading: false,
-          systemOverlayStyle: const SystemUiOverlayStyle(
+          systemOverlayStyle: SystemUiOverlayStyle(
             statusBarColor: Colors.transparent,
             statusBarIconBrightness: Brightness.dark,
             statusBarBrightness: Brightness.light,
           ),
-          title: const Text(
-            'تفاصيل طلبك',
+          title: Text(
+            'ord_your_order_details'.tr,
             style: TextStyle(
               fontFamily: 'Tajawal',
               fontWeight: FontWeight.w700,
@@ -815,7 +815,7 @@ class OrderDetailsScreenState extends State<OrderDetailsScreen> {
                           order.paymentMethod == 'digital_payment')
                       ? Expanded(
                           child: CustomButton(
-                            buttonText: 'تحقق من حالة الدفع',
+                            buttonText: 'ord_check_payment'.tr,
                             margin: const EdgeInsets.all(
                                 Dimensions.paddingSizeSmall),
                             onPressed: () async {
@@ -1044,9 +1044,9 @@ class OrderDetailsScreenState extends State<OrderDetailsScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('تعذر إكمال الطلب', style: robotoBold),
+          Text('ord_complete_failed'.tr, style: robotoBold),
           const SizedBox(height: Dimensions.paddingSizeExtraSmall),
-          Text('تم إرجاع المبلغ إلى محفظتك', style: robotoRegular),
+          Text('ord_refunded_wallet'.tr, style: robotoRegular),
           // Alternatives section is restaurant/cafe only. We do NOT have a
           // product-alternatives API to honour the ecommerce/grocery case, so
           // we hide the section gracefully instead of inventing fake data or
@@ -1057,7 +1057,7 @@ class OrderDetailsScreenState extends State<OrderDetailsScreen> {
               onPressed: () {
                 orderController.toggleAlternativeStores(orderId);
               },
-              child: const Text('مطاعم بديلة'),
+              child: Text('ord_alt_stores'.tr),
             ),
             if (expanded && loading)
               const Padding(
@@ -1068,7 +1068,7 @@ class OrderDetailsScreenState extends State<OrderDetailsScreen> {
               Padding(
                 padding:
                     const EdgeInsets.only(top: Dimensions.paddingSizeSmall),
-                child: Text('لا توجد مطاعم بديلة متاحة حالياً',
+                child: Text('ord_no_alt_stores'.tr,
                     style: robotoRegular),
               ),
             if (expanded && !loading && stores.isNotEmpty)
@@ -1093,7 +1093,7 @@ class OrderDetailsScreenState extends State<OrderDetailsScreen> {
                   orderDetailsList: orderDetailsList,
                 );
               },
-              child: const Text('منتجات بديلة'),
+              child: Text('ord_alt_products'.tr),
             ),
             if (productExpanded && productLoading)
               const Padding(
@@ -1103,7 +1103,7 @@ class OrderDetailsScreenState extends State<OrderDetailsScreen> {
             if (productExpanded && !productLoading && productAlternatives.isEmpty)
               Padding(
                 padding: const EdgeInsets.only(top: Dimensions.paddingSizeSmall),
-                child: Text('لا توجد منتجات بديلة متاحة حالياً',
+                child: Text('ord_no_alt_products'.tr,
                     style: robotoRegular),
               ),
             if (productExpanded && !productLoading && productAlternatives.isNotEmpty)

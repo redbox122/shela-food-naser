@@ -72,24 +72,24 @@ class OrderCalculationWidget extends StatelessWidget {
     final double originalDelivery = order.originalDeliveryCharge ?? 0;
 
     if (order.orderType == 'take_away') {
-      return 'الطلب استلام من الفرع، لذلك لا توجد رسوم توصيل';
+      return 'ord_pickup_no_delivery'.tr;
     }
 
     if (originalDelivery > 0) {
-      return 'تم إعفاء رسوم التوصيل لهذا الطلب';
+      return 'ord_delivery_waived'.tr;
     }
 
     if (chargePayer != null && chargePayer.isNotEmpty && chargePayer != 'customer') {
       if (chargePayer.contains('store') || chargePayer.contains('vendor')) {
-        return 'المتجر متحمل رسوم التوصيل';
+        return 'ord_store_covers_delivery'.tr;
       }
       if (chargePayer.contains('admin')) {
-        return 'المنصة متحملة رسوم التوصيل';
+        return 'ord_platform_covers'.tr;
       }
-      return 'رسوم التوصيل على الجهة المزودة للخدمة';
+      return 'ord_delivery_on_provider'.tr;
     }
 
-    return 'لا توجد رسوم توصيل على هذا الطلب';
+    return 'ord_no_delivery_fee'.tr;
   }
 
   @override
@@ -98,7 +98,7 @@ class OrderCalculationWidget extends StatelessWidget {
         (Get.find<SplashController>().configModel?.businessName?.trim().isNotEmpty ??
                 false)
             ? Get.find<SplashController>().configModel!.businessName!.trim()
-            : 'الدعم الفني';
+            : 'ord_tech_support'.tr;
 
     return Padding(
       padding: EdgeInsets.only(

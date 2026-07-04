@@ -213,7 +213,7 @@ class OrderInfoWidget extends StatelessWidget {
 
               Row(children: [
                 Text(
-                  'طريقة الاستلام',
+                  'ord_pickup_method'.tr,
                   style: robotoMedium,
                 ),
                 const Expanded(
@@ -839,7 +839,7 @@ class OrderInfoWidget extends StatelessWidget {
                                                           order.id.toString())),
                                               user: User(
                                                   id: 0,
-                                                  fName: 'المسئول',
+                                                  fName: 'ord_admin'.tr,
                                                   lName: ''),
                                             ));
                                             startApiCall();
@@ -1106,7 +1106,7 @@ class OrderInfoWidget extends StatelessWidget {
                                       notificationBody: NotificationBodyModel(
                                           orderId: order.id, adminId: 0),
                                       user: User(
-                                          id: 0, fName: 'المسئول', lName: ''),
+                                          id: 0, fName: 'ord_admin'.tr, lName: ''),
                                     ));
                                   },
                                   child: Image.asset(Images.chatOrderDetails,
@@ -1261,7 +1261,7 @@ class OrderInfoWidget extends StatelessWidget {
                                           ? 'partial_payment'.tr
                                           : order.paymentMethod ==
                                                   'wallet_qidha'
-                                              ? 'قيدها'
+                                              ? 'ord_qidha'.tr
                                               : 'my_bill_wallet'.tr,
                               style: robotoMedium.copyWith(
                                   fontSize: Dimensions.fontSizeSmall,

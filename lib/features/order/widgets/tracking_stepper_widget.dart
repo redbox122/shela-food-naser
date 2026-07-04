@@ -13,7 +13,7 @@ class TrackingStepperWidget extends StatelessWidget {
     final int state = _statusIndex(status, takeAway);
     final bool isArabic = Get.locale?.languageCode == 'ar';
     final String takeAwayDoneLabel =
-        isArabic ? 'تم الاستلام' : 'Order received';
+        isArabic ? 'ord_picked_up'.tr : 'Order received';
     final List<String> steps = [
       'order_placed'.tr,
       'order_confirmed'.tr,

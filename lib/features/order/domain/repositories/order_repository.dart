@@ -116,7 +116,7 @@ class OrderRepository implements OrderRepositoryInterface {
           }
         }
       }
-      resolvedMessage ??= 'تعذر إلغاء الطلب';
+      resolvedMessage ??= 'ord_cancel_failed'.tr;
       final bool apiSuccess = map['success'] == true ||
           map['success'] == 1 ||
           map['success'] == '1';
@@ -164,7 +164,7 @@ class OrderRepository implements OrderRepositoryInterface {
       if (response.statusCode == 200) {
         success = true;
       } else {
-        showCustomSnackBar('تعذر إلغاء الطلب');
+        showCustomSnackBar('ord_cancel_failed'.tr);
       }
     }
     return success;

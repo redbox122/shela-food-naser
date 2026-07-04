@@ -18,7 +18,7 @@ class TrackDetailsViewWidget extends StatelessWidget {
   final OrderModel track;
   final Function? callback;
   final bool showChatPermission;
-  const TrackDetailsViewWidget(
+  TrackDetailsViewWidget(
       {super.key,
       required this.track,
       required this.status,

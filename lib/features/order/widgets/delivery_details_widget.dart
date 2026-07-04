@@ -1,6 +1,7 @@
 // ignore_for_file: non_constant_identifier_names
 
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 import 'package:sixam_mart/features/address/domain/models/address_model.dart';
 import 'package:sixam_mart/util/dimensions.dart';
 import 'package:sixam_mart/util/images.dart';
@@ -45,7 +46,7 @@ class DeliveryDetailsWidget extends StatelessWidget {
               //             child: Text(
               //               (address_model.address?.isNotEmpty ?? false)
               //                   ? AddressHelper().removeEnglishAndNumbers(address_model.address!)
-              //                   : 'لا يوجد عنوان',
+              //                   : 'ord_no_address'.tr,
               //               maxLines: 3,
               //               overflow: TextOverflow.ellipsis,
               //               style: robotoRegular.copyWith(
@@ -61,7 +62,7 @@ class DeliveryDetailsWidget extends StatelessWidget {
               (address_model.house != null && address_model.house!.isNotEmpty)
                   ? Row(
                       children: [
-                        Text('المنزل :  ', style: robotoMedium),
+                        Text('ord_home_label'.tr, style: robotoMedium),
                         Text(
                           ' ${address_model.house}  ',
                           maxLines: 1,
@@ -75,7 +76,7 @@ class DeliveryDetailsWidget extends StatelessWidget {
                           address_model.address!.isNotEmpty)
                       ? Row(
                           children: [
-                            Text('العنوان :  ', style: robotoMedium),
+                            Text('ord_address_label'.tr, style: robotoMedium),
                             Expanded(
                               child: Text(
                                 ' ${address_model.address}  ',
@@ -94,7 +95,7 @@ class DeliveryDetailsWidget extends StatelessWidget {
                       address_model.streetNumber!.isNotEmpty)
                   ? Row(
                       children: [
-                        Text('الشارع :  ', style: robotoMedium),
+                        Text('ord_street'.tr, style: robotoMedium),
                         Text(
                           ' ${address_model.streetNumber}',
                           maxLines: 1,
@@ -110,7 +111,7 @@ class DeliveryDetailsWidget extends StatelessWidget {
               (address_model.floor != null && address_model.floor!.isNotEmpty)
                   ? Row(
                       children: [
-                        Text('الوصف :  ', style: robotoMedium),
+                        Text('ord_desc_label'.tr, style: robotoMedium),
                         Text(
                           '${address_model.floor} ',
                           maxLines: 1,
