@@ -95,7 +95,7 @@ class _ProfilePhotoEditSheetState extends State<ProfilePhotoEditSheet> {
   void _removePhoto() {
     Get.find<ProfileController>().removePickedFile();
     Get.back<void>();
-    showCustomSnackBar('تم حذف الصورة الشخصية', isError: false);
+    showCustomSnackBar('pf_photo_removed'.tr, isError: false);
   }
 
   @override
@@ -122,9 +122,9 @@ class _ProfilePhotoEditSheetState extends State<ProfilePhotoEditSheet> {
                     child: Icon(Icons.close, size: 22, color: _titleColor),
                   ),
                 ),
-                const Expanded(
+                Expanded(
                   child: Text(
-                    'صورة الملف الشخصي',
+                    'pf_profile_photo'.tr,
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       fontFamily: 'Tajawal',
@@ -171,9 +171,9 @@ class _ProfilePhotoEditSheetState extends State<ProfilePhotoEditSheet> {
                 child: InkWell(
                   borderRadius: BorderRadius.circular(10),
                   onTap: _changePhoto,
-                  child: const Center(
+                  child: Center(
                     child: Text(
-                      'تغيير الصورة',
+                      'pf_change_photo'.tr,
                       style: TextStyle(
                         fontFamily: 'Tajawal',
                         fontSize: 15,
@@ -189,7 +189,7 @@ class _ProfilePhotoEditSheetState extends State<ProfilePhotoEditSheet> {
             TextButton(
               onPressed: _removePhoto,
               child: Text(
-                'حذف الصورة الشخصية',
+                'pf_remove_profile_photo'.tr,
                 style: TextStyle(
                   fontFamily: 'Tajawal',
                   fontSize: 14,

@@ -58,7 +58,7 @@ class _MenuScreenState extends State<MenuScreen> {
   Future<void> _showLoginRequiredAndRedirect() async {
     final String redirectPage = Get.currentRoute;
     showCustomSnackBar(
-      'هذه الخدمة تتطلب تسجيل الدخول. سيتم تحويلك لصفحة تسجيل الدخول.',
+      'pf_service_requires_login'.tr,
       isError: false,
       showDuration: 1,
     );
@@ -310,13 +310,13 @@ class _MenuScreenState extends State<MenuScreen> {
                 final List<Widget> promoRows = <Widget>[
                   ProfileMenuRow(
                     icon: _sectionImage(Images.couboun_icon),
-                    title: 'الكوبونات',
+                    title: 'pf_coupons'.tr,
                     onTap: () => _runWithLoginRequired(
                         () => Get.toNamed(RouteHelper.getCouponRoute())),
                   ),
                   ProfileMenuRow(
                     icon: _sectionImage(Images.status_up),
-                    title: 'إحصائيات',
+                    title: 'pf_statistics'.tr,
                     onTap: () => _runWithLoginRequired(
                         () => Get.toNamed(RouteHelper.getStatistics())),
                   ),
@@ -324,7 +324,7 @@ class _MenuScreenState extends State<MenuScreen> {
                 // يظهر دائماً (موجود بالتصميم) بغضّ النظر عن إعدادات السيرفر.
                 promoRows.add(ProfileMenuRow(
                   icon: _sectionImage(Images.profile_add),
-                  title: 'اكسب مع مشاركة الأصدقاء',
+                  title: 'pf_earn_referral'.tr,
                   onTap: () => _runWithLoginRequired(
                       () => Get.toNamed(RouteHelper.getReferAndEarnRoute())),
                 ));
@@ -333,7 +333,7 @@ class _MenuScreenState extends State<MenuScreen> {
                       _getDeliverySuffix(isLoggedIn, dmController.status_model);
                   promoRows.add(ProfileMenuRow(
                     icon: _sectionImage(Images.captin_delivery),
-                    title: 'انضم كرجل توصيل',
+                    title: 'pf_join_as_driver'.tr,
                     trailing: badge.isEmpty
                         ? null
                         : ProfileStatusBadge(
@@ -347,7 +347,7 @@ class _MenuScreenState extends State<MenuScreen> {
                     _getDelegateSuffix(isLoggedIn, delegateController);
                 promoRows.add(ProfileMenuRow(
                   icon: _sectionImage(Images.Delivery_representative),
-                  title: 'مندوب تسويق قسائم شرائية',
+                  title: 'pf_voucher_agent'.tr,
                   trailing: delegateBadge.isEmpty
                       ? null
                       : ProfileStatusBadge(
@@ -369,13 +369,13 @@ class _MenuScreenState extends State<MenuScreen> {
                 final List<Widget> legalRows = <Widget>[
                   ProfileMenuRow(
                     icon: _sectionImage(Images.privacyIcon),
-                    title: 'الخصوصية',
+                    title: 'pf_privacy'.tr,
                     onTap: () =>
                         Get.toNamed(RouteHelper.getHtmlRoute('privacy-policy')),
                   ),
                   ProfileMenuRow(
                     icon: _sectionImage(Images.termsIcon),
-                    title: 'الشروط والأحكام',
+                    title: 'pf_terms'.tr,
                     onTap: () => Get.toNamed(
                         RouteHelper.getHtmlRoute('terms-and-condition')),
                   ),
@@ -383,7 +383,7 @@ class _MenuScreenState extends State<MenuScreen> {
                 // يظهر دائماً (موجود بالتصميم) بغضّ النظر عن إعدادات السيرفر.
                 legalRows.add(ProfileMenuRow(
                   icon: _sectionImage(Images.refundIcon),
-                  title: 'سياسة استرداد الأموال',
+                  title: 'pf_refund_policy'.tr,
                   onTap: () =>
                       Get.toNamed(RouteHelper.getHtmlRoute('refund-policy')),
                 ));
@@ -429,17 +429,17 @@ class _MenuScreenState extends State<MenuScreen> {
 
                           // ─── حسابي ───
                           ProfileSectionCard(
-                            label: 'حسابي',
+                            label: 'pf_my_account'.tr,
                             children: <Widget>[
                               ProfileMenuRow(
                                 icon: _sectionImage(Images.location_v2),
-                                title: 'عناوين التوصيل',
+                                title: 'pf_delivery_addresses'.tr,
                                 onTap: () => Get.toNamed(
                                     RouteHelper.getDeliveryAddressesRoute()),
                               ),
                               ProfileMenuRow(
                                 icon: _sectionImage(Images.language_square),
-                                title: 'اللغة',
+                                title: 'pf_language'.tr,
                                 subtitle: _currentLanguageLabel(),
                                 onTap: _manageLanguageFunctionality,
                               ),
@@ -447,7 +447,7 @@ class _MenuScreenState extends State<MenuScreen> {
                                 builder: (auth) => ProfileMenuRow(
                                   icon:
                                       _sectionImage(Images.headerNotification),
-                                  title: 'الإشعارات',
+                                  title: 'pf_notifications'.tr,
                                   trailing: auth.notificationLoading
                                       ? const SizedBox(
                                           width: 20,
@@ -465,40 +465,40 @@ class _MenuScreenState extends State<MenuScreen> {
                           ),
 
                           ProfileSectionCard(
-                            label: 'النشاط الترويجي والأرباح',
+                            label: 'pf_promotions_earnings'.tr,
                             children: promoRows,
                           ),
 
                           // ─── المساعدة والدعم ───
                           ProfileSectionCard(
-                            label: 'المساعدة والدعم',
+                            label: 'pf_help_support'.tr,
                             children: <Widget>[
                               ProfileMenuRow(
                                 icon: _sectionImage(Images.messages_v2),
-                                title: 'الدردشة الحية',
+                                title: 'pf_live_chat'.tr,
                                 onTap: () => _runWithLoginRequired(() =>
                                     Get.toNamed(RouteHelper.getChatRoute(
                                       notificationBody: NotificationBodyModel(
                                         adminId: 0,
-                                        name: 'الدعم الفني',
+                                        name: 'pf_technical_support'.tr,
                                       ),
                                     ))),
                               ),
                               ProfileMenuRow(
                                 icon: _sectionImage(Images.message_question),
-                                title: 'المساعدة والدعم الفني',
+                                title: 'pf_help_tech_support'.tr,
                                 onTap: () =>
                                     Get.toNamed(RouteHelper.getSupportRoute()),
                               ),
                               ProfileMenuRow(
                                 icon: _sectionIcon(Icons.refresh),
-                                title: 'التحقق من التحديثات',
+                                title: 'pf_check_updates'.tr,
                                 onTap: () => Get.find<UpdateController>()
                                     .manualCheckForUpdates(),
                               ),
                               ProfileMenuRow(
                                 icon: _sectionImage(Images.message_question),
-                                title: 'معلومات عنا',
+                                title: 'pf_about_us'.tr,
                                 onTap: () => Get.toNamed(
                                     RouteHelper.getHtmlRoute('about-us')),
                               ),
@@ -506,7 +506,7 @@ class _MenuScreenState extends State<MenuScreen> {
                           ),
 
                           ProfileSectionCard(
-                            label: 'المستندات القانونية',
+                            label: 'pf_legal_docs'.tr,
                             children: legalRows,
                           ),
 
@@ -562,7 +562,7 @@ class _MenuScreenState extends State<MenuScreen> {
       padding: EdgeInsets.only(top: 10.r(context), bottom: 8.r(context)),
       child: Center(
         child: Text(
-          'حسابي',
+          'pf_my_account'.tr,
           style: TextStyle(
             fontFamily: 'Tajawal',
             fontSize: 18.r(context),
@@ -579,7 +579,7 @@ class _MenuScreenState extends State<MenuScreen> {
       BuildContext context, ProfileController pc, bool isLoggedIn) {
     final String fName = pc.userInfoModel?.fName ?? '';
     final String greeting =
-        isLoggedIn ? 'أهلاً ${fName.trim()}'.trim() : 'guest_user'.tr;
+        isLoggedIn ? '${'pf_hi'.tr} ${fName.trim()}'.trim() : 'guest_user'.tr;
 
     Future<void> onTap() async {
       if (isLoggedIn) {
@@ -646,7 +646,7 @@ class _MenuScreenState extends State<MenuScreen> {
                         Flexible(
                           child: Text(
                             isLoggedIn
-                                ? 'إعدادات الحساب'
+                                ? 'pf_account_settings'.tr
                                 : 'login_to_view_all_feature'.tr,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
@@ -751,11 +751,11 @@ class _MenuScreenState extends State<MenuScreen> {
         background: const Color(0xFFCEF9CF),
         accent: Color(0xffCFFAD0),
         image: Images.quidha_wallet_profile,
-        label: 'محفظة قيدها',
+        label: 'pf_qidha_wallet'.tr,
         value: qidhaSubscribed
             ? PriceConverter.convertPrice(qidhaBalance())
             : PriceConverter.convertPrice(0),
-        subtitle: qidhaSubscribed ? null : 'اشترك الآن',
+        subtitle: qidhaSubscribed ? null : 'pf_subscribe_now'.tr,
         onTap: () => _runWithLoginRequired(() => Get.toNamed(qidhaSubscribed
             ? RouteHelper.getKaidhaWallet()
             : RouteHelper.getKiadaWalletSubscription())),
@@ -764,9 +764,9 @@ class _MenuScreenState extends State<MenuScreen> {
         background: const Color(0xFFEBFEEB),
         accent: Color(0xffEBFEEB),
         image: Images.my_wallet_profile,
-        label: 'محفظتي',
+        label: 'pf_my_wallet'.tr,
         value: PriceConverter.convertPrice(walletBalance),
-        subtitle: walletBalance > 0 ? null : 'أضف رصيد الآن',
+        subtitle: walletBalance > 0 ? null : 'pf_add_balance_now'.tr,
         onTap: () => _runWithLoginRequired(
             () => Get.toNamed(RouteHelper.getold_wallet())),
       ),
@@ -774,9 +774,9 @@ class _MenuScreenState extends State<MenuScreen> {
         background: const Color(0xFFEFE6FF),
         accent: const Color(0xFFEFE6FF),
         image: Images.my_points,
-        label: 'نقاطك',
+        label: 'pf_your_points'.tr,
         value: '$loyaltyPoints',
-        subtitle: loyaltyPoints > 0 ? null : 'أربح نقاط الآن',
+        subtitle: loyaltyPoints > 0 ? null : 'pf_earn_points_now'.tr,
         onTap: () => _runWithLoginRequired(
             () => Get.toNamed(RouteHelper.getLoyaltyRoute())),
       ),
@@ -856,9 +856,9 @@ class _MenuScreenState extends State<MenuScreen> {
           : 'SA';
       return code.toUpperCase() == 'US'
           ? 'English (United States)'
-          : 'العربية (المملكة العربية السعودية)';
+          : 'pf_lang_ar_sa'.tr;
     } catch (_) {
-      return 'العربية (المملكة العربية السعودية)';
+      return 'pf_lang_ar_sa'.tr;
     }
   }
 
@@ -917,8 +917,8 @@ class _MenuScreenState extends State<MenuScreen> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: <Widget>[
-                const Text(
-                  'هل أنت متأكد أنك تريد تسجيل الخروج ؟',
+                Text(
+                  'pf_confirm_logout'.tr,
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     fontFamily: 'Tajawal',
@@ -930,14 +930,14 @@ class _MenuScreenState extends State<MenuScreen> {
                 ),
                 const SizedBox(height: 22),
                 _logoutDialogButton(
-                  text: 'نعم ، تسجيل خروج',
+                  text: 'pf_yes_logout'.tr,
                   color: AppColors.primaryColor,
                   textColor: AppColors.wtColor,
                   onTap: doLogout,
                 ),
                 const SizedBox(height: 10),
                 _logoutDialogButton(
-                  text: 'إلغاء',
+                  text: 'pf_cancel'.tr,
                   color: const Color(0xFFF3F4F6),
                   textColor: const Color(0xFF2D3633),
                   onTap: () => Get.back(),
@@ -1081,7 +1081,7 @@ class _MenuScreenState extends State<MenuScreen> {
       }
       return _persistedDeliveryBadge ?? '';
     }
-    String badge = 'انضم الآن';
+    String badge = 'pf_join_now'.tr;
     if (response == null) {
       final String legacyStatus = (model?.status ?? '').toLowerCase();
       if (legacyStatus == 'active' || legacyStatus == 'approved') {
@@ -1097,7 +1097,7 @@ class _MenuScreenState extends State<MenuScreen> {
     final bool canRegister = response['can_register'] == true;
     final String applicationStatus = _getDeliveryApplicationStatus(response);
     if (!isRegistered && canRegister) {
-      badge = 'انضم الآن';
+      badge = 'pf_join_now'.tr;
     } else if (applicationStatus == 'pending') {
       badge = 'قيد المراجعة';
     } else if (applicationStatus == 'approved') {
@@ -1162,11 +1162,11 @@ class _MenuScreenState extends State<MenuScreen> {
       await Get.dialog<void>(
         AlertDialog(
           content:
-              const Text('طلبك قيد المراجعة حاليًا، يرجى انتظار رد الإدارة.'),
+              Text('pf_request_under_review_body'.tr),
           actions: <Widget>[
             TextButton(
               onPressed: () => Get.back(),
-              child: const Text('حسنًا'),
+              child: Text('pf_ok'.tr),
             ),
           ],
         ),
@@ -1177,12 +1177,12 @@ class _MenuScreenState extends State<MenuScreen> {
       debugPrint('[PROFILE_STATUS][POPUP] item=delivery message=approved');
       await Get.dialog<void>(
         AlertDialog(
-          title: const Text('تمت الموافقة على طلبك'),
-          content: const Text('تم قبول طلبك كرجل توصيل.'),
+          title: Text('pf_request_approved'.tr),
+          content: Text('pf_driver_accepted'.tr),
           actions: <Widget>[
             TextButton(
               onPressed: () => Get.back(),
-              child: const Text('حسنًا'),
+              child: Text('pf_ok'.tr),
             ),
           ],
         ),
@@ -1191,7 +1191,7 @@ class _MenuScreenState extends State<MenuScreen> {
     }
     if (applicationStatus == 'rejected') {
       debugPrint('[PROFILE_STATUS][POPUP] item=delivery message=rejected');
-      showCustomSnackBar('تم رفض طلبك، يمكنك إعادة التقديم.', isError: false);
+      showCustomSnackBar('pf_request_rejected'.tr, isError: false);
       debugPrint(
           '[PROFILE_STATUS][ROUTE] item=delivery route=deliveryman_registration');
       Get.toNamed(RouteHelper.getDeliverymanRegistrationRoute());
@@ -1211,7 +1211,7 @@ class _MenuScreenState extends State<MenuScreen> {
     if (controller.isLoading) return 'الحالة';
 
     final model = controller.delegate_model;
-    if (model == null) return 'قدّم طلب';
+    if (model == null) return 'pf_submit_request'.tr;
 
     switch (model.delegateStatus) {
       case 'pending':
@@ -1235,14 +1235,14 @@ class _MenuScreenState extends State<MenuScreen> {
           '[PROFILE_STATUS][POPUP] item=delegate message=pending_review');
       await Get.dialog<void>(
         AlertDialog(
-          title: const Text('طلبك قيد المراجعة'),
-          content: const Text(
-            'طلب الانضمام كمندوب تسويق قسائم شرائية قيد المراجعة حاليًا، يرجى انتظار رد الإدارة.',
+          title: Text('pf_request_under_review_title'.tr),
+          content: Text(
+            'pf_agent_under_review'.tr,
           ),
           actions: <Widget>[
             TextButton(
               onPressed: () => Get.back(),
-              child: const Text('حسنًا'),
+              child: Text('pf_ok'.tr),
             ),
           ],
         ),
@@ -1250,7 +1250,7 @@ class _MenuScreenState extends State<MenuScreen> {
       return;
     }
     if (status == 'active' || status == 'approved') {
-      showCustomSnackBar('تمت الموافقة على طلبك', isError: false);
+      showCustomSnackBar('pf_request_approved'.tr, isError: false);
       return;
     }
     final String route = RouteHelper.getAdd_DelegateScreen();

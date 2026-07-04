@@ -30,8 +30,8 @@ class _DeleteAccountScreenState extends State<DeleteAccountScreen> {
         scrolledUnderElevation: 0,
         centerTitle: true,
         automaticallyImplyLeading: false,
-        title: const Text(
-          'حذف الحساب',
+        title: Text(
+          'pf_delete_account'.tr,
           style: TextStyle(
             fontFamily: 'Tajawal',
             fontSize: 18,
@@ -54,8 +54,8 @@ class _DeleteAccountScreenState extends State<DeleteAccountScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: <Widget>[
-                    const Text(
-                      'يرجى مراجعة المعلومات التالية بعناية قبل حذف\n  حسابك.',
+                    Text(
+                      'pf_review_before_delete'.tr,
                       style: TextStyle(
                         fontFamily: 'Tajawal',
                         fontSize: 17,
@@ -65,8 +65,8 @@ class _DeleteAccountScreenState extends State<DeleteAccountScreen> {
                       ),
                     ),
                     const SizedBox(height: 14),
-                    const Text(
-                      'سيؤدي هذا الإجراء إلى حذف حسابك بشكل نهائي, بالإضافة إلى إزالة بعض البيانات المرتبطة به. مثل:',
+                    Text(
+                      'pf_delete_warning'.tr,
                       style: TextStyle(
                         fontFamily: 'Tajawal',
                         fontSize: 16,
@@ -84,7 +84,7 @@ class _DeleteAccountScreenState extends State<DeleteAccountScreen> {
                         const SizedBox(width: 8),
                         Expanded(
                           child: Text(
-                            'لا يمكن التراجع عن هذا الإجراء بعد تنفيذه.',
+                            'pf_action_irreversible'.tr,
                             style: TextStyle(
                               fontFamily: 'Tajawal',
                               fontSize: 14,
@@ -122,9 +122,9 @@ class _DeleteAccountScreenState extends State<DeleteAccountScreen> {
                 children: <Widget>[
                   _buildCheckbox(),
                   const SizedBox(width: 10),
-                  const Expanded(
+                  Expanded(
                     child: Text(
-                      'لقد قرأت البيان أعلاه وأوافق عليه',
+                      'pf_read_and_agree'.tr,
                       style: TextStyle(
                         fontFamily: 'Tajawal',
                         fontSize: 13,
@@ -159,7 +159,7 @@ class _DeleteAccountScreenState extends State<DeleteAccountScreen> {
                                   strokeWidth: 2, color: AppColors.wtColor),
                             )
                           : Text(
-                              'حذف الحساب',
+                              'pf_delete_account'.tr,
                               style: TextStyle(
                                 fontFamily: 'Tajawal',
                                 fontSize: 15,

@@ -31,7 +31,7 @@ class _GenderSelectScreenState extends State<GenderSelectScreen> {
         centerTitle: true,
         automaticallyImplyLeading: false,
         title: Text(
-          'تحديد الجنس',
+          'pf_set_gender'.tr,
           style: TextStyle(
             fontFamily: 'Tajawal',
             fontSize: 17.r(context),
@@ -56,7 +56,7 @@ class _GenderSelectScreenState extends State<GenderSelectScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: <Widget>[
                     Text(
-                      'اختر جنسك',
+                      'pf_choose_your_gender'.tr,
                       style: TextStyle(
                         fontFamily: 'Tajawal',
                         fontSize: 20.r(context),
@@ -66,7 +66,7 @@ class _GenderSelectScreenState extends State<GenderSelectScreen> {
                     ),
                     SizedBox(height: 6.r(context)),
                     Text(
-                      'نستخدم هذه المعلومة لتحسين تجربتك داخل التطبيق.',
+                      'pf_gender_note'.tr,
                       textAlign: TextAlign.right,
                       style: TextStyle(
                         fontFamily: 'Tajawal',
@@ -96,7 +96,7 @@ class _GenderSelectScreenState extends State<GenderSelectScreen> {
                     onTap: () => Get.back<String>(result: _selected),
                     child: Center(
                       child: Text(
-                        'حفظ',
+                        'pf_save'.tr,
                         style: TextStyle(
                           fontFamily: 'Tajawal',
                           fontSize: 15.r(context),

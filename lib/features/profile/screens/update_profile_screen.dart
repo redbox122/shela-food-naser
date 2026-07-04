@@ -175,7 +175,7 @@ class _UpdateProfileScreenState extends State<UpdateProfileScreen> {
       centerTitle: true,
       automaticallyImplyLeading: false,
       title: Text(
-        'إعدادات الحساب',
+        'pf_account_settings'.tr,
         style: TextStyle(
           fontFamily: 'Tajawal',
           fontSize: 18.r(context),
@@ -207,21 +207,21 @@ class _UpdateProfileScreenState extends State<UpdateProfileScreen> {
                 SizedBox(height: 6.r(context)),
                 Center(child: _avatarWithBadge(context, pc)),
                 SizedBox(height: 30.r(context)),
-                _fieldLabel('الاسم', required: true),
+                _fieldLabel('pf_name'.tr, required: true),
                 SizedBox(height: 8.r(context)),
                 _filledField(
                   controller: _nameController,
-                  hint: 'أدخل الاسم',
+                  hint: 'pf_enter_name'.tr,
                   focusNode: _nameFocus,
                   keyboardType: TextInputType.name,
                   textCapitalization: TextCapitalization.words,
                 ),
                 SizedBox(height: 20.r(context)),
-                _fieldLabel('البريد الالكتروني', required: true),
+                _fieldLabel('pf_email'.tr, required: true),
                 SizedBox(height: 8.r(context)),
                 _filledField(
                   controller: _emailController,
-                  hint: 'أدخل البريد الالكتروني',
+                  hint: 'pf_enter_email'.tr,
                   focusNode: _emailFocus,
                   keyboardType: TextInputType.emailAddress,
                   textDirection: TextDirection.ltr,
@@ -230,7 +230,7 @@ class _UpdateProfileScreenState extends State<UpdateProfileScreen> {
                   suffix: _emailSuffix(pc),
                 ),
                 SizedBox(height: 20.r(context)),
-                _fieldLabel('رقم الهاتف', note: '(غير قابل للتعديل)'),
+                _fieldLabel('pf_phone_number'.tr, note: 'pf_not_editable'.tr),
                 SizedBox(height: 8.r(context)),
                 _filledField(
                   controller: _phoneController,
@@ -240,7 +240,7 @@ class _UpdateProfileScreenState extends State<UpdateProfileScreen> {
                   textDirection: TextDirection.ltr,
                 ),
                 SizedBox(height: 20.r(context)),
-                _fieldLabel('الجنس'),
+                _fieldLabel('pf_gender'.tr),
                 SizedBox(height: 8.r(context)),
                 _genderField(context),
                 SizedBox(height: 26.r(context)),
@@ -256,7 +256,7 @@ class _UpdateProfileScreenState extends State<UpdateProfileScreen> {
                       ),
                     ),
                     child: Text(
-                      'حذف الحساب',
+                      'pf_delete_account'.tr,
                       style: TextStyle(
                         fontFamily: 'Tajawal',
                         fontSize: 17.r(context),
@@ -277,7 +277,7 @@ class _UpdateProfileScreenState extends State<UpdateProfileScreen> {
             isLoading: pc.isLoading,
             radius: 12,
             fontFamily: 'Tajawal',
-            buttonText: 'حفظ',
+            buttonText: 'pf_save'.tr,
             onPressed: () => _updateProfile(
                 profileController: pc, fromButton: true, fromPhone: false),
           ),
@@ -407,7 +407,7 @@ class _UpdateProfileScreenState extends State<UpdateProfileScreen> {
           children: <Widget>[
             Expanded(
               child: Text(
-                hasValue ? _gender! : 'اختار الجنس',
+                hasValue ? _gender! : 'pf_select_gender'.tr,
                 style: TextStyle(
                   fontFamily: 'Tajawal',
                   fontSize: 14.r(context),
