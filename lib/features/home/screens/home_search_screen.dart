@@ -598,6 +598,12 @@ class _HomeSearchScreenState extends State<HomeSearchScreen> {
     if (text.isEmpty) return;
     if (_controller.text != text) _controller.text = text;
     FocusScope.of(context).unfocus();
+    // Save the real (submitted) term to recent history — not live typing.
+    if (Get.isRegistered<srch.SearchController>()) {
+      final sc = Get.find<srch.SearchController>();
+      sc.saveSearch(text);
+      _recent = List<String>.from(sc.historyList);
+    }
     _runSearch(text);
   }
 
@@ -797,27 +803,45 @@ class _HomeSearchScreenState extends State<HomeSearchScreen> {
     );
   }
 
-  Widget _chip(String label, {bool highlight = false, VoidCallback? onTap}) {
+  Widget _chip(String label,
+      {bool highlight = false, VoidCallback? onTap, VoidCallback? onDelete}) {
+    final Widget text = Text(
+      label,
+      textAlign: TextAlign.right,
+      style: TextStyle(
+        fontFamily: 'Tajawal',
+        fontWeight: FontWeight.w500,
+        fontSize: 15,
+        height: 1.4,
+        color: highlight ? const Color(0xFF1F7A35) : _chipText,
+      ),
+    );
     return InkWell(
       onTap: onTap ?? () => _search(label),
       borderRadius: BorderRadius.circular(Dimensions.radiusLarge),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        padding: EdgeInsets.only(
+            right: 14, left: onDelete != null ? 8 : 14, top: 8, bottom: 8),
         decoration: BoxDecoration(
           color: highlight ? const Color(0xFFE7F7EA) : _chipBg,
           borderRadius: BorderRadius.circular(Dimensions.radiusLarge),
         ),
-        child: Text(
-          label,
-          textAlign: TextAlign.right,
-          style: TextStyle(
-            fontFamily: 'Tajawal',
-            fontWeight: FontWeight.w500,
-            fontSize: 15,
-            height: 1.4,
-            color: highlight ? const Color(0xFF1F7A35) : _chipText,
-          ),
-        ),
+        child: onDelete == null
+            ? text
+            : Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  text,
+                  const SizedBox(width: 6),
+                  // Per-chip delete (×) for recent searches.
+                  InkWell(
+                    onTap: onDelete,
+                    borderRadius: BorderRadius.circular(20),
+                    child: Icon(Icons.close,
+                        size: 15, color: _chipText.withValues(alpha: 0.55)),
+                  ),
+                ],
+              ),
       ),
     );
   }
@@ -827,6 +851,15 @@ class _HomeSearchScreenState extends State<HomeSearchScreen> {
       Get.find<srch.SearchController>().clearSearchHistory();
     }
     setState(() => _recent = const []);
+  }
+
+  // Removes a single recent-search term (× on the chip).
+  void _removeRecent(String term) {
+    if (!Get.isRegistered<srch.SearchController>()) return;
+    final sc = Get.find<srch.SearchController>();
+    final int idx = sc.historyList.indexOf(term);
+    if (idx >= 0) sc.removeHistory(idx);
+    setState(() => _recent = List<String>.from(sc.historyList));
   }
 
   Widget _buildRecentSection() {
@@ -850,7 +883,9 @@ class _HomeSearchScreenState extends State<HomeSearchScreen> {
           spacing: Dimensions.paddingSizeSmall,
           runSpacing: Dimensions.paddingSizeSmall,
           alignment: WrapAlignment.start,
-          children: _recent.reversed.map(_chip).toList(),
+          children: _recent.reversed
+              .map((term) => _chip(term, onDelete: () => _removeRecent(term)))
+              .toList(),
         ),
       ],
     );

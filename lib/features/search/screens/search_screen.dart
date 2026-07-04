@@ -195,6 +195,10 @@ class SearchScreenState extends State<SearchScreen>
       // Exit search mode so results can be displayed
       searchController.setSearchMode(false, canUpdate: false);
 
+      // Save the real (explicit) search term to recent history — the live-typing
+      // path (searchData alone) no longer writes history.
+      searchController.saveSearch(queryText);
+
       // Trigger search (sets loading state synchronously, then fetches).
       searchController.searchData(query: queryText, fromHome: fromHome);
 

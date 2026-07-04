@@ -444,11 +444,8 @@ class SearchController extends GetxController implements GetxService {
         _allStoreList = null;
       }
 
-      if (!_historyList.contains(normalizedQuery)) {
-        _historyList.insert(0, normalizedQuery);
-      }
-
-      searchServiceInterface.saveSearchHistory(_historyList);
+      // History is saved ONLY on an explicit search (Go/Enter) via saveSearch(),
+      // so partial/live-typed queries no longer pollute the recent list.
       _isSearchMode = false;
 
       if (!(fromHome ?? false)) {
@@ -668,7 +665,19 @@ class SearchController extends GetxController implements GetxService {
     _searchText = '';
     _historyList = [];
     try {
-      _historyList.addAll(searchServiceInterface.getSearchAddress());
+      final List<String> stored = searchServiceInterface.getSearchAddress();
+      // Sanitize legacy history: drop short/blank terms and duplicates, cap 10.
+      final List<String> cleaned = <String>[];
+      for (final String s in stored) {
+        final String t = s.trim();
+        if (t.length >= 2 && !cleaned.contains(t)) cleaned.add(t);
+      }
+      if (cleaned.length > 10) cleaned.removeRange(10, cleaned.length);
+      _historyList.addAll(cleaned);
+      // Persist the cleaned list so the garbage doesn't come back.
+      if (cleaned.length != stored.length) {
+        searchServiceInterface.saveSearchHistory(_historyList);
+      }
       debugPrint('[Search][PARSED_COUNT] type=recent_searches count=${_historyList.length}');
     } catch (e) {
       debugPrint('[Search][ERROR] recent_searches $e');
@@ -682,6 +691,22 @@ class SearchController extends GetxController implements GetxService {
 
   void removeHistory(int index) {
     _historyList.removeAt(index);
+    searchServiceInterface.saveSearchHistory(_historyList);
+    update();
+  }
+
+  /// Persists a real search term to the recent-search history. Call this ONLY
+  /// on an explicit search (Go/Enter) — never on live/incremental typing.
+  /// Ignores terms shorter than 2 chars, de-duplicates (most-recent first),
+  /// and caps the history at 10 entries.
+  void saveSearch(String query) {
+    final String q = query.trim();
+    if (q.length < 2) return;
+    _historyList.remove(q); // drop any existing duplicate
+    _historyList.insert(0, q); // newest first
+    if (_historyList.length > 10) {
+      _historyList.removeRange(10, _historyList.length);
+    }
     searchServiceInterface.saveSearchHistory(_historyList);
     update();
   }
