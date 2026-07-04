@@ -5,7 +5,6 @@ import 'package:sixam_mart/api/api_client.dart';
 import 'package:sixam_mart/core/cache/simple_json_cache.dart';
 import 'package:sixam_mart/common/widgets/card_design/store_list_card.dart';
 import 'package:sixam_mart/features/home/screens/market_store_screen.dart';
-import 'package:sixam_mart/features/home/widgets/market/market_store_filters.dart';
 // Additive: reusable sort/filter bar (top bar + bottom sheets).
 import 'package:sixam_mart/features/restaurant/controllers/restaurant_filter_controller.dart';
 import 'package:sixam_mart/features/restaurant/widgets/restaurant_filter_bar.dart';
@@ -121,9 +120,6 @@ class _MarketStoresSectionState extends State<MarketStoresSection> {
   List<_Store> _items = const [];
   bool _loading = true;
 
-  // Active toggle filters driving the query (category comes from widget).
-  Set<String> _filters = const {};
-
   // ── Pagination (load farther stores as the user scrolls) ──────────────────
   int _page = 1; // v2 `offset` = 1-based page number
   int _totalSize = 0; // total stores available for the current query
@@ -184,18 +180,6 @@ class _MarketStoresSectionState extends State<MarketStoresSection> {
     }
   }
 
-  // Forwards a dropdown choice to the parent (single source of truth); the
-  // re-fetch happens via didUpdateWidget once widget.categoryId updates.
-  void _onCategoryChanged(int? id) => widget.onCategoryChanged?.call(id);
-
-  void _onFiltersChanged(Set<String> filters) {
-    setState(() {
-      _filters = filters;
-      _loading = true;
-    });
-    _fetch();
-  }
-
   /// Builds the stores query with the active category + toggle filters.
   /// NOTE: filter param names are best-guess pending backend confirmation.
   String _buildUrl() {
@@ -207,11 +191,20 @@ class _MarketStoresSectionState extends State<MarketStoresSection> {
     if (widget.categoryId != null) {
       params.add('category_id=${widget.categoryId}');
     }
-    if (_filters.contains('offers')) params.add('offers=1');
-    if (_filters.contains('top_rated')) params.add('top_rated=1');
-    if (_filters.contains('free_delivery')) params.add('free_delivery=1');
-    if (_filters.contains('within_30_minutes')) params.add('delivery_time=30');
-    if (_filters.contains('open_now')) params.add('open_now=1');
+    // Single source of truth: the new sort/filter bar controller.
+    final RestaurantFilterModel f =
+        Get.find<RestaurantFilterController>(tag: _filterTag).applied;
+    params.add('sort_by=${f.sortByApiValue}');
+    if (f.hasOffers) params.add('offers=1');
+    if (f.minRating != null) {
+      params.add('top_rated=1');
+      params.add('min_rating=${f.minRating!.toStringAsFixed(1)}');
+    }
+    if (f.freeDelivery) params.add('free_delivery=1');
+    if (f.within30Min) params.add('delivery_time=30');
+    if (f.isNew) params.add('is_new=1');
+    final int? priceRange = f.priceRangeApiValue;
+    if (priceRange != null) params.add('price_range=$priceRange');
     return '/api/v2/stores?${params.join('&')}';
   }
 
@@ -315,7 +308,9 @@ class _MarketStoresSectionState extends State<MarketStoresSection> {
     }
   }
 
-  bool get _hasActiveFilter => widget.categoryId != null || _filters.isNotEmpty;
+  bool get _hasActiveFilter =>
+      widget.categoryId != null ||
+      Get.find<RestaurantFilterController>(tag: _filterTag).hasActiveFilters;
 
   @override
   Widget build(BuildContext context) {
@@ -331,18 +326,8 @@ class _MarketStoresSectionState extends State<MarketStoresSection> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Additive: new sort/filter bar (☰ filters + quick chips + sort)
-          // above the existing category filter chips.
+          // Single merged sort/filter bar (☰ filters + quick chips + sort).
           RestaurantFilterBar(moduleType: _filterTag),
-          const SizedBox(height: Dimensions.paddingSizeExtraSmall),
-          // Filter chips lead the stores section (matches the design — no
-          // plain "المتاجر" header above them).
-          MarketStoreFilters(
-            moduleId: widget.moduleId,
-            selectedCategoryId: widget.categoryId,
-            onCategoryChanged: _onCategoryChanged,
-            onChanged: _onFiltersChanged,
-          ),
           const SizedBox(height: Dimensions.paddingSizeSmall),
           if (_loading)
             _buildSkeleton(context)
