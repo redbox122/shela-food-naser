@@ -39,6 +39,8 @@ import 'package:sixam_mart/features/banner/controllers/banner_controller.dart';
 import 'package:sixam_mart/features/category/controllers/category_controller.dart';
 import 'package:sixam_mart/features/brands/controllers/brands_controller.dart';
 import 'package:sixam_mart/features/offers/controllers/offers_controller.dart';
+// Old "عروض وخصومات" promo design, shown alongside the current-offers rail.
+import 'package:sixam_mart/features/offers/widgets/offers_view.dart';
 import 'package:sixam_mart/features/cart/controllers/cart_controller.dart';
 import 'package:sixam_mart/features/home/controllers/home_unified_controller.dart';
 import 'package:sixam_mart/common/enums/data_source_enum.dart';
@@ -451,6 +453,10 @@ class _HomeScreenState extends State<HomeScreen> {
                                       autoScroll: true,
                                     ),
                                   ),
+
+                                  // Old "عروض وخصومات" promo design (OffersView)
+                                  // shown alongside — additive, nothing removed.
+                                  const SliverToBoxAdapter(child: OffersView()),
 
                                   // "اكتشف خدمات أكثر" promo banner removed.
 
