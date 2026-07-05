@@ -1047,26 +1047,32 @@ class _PersonalInformationState extends State<PersonalInformation> {
               ),
             ),
             child: Row(
+              // Force LTR so the country code (+966) sits on the LEFT and the
+              // number on the RIGHT, even inside the RTL Arabic form.
+              textDirection: TextDirection.ltr,
               children: [
-                // ── Country code picker ──────────────────────────────────────
-                CountryCodePicker(
-                  initialSelection: 'SA',
-                  favorite: const ['+966'],
-                  showCountryOnly: false,
-                  showOnlyCountryWhenClosed: false,
-                  alignLeft: false,
-                  textStyle: font11Black500W(context, size: size_13(context)),
-                  onChanged: (code) {
-                    ctrl.setCountryDialCode(code.dialCode ?? '+966');
-                  },
-                  onInit: (code) {
-                    // Defer so we don't call update() during a build phase.
-                    WidgetsBinding.instance.addPostFrameCallback((_) {
-                      if (code != null && code.dialCode != null) {
-                        ctrl.setCountryDialCode(code.dialCode!);
-                      }
-                    });
-                  },
+                // ── Country code picker (flag then +966, forced LTR) ─────────
+                Directionality(
+                  textDirection: TextDirection.ltr,
+                  child: CountryCodePicker(
+                    initialSelection: 'SA',
+                    favorite: const ['+966'],
+                    showCountryOnly: false,
+                    showOnlyCountryWhenClosed: false,
+                    alignLeft: false,
+                    textStyle: font11Black500W(context, size: size_13(context)),
+                    onChanged: (code) {
+                      ctrl.setCountryDialCode(code.dialCode ?? '+966');
+                    },
+                    onInit: (code) {
+                      // Defer so we don't call update() during a build phase.
+                      WidgetsBinding.instance.addPostFrameCallback((_) {
+                        if (code != null && code.dialCode != null) {
+                          ctrl.setCountryDialCode(code.dialCode!);
+                        }
+                      });
+                    },
+                  ),
                 ),
                 // ── Divider ──────────────────────────────────────────────────
                 Container(
