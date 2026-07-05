@@ -2508,5 +2508,14 @@
     "rf_clear_all": "Clear all",
     "rf_apply": "Apply",
     "wallet_add_fund": "Add Funds",
-    "wallet_no_transactions_now": "No transactions at the moment"
+    "wallet_no_transactions_now": "No transactions at the moment",
+    "refer_invite_friends": "Invite Friends",
+    "refer_invited_friends": "Invited Friends",
+    "refer_invite_link": "Invitation Link",
+    "refer_invite_friends_and_businesses": "Invite your friends and businesses",
+    "refer_no_invited_friends": "No friends invited yet",
+    "refer_invites_count": "Invitations",
+    "refer_total_rewards": "Total Rewards",
+    "refer_status_pending": "Pending",
+    "refer_status_registered": "Registered"
 }

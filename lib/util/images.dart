@@ -598,4 +598,9 @@ class Images {
   static const String myWalletIcon = 'assets/image/my_wallet.png';
   static const String shield_tick = 'assets/image/shield-tick.png';
   static const String verify_step = 'assets/image/verify_step.png';
+  static const String invite_friends = 'assets/image/invite_friends.png';
+  static const String no_one_invite = 'assets/image/no_one_invite.png';
+  static const String coin_doller = 'assets/image/coin_doller.png';
+  static const String navProfile = 'assets/image/profile_v2.png';
+  static const String pending_v2 = 'assets/image/pending_v2.png';
 }

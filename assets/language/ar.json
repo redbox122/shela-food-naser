@@ -2523,5 +2523,14 @@
     "rf_clear_all": "حذف الكل",
     "rf_apply": "تطبيق",
     "wallet_add_fund": "أضف رصيد",
-    "wallet_no_transactions_now": "لا يوجد معاملات في الوقت الحالي"
+    "wallet_no_transactions_now": "لا يوجد معاملات في الوقت الحالي",
+    "refer_invite_friends": "دعوة الأصدقاء",
+    "refer_invited_friends": "الأصدقاء المدعوين",
+    "refer_invite_link": "رابط الدعوة",
+    "refer_invite_friends_and_businesses": "ادع أصدقاءك والشركات",
+    "refer_no_invited_friends": "لا يوجد أصدقاء تمت\nدعوتهم حالياً",
+    "refer_invites_count": "عدد الدعوات",
+    "refer_total_rewards": "إجمالي المكافآت",
+    "refer_status_pending": "انتظار",
+    "refer_status_registered": "تم التسجيل"
 }

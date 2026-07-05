@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:sixam_mart/features/refer_and_earn/controllers/referral_controller.dart';
 import 'package:sixam_mart/features/add_delegate/controllers/delegate_controller.dart';
 import 'package:sixam_mart/features/add_delegate/domain/reposotories/delegate_repository.dart';
 import 'package:sixam_mart/features/add_delegate/domain/reposotories/delegate_repository_interface.dart';
@@ -772,6 +773,7 @@ Future<Map<String, Map<String, String>>> init() async {
       ));
 
   // Update Controller
+  Get.lazyPut(() => ReferralController(apiClient: Get.find()));
   Get.lazyPut(() => UpdateController());
 
   // ======================================================================================================================

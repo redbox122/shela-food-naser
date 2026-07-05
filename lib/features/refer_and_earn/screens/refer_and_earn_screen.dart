@@ -1,25 +1,30 @@
-import 'package:expandable_bottom_sheet/expandable_bottom_sheet.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
-import 'package:dotted_border/dotted_border.dart';
-import 'package:share_plus/share_plus.dart';
-import 'package:sixam_mart/features/refer_and_earn/widgets/bottom_sheet_view_widget.dart';
 import 'package:sixam_mart/features/splash/controllers/splash_controller.dart';
 import 'package:sixam_mart/features/profile/controllers/profile_controller.dart';
 import 'package:sixam_mart/helper/auth_helper.dart';
 import 'package:sixam_mart/helper/price_converter.dart';
-import 'package:sixam_mart/helper/responsive_helper.dart';
 import 'package:sixam_mart/util/app_constants.dart';
-import 'package:sixam_mart/util/dimensions.dart';
 import 'package:sixam_mart/util/images.dart';
-import 'package:sixam_mart/util/styles.dart';
-import 'package:sixam_mart/common/widgets/custom_app_bar.dart';
 import 'package:sixam_mart/common/widgets/custom_snackbar.dart';
+import 'package:sixam_mart/common/widgets/custom_image.dart';
 import 'package:sixam_mart/common/widgets/error_state_view.dart';
-import 'package:sixam_mart/common/widgets/footer_view.dart';
 import 'package:sixam_mart/common/widgets/not_logged_in_screen.dart';
-import 'package:sixam_mart/common/widgets/web_page_title_widget.dart';
+import 'package:sixam_mart/features/refer_and_earn/controllers/referral_controller.dart';
+import 'package:sixam_mart/features/refer_and_earn/domain/models/invited_friends_model.dart';
+
+const Color _primary = Color(0xFF31A342);
+const Color _title = Color(0xFF2D3633);
+
+TextStyle _tajawal(double size, FontWeight weight, {Color color = _title}) {
+  return TextStyle(
+    fontFamily: 'Tajawal',
+    fontSize: size,
+    fontWeight: weight,
+    color: color,
+  );
+}
 
 class ReferAndEarnScreen extends StatefulWidget {
   const ReferAndEarnScreen({super.key});
@@ -29,12 +34,12 @@ class ReferAndEarnScreen extends StatefulWidget {
 }
 
 class _ReferAndEarnScreenState extends State<ReferAndEarnScreen> {
-  GlobalKey<ExpandableBottomSheetState> key = GlobalKey();
+  // 0 = رابط الدعوة , 1 = الأصدقاء المدعوين
+  int _tab = 0;
 
   @override
   void initState() {
     super.initState();
-
     _initCall();
   }
 
@@ -62,7 +67,6 @@ class _ReferAndEarnScreenState extends State<ReferAndEarnScreen> {
       config?.landingPageLinks?.appUrlAndroid,
       config?.landingPageLinks?.appUrlIos,
     ];
-
     for (final link in candidates) {
       final String value = (link ?? '').trim();
       if (value.isNotEmpty) {
@@ -72,257 +76,587 @@ class _ReferAndEarnScreenState extends State<ReferAndEarnScreen> {
     return '';
   }
 
+  /// رابط الدعوة المعروض والذي يُنسخ/يُشارك (يتضمّن رمز الإحالة إن وُجد)
+  String _referralLink(String refCode) {
+    final String storeLink = _resolveStoreLink();
+    if (storeLink.isEmpty) return refCode;
+    if (refCode.isEmpty) return storeLink;
+    final String sep = storeLink.contains('?') ? '&' : '?';
+    return '$storeLink${sep}ref=$refCode';
+  }
+
   @override
   Widget build(BuildContext context) {
     final bool isLoggedIn = AuthHelper.isLoggedIn();
     return Scaffold(
-      appBar: CustomAppBar(title: 'refer_and_earn'.tr),
-      body: ExpandableBottomSheet(
-        background: isLoggedIn
-            ? SingleChildScrollView(
-                padding: EdgeInsets.symmetric(horizontal: ResponsiveHelper.isDesktop(context) ? 0 : Dimensions.paddingSizeLarge),
-                child: Column(
+      backgroundColor: Theme.of(context).cardColor,
+      appBar: AppBar(
+        backgroundColor: Theme.of(context).cardColor,
+        surfaceTintColor: Colors.transparent,
+        scrolledUnderElevation: 0,
+        elevation: 0,
+        centerTitle: true,
+        automaticallyImplyLeading: false,
+        title: Text('refer_invite_friends'.tr, style: _tajawal(18, FontWeight.w700)),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_new, color: _title, size: 20),
+          onPressed: () => Get.back(),
+        ),
+      ),
+      body: isLoggedIn
+          ? GetBuilder<ProfileController>(builder: (profileController) {
+              if (profileController.userInfoModel == null &&
+                  profileController.hasProfileError) {
+                return ErrorStateView(
+                  onRetry: () => profileController.getUserInfo(),
+                );
+              }
+              final String referralCode =
+                  profileController.userInfoModel?.refCode?.trim() ?? '';
+              return Column(
+                children: [
+                  _buildTabs(),
+                  Expanded(
+                    child: _tab == 0
+                        ? _InviteLinkTab(
+                            referralCode: referralCode,
+                            referralLink: _referralLink(referralCode),
+                            onRefresh: () => profileController.getUserInfo(),
+                          )
+                        : const _InvitedFriendsTab(),
+                  ),
+                ],
+              );
+            })
+          : NotLoggedInScreen(callBack: (value) {
+              _initCall();
+              setState(() {});
+            }),
+    );
+  }
+
+  Widget _buildTabs() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+      child: Container(
+        padding: const EdgeInsets.all(4),
+        decoration: BoxDecoration(
+          color: const Color(0xFFF6F5F8),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Row(
+          children: [
+            Expanded(child: _segment('refer_invited_friends'.tr, 1)),
+            Expanded(child: _segment('refer_invite_link'.tr, 0)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _segment(String label, int index) {
+    final bool selected = _tab == index;
+    return GestureDetector(
+      onTap: () => setState(() => _tab = index),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        alignment: Alignment.center,
+        padding: const EdgeInsets.symmetric(vertical: 10),
+        decoration: BoxDecoration(
+          color: selected ? _primary : Colors.transparent,
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Text(
+          label,
+          style: _tajawal(16, FontWeight.w700,
+              color: selected ? Colors.white : const Color(0xFF082E0A)),
+        ),
+      ),
+    );
+  }
+}
+
+// ==== تبويب: رابط الدعوة ====
+class _InviteLinkTab extends StatelessWidget {
+  final String referralCode;
+  final String referralLink;
+  final VoidCallback onRefresh;
+  const _InviteLinkTab({
+    required this.referralCode,
+    required this.referralLink,
+    required this.onRefresh,
+  });
+
+  void _copy() {
+    if (referralLink.isNotEmpty) {
+      Clipboard.setData(ClipboardData(text: referralLink));
+      showCustomSnackBar('referral_code_copied'.tr, isError: false);
+    } else {
+      onRefresh();
+      showCustomSnackBar('Referral code is not available yet');
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final double refRate = Get.find<SplashController>()
+            .configModel
+            ?.refEarningExchangeRate
+            ?.toDouble() ??
+        0.0;
+
+    return Column(
+      children: [
+        Expanded(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // الصورة
+                Center(
+                  child: Image.asset(
+                    Images.invite_friends,
+                    width: 203,
+                    height: 210,
+                    fit: BoxFit.contain,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                // العنوان
+                Text('refer_invite_friends_and_businesses'.tr,
+                    textAlign: TextAlign.center,
+                    style: _tajawal(20, FontWeight.w700)),
+                const SizedBox(height: 8),
+                // الوصف
+                Row(
                   children: [
-                    WebScreenTitleWidget(title: 'refer_and_earn'.tr),
-                    FooterView(
-                      child: Center(
-                        child: SizedBox(
-                          width: Dimensions.webMaxWidth,
-                          child: GetBuilder<ProfileController>(builder: (profileController) {
-                            if (profileController.userInfoModel == null &&
-                                profileController.hasProfileError) {
-                              return ErrorStateView(
-                                onRetry: () {
-                                  profileController.getUserInfo();
-                                },
-                              );
-                            }
-                            final String referralCode =
-                                profileController.userInfoModel?.refCode
-                                        ?.trim() ??
-                                    '';
-                            final String storeLink = _resolveStoreLink();
-                            return Column(children: [
-                              Image.asset(
-                                Images.referImage,
-                                width: 500,
-                                height: ResponsiveHelper.isDesktop(context) ? 250 : 150,
-                                fit: BoxFit.contain,
-                              ),
-                              const SizedBox(height: Dimensions.paddingSizeExtraLarge),
-                              ResponsiveHelper.isDesktop(context)
-                                  ? const SizedBox()
-                                  : Text('earn_money_on_every_referral'.tr,
-                                      style: robotoRegular.copyWith(
-                                          color: Theme.of(context).primaryColor, fontSize: Dimensions.fontSizeSmall)),
-                              ResponsiveHelper.isDesktop(context)
-                                  ? const SizedBox()
-                                  : const SizedBox(height: Dimensions.paddingSizeExtraSmall),
-                              ResponsiveHelper.isDesktop(context)
-                                  ? const SizedBox()
-                                  : Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                                      Text(
-                                        '${'one_referral'.tr}= ',
-                                        style: robotoBold.copyWith(fontSize: Dimensions.fontSizeDefault),
-                                      ),
-                                      PriceConverter.convertPrice2(
-                                        Get.find<SplashController>().configModel != null
-                                            ? Get.find<SplashController>().configModel!.refEarningExchangeRate!.toDouble()
-                                            : 0.0,
-                                        textStyle: robotoBold.copyWith(fontSize: Dimensions.fontSizeDefault),
-                                      )
-                                    ]),
-                              ResponsiveHelper.isDesktop(context) ? const SizedBox() : const SizedBox(height: 40),
-                              Text('invite_friends_and_business'.tr,
-                                  style: robotoBold.copyWith(fontSize: Dimensions.fontSizeOverLarge), textAlign: TextAlign.center),
-                              const SizedBox(height: Dimensions.paddingSizeSmall),
-                              ResponsiveHelper.isDesktop(context)
-                                  ? Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                                      Text(
-                                        '${'one_referral'.tr}= ',
-                                        style: robotoMedium.copyWith(fontSize: Dimensions.fontSizeSmall),
-                                      ),
-                                      PriceConverter.convertPrice2(
-                                        Get.find<SplashController>().configModel != null
-                                            ? Get.find<SplashController>().configModel!.refEarningExchangeRate!.toDouble()
-                                            : 0.0,
-                                        textStyle: robotoMedium.copyWith(fontSize: Dimensions.fontSizeSmall),
-                                      )
-                                    ])
-                                  : const SizedBox(),
-                              ResponsiveHelper.isDesktop(context) ? const SizedBox(height: 40) : const SizedBox(),
-                              ResponsiveHelper.isDesktop(context)
-                                  ? const SizedBox()
-                                  : Text('copy_your_code_share_it_with_your_friends'.tr,
-                                      style: robotoRegular.copyWith(fontSize: Dimensions.fontSizeSmall), textAlign: TextAlign.center),
-                              ResponsiveHelper.isDesktop(context)
-                                  ? const SizedBox()
-                                  : const SizedBox(height: Dimensions.paddingSizeExtraLarge),
-                              ResponsiveHelper.isDesktop(context)
-                                  ? Align(
-                                      alignment: Alignment.topLeft,
-                                      child: Text('your_personal_code'.tr,
-                                          style: robotoRegular.copyWith(fontSize: Dimensions.fontSizeSmall),
-                                          textAlign: TextAlign.center),
-                                    )
-                                  : const SizedBox(),
-                              ResponsiveHelper.isDesktop(context)
-                                  ? const SizedBox()
-                                  : Text('your_personal_code'.tr,
-                                      style: robotoRegular.copyWith(
-                                          fontSize: Dimensions.fontSizeSmall, color: Theme.of(context).hintColor),
-                                      textAlign: TextAlign.center),
-                              const SizedBox(height: Dimensions.paddingSizeSmall),
-                              DottedBorder(
-                                color: Theme.of(context).primaryColor,
-                                dashPattern: const [8, 5],
-                                padding: const EdgeInsets.all(0),
-                                borderType: BorderType.RRect,
-                                radius: Radius.circular(ResponsiveHelper.isDesktop(context) ? Dimensions.radiusDefault : 50),
-                                child: SizedBox(
-                                  height: 50,
-                                  child: (profileController.userInfoModel != null)
-                                      ? Row(children: [
-                                          Expanded(
-                                            child: Padding(
-                                              padding: const EdgeInsets.only(
-                                                  left: Dimensions.paddingSizeLarge, right: Dimensions.paddingSizeLarge),
-                                              child: Text(
-                                                referralCode.isNotEmpty
-                                                    ? referralCode
-                                                    : '--',
-                                                style: robotoMedium.copyWith(fontSize: Dimensions.fontSizeExtraLarge),
-                                              ),
-                                            ),
-                                          ),
-                                          InkWell(
-                                            onTap: () {
-                                              if (referralCode.isNotEmpty) {
-                                                Clipboard.setData(
-                                                    ClipboardData(
-                                                        text: referralCode));
-                                                showCustomSnackBar('referral_code_copied'.tr, isError: false);
-                                              } else {
-                                                profileController.getUserInfo();
-                                                showCustomSnackBar('Referral code is not available yet');
-                                              }
-                                            },
-                                            child: Container(
-                                              alignment: Alignment.center,
-                                              decoration: BoxDecoration(
-                                                  color: Theme.of(context).primaryColor,
-                                                  borderRadius: BorderRadius.circular(
-                                                      ResponsiveHelper.isDesktop(context) ? Dimensions.radiusDefault : 50)),
-                                              padding: const EdgeInsets.symmetric(horizontal: Dimensions.paddingSizeExtraLarge),
-                                              margin: const EdgeInsets.all(Dimensions.paddingSizeExtraSmall),
-                                              child: Text('copy'.tr,
-                                                  style: robotoMedium.copyWith(
-                                                      color: Theme.of(context).cardColor, fontSize: Dimensions.fontSizeDefault)),
-                                            ),
-                                          ),
-                                        ])
-                                      : const CircularProgressIndicator(),
-                                ),
-                              ),
-                              const SizedBox(height: Dimensions.paddingSizeLarge),
-                              Wrap(children: [
-                                InkWell(
-                                  onTap: () {
-                                    if (referralCode.isEmpty) {
-                                      profileController.getUserInfo();
-                                      showCustomSnackBar(
-                                          'Referral code is not available yet');
-                                      return;
-                                    }
-                                    final String shareText = storeLink.isNotEmpty
-                                        ? '${AppConstants.appName} ${'referral_code'.tr}: $referralCode \n${'download_app_from_this_link'.tr}: $storeLink'
-                                        : '${AppConstants.appName} ${'referral_code'.tr}: $referralCode';
-                                    Share.share(shareText);
-                                  },
-                                  child: Container(
-                                    decoration: BoxDecoration(
-                                      shape: BoxShape.circle,
-                                      color: Theme.of(context).cardColor,
-                                      boxShadow: [
-                                        BoxShadow(color: Theme.of(context).primaryColor.withValues(alpha: 0.2), blurRadius: 5)
-                                      ],
-                                    ),
-                                    padding: const EdgeInsets.all(7),
-                                    child: const Icon(Icons.share),
-                                  ),
-                                )
-                              ]),
-                              ResponsiveHelper.isDesktop(context)
-                                  ? const Padding(
-                                      padding: EdgeInsets.only(top: Dimensions.paddingSizeExtraLarge),
-                                      child: BottomSheetViewWidget(),
-                                    )
-                                  : const SizedBox(),
-                            ]);
-                          }),
-                        ),
+                    Image.asset(
+                      Images.star_v2,
+                      width: 25,
+                      height: 25,
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      'copy_your_code_share_it_with_your_friends'.tr,
+                      textAlign: TextAlign.center,
+                      style: _tajawal(16, FontWeight.w500,
+                          color: const Color(0xFF111B18)),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                // 1 الإحالة = السعر
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Image.asset(
+                      Images.coin_doller,
+                      width: 18,
+                      height: 18,
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      '${'one_referral'.tr} = ',
+                      style: _tajawal(18, FontWeight.w500,
+                          color: Color(0xff111B18)),
+                    ),
+                    PriceConverter.convertPrice2(
+                      refRate,
+                      textStyle: _tajawal(
+                        18,
+                        FontWeight.w500,
                       ),
                     ),
                   ],
                 ),
-              )
-            : NotLoggedInScreen(callBack: (value) {
-                _initCall();
-                setState(() {});
-              }),
-        key: key,
-        persistentHeader: ResponsiveHelper.isDesktop(context)
-            ? null
-            : InkWell(
-                onTap: () {
-                  if (key.currentState?.expansionStatus == ExpansionStatus.expanded) {
-                    setState(() {
-                      key.currentState!.contract();
-                    });
-                  } else {
-                    setState(() {
-                      key.currentState!.expand();
-                    });
-                  }
-                },
-                child: Container(
-                  constraints: const BoxConstraints.expand(height: 60),
+                const SizedBox(height: 24),
+                // الرمز الشخصي الخاص بك
+                Text('your_personal_code'.tr,
+                    style: _tajawal(14, FontWeight.w700)),
+                const SizedBox(height: 8),
+                // حقل الرابط مع زر النسخ
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                   decoration: BoxDecoration(
-                    borderRadius: const BorderRadius.only(
-                        topLeft: Radius.circular(Dimensions.paddingSizeExtraLarge),
-                        topRight: Radius.circular(Dimensions.paddingSizeExtraLarge)),
-                    color: Theme.of(context).primaryColor.withValues(alpha: 0.1),
-                    border: Border(
-                      top: BorderSide(color: Theme.of(context).primaryColor, width: 0.3),
-                    ),
+                    color: const Color(0xFFF6F5F8),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: const Color(0xFFE5E5E5)),
                   ),
-                  child: Column(children: [
-                    Center(
-                      child: Container(
-                        margin: const EdgeInsets.only(top: Dimensions.paddingSizeDefault),
-                        height: 3,
-                        width: 40,
-                        decoration: BoxDecoration(
-                          color: Theme.of(context).primaryColor,
-                          borderRadius: BorderRadius.circular(Dimensions.paddingSizeExtraSmall),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          referralLink.isNotEmpty ? referralLink : '--',
+                          textDirection: TextDirection.ltr,
+                          textAlign: TextAlign.right,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: _tajawal(16, FontWeight.w700,
+                              color: const Color(0xFF000000)),
                         ),
                       ),
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.only(
-                          left: Dimensions.paddingSizeDefault, top: Dimensions.paddingSizeSmall, right: Dimensions.paddingSizeDefault),
-                      child: Row(children: [
-                        const Icon(Icons.error_outline, size: 16),
-                        const SizedBox(width: Dimensions.paddingSizeExtraSmall),
-                        Text('how_it_works'.tr,
-                            style: robotoMedium.copyWith(fontSize: Dimensions.fontSizeDefault), textAlign: TextAlign.center),
-                      ]),
-                    ),
-                  ]),
+                      const SizedBox(width: 10),
+                      InkWell(
+                        onTap: _copy,
+                        borderRadius: BorderRadius.circular(8),
+                        child: Padding(
+                          padding: const EdgeInsets.all(2),
+                          child: Image.asset(
+                            Images.copyCoupon,
+                            width: 25,
+                            height: 25,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-        expandableContent: ResponsiveHelper.isDesktop(context) || !isLoggedIn ? const SizedBox() : const BottomSheetViewWidget(),
+                const SizedBox(height: 20),
+                // كيف يعمل ؟
+                _HowItWorksBox(),
+                const SizedBox(height: 12),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+// ==== صندوق: كيف يعمل ؟ ====
+class _HowItWorksBox extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    final List<String> steps = AppConstants.dataList;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Color(0xffEBFEEB),
+        borderRadius: BorderRadius.circular(14),
       ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('how_it_works'.tr, style: _tajawal(16, FontWeight.w700)),
+          const SizedBox(height: 12),
+          ...List.generate(steps.length, (int i) {
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('${i + 1}- ',
+                      style: _tajawal(
+                        13,
+                        FontWeight.w700,
+                      )),
+                  Expanded(
+                    child: Text(steps[i], style: _tajawal(16, FontWeight.w700)),
+                  ),
+                ],
+              ),
+            );
+          }),
+        ],
+      ),
+    );
+  }
+}
+
+// ==== تبويب: الأصدقاء المدعوين (بيانات حقيقية من الـ API) ====
+class _InvitedFriendsTab extends StatefulWidget {
+  const _InvitedFriendsTab();
+
+  @override
+  State<_InvitedFriendsTab> createState() => _InvitedFriendsTabState();
+}
+
+class _InvitedFriendsTabState extends State<_InvitedFriendsTab> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Get.find<ReferralController>().getInvitedFriends();
+    });
+  }
+
+  Widget _emptyState() {
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Image.asset(
+            Images.no_one_invite,
+            width: 204,
+            height: 210,
+            fit: BoxFit.contain,
+          ),
+          const SizedBox(height: 16),
+          Text('refer_no_invited_friends'.tr,
+              textAlign: TextAlign.center,
+              style: _tajawal(15, FontWeight.w600, color: _title)),
+        ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return GetBuilder<ReferralController>(builder: (controller) {
+      if (controller.isLoading && controller.invitedFriends == null) {
+        return const Center(child: CircularProgressIndicator());
+      }
+      if (controller.hasError && controller.invitedFriends == null) {
+        return ErrorStateView(
+          onRetry: () => controller.getInvitedFriends(),
+        );
+      }
+
+      final InvitedFriendsModel? model = controller.invitedFriends;
+      final List<InvitedFriendItem> friends = model?.friends ?? const [];
+
+      if (friends.isEmpty) {
+        return RefreshIndicator(
+          onRefresh: () => controller.getInvitedFriends(),
+          child: ListView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            children: [
+              SizedBox(height: MediaQuery.of(context).size.height * 0.15),
+              _emptyState(),
+            ],
+          ),
+        );
+      }
+
+      final ReferralSummary? summary = model?.summary;
+      return RefreshIndicator(
+        onRefresh: () => controller.getInvitedFriends(),
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _SummaryCard(
+                totalRewards: summary?.totalRewards ?? 0,
+                invitesCount: summary?.totalInvites ?? friends.length,
+              ),
+              const SizedBox(height: 16),
+              ..._buildGrouped(friends),
+            ],
+          ),
+        ),
+      );
+    });
+  }
+
+  List<Widget> _buildGrouped(List<InvitedFriendItem> list) {
+    final List<Widget> widgets = [];
+    String? currentLabel;
+    for (final InvitedFriendItem f in list) {
+      final String label = f.dateGroupLabel;
+      if (label.isNotEmpty && label != currentLabel) {
+        currentLabel = label;
+        widgets.add(Padding(
+          padding: EdgeInsets.only(top: widgets.isEmpty ? 0 : 14, bottom: 10),
+          child: Text(label,
+              style: _tajawal(16, FontWeight.w700,
+                  color: const Color(0xFF707784))),
+        ));
+      }
+      widgets.add(_FriendRow(friend: f));
+    }
+    return widgets;
+  }
+}
+
+// ==== بطاقة الملخّص الخضراء ====
+class _SummaryCard extends StatelessWidget {
+  final double totalRewards;
+  final int invitesCount;
+  const _SummaryCard({required this.totalRewards, required this.invitesCount});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 16),
+      decoration: BoxDecoration(
+        image: const DecorationImage(
+          image: AssetImage(Images.card_quidha),
+          fit: BoxFit.cover,
+        ),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Row(
+        children: [
+          // إجمالي المكافآت
+          Expanded(
+            child: Column(
+              children: [
+                Text('$invitesCount',
+                    style: _tajawal(26, FontWeight.w700, color: Colors.white)),
+                const SizedBox(height: 4),
+                Text('refer_invites_count'.tr,
+                    style: _tajawal(12, FontWeight.w500,
+                        color: Colors.white.withValues(alpha: 0.9))),
+              ],
+            ),
+          ),
+
+          Expanded(
+            child: Column(
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(totalRewards.toStringAsFixed(0),
+                        style:
+                            _tajawal(26, FontWeight.w700, color: Colors.white)),
+                    const SizedBox(width: 5),
+                    Image.asset(Images.sar,
+                        width: 18, height: 18, color: Colors.white),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Text('refer_total_rewards'.tr,
+                    style: _tajawal(12, FontWeight.w500,
+                        color: Colors.white.withValues(alpha: 0.9))),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ==== صف الصديق المدعو ====
+class _FriendRow extends StatelessWidget {
+  final InvitedFriendItem friend;
+  const _FriendRow({required this.friend});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardColor,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        children: [
+          // الأفاتار (صورة الصديق من الـ API)
+          ClipOval(
+            child: friend.avatarFullUrl.isNotEmpty
+                ? CustomImage(
+                    image: friend.avatarFullUrl,
+                    width: 38,
+                    height: 38,
+                    fit: BoxFit.cover,
+                  )
+                : Container(
+                    width: 38,
+                    height: 38,
+                    color: const Color(0xFFF6F5F8),
+                    alignment: Alignment.center,
+                    child:
+                        Image.asset(Images.navProfile, width: 20, height: 20),
+                  ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              friend.name,
+              style: _tajawal(16, FontWeight.w700),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          const SizedBox(width: 8),
+          friend.isRegistered
+              ? _RegisteredBadge(reward: friend.rewardAmount)
+              : const _PendingBadge(),
+        ],
+      ),
+    );
+  }
+}
+
+class _PendingBadge extends StatelessWidget {
+  const _PendingBadge();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: const Color(0xFFDFD3F5),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Image.asset(
+            Images.pending_v2,
+            width: 20,
+            height: 20,
+          ),
+          const SizedBox(width: 4),
+          Text('refer_status_pending'.tr,
+              style: _tajawal(12, FontWeight.w600,
+                  color: const Color(0xFF111B18))),
+        ],
+      ),
+    );
+  }
+}
+
+class _RegisteredBadge extends StatelessWidget {
+  final double reward;
+  const _RegisteredBadge({required this.reward});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.end,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text('+ ${reward.toStringAsFixed(0)}',
+                style: _tajawal(13, FontWeight.w700, color: _primary)),
+            const SizedBox(width: 3),
+            Image.asset(Images.sar, width: 12, height: 12, color: _primary),
+          ],
+        ),
+        const SizedBox(height: 3),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+          decoration: BoxDecoration(
+            color: const Color(0xFFEBFEEB),
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(
+                Icons.check,
+                size: 12,
+              ),
+              const SizedBox(width: 3),
+              Text('refer_status_registered'.tr,
+                  style:
+                      _tajawal(12, FontWeight.w500, color: Color(0xFF111B18))),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }
