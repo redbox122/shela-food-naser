@@ -230,6 +230,7 @@ class _InviteLinkTab extends StatelessWidget {
                 const SizedBox(height: 8),
                 // الوصف
                 Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Image.asset(
                       Images.star_v2,
@@ -237,11 +238,14 @@ class _InviteLinkTab extends StatelessWidget {
                       height: 25,
                     ),
                     const SizedBox(width: 6),
-                    Text(
-                      'copy_your_code_share_it_with_your_friends'.tr,
-                      textAlign: TextAlign.center,
-                      style: _tajawal(16, FontWeight.w500,
-                          color: const Color(0xFF111B18)),
+                    // Flexible so a long description wraps instead of overflowing.
+                    Flexible(
+                      child: Text(
+                        'copy_your_code_share_it_with_your_friends'.tr,
+                        textAlign: TextAlign.center,
+                        style: _tajawal(16, FontWeight.w500,
+                            color: const Color(0xFF111B18)),
+                      ),
                     ),
                   ],
                 ),
