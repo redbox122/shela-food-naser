@@ -496,32 +496,45 @@ class KaidhaSubscriptionController extends GetxController
           showCustomSnackBar('لقد تم تحقق المصادقة بنجاح', isError: false);
         }
 
-        await Nafath_send_All_Data(
-          context,
-          identity_card_number.text,
-          city,
-          neighborhood.text,
-          house_type,
-        ).then((onValue) async {
+        // Guarded so the page can never hang: bound the signing call with a
+        // timeout and catch any error, always releasing the loading state below.
+        try {
+          final signResp = await Nafath_send_All_Data(
+            context,
+            identity_card_number.text,
+            city,
+            neighborhood.text,
+            house_type,
+          ).timeout(const Duration(seconds: 40));
+
           if (!context.mounted) {
-            return;
+            return null;
           }
           debugPrint(
-              '\x1B[32m  Contract Signing API Call   ${onValue?.statusCode}  \x1B[0m');
+              '\x1B[32m  Contract Signing API Call   ${signResp?.statusCode}  \x1B[0m');
 
-          if (onValue != null &&
-              (onValue.statusCode == 200 ||
-                  onValue.statusCode == 201 ||
-                  onValue.statusCode == 302)) {
+          if (signResp != null &&
+              (signResp.statusCode == 200 ||
+                  signResp.statusCode == 201 ||
+                  signResp.statusCode == 302)) {
             // Navigate directly to waiting screen
             showCustomSnackBar('wallet_created_success'.tr, isError: false);
             Get.toNamed(RouteHelper.getKiadaWalletSubscription());
-          } else if (onValue?.statusCode == 404) {
+          } else if (signResp?.statusCode == 404) {
             showCustomSnackBar('try_again_later'.tr);
           } else {
             showCustomSnackBar('wallet_creation_error'.tr);
           }
-        });
+        } on TimeoutException {
+          if (context.mounted) {
+            showCustomSnackBar('انتهت مهلة توقيع العقد، حاول مرة أخرى');
+          }
+        } catch (e) {
+          debugPrint('❌ Contract signing error: $e');
+          if (context.mounted) {
+            showCustomSnackBar('wallet_creation_error'.tr);
+          }
+        }
       } else if (onValue.status == 'rejected') {
         _nafath_checkStatus = NafathCheckStatusModel(
           status: 'rejected',
