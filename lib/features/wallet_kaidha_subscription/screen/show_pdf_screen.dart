@@ -6,7 +6,6 @@ import 'package:sixam_mart/features/wallet_kaidha_subscription/controllers/kaidh
 import 'package:sixam_mart/helper/route_helper.dart';
 import 'package:sixam_mart/util/app_colors.dart';
 import 'package:sixam_mart/util/dimensions.dart';
-import 'package:sixam_mart/util/images.dart';
 
 class ShowPdfScreen extends StatefulWidget {
   const ShowPdfScreen({super.key});
@@ -35,16 +34,8 @@ class _ShowPdfScreenState extends State<ShowPdfScreen> {
                     child: Column(
                       children: [
                         const SizedBox(height: 8),
-                        // Hourglass illustration.
-                        Image.asset(
-                          Images.hourGlass,
-                          height: 170,
-                          fit: BoxFit.contain,
-                          errorBuilder: (_, __, ___) => const Icon(
-                              Icons.hourglass_top,
-                              size: 120,
-                              color: _green),
-                        ),
+                        // Hourglass illustration (green frame + sand, clouds, X marks).
+                        const _KaidhaHourglassArt(),
                         const SizedBox(height: 20),
                         const Text(
                           'طلبك قيد المراجعة النهائية',
@@ -204,6 +195,129 @@ class _ShowPdfScreenState extends State<ShowPdfScreen> {
 }
 
 //
+
+/// Green hourglass illustration (frame + sand) with soft clouds and X marks,
+/// drawn to match the pending-review design without needing an image asset.
+class _KaidhaHourglassArt extends StatelessWidget {
+  const _KaidhaHourglassArt();
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 210,
+      height: 190,
+      child: CustomPaint(painter: _HourglassPainter()),
+    );
+  }
+}
+
+class _HourglassPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final double w = size.width;
+    final double h = size.height;
+    const green = Color(0xFF3DAE52);
+    const sandLight = Color(0xFFCDEFC6);
+    const sandMed = Color(0xFF8FD597);
+    const cloud = Color(0xFFEAF7E6);
+    const shadow = Color(0xFFD8F0D2);
+
+    final double cx = w / 2;
+    const double topY = 42;
+    final double botY = h - 26;
+    final double cy = (topY + botY) / 2;
+    const double halfTop = 42;
+    const double neck = 5;
+
+    // Bottom shadow.
+    canvas.drawOval(
+      Rect.fromCenter(center: Offset(cx, h - 14), width: 122, height: 20),
+      Paint()..color = shadow,
+    );
+
+    // Clouds.
+    final cloudPaint = Paint()..color = cloud;
+    _cloud(canvas, cloudPaint, Offset(w * 0.34, 26), 1.0);
+    _cloud(canvas, cloudPaint, Offset(w * 0.66, 20), 1.15);
+
+    // Scattered X marks.
+    final xPaint = Paint()
+      ..color = green
+      ..strokeWidth = 3
+      ..strokeCap = StrokeCap.round;
+    _x(canvas, xPaint, Offset(w * 0.15, h * 0.32), 6);
+    _x(canvas, xPaint, Offset(w * 0.87, h * 0.44), 6);
+    _x(canvas, xPaint, Offset(w * 0.20, h * 0.60), 5);
+
+    // Sand — top (light) resting above the neck.
+    final topSand = Path()
+      ..moveTo(cx - neck, cy - 2)
+      ..quadraticBezierTo(cx - halfTop, cy - 28, cx - halfTop * 0.7, topY + 26)
+      ..quadraticBezierTo(cx, topY + 18, cx + halfTop * 0.7, topY + 26)
+      ..quadraticBezierTo(cx + halfTop, cy - 28, cx + neck, cy - 2)
+      ..close();
+    canvas.drawPath(topSand, Paint()..color = sandLight);
+
+    // Sand — bottom mound.
+    final botSand = Path()
+      ..moveTo(cx - neck, cy + 2)
+      ..quadraticBezierTo(cx - halfTop * 0.5, botY - 14, cx - halfTop * 0.85, botY - 6)
+      ..quadraticBezierTo(cx, botY - 26, cx + halfTop * 0.85, botY - 6)
+      ..quadraticBezierTo(cx + halfTop * 0.5, botY - 14, cx + neck, cy + 2)
+      ..close();
+    canvas.drawPath(botSand, Paint()..color = sandMed);
+
+    // Top & bottom caps.
+    final capPaint = Paint()..color = green;
+    canvas.drawRRect(
+      RRect.fromLTRBR(cx - halfTop - 4, topY - 8, cx + halfTop + 4, topY,
+          const Radius.circular(6)),
+      capPaint,
+    );
+    canvas.drawRRect(
+      RRect.fromLTRBR(cx - halfTop - 4, botY, cx + halfTop + 4, botY + 8,
+          const Radius.circular(6)),
+      capPaint,
+    );
+
+    // Curved glass outline.
+    final frame = Paint()
+      ..color = green
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 6
+      ..strokeJoin = StrokeJoin.round
+      ..strokeCap = StrokeCap.round;
+    final left = Path()
+      ..moveTo(cx - halfTop, topY)
+      ..quadraticBezierTo(cx - halfTop, cy - 18, cx - neck, cy)
+      ..quadraticBezierTo(cx - halfTop, cy + 18, cx - halfTop, botY);
+    final right = Path()
+      ..moveTo(cx + halfTop, topY)
+      ..quadraticBezierTo(cx + halfTop, cy - 18, cx + neck, cy)
+      ..quadraticBezierTo(cx + halfTop, cy + 18, cx + halfTop, botY);
+    canvas.drawPath(left, frame);
+    canvas.drawPath(right, frame);
+  }
+
+  void _cloud(Canvas c, Paint p, Offset o, double s) {
+    c.drawCircle(o, 12 * s, p);
+    c.drawCircle(o + Offset(16 * s, 4 * s), 9 * s, p);
+    c.drawCircle(o + Offset(-14 * s, 4 * s), 8 * s, p);
+    c.drawRRect(
+      RRect.fromLTRBR(o.dx - 16 * s, o.dy + 2 * s, o.dx + 18 * s, o.dy + 12 * s,
+          Radius.circular(6 * s)),
+      p,
+    );
+  }
+
+  void _x(Canvas c, Paint p, Offset o, double r) {
+    c.drawLine(o + Offset(-r, -r), o + Offset(r, r), p);
+    c.drawLine(o + Offset(r, -r), o + Offset(-r, r), p);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
 
 class ReviewScreen extends StatelessWidget {
   const ReviewScreen({super.key});
