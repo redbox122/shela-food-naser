@@ -146,7 +146,8 @@ class _KiadaWalletSubscriptionScreenState
                   ? const Center(child: CircularProgressIndicator())
                   : Padding(
                       padding: const EdgeInsets.only(top: 20),
-                      child: (KaidhaSubController.walletKaidhaModel?.wallet !=
+                      child: (KaidhaSubController.reviewReady ||
+                              (KaidhaSubController.walletKaidhaModel?.wallet !=
                                   null &&
                               (KaidhaSubController
                                           .walletKaidhaModel!.wallet!.status ==
@@ -166,7 +167,7 @@ class _KiadaWalletSubscriptionScreenState
                                       1 ||
                                   KaidhaSubController.walletKaidhaModel!.wallet!
                                           .signatureStatus ==
-                                      true))
+                                      true)))
                           ? const ShowPdfScreen()
                           : Column(
                               children: [

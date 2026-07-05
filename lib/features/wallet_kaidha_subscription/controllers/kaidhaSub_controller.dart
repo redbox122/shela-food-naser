@@ -190,6 +190,12 @@ class KaidhaSubscriptionController extends GetxController
 
   NafathCheckStatusModel? _nafath_checkStatus;
   NafathCheckStatusModel? get nafath_checkStatus => _nafath_checkStatus;
+
+  // Once Nafath is approved the application is considered submitted, so the
+  // pending-review screen is shown right away without waiting for the (async)
+  // contract signing to finish. Signing completes in the background/webhook.
+  bool _reviewReady = false;
+  bool get reviewReady => _reviewReady;
   String? _lastNafathStatus;
   String? _nafathFailReason;
   DateTime? _nafathRequestCreatedAt;
@@ -496,44 +502,28 @@ class KaidhaSubscriptionController extends GetxController
           showCustomSnackBar('لقد تم تحقق المصادقة بنجاح', isError: false);
         }
 
-        // Guarded so the page can never hang: bound the signing call with a
-        // timeout and catch any error, always releasing the loading state below.
-        try {
-          final signResp = await Nafath_send_All_Data(
-            context,
-            identity_card_number.text,
-            city,
-            neighborhood.text,
-            house_type,
-          ).timeout(const Duration(seconds: 40));
+        // The application is submitted once Nafath is approved, so go straight to
+        // the pending-review screen. Signing runs in the BACKGROUND (fire-and-
+        // forget) and also completes via the Sadq webhook — a signing hiccup no
+        // longer blocks the user or freezes the page.
+        _reviewReady = true;
+        update();
 
-          if (!context.mounted) {
-            return null;
-          }
-          debugPrint(
-              '\x1B[32m  Contract Signing API Call   ${signResp?.statusCode}  \x1B[0m');
+        Nafath_send_All_Data(
+          context,
+          identity_card_number.text,
+          city,
+          neighborhood.text,
+          house_type,
+        ).timeout(const Duration(seconds: 40)).then(
+          (signResp) => debugPrint(
+              '\x1B[32m  Background signing -> ${signResp?.statusCode}  \x1B[0m'),
+          onError: (Object e) =>
+              debugPrint('❌ Background contract signing error: $e'),
+        );
 
-          if (signResp != null &&
-              (signResp.statusCode == 200 ||
-                  signResp.statusCode == 201 ||
-                  signResp.statusCode == 302)) {
-            // Navigate directly to waiting screen
-            showCustomSnackBar('wallet_created_success'.tr, isError: false);
-            Get.toNamed(RouteHelper.getKiadaWalletSubscription());
-          } else if (signResp?.statusCode == 404) {
-            showCustomSnackBar('try_again_later'.tr);
-          } else {
-            showCustomSnackBar('wallet_creation_error'.tr);
-          }
-        } on TimeoutException {
-          if (context.mounted) {
-            showCustomSnackBar('انتهت مهلة توقيع العقد، حاول مرة أخرى');
-          }
-        } catch (e) {
-          debugPrint('❌ Contract signing error: $e');
-          if (context.mounted) {
-            showCustomSnackBar('wallet_creation_error'.tr);
-          }
+        if (context.mounted) {
+          Get.toNamed(RouteHelper.getKiadaWalletSubscription());
         }
       } else if (onValue.status == 'rejected') {
         _nafath_checkStatus = NafathCheckStatusModel(
