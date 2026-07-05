@@ -196,6 +196,15 @@ class KaidhaSubscriptionController extends GetxController
   // contract signing to finish. Signing completes in the background/webhook.
   bool _reviewReady = false;
   bool get reviewReady => _reviewReady;
+
+  /// Marks the application as submitted so the pending-review screen is shown
+  /// (used both right after Nafath approval and on app open when an existing
+  /// submitted wallet is found — so the customer registers only once).
+  void markReviewReady() {
+    if (_reviewReady) return;
+    _reviewReady = true;
+    update();
+  }
   String? _lastNafathStatus;
   String? _nafathFailReason;
   DateTime? _nafathRequestCreatedAt;

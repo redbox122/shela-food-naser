@@ -81,6 +81,21 @@ class _KiadaWalletSubscriptionScreenState
         final signatureStatus = wallet.signatureStatus;
         final isSigned = signatureStatus == 1 || signatureStatus == true;
         final isPendingOrApproved = status == 'pending' || status == 'approved';
+
+        // Register once: if the customer already submitted an application, show
+        // the pending-review screen on open instead of the registration steps.
+        const submittedStatuses = {
+          'pending',
+          'approved',
+          'pending signature',
+          'signed',
+          'in_review',
+          'review',
+        };
+        if (status != null && submittedStatuses.contains(status)) {
+          KaidhaSubController.markReviewReady();
+        }
+
         if (isSigned && isPendingOrApproved) {
           await KaidhaSubController.get_Pdf();
         }
