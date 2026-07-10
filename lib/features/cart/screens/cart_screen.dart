@@ -1406,10 +1406,57 @@ class _ModernCartItemCard extends StatelessWidget {
     required this.cartController,
   });
 
+  /// Short labels for the item's SELECTED food-variation choices + add-ons,
+  /// shown under the name (e.g. "ساندوتش 1/2: بيج تايستي"). Read-only; returns
+  /// an empty list when the item has no selections so simple items are unchanged.
+  List<String> _selectedChoiceLabels() {
+    final out = <String>[];
+    // Preferred: labels the server already returned in {name, values} shape
+    // (market options sheet / order format).
+    final serverLabels = cart.selectedVariationLabels;
+    if (serverLabels != null && serverLabels.isNotEmpty) {
+      out.addAll(serverLabels);
+    }
+    // Fallback: reconstruct from food-variation selection flags + definitions.
+    final defs = cart.item?.foodVariations;
+    final sel = cart.foodVariations;
+    if (out.isEmpty && defs != null && sel != null) {
+      for (int i = 0; i < defs.length && i < sel.length; i++) {
+        final vals = defs[i].variationValues;
+        final chosen = <String>[];
+        for (int j = 0; j < sel[i].length; j++) {
+          if (sel[i][j] == true && vals != null && j < vals.length) {
+            final lvl = (vals[j].level ?? '').toString().trim();
+            if (lvl.isNotEmpty) chosen.add(lvl);
+          }
+        }
+        final name = (defs[i].name ?? '').toString().trim();
+        if (chosen.isNotEmpty) {
+          out.add(name.isEmpty
+              ? chosen.join('، ')
+              : '$name: ${chosen.join('، ')}');
+        }
+      }
+    }
+    // Selected add-ons (e.g. "زيادة كاتشب").
+    final ids = cart.addOnIds?.map((a) => a.id).toSet() ?? <int?>{};
+    final itemAddOns = cart.item?.addOns;
+    if (ids.isNotEmpty && itemAddOns != null) {
+      for (final a in itemAddOns) {
+        if (ids.contains(a.id)) {
+          final n = (a.name ?? '').toString().trim();
+          if (n.isNotEmpty) out.add('+ $n');
+        }
+      }
+    }
+    return out;
+  }
+
   @override
   Widget build(BuildContext context) {
     final item = cart.item;
     final String itemName = (item?.name ?? 'item'.tr).trim();
+    final List<String> choiceLabels = _selectedChoiceLabels();
     final String description = (item?.description ?? '').trim();
     final String storeName = (item?.storeName ?? '').trim();
     final String subtitle = description.isNotEmpty ? description : storeName;
@@ -1462,14 +1509,16 @@ class _ModernCartItemCard extends StatelessWidget {
 
     return Container(
       width: double.infinity,
-      height: 100,
+      // Min height keeps simple items at the original size; the card grows when
+      // selected choices are shown below the name (instead of a fixed 100).
+      constraints: const BoxConstraints(minHeight: 100),
       decoration: BoxDecoration(
         color: CartColors.white,
         borderRadius: BorderRadius.circular(16),
       ),
       padding: const EdgeInsets.symmetric(horizontal: 12),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           // Product image — start side (right in RTL), in a bordered box.
           Center(
@@ -1504,6 +1553,8 @@ class _ModernCartItemCard extends StatelessWidget {
               padding: const EdgeInsets.symmetric(vertical: 12),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Text(
                     itemName,
@@ -1531,7 +1582,23 @@ class _ModernCartItemCard extends StatelessWidget {
                       ),
                     ),
                   ],
-                  const Spacer(),
+                  // Selected choices (mandatory options + add-ons) under the
+                  // name, so the customer sees exactly what they configured.
+                  if (choiceLabels.isNotEmpty) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      choiceLabels.join('  •  '),
+                      maxLines: 3,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontFamily: 'Tajawal',
+                        color: CartColors.light,
+                        fontSize: 11,
+                        height: 1.35,
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: 6),
                   Align(
                     alignment: AlignmentDirectional.centerStart,
                     child: Directionality(

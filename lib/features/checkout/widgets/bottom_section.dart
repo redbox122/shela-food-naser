@@ -12,7 +12,6 @@ import 'package:sixam_mart/helper/responsive_helper.dart';
 import 'package:sixam_mart/theme/app_color_tokens.dart';
 import 'package:sixam_mart/util/dimensions.dart';
 import 'package:sixam_mart/util/styles.dart';
-import 'package:sixam_mart/features/checkout/widgets/condition_check_box.dart';
 import 'package:sixam_mart/features/checkout/widgets/coupon_section.dart';
 import 'package:sixam_mart/features/checkout/widgets/note_prescription_section.dart';
 import 'package:sixam_mart/features/checkout/widgets/partial_pay_view.dart';
@@ -70,6 +69,7 @@ class BottomSection extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final tokens = theme.extension<AppColorTokens>();
+    final bool isDark = theme.brightness == Brightness.dark;
     final bool takeAway = checkoutController.orderType == 'take_away';
     final bool isDesktop = ResponsiveHelper.isDesktop(context);
     final bool isGuestLoggedIn = AuthHelper.isGuestLoggedIn();
@@ -77,16 +77,21 @@ class BottomSection extends StatelessWidget {
     return Container(
       decoration: ResponsiveHelper.isDesktop(context)
           ? BoxDecoration(
-              color: Theme.of(context).cardColor,
+              color: isDark ? const Color(0xFF0F172A) : Theme.of(context).cardColor,
               borderRadius: BorderRadius.circular(Dimensions.radiusSmall),
-              boxShadow: [
-                BoxShadow(
-                  color: (tokens?.outlineSoft ?? theme.dividerColor)
-                      .withValues(alpha: 0.35),
-                  blurRadius: 5,
-                  spreadRadius: 1,
-                )
-              ],
+              border: isDark
+                  ? Border.all(color: const Color(0xFF334155), width: 1)
+                  : null,
+              boxShadow: isDark
+                  ? null
+                  : [
+                      BoxShadow(
+                        color: (tokens?.outlineSoft ?? theme.dividerColor)
+                            .withValues(alpha: 0.35),
+                        blurRadius: 5,
+                        spreadRadius: 1,
+                      )
+                    ],
             )
           : null,
       padding:
@@ -117,13 +122,10 @@ class BottomSection extends StatelessWidget {
 
           Container(
             decoration: BoxDecoration(
-              color: Theme.of(context).cardColor,
-              boxShadow: [
-                BoxShadow(
-                    color:
-                        Theme.of(context).primaryColor.withValues(alpha: 0.05),
-                    blurRadius: 10)
-              ],
+              color: isDark ? const Color(0xFF0F172A) : Theme.of(context).cardColor,
+              border: isDark
+                  ? Border.all(color: const Color(0xFF334155), width: 1)
+                  : null,
             ),
             padding: const EdgeInsets.symmetric(
                 vertical: Dimensions.paddingSizeDefault,
@@ -143,9 +145,77 @@ class BottomSection extends StatelessWidget {
                         isPrescription: shouldShowPrescription)
                     : const SizedBox(),
 
-                /// Ditels
+                /// Ditels — invoice details (تفاصيل الفاتورة)
                 !isDesktop
-                    ? pricingView(context: context, takeAway: takeAway)
+                    ? Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text('invoice_details'.tr,
+                              textAlign: TextAlign.right,
+                              style: tajawalBold.copyWith(
+                                fontSize: 18,
+                                height: 1.6,
+                                letterSpacing: 0,
+                              )),
+                          const SizedBox(height: Dimensions.paddingSizeSmall),
+                          Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: Dimensions.paddingSizeDefault,
+                                vertical: Dimensions.paddingSizeDefault),
+                            decoration: BoxDecoration(
+                              color: isDark
+                                  ? const Color(0xFF1E293B)
+                                  : const Color(0xffF6F5F8),
+                              border: isDark
+                                  ? Border.all(
+                                      color: const Color(0xFF334155), width: 1)
+                                  : null,
+                              borderRadius: BorderRadius.circular(
+                                  Dimensions.radiusDefault),
+                            ),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                pricingView(
+                                    context: context, takeAway: takeAway),
+                                // Final order total row (إجمالي الطلب).
+                                GetBuilder<CheckoutController>(
+                                  id: 'total',
+                                  builder: (controller) {
+                                    return Row(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        Text('order_total'.tr,
+                                            textAlign: TextAlign.right,
+                                            style: tajawalBold.copyWith(
+                                                fontSize: 20,
+                                                fontWeight: FontWeight.w700,
+                                                height: 1.2,
+                                                letterSpacing: 0,
+                                                color: Theme.of(context)
+                                                    .primaryColor)),
+                                        PriceConverter.convertPrice2(
+                                          controller.viewTotalPrice ?? 0.0,
+                                          textStyle: tajawalBold.copyWith(
+                                              fontSize: 20,
+                                              fontWeight: FontWeight.w700,
+                                              height: 1.2,
+                                              letterSpacing: 0,
+                                              color: Theme.of(context)
+                                                  .primaryColor),
+                                        ),
+                                      ],
+                                    );
+                                  },
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      )
                     : const SizedBox(),
                 const SizedBox(height: Dimensions.paddingSizeLarge),
 
@@ -154,8 +224,6 @@ class BottomSection extends StatelessWidget {
                     checkoutController: checkoutController,
                     storeId: storeId,
                     isPrescriptionRequired: shouldShowPrescription),
-
-                const CheckoutCondition(),
 
                 const SizedBox(height: Dimensions.paddingSizeLarge),
                 ResponsiveHelper.isDesktop(context)
@@ -245,10 +313,20 @@ class BottomSection extends StatelessWidget {
   }
 
   Widget pricingView({required BuildContext context, required bool takeAway}) {
+    final bool isDark = Theme.of(context).brightness == Brightness.dark;
     final double effectiveTaxPercent =
         (taxPercent != null && taxPercent! > 0) ? taxPercent! : 15.0;
     final String taxLabel =
         '${'taxes'.tr} (${effectiveTaxPercent.toStringAsFixed(0)}%)';
+    // Figma: invoice rows → Tajawal Bold 16 / 160% (mobile only).
+    final TextStyle rowStyle = ResponsiveHelper.isDesktop(context)
+        ? robotoRegular
+        : tajawalBold.copyWith(
+            fontSize: 16,
+            height: 1.6,
+            letterSpacing: 0,
+            color: isDark ? Colors.white : const Color(0xFF121C19),
+          );
     return Column(
         mainAxisSize:
             MainAxisSize.min, // ✅ Fix: تقليل حجم Column لتجنب overflow
@@ -278,10 +356,10 @@ class BottomSection extends StatelessWidget {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text('subtotal'.tr, style: robotoMedium),
+                    Text('total_products'.tr, style: rowStyle),
                     PriceConverter.convertPrice2(
                       subTotal,
-                      textStyle: robotoMedium,
+                      textStyle: rowStyle,
                     ),
                   ],
                 ),
@@ -292,13 +370,13 @@ class BottomSection extends StatelessWidget {
                     ? Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                            Text('service_fee'.tr, style: robotoRegular),
+                            Text('service_fee'.tr, style: rowStyle),
                             PriceConverter.convertPrice2(
                               Get.find<SplashController>()
                                   .configModel!
                                   .additionCharge,
                               prefixText: '(+) ',
-                              textStyle: robotoRegular,
+                              textStyle: rowStyle,
                             ),
                           ])
                     : const SizedBox(),
@@ -314,10 +392,10 @@ class BottomSection extends StatelessWidget {
                             return Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                Text('delivery_fee'.tr, style: robotoRegular),
+                                Text('shipping_fees'.tr, style: rowStyle),
                                 PriceConverter.convertPrice2(
                                   0,
-                                  textStyle: robotoRegular,
+                                  textStyle: rowStyle,
                                 ),
                               ],
                             );
@@ -328,7 +406,7 @@ class BottomSection extends StatelessWidget {
                             return Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                Text('delivery_fee'.tr, style: robotoRegular),
+                                Text('shipping_fees'.tr, style: rowStyle),
                                 SizedBox(
                                   width: 16,
                                   height: 16,
@@ -355,11 +433,11 @@ class BottomSection extends StatelessWidget {
                           return Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              Text('delivery_fee'.tr, style: robotoRegular),
+                              Text('shipping_fees'.tr, style: rowStyle),
                               isCalculating
                                   ? Text(
                                       'calculating'.tr,
-                                      style: robotoRegular.copyWith(
+                                      style: rowStyle.copyWith(
                                           color: Theme.of(context)
                                               .colorScheme
                                               .error),
@@ -367,7 +445,7 @@ class BottomSection extends StatelessWidget {
                                   : isFree
                                       ? Text(
                                           'free'.tr,
-                                          style: robotoRegular.copyWith(
+                                          style: rowStyle.copyWith(
                                               color: Theme.of(context)
                                                   .primaryColor),
                                         )
@@ -375,11 +453,11 @@ class BottomSection extends StatelessWidget {
                                           ? PriceConverter.convertPrice2(
                                               charge,
                                               prefixText: '(+) ',
-                                              textStyle: robotoRegular,
+                                              textStyle: rowStyle,
                                             )
                                           : Text(
                                               'calculating'.tr,
-                                              style: robotoRegular.copyWith(
+                                              style: rowStyle.copyWith(
                                                   color: Theme.of(context)
                                                       .colorScheme
                                                       .error),
@@ -394,27 +472,24 @@ class BottomSection extends StatelessWidget {
                     ? Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Text(taxLabel, style: robotoRegular),
+                          Text(taxLabel, style: rowStyle),
                           PriceConverter.convertPrice2(
                             tax,
-                            textStyle: robotoRegular,
+                            textStyle: rowStyle,
                           ),
                         ],
                       )
                     : const SizedBox(),
-                SizedBox(
-                    height: tax > 0
-                        ? Dimensions.paddingSizeSmall
-                        : 0),
+                SizedBox(height: tax > 0 ? Dimensions.paddingSizeSmall : 0),
                 storeId == null
                     ? Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                            Text('discount'.tr, style: robotoRegular),
+                            Text('discount'.tr, style: rowStyle),
                             PriceConverter.convertPrice2(
                               discount,
                               prefixText: '(-) ',
-                              textStyle: robotoRegular,
+                              textStyle: rowStyle,
                             ),
                           ])
                     : const SizedBox(),
@@ -430,22 +505,21 @@ class BottomSection extends StatelessWidget {
                                 mainAxisAlignment:
                                     MainAxisAlignment.spaceBetween,
                                 children: [
-                                  Text('coupon_discount'.tr,
-                                      style: robotoRegular),
+                                  Text('coupon_discount'.tr, style: rowStyle),
                                   // 🔥 BUG FIX: Null-safe access - coupon may be null
                                   (couponController.coupon != null &&
                                           couponController.coupon?.couponType ==
                                               'free_delivery')
                                       ? Text(
                                           'free_delivery'.tr,
-                                          style: robotoRegular.copyWith(
+                                          style: rowStyle.copyWith(
                                               color: Theme.of(context)
                                                   .primaryColor),
                                         )
                                       : PriceConverter.convertPrice2(
                                           couponController.discount,
                                           prefixText: '(-) ',
-                                          textStyle: robotoRegular,
+                                          textStyle: rowStyle,
                                         ),
                                 ]),
                             const SizedBox(height: Dimensions.paddingSizeSmall),

@@ -3,6 +3,10 @@ import 'package:get/get.dart';
 import 'package:sixam_mart/common/widgets/custom_image.dart';
 import 'package:sixam_mart/features/cart/controllers/cart_controller.dart';
 import 'package:sixam_mart/features/home/screens/market_product_screen.dart';
+// For showProductOptions(): opening the options sheet enforces REQUIRED choices
+// on the offers "+" (it falls back to a quick-add for items with no options).
+import 'package:sixam_mart/features/home/screens/market_store_screen.dart'
+    show showProductOptions;
 import 'package:sixam_mart/features/home/widgets/market/offers/market_offers_cart_helper.dart';
 import 'package:sixam_mart/features/home/widgets/market/offers/market_offers_models.dart';
 import 'package:sixam_mart/util/images.dart';
@@ -123,7 +127,7 @@ class OfferProductCard extends StatelessWidget {
                               fontFamily: 'Tajawal',
                               fontWeight: FontWeight.w500,
                               fontSize: 13,
-                              height: 1.4,
+                              height: 1.3,
                               color: Color(0xFF121C19),
                             ),
                           ),
@@ -232,7 +236,20 @@ class OfferAddControl extends StatelessWidget {
             color: addFill,
             shape: const CircleBorder(),
             child: InkWell(
-              onTap: () => addOfferToCart(product, storeId, moduleId),
+              // First add opens the options sheet so REQUIRED choices are
+              // enforced and selected variations reach the cart/order. Items
+              // with no options fall back to a quick-add inside the sheet.
+              onTap: () {
+                if (product.id == null) return;
+                showProductOptions(
+                  itemId: product.id!,
+                  storeId: storeId,
+                  moduleId: moduleId,
+                  name: product.name,
+                  image: product.image,
+                  price: product.shownPrice,
+                );
+              },
               customBorder: const CircleBorder(),
               child: Padding(
                 padding: const EdgeInsets.all(7),

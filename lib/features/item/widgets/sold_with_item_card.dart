@@ -33,7 +33,6 @@ class SoldWithItemCard extends StatelessWidget {
 
   static const Color _addBg = Color(0xFFD1FDD2);
   static const Color _favBg = Color(0xFFF8F7F9);
-  static const Color _imageBg = Color(0xFFF6F5F8);
   static const Color _priceColor = Color(0xFF121C19);
   static const Color _oldPriceColor = Color(0xFF717885);
 

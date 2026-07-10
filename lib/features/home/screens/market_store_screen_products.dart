@@ -1,7 +1,526 @@
 // ignore_for_file: unused_element_parameter, unused_element
 part of 'market_store_screen.dart';
 
+// ─── Keeta-style two-column layout ───────────────────────────────────────────
+
+/// Root widget: left sidebar (categories) + right panel (products).
+class _KeetaLayout extends StatefulWidget {
+  final List<_Category> categories;
+  final int activeIndex;
+  final ValueChanged<int> onCategoryTap;
+  final int storeId;
+  final int moduleId;
+  final String? storeName;
+  final String? storeLogo;
+  final String? storeCover;
+
+  const _KeetaLayout({
+    required this.categories,
+    required this.activeIndex,
+    required this.onCategoryTap,
+    required this.storeId,
+    required this.moduleId,
+    this.storeName,
+    this.storeLogo,
+    this.storeCover,
+  });
+
+  @override
+  State<_KeetaLayout> createState() => _KeetaLayoutState();
+}
+
+class _KeetaLayoutState extends State<_KeetaLayout> {
+  final ScrollController _leftCtrl = ScrollController();
+  static const double _itemH = 76.0;
+
+  @override
+  void didUpdateWidget(_KeetaLayout old) {
+    super.didUpdateWidget(old);
+    if (old.activeIndex != widget.activeIndex) {
+      _scrollSidebarToActive();
+    }
+  }
+
+  void _scrollSidebarToActive() {
+    if (!_leftCtrl.hasClients) return;
+    final target = (widget.activeIndex * _itemH)
+        .clamp(0.0, _leftCtrl.position.maxScrollExtent);
+    _leftCtrl.animateTo(target,
+        duration: const Duration(milliseconds: 250), curve: Curves.easeOut);
+  }
+
+  @override
+  void dispose() {
+    _leftCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // ── Left sidebar: category list ──────────────────────────
+        Container(
+          width: 90,
+          color: const Color(0xFFF5F6F8),
+          child: ListView.builder(
+            controller: _leftCtrl,
+            itemCount: widget.categories.length,
+            itemBuilder: (ctx, i) => _CategorySidebarItem(
+              category: widget.categories[i],
+              isSelected: i == widget.activeIndex,
+              onTap: () => widget.onCategoryTap(i),
+            ),
+          ),
+        ),
+        // ── Divider ─────────────────────────────────────────────
+        Container(width: 1, color: const Color(0xFFEEEEF0)),
+        // ── Right panel: products ────────────────────────────────
+        Expanded(
+          child: _KeetaProductPanel(
+            key: ValueKey('${widget.storeId}_${widget.activeIndex}'),
+            storeId: widget.storeId,
+            moduleId: widget.moduleId,
+            category: widget.categories[widget.activeIndex],
+            storeName: widget.storeName,
+            storeLogo: widget.storeLogo,
+            storeCover: widget.storeCover,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// One item in the left sidebar.
+class _CategorySidebarItem extends StatelessWidget {
+  final _Category category;
+  final bool isSelected;
+  final VoidCallback onTap;
+  const _CategorySidebarItem(
+      {required this.category,
+      required this.isSelected,
+      required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 6),
+        decoration: BoxDecoration(
+          color: isSelected ? Colors.white : Colors.transparent,
+          border: Border(
+            right: BorderSide(
+              color:
+                  isSelected ? const Color(0xFF1F7A35) : Colors.transparent,
+              width: 3,
+            ),
+          ),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if ((category.image ?? '').isNotEmpty)
+              ClipRRect(
+                borderRadius: BorderRadius.circular(6),
+                child: CustomImage(
+                  image: category.image!,
+                  width: 46,
+                  height: 46,
+                  fit: BoxFit.cover,
+                  placeholder: Images.placeholder,
+                ),
+              )
+            else
+              Container(
+                width: 46,
+                height: 46,
+                decoration: BoxDecoration(
+                  color: isSelected
+                      ? const Color(0xFFE8F5E9)
+                      : const Color(0xFFEEEEF0),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Icon(Icons.category_outlined,
+                    size: 22,
+                    color: isSelected
+                        ? const Color(0xFF1F7A35)
+                        : const Color(0xFF9AA0A6)),
+              ),
+            const SizedBox(height: 5),
+            Text(
+              category.name ?? '',
+              textAlign: TextAlign.center,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontFamily: 'Tajawal',
+                fontWeight:
+                    isSelected ? FontWeight.w700 : FontWeight.w500,
+                fontSize: 10.5,
+                height: 1.3,
+                color: isSelected
+                    ? const Color(0xFF1F7A35)
+                    : const Color(0xFF4A4F5A),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Right panel: scrollable product list for the selected category.
+class _KeetaProductPanel extends StatefulWidget {
+  final int storeId;
+  final int moduleId;
+  final _Category category;
+  final String? storeName;
+  final String? storeLogo;
+  final String? storeCover;
+
+  const _KeetaProductPanel({
+    super.key,
+    required this.storeId,
+    required this.moduleId,
+    required this.category,
+    this.storeName,
+    this.storeLogo,
+    this.storeCover,
+  });
+
+  @override
+  State<_KeetaProductPanel> createState() => _KeetaProductPanelState();
+}
+
+class _KeetaProductPanelState extends State<_KeetaProductPanel> {
+  final List<_Product> _products = [];
+  bool _fetching = false;
+  bool _hasMore = true;
+  int? _resolvedModuleId;
+  final ScrollController _scrollCtrl = ScrollController();
+  static const int _pageSize = 20;
+
+  @override
+  void initState() {
+    super.initState();
+    _scrollCtrl.addListener(_onScroll);
+    _loadPage();
+  }
+
+  @override
+  void dispose() {
+    _scrollCtrl.removeListener(_onScroll);
+    _scrollCtrl.dispose();
+    super.dispose();
+  }
+
+  void _onScroll() {
+    if (!_scrollCtrl.hasClients) return;
+    final pos = _scrollCtrl.position;
+    if (pos.pixels >= pos.maxScrollExtent - 350) _loadPage();
+  }
+
+  List<int> _candidateModules() {
+    final out = <int>[];
+    void add(int? m) {
+      if (m != null && m > 1 && !out.contains(m)) out.add(m);
+    }
+    add(widget.moduleId);
+    if (Get.isRegistered<SplashController>()) {
+      final mods = Get.find<SplashController>().moduleList ?? const [];
+      for (final m in mods) {
+        if ((m.moduleType ?? '').toLowerCase() == 'food') add(m.id);
+      }
+      for (final m in mods) {
+        if ((m.moduleType ?? '').toLowerCase() == 'ecommerce') add(m.id);
+      }
+      for (final m in mods) {
+        add(m.id);
+      }
+    }
+    if (out.isEmpty) out.add(widget.moduleId);
+    return out;
+  }
+
+  Future<List<_Product>> _fetchPage(int moduleId, int offset) async {
+    try {
+      final r = await Get.find<ApiClient>().getData(
+        '/api/v1/categories/items/${widget.category.id}'
+        '?store_id=${widget.storeId}&offset=$offset&limit=$_pageSize&type=all',
+        headers: {AppConstants.moduleId: moduleId.toString()},
+        useEtag: false,
+      );
+      final body = r.body;
+      final list = body is Map ? body['products'] : null;
+      if (list is List) {
+        return list
+            .whereType<Map>()
+            .map((e) => _Product.fromJson(Map<String, dynamic>.from(e)))
+            .toList();
+      }
+    } catch (_) {}
+    return const [];
+  }
+
+  Future<void> _loadPage() async {
+    if (_fetching || !_hasMore) return;
+    if (mounted) setState(() => _fetching = true);
+    final offset = _products.length;
+    var fetched = <_Product>[];
+    if (Get.isRegistered<ApiClient>()) {
+      final candidates =
+          _resolvedModuleId != null ? [_resolvedModuleId!] : _candidateModules();
+      for (final m in candidates) {
+        fetched = await _fetchPage(m, offset);
+        if (!mounted) return;
+        if (fetched.isNotEmpty) {
+          _resolvedModuleId = m;
+          break;
+        }
+      }
+    }
+    if (!mounted) return;
+    final existingIds = _products.map((p) => p.id).toSet();
+    final unique = fetched.where((p) => !existingIds.contains(p.id)).toList();
+    setState(() {
+      _products.addAll(unique);
+      _hasMore = fetched.length >= _pageSize;
+      _fetching = false;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_fetching && _products.isEmpty) {
+      return const Center(
+        child: SizedBox(
+            width: 28,
+            height: 28,
+            child: CircularProgressIndicator(
+                strokeWidth: 2, color: Color(0xFF1F7A35))),
+      );
+    }
+    if (!_fetching && _products.isEmpty) {
+      return const Center(
+        child: Text('لا توجد منتجات',
+            style: TextStyle(
+                fontFamily: 'Tajawal',
+                fontSize: 14,
+                color: Color(0xFF9AA0A6))),
+      );
+    }
+    return ListView.separated(
+      controller: _scrollCtrl,
+      padding: EdgeInsets.zero,
+      itemCount: _products.length + (_fetching ? 1 : 0),
+      separatorBuilder: (_, __) => const Divider(
+          height: 1,
+          thickness: 1,
+          indent: Dimensions.paddingSizeDefault,
+          endIndent: Dimensions.paddingSizeDefault,
+          color: Color(0xFFF0F1F3)),
+      itemBuilder: (ctx, i) {
+        if (i == _products.length) {
+          return const Padding(
+            padding: EdgeInsets.symmetric(vertical: 14),
+            child: Center(
+              child: SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(
+                      strokeWidth: 2, color: Color(0xFF1F7A35))),
+            ),
+          );
+        }
+        return _ListProductCard(
+          product: _products[i],
+          storeId: widget.storeId,
+          moduleId: widget.moduleId,
+        );
+      },
+    );
+  }
+}
+
 // ─── Product sections ────────────────────────────────────────────────────────
+
+// ─── _CategorySection (wrapper used by the new NestedScrollView-free layout) ──
+
+/// Section widget for one category in the continuous-scroll store layout.
+/// The [key] placed on this widget by the parent state is used for scroll-spy
+/// (localToGlobal on a RenderBox — StatelessWidget delegates findRenderObject
+/// down to its first render widget, which is the outermost Column here).
+class _CategorySection extends StatelessWidget {
+  final _Category category;
+  final int storeId;
+  final int moduleId;
+  final String? storeName;
+  final String? storeLogo;
+  final String? storeCover;
+
+  const _CategorySection({
+    super.key,
+    required this.category,
+    required this.storeId,
+    required this.moduleId,
+    this.storeName,
+    this.storeLogo,
+    this.storeCover,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return _CategoryRail(
+      category: category,
+      storeId: storeId,
+      moduleId: moduleId,
+      storeName: storeName,
+      storeLogo: storeLogo,
+      storeCover: storeCover,
+      hideSeeMore: true,
+    );
+  }
+}
+
+// ─── Shimmer skeleton for a single product card ────────────────────────────────
+
+class _ProductCardSkeleton extends StatelessWidget {
+  const _ProductCardSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    return Shimmer.fromColors(
+      baseColor: const Color(0xFFF0F1F3),
+      highlightColor: const Color(0xFFFFFFFF),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                      height: 14,
+                      width: double.infinity,
+                      decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(4))),
+                  const SizedBox(height: 8),
+                  Container(
+                      height: 12,
+                      width: 120,
+                      decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(4))),
+                  const SizedBox(height: 12),
+                  Container(
+                      height: 14,
+                      width: 70,
+                      decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(4))),
+                ],
+              ),
+            ),
+            const SizedBox(width: 12),
+            Container(
+              width: 80,
+              height: 80,
+              decoration: BoxDecoration(
+                  color: Colors.white, borderRadius: BorderRadius.circular(8)),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Skeleton for a whole category section (header + 3 card placeholders).
+class _CategorySectionSkeleton extends StatelessWidget {
+  final String title;
+  const _CategorySectionSkeleton({required this.title});
+
+  @override
+  Widget build(BuildContext context) {
+    return Shimmer.fromColors(
+      baseColor: const Color(0xFFF0F1F3),
+      highlightColor: const Color(0xFFFFFFFF),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Section title placeholder
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 20, 16, 12),
+            child: Container(
+              height: 16,
+              width: 120,
+              decoration: BoxDecoration(
+                  color: Colors.white, borderRadius: BorderRadius.circular(4)),
+            ),
+          ),
+          for (int i = 0; i < 3; i++) ...[
+            if (i > 0)
+              const Divider(
+                  height: 1,
+                  indent: 16,
+                  endIndent: 16,
+                  color: Color(0xFFF0F1F3)),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Container(
+                            height: 14,
+                            width: double.infinity,
+                            decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(4))),
+                        const SizedBox(height: 8),
+                        Container(
+                            height: 12,
+                            width: 100,
+                            decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(4))),
+                        const SizedBox(height: 12),
+                        Container(
+                            height: 14,
+                            width: 60,
+                            decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(4))),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Container(
+                    width: 80,
+                    height: 80,
+                    decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(8)),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
 
 /// Maps the store screen's [_Product]s to the offers screen's [OfferProduct]
 /// shape, so an already-loaded featured section can seed the branded screen as a
@@ -67,6 +586,11 @@ class _ProductSection extends StatelessWidget {
   /// When true the "اطلع على المزيد" pill is hidden (continuous-scroll view).
   final bool hideSeeMore;
 
+  /// Pagination callbacks for the continuous-scroll view.
+  final VoidCallback? onLoadMore;
+  final bool hasMore;
+  final bool isFetching;
+
   const _ProductSection(
       {required this.title,
       required this.products,
@@ -76,11 +600,11 @@ class _ProductSection extends StatelessWidget {
       this.storeName,
       this.storeLogo,
       this.storeCover,
-      this.hideSeeMore = false});
+      this.hideSeeMore = false,
+      this.onLoadMore,
+      this.hasMore = false,
+      this.isFetching = false});
 
-  /// "See more" / logo opens the branded offers screen (cover + logo + name
-  /// header + sub-category strip only) — distinct from a category tile tap,
-  /// which opens the two-level categories + sub-categories browser.
   void _openOffers() {
     Get.to<void>(
       () => MarketOffersScreen(
@@ -99,9 +623,7 @@ class _ProductSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (products.isEmpty) return const SizedBox.shrink();
-    // Clean section: a green title header (+ "عرض المزيد"), then the products as
-    // a 3-column grid (matching the category screen design).
+    if (products.isEmpty && !isFetching) return const SizedBox.shrink();
     return Padding(
       padding: const EdgeInsets.only(
         top: 4,
@@ -117,7 +639,7 @@ class _ProductSection extends StatelessWidget {
               children: [
                 Expanded(
                   child: GestureDetector(
-                    onTap: _openOffers,
+                    onTap: hideSeeMore ? null : _openOffers,
                     child: Text(
                       title,
                       textAlign: TextAlign.right,
@@ -141,7 +663,10 @@ class _ProductSection extends StatelessWidget {
             products: products,
             storeId: storeId,
             moduleId: moduleId,
-            onViewMore: _openOffers,
+            onViewMore: hideSeeMore ? null : _openOffers,
+            onLoadMore: hideSeeMore ? onLoadMore : null,
+            hasMore: hideSeeMore ? hasMore : false,
+            isFetching: hideSeeMore ? isFetching : false,
           ),
         ],
       ),
@@ -149,9 +674,7 @@ class _ProductSection extends StatelessWidget {
   }
 }
 
-/// Self-loading rail for one store category, rendered in the same green-header
-/// [_ProductSection] style. Fetches the category's products scoped to the store
-/// so every category shows as its own section.
+/// Self-loading rail for one store category with pagination and deduplication.
 class _CategoryRail extends StatefulWidget {
   final int storeId;
   final int moduleId;
@@ -176,21 +699,47 @@ class _CategoryRail extends StatefulWidget {
 }
 
 class _CategoryRailState extends State<_CategoryRail> {
-  List<_Product>? _products;
+  final List<_Product> _products = [];
+  bool _fetching = false;
+  bool _hasMore = true;
+  bool _initialLoadDone = false;
+  int? _resolvedModuleId;
+
+  static const int _pageSize = 20;
 
   @override
   void initState() {
     super.initState();
-    _fetch();
+    _loadPage();
   }
 
-  /// Fetches this category's items scoped to [moduleId] (the items index is
-  /// module-scoped). Returns an empty list on any failure.
-  Future<List<_Product>> _fetchWithModule(int moduleId) async {
+  List<int> _candidateModules() {
+    final candidates = <int>[];
+    void add(int? m) {
+      if (m != null && m > 1 && !candidates.contains(m)) candidates.add(m);
+    }
+    add(widget.moduleId);
+    if (Get.isRegistered<SplashController>()) {
+      final modules = Get.find<SplashController>().moduleList ?? const [];
+      for (final m in modules) {
+        if ((m.moduleType ?? '').toLowerCase() == 'food') add(m.id);
+      }
+      for (final m in modules) {
+        if ((m.moduleType ?? '').toLowerCase() == 'ecommerce') add(m.id);
+      }
+      for (final m in modules) {
+        add(m.id);
+      }
+    }
+    if (candidates.isEmpty) candidates.add(widget.moduleId);
+    return candidates;
+  }
+
+  Future<List<_Product>> _fetchWithModule(int moduleId, int offset) async {
     try {
       final r = await Get.find<ApiClient>().getData(
         '/api/v1/categories/items/${widget.category.id}'
-        '?store_id=${widget.storeId}&offset=1&limit=10&type=all',
+        '?store_id=${widget.storeId}&offset=$offset&limit=$_pageSize&type=all',
         headers: {AppConstants.moduleId: moduleId.toString()},
         useEtag: false,
       );
@@ -206,52 +755,84 @@ class _CategoryRailState extends State<_CategoryRail> {
     return const [];
   }
 
-  Future<void> _fetch() async {
-    List<_Product> result = const [];
+  Future<void> _loadPage() async {
+    if (_fetching || !_hasMore) return;
+    if (mounted) setState(() => _fetching = true);
+
+    final offset = _products.length;
+    var fetched = <_Product>[];
+
     if (Get.isRegistered<ApiClient>()) {
-      // The items index is module-scoped, and the module passed in can be wrong
-      // (e.g. a store opened while another module was active). Try the store's
-      // module first, then food, then ecommerce, then every loaded module —
-      // stopping at the first that returns items — so products always resolve.
-      final List<int> candidates = [];
-      void add(int? m) {
-        if (m != null && m > 1 && !candidates.contains(m)) candidates.add(m);
-      }
-
-      add(widget.moduleId);
-      if (Get.isRegistered<SplashController>()) {
-        final modules = Get.find<SplashController>().moduleList ?? const [];
-        for (final m in modules) {
-          if ((m.moduleType ?? '').toLowerCase() == 'food') add(m.id);
-        }
-        for (final m in modules) {
-          if ((m.moduleType ?? '').toLowerCase() == 'ecommerce') add(m.id);
-        }
-        for (final m in modules) {
-          add(m.id);
-        }
-      }
-      if (candidates.isEmpty) candidates.add(widget.moduleId);
-
+      final candidates =
+          _resolvedModuleId != null ? [_resolvedModuleId!] : _candidateModules();
       for (final m in candidates) {
-        result = await _fetchWithModule(m);
-        if (result.isNotEmpty) break;
+        fetched = await _fetchWithModule(m, offset);
         if (!mounted) return;
+        if (fetched.isNotEmpty) {
+          _resolvedModuleId = m;
+          break;
+        }
       }
     }
-    if (mounted) setState(() => _products = result);
+
+    if (!mounted) return;
+
+    // Deduplicate by ID within this section.
+    final existingIds = _products.map((p) => p.id).toSet();
+    final unique = fetched.where((p) => !existingIds.contains(p.id)).toList();
+
+    setState(() {
+      _products.addAll(unique);
+      _hasMore = fetched.length >= _pageSize;
+      _fetching = false;
+      _initialLoadDone = true;
+    });
   }
+
+  /// Called by the parent screen's scroll-spy to auto-load the next page.
+  void triggerLoadMore() => _loadPage();
 
   @override
   Widget build(BuildContext context) {
-    final products = _products;
-    if (products == null) {
-      return const SizedBox(height: Dimensions.paddingSizeSmall);
+    // Initial load in progress (or load hasn't started yet) → skeleton.
+    if (!_initialLoadDone) {
+      return _CategorySectionSkeleton(
+          title: widget.category.name ?? '');
     }
-    if (products.isEmpty) return const SizedBox.shrink();
+    // Loaded but empty → friendly empty state.
+    if (_products.isEmpty) {
+      return Padding(
+        padding: const EdgeInsets.fromLTRB(16, 20, 16, 24),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              widget.category.name ?? '',
+              style: const TextStyle(
+                fontFamily: 'Tajawal',
+                fontWeight: FontWeight.w700,
+                fontSize: 16,
+                color: Color(0xFF30913F),
+              ),
+            ),
+            const SizedBox(height: 24),
+            const Center(
+              child: Text(
+                'لا توجد منتجات في هذا القسم.',
+                style: TextStyle(
+                  fontFamily: 'Tajawal',
+                  fontSize: 14,
+                  color: Color(0xFF9AA0A6),
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
     return _ProductSection(
       title: widget.category.name ?? '',
-      products: products,
+      products: _products,
       storeId: widget.storeId,
       moduleId: widget.moduleId,
       categoryId: widget.category.rawId,
@@ -259,6 +840,9 @@ class _CategoryRailState extends State<_CategoryRail> {
       storeLogo: widget.storeLogo,
       storeCover: widget.storeCover,
       hideSeeMore: widget.hideSeeMore,
+      onLoadMore: _loadPage,
+      hasMore: _hasMore,
+      isFetching: _fetching,
     );
   }
 }
@@ -469,27 +1053,29 @@ class _FeaturedSectionViewState extends State<_FeaturedSectionView> {
 class _ProductRail extends StatelessWidget {
   final List<_Product> products;
   final int? storeId;
-
-  /// Module the products belong to (featured sections may be cross-module).
   final int moduleId;
 
-  /// When set, the rail shows at most [_previewLimit] products and appends a
-  /// trailing "عرض المزيد" tile that opens the full list.
+  /// When set (non-continuous view), caps at 6 items with a "عرض المزيد" pill.
   final VoidCallback? onViewMore;
+
+  /// Pagination for continuous-scroll mode (hideSeeMore=true).
+  final VoidCallback? onLoadMore;
+  final bool hasMore;
+  final bool isFetching;
 
   const _ProductRail({
     required this.products,
     this.storeId,
     this.moduleId = _marketModuleId,
     this.onViewMore,
+    this.onLoadMore,
+    this.hasMore = false,
+    this.isFetching = false,
   });
 
   @override
   Widget build(BuildContext context) {
-    if (products.isEmpty) return const SizedBox.shrink();
-    // Products as full-width rows (image + name + description + order count +
-    // price). A capped section previews the first rows then a "عرض المزيد" pill
-    // opens the full list.
+    if (products.isEmpty && !isFetching) return const SizedBox.shrink();
     const int preview = 6;
     final bool cap = onViewMore != null && products.length > preview;
     final int shown = cap ? preview : products.length;
@@ -508,6 +1094,7 @@ class _ProductRail extends StatelessWidget {
           _ListProductCard(
               product: products[i], storeId: storeId, moduleId: moduleId),
         ],
+        // Non-continuous: "عرض المزيد" pill to open full list.
         if (cap)
           Padding(
             padding: const EdgeInsets.fromLTRB(Dimensions.paddingSizeDefault, 6,
@@ -515,6 +1102,18 @@ class _ProductRail extends StatelessWidget {
             child: Align(
               alignment: Alignment.centerLeft,
               child: _SeeMorePill(onTap: onViewMore!),
+            ),
+          ),
+        // Continuous-scroll: show spinner while fetching more.
+        if (!cap && isFetching)
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 12),
+            child: Center(
+              child: SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2,
+                      color: Color(0xFF1F7A35))),
             ),
           ),
       ],
@@ -746,8 +1345,20 @@ class _QtyAddControl extends StatelessWidget {
         final int qty = _cartQty(product.id);
         if (qty == 0) {
           return _AddButton(
-            onTap: () =>
-                _addProductToCart(product, storeId, moduleId: moduleId),
+            // First add opens the options sheet so REQUIRED choices are enforced
+            // and the selected variations reach the cart/order. Items with no
+            // options fall back to a direct quick-add inside showProductOptions.
+            onTap: () {
+              if (product.id == null) return;
+              showProductOptions(
+                itemId: product.id!,
+                storeId: storeId,
+                moduleId: moduleId,
+                name: product.name,
+                image: product.image,
+                price: product.shownPrice,
+              );
+            },
           );
         }
         return Container(

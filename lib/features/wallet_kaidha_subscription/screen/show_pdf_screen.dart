@@ -4,8 +4,6 @@ import 'package:get/get.dart';
 import 'package:sixam_mart/common/widgets/custom_button.dart';
 import 'package:sixam_mart/features/wallet_kaidha_subscription/controllers/kaidhaSub_controller.dart';
 import 'package:sixam_mart/helper/route_helper.dart';
-import 'package:sixam_mart/util/app_colors.dart';
-import 'package:sixam_mart/util/dimensions.dart';
 
 class ShowPdfScreen extends StatefulWidget {
   const ShowPdfScreen({super.key});

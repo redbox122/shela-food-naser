@@ -3,6 +3,43 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:sixam_mart/util/backend_message_translator.dart';
+import 'package:sixam_mart/util/styles.dart';
+
+/// Styled bottom success snackbar (light-green pill + check badge + green text).
+/// Ported with the old checkout wallet sheets — a non-blocking confirmation for
+/// actions like selecting a payment method.
+void showSelectionSnackBar(String message) {
+  if (message.isEmpty) return;
+  if (Get.isSnackbarOpen) {
+    Get.closeAllSnackbars();
+  }
+  Get.showSnackbar(GetSnackBar(
+    snackPosition: SnackPosition.BOTTOM,
+    backgroundColor: const Color(0xFFEAF8EE),
+    borderRadius: 8,
+    margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+    padding: const EdgeInsets.all(8),
+    duration: const Duration(seconds: 2),
+    messageText: Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        const Icon(Icons.verified, color: Color(0xFF2FA84F), size: 22),
+        const SizedBox(width: 10),
+        Flexible(
+          child: Text(
+            message,
+            textAlign: TextAlign.center,
+            style: tajawalBold.copyWith(
+              fontSize: 14,
+              height: 1.6,
+              color: const Color(0xFF2FA84F),
+            ),
+          ),
+        ),
+      ],
+    ),
+  ));
+}
 
 void showCustomSnackBar(String? message,
     {bool isError = true, bool getXSnackBar = false, int? showDuration}) {

@@ -377,16 +377,14 @@ class StatisticsScreenWithToggleState extends State<StatisticsScreenWithToggle>
                           ),
                         ),
                         const SizedBox(width: 5),
-                        const Padding(
-                          padding: EdgeInsets.only(bottom: 4),
-                          child: Text(
-                            '﷼',
-                            style: TextStyle(
-                              fontFamily: 'Tajawal',
-                              fontSize: 16,
-                              fontWeight: FontWeight.w700,
-                              color: Colors.white,
-                            ),
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 4),
+                          // App-standard SAR icon (matches PriceConverter).
+                          child: Image.asset(
+                            Images.sar,
+                            width: 15,
+                            height: 15,
+                            color: Colors.white,
                           ),
                         ),
                       ],
@@ -493,6 +491,8 @@ class StatisticsScreenWithToggleState extends State<StatisticsScreenWithToggle>
             ),
             const SizedBox(height: 6),
             Row(
+              // Force RTL order: amount on the right, SAR icon on the left.
+              textDirection: TextDirection.rtl,
               mainAxisSize: MainAxisSize.min,
               children: [
                 Flexible(
@@ -510,14 +510,12 @@ class StatisticsScreenWithToggleState extends State<StatisticsScreenWithToggle>
                   ),
                 ),
                 const SizedBox(width: 3),
-                const Text(
-                  '﷼',
-                  style: TextStyle(
-                    fontFamily: 'Tajawal',
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                    color: Color(0xff135017),
-                  ),
+                // App-standard SAR icon (matches PriceConverter).
+                Image.asset(
+                  Images.sar,
+                  width: 13,
+                  height: 13,
+                  color: const Color(0xff135017),
                 ),
               ],
             ),
@@ -662,9 +660,9 @@ class StatisticsScreenWithToggleState extends State<StatisticsScreenWithToggle>
             ),
           ),
           const SizedBox(height: 4), // Reduced from 8
-          Text(
+          _amountWithSar(
             value,
-            style: TextStyle(
+            TextStyle(
               fontSize: 16, // Reduced from 20
               fontWeight: FontWeight.bold,
               color: color,
@@ -748,6 +746,35 @@ class StatisticsScreenWithToggleState extends State<StatisticsScreenWithToggle>
     );
   }
 
+  /// Renders a currency value using the app-standard SAR icon instead of the
+  /// "ر.س" text. If [value] ends with " ر.س" the suffix is dropped and the
+  /// [Images.sar] icon is appended after the number (e.g. "55 ﷼").
+  Widget _amountWithSar(String value, TextStyle style) {
+    const String suffix = ' ر.س';
+    if (!value.endsWith(suffix)) {
+      return Text(value, style: style, overflow: TextOverflow.ellipsis);
+    }
+    final String number = value.substring(0, value.length - suffix.length);
+    final double iconSize = (style.fontSize ?? 14) * 0.9;
+    return Row(
+      // RTL order: amount on the right, SAR icon on the left.
+      textDirection: TextDirection.rtl,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Flexible(
+          child: Text(number, style: style, overflow: TextOverflow.ellipsis),
+        ),
+        const SizedBox(width: 3),
+        Image.asset(
+          Images.sar,
+          width: iconSize,
+          height: iconSize,
+          color: style.color,
+        ),
+      ],
+    );
+  }
+
   Widget _buildQidhaAnalyticsCard(
       String title, String value, IconData icon, Color color) {
     return Container(
@@ -779,9 +806,9 @@ class StatisticsScreenWithToggleState extends State<StatisticsScreenWithToggle>
             ),
           ),
           const SizedBox(height: 3), // Reduced from 4
-          Text(
+          _amountWithSar(
             value,
-            style: const TextStyle(
+            const TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.bold,
             ),

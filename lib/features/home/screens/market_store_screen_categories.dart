@@ -1,100 +1,254 @@
 part of 'market_store_screen.dart';
 
-// ─── Sticky category tabs ────────────────────────────────────────────────────
+// ─── Sticky category tab bar (SliverPersistentHeader) ─────────────────────────
 
-/// Pinned horizontal category tab bar (food-delivery style). Each tab is a
-/// category name; the active one is dark + bold with a green underline. Tapping
-/// a tab asks the screen to scroll to that category's section, and the active
-/// tab follows the scroll position (scroll-spy, handled by the screen state).
-class _CategoryTabsDelegate extends SliverPersistentHeaderDelegate {
+/// Pinned horizontal tab bar used inside the store's CustomScrollView.
+/// - Sticks below the market top header once the user starts scrolling.
+/// - Tabs are scrollable left/right (right-to-left in Arabic).
+/// - ☰ button lives at the PHYSICAL RIGHT edge of the bar and opens a
+///   "قائمة الأصناف" bottom sheet with the full category list.
+class _TabBarDelegate extends SliverPersistentHeaderDelegate {
   final List<_Category> categories;
   final int activeIndex;
-  final double height;
-  final void Function(int index) onTap;
+  final ScrollController tabScrollCtrl;
+  final void Function(int) onTap;
 
-  _CategoryTabsDelegate({
+  _TabBarDelegate({
     required this.categories,
     required this.activeIndex,
-    required this.height,
+    required this.tabScrollCtrl,
     required this.onTap,
   });
 
-  @override
-  double get minExtent => height;
+  static const double _height = 48.0;
 
   @override
-  double get maxExtent => height;
+  double get minExtent => _height;
+  @override
+  double get maxExtent => _height;
 
   @override
-  Widget build(
-      BuildContext context, double shrinkOffset, bool overlapsContent) {
-    return Container(
-      height: height,
-      color: Colors.white,
-      child: Column(
-        children: [
-          Expanded(
-            child: ListView.separated(
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(
-                  horizontal: Dimensions.paddingSizeDefault),
-              itemCount: categories.length,
-              separatorBuilder: (_, __) => const SizedBox(width: 18),
-              itemBuilder: (_, i) {
-                final bool active = i == activeIndex;
-                final c = categories[i];
-                final String name =
-                    (c.name == null || c.name!.isEmpty) ? '—' : c.name!;
-                return GestureDetector(
-                  behavior: HitTestBehavior.opaque,
-                  onTap: () => onTap(i),
-                  child: Column(
-                    children: [
-                      Expanded(
-                        child: Center(
-                          child: Text(
-                            name,
-                            style: TextStyle(
-                              fontFamily: 'Tajawal',
-                              fontWeight:
-                                  active ? FontWeight.w700 : FontWeight.w500,
-                              fontSize: 14,
-                              color: active
-                                  ? const Color(0xFF121C19)
-                                  : const Color(0xFF8A8F99),
-                            ),
-                          ),
-                        ),
-                      ),
-                      // Underline shown only under the active tab.
-                      Container(
-                        height: 3,
-                        width: 26,
-                        decoration: BoxDecoration(
-                          color: active
-                              ? const Color(0xFF30913F)
-                              : Colors.transparent,
-                          borderRadius: BorderRadius.circular(2),
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                    ],
-                  ),
-                );
-              },
-            ),
-          ),
-          Container(height: 1, color: const Color(0xFFF0F1F3)),
-        ],
+  bool shouldRebuild(_TabBarDelegate old) =>
+      old.activeIndex != activeIndex ||
+      old.categories.length != categories.length;
+
+  void _showSheet(BuildContext context) {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (_) => _CategorySheet(
+        categories: categories,
+        activeIndex: activeIndex,
+        onTap: (i) {
+          Navigator.pop(context);
+          onTap(i);
+        },
       ),
     );
   }
 
   @override
-  bool shouldRebuild(_CategoryTabsDelegate old) =>
-      old.activeIndex != activeIndex ||
-      old.categories.length != categories.length ||
-      old.height != height;
+  Widget build(
+      BuildContext context, double shrinkOffset, bool overlapsContent) {
+    return Material(
+      color: Colors.white,
+      elevation: shrinkOffset > 0 ? 2 : 0,
+      child: Column(
+        children: [
+          Expanded(
+            child: Stack(
+              children: [
+                // Tabs list — leaves 44 px on the physical right for ☰.
+                Positioned.fill(
+                  right: 44,
+                  child: ListView.separated(
+                    controller: tabScrollCtrl,
+                    scrollDirection: Axis.horizontal,
+                    // In Arabic RTL, ListView reverses automatically so that
+                    // the first category appears on the right.
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    itemCount: categories.length,
+                    separatorBuilder: (_, __) => const SizedBox(width: 16),
+                    itemBuilder: (_, i) {
+                      final bool active = i == activeIndex;
+                      return GestureDetector(
+                        behavior: HitTestBehavior.opaque,
+                        onTap: () => onTap(i),
+                        child: Column(
+                          children: [
+                            Expanded(
+                              child: Center(
+                                child: Text(
+                                  categories[i].name ?? '—',
+                                  style: TextStyle(
+                                    fontFamily: 'Tajawal',
+                                    fontWeight: active
+                                        ? FontWeight.w700
+                                        : FontWeight.w500,
+                                    fontSize: 14,
+                                    color: active
+                                        ? const Color(0xFF121C19)
+                                        : const Color(0xFF8A8F99),
+                                  ),
+                                ),
+                              ),
+                            ),
+                            AnimatedContainer(
+                              duration: const Duration(milliseconds: 200),
+                              height: 3,
+                              width: active ? 26 : 0,
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF30913F),
+                                borderRadius: BorderRadius.circular(2),
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+                ),
+                // ☰ button — physically anchored to the right edge.
+                Positioned(
+                  right: 0,
+                  top: 0,
+                  bottom: 0,
+                  width: 44,
+                  child: GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTap: () => _showSheet(context),
+                    child: Container(
+                      decoration: const BoxDecoration(
+                        color: Colors.white,
+                        border: Border(
+                          left: BorderSide(
+                              color: Color(0xFFEEEFF2), width: 1),
+                        ),
+                      ),
+                      child: const Center(
+                        child: Icon(Icons.menu_rounded,
+                            size: 22, color: Color(0xFF30913F)),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          // Bottom divider line.
+          Container(height: 1, color: const Color(0xFFEEEFF2)),
+        ],
+      ),
+    );
+  }
+}
+
+// ─── Category bottom sheet ────────────────────────────────────────────────────
+
+class _CategorySheet extends StatelessWidget {
+  final List<_Category> categories;
+  final int activeIndex;
+  final void Function(int) onTap;
+
+  const _CategorySheet({
+    required this.categories,
+    required this.activeIndex,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return DraggableScrollableSheet(
+      expand: false,
+      initialChildSize: 0.55,
+      minChildSize: 0.3,
+      maxChildSize: 0.9,
+      builder: (_, ctrl) => Column(
+        children: [
+          // Drag handle.
+          Padding(
+            padding: const EdgeInsets.only(top: 12, bottom: 4),
+            child: Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: const Color(0xFFDDE0E6),
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+          ),
+          // Title row.
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 10, 16, 8),
+            child: Row(
+              children: [
+                const Icon(Icons.menu_rounded,
+                    size: 20, color: Color(0xFF30913F)),
+                const SizedBox(width: 8),
+                const Text(
+                  'قائمة الأصناف',
+                  style: TextStyle(
+                    fontFamily: 'Tajawal',
+                    fontWeight: FontWeight.w700,
+                    fontSize: 16,
+                    color: Color(0xFF121C19),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const Divider(height: 1, color: Color(0xFFEEEFF2)),
+          // Category list.
+          Expanded(
+            child: ListView.separated(
+              controller: ctrl,
+              itemCount: categories.length,
+              separatorBuilder: (_, __) =>
+                  const Divider(height: 1, color: Color(0xFFF5F6F7)),
+              itemBuilder: (_, i) {
+                final bool active = i == activeIndex;
+                return InkWell(
+                  onTap: () => onTap(i),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 20, vertical: 14),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            categories[i].name ?? '—',
+                            style: TextStyle(
+                              fontFamily: 'Tajawal',
+                              fontWeight: active
+                                  ? FontWeight.w700
+                                  : FontWeight.w500,
+                              fontSize: 15,
+                              color: active
+                                  ? const Color(0xFF30913F)
+                                  : const Color(0xFF121C19),
+                            ),
+                          ),
+                        ),
+                        if (active)
+                          const Icon(Icons.check_rounded,
+                              size: 18, color: Color(0xFF30913F)),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+          SizedBox(height: MediaQuery.of(context).padding.bottom + 8),
+        ],
+      ),
+    );
+  }
 }
 
 

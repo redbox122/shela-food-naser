@@ -14,7 +14,6 @@ class DeleteAccountScreen extends StatefulWidget {
 
 class _DeleteAccountScreenState extends State<DeleteAccountScreen> {
   static const Color _titleColor = Color(0xFF2D3633);
-  static const Color _bodyColor = Color(0xFF6C7278);
   static const Color _disabledColor = Color(0xFFE5E7EB);
 
   bool _agreed = false;

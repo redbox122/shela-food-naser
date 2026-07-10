@@ -16,7 +16,7 @@ class QrReferralInstallReferrerService {
   static Future<void> captureFromInstallReferrer(
     SharedPreferences sharedPreferences,
   ) async {
-    if (!Platform.isAndroid) {
+    if (!(!kIsWeb && Platform.isAndroid)) {
       return;
     }
     debugPrint('[QR_REFERRAL_INSTALL_REFERRER_INIT]');

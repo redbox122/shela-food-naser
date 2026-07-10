@@ -21,8 +21,6 @@ import 'package:sixam_mart/features/home/screens/module_home_router_screen.dart'
 import 'package:sixam_mart/features/order/screens/order_screen.dart';
 import 'package:sixam_mart/features/order/screens/my_orders_screen.dart';
 import 'package:sixam_mart/features/cart/screens/cart_screen.dart';
-import 'package:sixam_mart/features/discount/screens/discount_screen.dart';
-import 'package:sixam_mart/features/profile/screens/profile_screen.dart';
 // Transferred profile design (white "حسابي" sectioned menu) shown in the
 // profile tab instead of the legacy green ProfileScreen.
 import 'package:sixam_mart/features/menu/screens/menu_screen.dart';

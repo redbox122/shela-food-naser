@@ -26,7 +26,22 @@
       "Bash(xargs sed:*)",
       "Bash(Get-ChildItem -Path \"d:\\\\projects\\\\shellafood-user-app\" -Directory)",
       "Bash(Select-Object Name)",
-      "PowerShell(ls -Path \"d:\\\\projects\\\\shellafood-user-app\" | Where-Object { $_.PSIsContainer } | Select-Object Name -ExpandProperty Name)"
+      "PowerShell(ls -Path \"d:\\\\projects\\\\shellafood-user-app\" | Where-Object { $_.PSIsContainer } | Select-Object Name -ExpandProperty Name)",
+      "Bash(php -l app/Http/Controllers/Admin/TgaApi/TgaRequestLogController.php)",
+      "Bash(php -l routes/dashboard/sections/hyperorder_tga.php)",
+      "Bash(php -l resources/lang/en/messages.php)",
+      "Bash(open /Users/nasseralimadkhali/Downloads/shella-apps/driver/build/app/outputs/flutter-apk/)",
+      "Bash(dart --version)",
+      "Bash(tee /private/tmp/claude-501/-Users-nasseralimadkhali-Downloads-shellafood-user-app-main/aabb3b7b-570c-4d55-9f33-09124a84a233/scratchpad/flutter_main5.log)",
+      "Bash(xcodebuild build *)",
+      "Bash(cp ios/Runner.xcodeproj/project.pbxproj /tmp/project.pbxproj.bak)",
+      "Bash(sed -i '' '/\"EXCLUDED_ARCHS\\\\[sdk=iphonesimulator\\\\*\\\\]\" = arm64;/d' ios/Runner.xcodeproj/project.pbxproj)",
+      "Bash(tee /private/tmp/claude-501/-Users-nasseralimadkhali-Downloads-shellafood-user-app-main/aabb3b7b-570c-4d55-9f33-09124a84a233/scratchpad/flutter_main6.log)",
+      "Bash(git commit -q -m 'feat\\(home\\): load aggregated offers so old OffersView section shows data *)",
+      "Bash(git commit -m ' *)",
+      "Bash(grep \"\\\\.dart$\")",
+      "Bash(command -v cliclick)",
+      "Bash(find /Users/nasseralimadkhali/Downloads/shella-apps/driver/lib/features/disbursement /Users/nasseralimadkhali/Downloads/shella-apps/driver/lib/features/cash_in_hand -name *.dart)"
     ]
   }
 }

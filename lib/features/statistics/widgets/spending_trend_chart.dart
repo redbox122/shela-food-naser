@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:get/get.dart';
 import 'package:sixam_mart/common/widgets/custom_text.dart';
 import 'package:sixam_mart/util/app_colors.dart';
 import 'package:sixam_mart/util/styles.dart';

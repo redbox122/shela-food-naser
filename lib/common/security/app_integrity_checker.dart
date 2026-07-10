@@ -68,9 +68,9 @@ class AppIntegrityChecker {
   /// Check if app is running on rooted/jailbroken device
   Future<bool> isDeviceRooted() async {
     try {
-      if (Platform.isAndroid) {
+      if ((!kIsWeb && Platform.isAndroid)) {
         return await _checkAndroidRoot();
-      } else if (Platform.isIOS) {
+      } else if ((!kIsWeb && Platform.isIOS)) {
         return await _checkIOSJailbreak();
       }
       return false;
@@ -85,9 +85,9 @@ class AppIntegrityChecker {
   /// Check if app is running in emulator
   Future<bool> isEmulator() async {
     try {
-      if (Platform.isAndroid) {
+      if ((!kIsWeb && Platform.isAndroid)) {
         return await _checkAndroidEmulator();
-      } else if (Platform.isIOS) {
+      } else if ((!kIsWeb && Platform.isIOS)) {
         return await _checkIOSEmulator();
       }
       return false;

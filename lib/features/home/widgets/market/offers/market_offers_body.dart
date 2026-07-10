@@ -47,8 +47,10 @@ class MarketOffersBody extends StatelessWidget {
     crossAxisCount: 3,
     mainAxisSpacing: 12,
     crossAxisSpacing: 10,
-    // Design card is 104×130.
-    childAspectRatio: 104 / 130,
+    // Design card is 104×130, but the fixed 85px image + padding + a 2-line
+    // name + price sum a hair over a 104/130 cell (the ~1.3px bottom overflow).
+    // A touch more height clears it without visibly changing the card.
+    childAspectRatio: 104 / 134,
   );
 
   @override

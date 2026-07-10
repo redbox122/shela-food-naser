@@ -366,3 +366,178 @@ class _StoreHeader extends StatelessWidget {
   }
 }
 
+// ─── Cover panel (scrollable) ─────────────────────────────────────────────────
+
+/// Scrollable portion of a cover-header store: cover image + store details row.
+/// The nav bar (back button, store name, search) stays fixed in [_MarketTopHeader]
+/// above — so those controls are NOT repeated here.
+class _StoreCoverPanel extends StatelessWidget {
+  final String? logo;
+  final String? cover;
+  final String? description;
+  final double rating;
+  final bool freeDelivery;
+  final String? deliveryTime;
+  final double? distance;
+
+  const _StoreCoverPanel({
+    this.logo,
+    this.cover,
+    this.description,
+    this.rating = 0,
+    this.freeDelivery = false,
+    this.deliveryTime,
+    this.distance,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Cover image — 180 px tall with delivery pills overlaid at bottom.
+        Stack(
+          clipBehavior: Clip.none,
+          children: [
+            CustomImage(
+              image: cover ?? '',
+              width: double.infinity,
+              height: 180,
+              fit: BoxFit.cover,
+              placeholder: Images.placeholder,
+            ),
+            // Delivery + time pills at bottom-left of cover.
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: Dimensions.paddingSizeSmall,
+              child: Padding(
+                padding: const EdgeInsets.only(
+                  right: 100,
+                  left: Dimensions.paddingSizeSmall,
+                ),
+                child: Row(
+                  textDirection: TextDirection.rtl,
+                  mainAxisAlignment: MainAxisAlignment.start,
+                  children: [
+                    _CoverPill(
+                      image: Images.truck_delivery_v2,
+                      label: freeDelivery ? 'free_delivery'.tr : 'fast_delivery'.tr,
+                    ),
+                    const SizedBox(width: Dimensions.paddingSizeSmall),
+                    if (deliveryTime != null && deliveryTime!.isNotEmpty)
+                      _CoverPill(
+                        image: Images.time_v2,
+                        label: deliveryTime!,
+                      ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+        // Store info row: logo + description + rating + distance.
+        Padding(
+          padding: const EdgeInsets.fromLTRB(
+            Dimensions.paddingSizeDefault,
+            Dimensions.paddingSizeSmall,
+            Dimensions.paddingSizeDefault,
+            Dimensions.paddingSizeSmall,
+          ),
+          child: Row(
+            textDirection: TextDirection.rtl,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Store logo card floating up over the cover.
+              Transform.translate(
+                offset: const Offset(0, -28),
+                child: Container(
+                  width: 64,
+                  height: 72,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(4),
+                    border: Border.all(color: Colors.white, width: 3),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.10),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  clipBehavior: Clip.antiAlias,
+                  child: CustomImage(
+                    image: logo ?? '',
+                    width: 64,
+                    height: 72,
+                    fit: BoxFit.cover,
+                    placeholder: Images.placeholder,
+                  ),
+                ),
+              ),
+              const SizedBox(width: Dimensions.paddingSizeSmall),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if ((description ?? '').isNotEmpty)
+                      Text(
+                        description!,
+                        textAlign: TextAlign.right,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontFamily: 'Tajawal',
+                          fontWeight: FontWeight.w500,
+                          fontSize: 13,
+                          height: 1.4,
+                          color: Color(0xFF717885),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: Dimensions.paddingSizeSmall),
+              Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  _RatingBadge(rating: rating),
+                  if (distance != null && distance! > 0) ...[
+                    const SizedBox(height: 4),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
+                      decoration: const BoxDecoration(
+                        color: Color(0xFF31A342),
+                        borderRadius: BorderRadius.all(Radius.circular(6)),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.location_on, size: 11, color: Colors.white),
+                          const SizedBox(width: 2),
+                          Text(
+                            distance! < 1000
+                                ? '${distance!.round()} م'
+                                : '${(distance! / 1000).toStringAsFixed(1)} كم',
+                            style: const TextStyle(
+                              fontFamily: 'Tajawal',
+                              fontWeight: FontWeight.w700,
+                              fontSize: 11,
+                              height: 1,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}

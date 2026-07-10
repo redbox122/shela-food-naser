@@ -990,6 +990,48 @@ class CartController extends GetxController implements GetxService {
     return variations;
   }
 
+  /// Public wrapper for [_orderVariationsFromCartFoodSelections] so the checkout
+  /// can serialize a cart item's selected food-variation choices when placing an
+  /// order. Without this the checkout sent an always-empty variations list, so
+  /// selected choices (e.g. a meal box's options) never reached order_details.
+  List<OrderVariation> orderVariationsFromCart(CartModel c) {
+    final List<OrderVariation> fromFlags =
+        _orderVariationsFromCartFoodSelections(c);
+    if (fromFlags.isNotEmpty) return fromFlags;
+    // Fallback: the lightweight v2 cart returns the chosen options directly
+    // (name + values) without the item's foodVariations definitions, so the
+    // flag-based path above is empty. Rebuild them from rawFoodVariations so the
+    // order (and therefore the captain) still carries the customer's choices.
+    final List<dynamic>? raw = c.rawFoodVariations;
+    if (raw == null || raw.isEmpty) return const <OrderVariation>[];
+    final List<OrderVariation> out = <OrderVariation>[];
+    for (final dynamic g in raw) {
+      try {
+        final String? name = g.name as String?;
+        final dynamic vals = g.values;
+        final List<VariationOption> options = <VariationOption>[];
+        if (vals is List) {
+          for (final dynamic o in vals) {
+            if (o is Map && o['label'] != null) {
+              options.add(VariationOption(
+                label: o['label'].toString(),
+                optionPrice:
+                    double.tryParse('${o['optionPrice'] ?? 0}') ?? 0.0,
+              ));
+            }
+          }
+        }
+        if (options.isNotEmpty) {
+          out.add(OrderVariation(
+            name: name,
+            values: OrderVariationValue(options: options),
+          ));
+        }
+      } catch (_) {}
+    }
+    return out;
+  }
+
   OnlineCart? _onlineCartFromCartModelForServerAdd(CartModel c) {
     final Item? item = c.item;
     final int? resolvedItemId = item?.id;

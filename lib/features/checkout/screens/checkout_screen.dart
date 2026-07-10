@@ -12,6 +12,7 @@ import 'package:sixam_mart/features/item/domain/models/item_model.dart';
 import 'package:sixam_mart/features/splash/controllers/splash_controller.dart';
 import 'package:sixam_mart/features/profile/controllers/profile_controller.dart';
 import 'package:sixam_mart/features/checkout/domain/models/place_order_body_model.dart';
+import 'package:sixam_mart/features/checkout/widgets/cart_summary_strip.dart';
 import 'package:sixam_mart/features/address/domain/models/address_model.dart';
 import 'package:sixam_mart/features/cart/domain/models/cart_model.dart';
 //import 'package:sixam_mart/features/cart/domain/models/online_cart_model.dart'as online_cart;
@@ -37,7 +38,6 @@ import 'package:sixam_mart/helper/route_helper.dart';
 import 'package:sixam_mart/util/app_constants.dart';
 import 'package:sixam_mart/util/dimensions.dart';
 import 'package:sixam_mart/util/styles.dart';
-import 'package:sixam_mart/common/widgets/custom_app_bar.dart';
 import 'package:sixam_mart/common/widgets/custom_button.dart';
 import 'package:sixam_mart/common/widgets/custom_dropdown.dart';
 import 'package:sixam_mart/common/widgets/custom_snackbar.dart';
@@ -627,7 +627,27 @@ class CheckoutScreenState extends State<CheckoutScreen>
             );
 
     return Scaffold(
-      appBar: CustomAppBar(title: 'checkout'.tr),
+      // 🎨 Ported header (old app): plain (no green), centered bold title + back.
+      appBar: AppBar(
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+        surfaceTintColor: Theme.of(context).scaffoldBackgroundColor,
+        elevation: 0,
+        scrolledUnderElevation: 0,
+        centerTitle: true,
+        leading: IconButton(
+          icon: Icon(Icons.arrow_back_ios_new,
+              size: 20, color: Theme.of(context).textTheme.bodyLarge?.color),
+          onPressed: () => Navigator.of(context).maybePop(),
+        ),
+        title: Text(
+          'checkout'.tr,
+          textAlign: TextAlign.center,
+          style: tajawalBold.copyWith(
+            fontSize: 18,
+            color: Theme.of(context).textTheme.bodyLarge?.color,
+          ),
+        ),
+      ),
       endDrawerEnableOpenDragGesture: false,
       body: SafeArea(
         top: false,
@@ -1224,6 +1244,11 @@ class CheckoutScreenState extends State<CheckoutScreen>
                                               crossAxisAlignment:
                                                   CrossAxisAlignment.start,
                                               children: [
+                                                  // Ported cart summary strip
+                                                  // (يوجد N منتجات في سلتك) — old
+                                                  // design over the new cart data.
+                                                  CartSummaryStrip(
+                                                      cartList: _cartList),
                                                   TopSection(
                                                     checkoutController:
                                                         checkoutController,
@@ -1357,53 +1382,9 @@ class CheckoutScreenState extends State<CheckoutScreen>
                                             mainAxisSize: MainAxisSize
                                                 .min, // Keep compact column size to avoid overflow.
                                             children: [
-                                              Padding(
-                                                padding: const EdgeInsets
-                                                    .symmetric(
-                                                    horizontal: Dimensions
-                                                        .paddingSizeLarge,
-                                                    vertical: Dimensions
-                                                        .paddingSizeExtraSmall),
-                                                child: Row(
-                                                    mainAxisAlignment:
-                                                        MainAxisAlignment
-                                                            .spaceBetween,
-                                                    children: [
-                                                      Text(
-                                                        checkoutController
-                                                                .isPartialPay
-                                                            ? 'due_payment'.tr
-                                                            : 'total_amount'.tr,
-                                                        style: robotoMedium.copyWith(
-                                                            fontSize: Dimensions
-                                                                .fontSizeLarge,
-                                                            color: Theme.of(
-                                                                    context)
-                                                                .primaryColor),
-                                                      ),
-                                                      GetBuilder<
-                                                          CheckoutController>(
-                                                        id: 'total',
-                                                        builder: (controller) {
-                                                          return PriceConverter
-                                                              .convertPrice2(
-                                                            controller
-                                                                    .viewTotalPrice ??
-                                                                0.0,
-                                                            textStyle:
-                                                                robotoMedium
-                                                                    .copyWith(
-                                                              color: Theme.of(
-                                                                      context)
-                                                                  .primaryColor,
-                                                              fontSize: Dimensions
-                                                                  .fontSizeLarge,
-                                                            ),
-                                                          );
-                                                        },
-                                                      ),
-                                                    ]),
-                                              ),
+                                              // "المبلغ الإجمالي" bar removed to
+                                              // match the old design (the total
+                                              // shows inside the invoice card).
                                               _orderPlaceButton(
                                                 kaidhaSubController,
                                                 checkoutController,
@@ -1461,7 +1442,7 @@ class CheckoutScreenState extends State<CheckoutScreen>
         builder: (controller) => SafeArea(
           child: CustomButton(
               isLoading: controller.isLoading,
-              buttonText: 'place_order'.tr,
+              buttonText: 'confirm_payment'.tr,
               onPressed: controller.acceptTerms && !controller.isLoading
                   ? () async {
                       if (!controller.tryStartPlaceOrder()) {
@@ -1857,8 +1838,13 @@ class CheckoutScreenState extends State<CheckoutScreen>
                                 addOnQtyList.add(addOn.quantity);
                               }
 
-                              final List<OrderVariation> variations = [];
-                              // Variations logic remains the same as before.
+                              // Serialize the item's SELECTED food-variation
+                              // choices (e.g. a McDonald's meal box's options).
+                              // This was previously an always-empty list, so
+                              // selected choices never reached order_details.
+                              final List<OrderVariation> variations =
+                                  Get.find<CartController>()
+                                      .orderVariationsFromCart(cart);
 
                               carts.add(OnlineCart(
                                 cart.id,

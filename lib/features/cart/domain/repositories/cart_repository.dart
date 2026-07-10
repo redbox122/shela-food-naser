@@ -99,8 +99,10 @@ class CartRepository implements CartRepositoryInterface<OnlineCart> {
       'module_id': moduleId,
       'quantity': flat['quantity'],
       'price': finalPrice, // discounted unit price (v1 cart.price semantics)
-      'add_on_ids': <dynamic>[],
-      'add_on_qtys': <dynamic>[],
+      // Carry the chosen options through so the cart shows them under the name.
+      'variation': flat['variation'] ?? <dynamic>[],
+      'add_on_ids': flat['add_on_ids'] ?? <dynamic>[],
+      'add_on_qtys': flat['add_on_qtys'] ?? <dynamic>[],
       'item_type': 'Item',
       'item': {
         'id': flat['item_id'],
@@ -156,9 +158,16 @@ class CartRepository implements CartRepositoryInterface<OnlineCart> {
   }
 
   Future<List<OnlineCartModel>?> _addToCartV2(OnlineCart cart) async {
+    // Include the customer's chosen options. The V2 body previously carried only
+    // item_id + quantity, so selected food variations / add-ons never reached
+    // the server (the cart & captain always showed the item with no choices).
+    final Map<String, dynamic> full = cart.toJson();
     final Map<String, dynamic> body = {
       'item_id': cart.itemId,
       'quantity': cart.quantity ?? 1,
+      'variation': full['variation'] ?? <dynamic>[],
+      'add_on_ids': full['add_on_ids'] ?? <dynamic>[],
+      'add_on_qtys': full['add_on_qtys'] ?? <dynamic>[],
       ..._guestBody(),
     };
     final Response response = await apiClient.postData(

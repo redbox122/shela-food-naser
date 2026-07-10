@@ -236,6 +236,11 @@ class _InviteLinkTab extends StatelessWidget {
                       Images.star_v2,
                       width: 25,
                       height: 25,
+                      // If the asset is ever missing, show a fixed-size box
+                      // instead of the giant error placeholder that squeezes the
+                      // text next to it into a broken vertical column.
+                      errorBuilder: (_, __, ___) =>
+                          const SizedBox(width: 25, height: 25),
                     ),
                     const SizedBox(width: 6),
                     // Flexible so a long description wraps instead of overflowing.

@@ -401,6 +401,37 @@ class OrderDetailsRedesignView extends StatelessWidget {
         ),
       );
 
+  /// Readable labels for the customer's chosen options on an order item
+  /// (food-variation choices + add-ons), shown under the item name.
+  List<String> _orderChoiceLabels(OrderDetailsModel d) {
+    final List<String> out = <String>[];
+    final foodVars = d.foodVariation;
+    if (foodVars != null) {
+      for (final v in foodVars) {
+        final List<String> chosen = <String>[];
+        final vals = v.variationValues;
+        if (vals != null) {
+          for (final val in vals) {
+            final String lvl = (val.level ?? '').trim();
+            if (lvl.isNotEmpty) chosen.add(lvl);
+          }
+        }
+        final String name = (v.name ?? '').trim();
+        if (chosen.isNotEmpty) {
+          out.add(name.isEmpty ? chosen.join('، ') : '$name: ${chosen.join('، ')}');
+        }
+      }
+    }
+    final addOns = d.addOns;
+    if (addOns != null) {
+      for (final a in addOns) {
+        final String n = (a.name ?? '').trim();
+        if (n.isNotEmpty) out.add('+ $n');
+      }
+    }
+    return out;
+  }
+
   // ── Store card ────────────────────────────────────────────────────────────
   Widget _storeCard() {
     return _card(
@@ -471,6 +502,7 @@ class OrderDetailsRedesignView extends StatelessWidget {
               ((detail.price ?? 0) - (detail.discountOnItem ?? 0)) * quantity;
           final bool hasDiscount = discounted < original;
           final String? desc = detail.itemDetails?.description;
+          final List<String> choiceLabels = _orderChoiceLabels(detail);
           return Padding(
             padding: const EdgeInsets.symmetric(
                 vertical: Dimensions.paddingSizeSmall),
@@ -522,6 +554,22 @@ class OrderDetailsRedesignView extends StatelessWidget {
                             fontFamily: 'Tajawal',
                             fontWeight: FontWeight.w400,
                             fontSize: 11,
+                            color: _muted,
+                          ),
+                        ),
+                      ],
+                      // Customer's chosen options under the item name.
+                      if (choiceLabels.isNotEmpty) ...[
+                        const SizedBox(height: 3),
+                        Text(
+                          choiceLabels.join('  •  '),
+                          maxLines: 5,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontFamily: 'Tajawal',
+                            fontWeight: FontWeight.w500,
+                            fontSize: 11,
+                            height: 1.35,
                             color: _muted,
                           ),
                         ),

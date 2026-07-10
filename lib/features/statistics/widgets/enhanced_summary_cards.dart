@@ -124,7 +124,6 @@ class EnhancedSummaryCards extends StatelessWidget {
 
   Widget _trendBadge(double change) {
     final bool up = change >= 0;
-    final Color color = up ? AppColors.primaryColor : AppColors.redColor;
     return Container(
       height: 20,
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),

@@ -18,6 +18,7 @@ enum NotificationType{
   //ignore: constant_identifier_names
   loyalty_point,
   trip,
+  coupon,
 }
 
 class NotificationBodyModel {
@@ -92,6 +93,7 @@ class NotificationBodyModel {
       NotificationType.cashback.toString(): NotificationType.cashback,
       NotificationType.loyalty_point.toString(): NotificationType.loyalty_point,
       NotificationType.trip.toString(): NotificationType.trip,
+      NotificationType.coupon.toString(): NotificationType.coupon,
     };
 
     return enumMap[enumString] ?? NotificationType.general;

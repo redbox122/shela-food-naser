@@ -404,7 +404,20 @@ class _GridProductCard extends StatelessWidget {
                 left: 4,
                 bottom: 4,
                 child: _AddButton(
-                  onTap: () => _addProductToCart(product, storeId),
+                  // Open the options sheet first so REQUIRED choices are enforced
+                  // and selected variations reach the cart/order (no-option items
+                  // still quick-add via showProductOptions' fallback).
+                  onTap: () {
+                    if (product.id == null) return;
+                    showProductOptions(
+                      itemId: product.id!,
+                      storeId: storeId,
+                      moduleId: _marketModuleId,
+                      name: product.name,
+                      image: product.image,
+                      price: product.shownPrice,
+                    );
+                  },
                 ),
               ),
             ],

@@ -374,7 +374,7 @@ class SecureHttpClient {
     if (kIsWeb) {
       headers['X-Platform'] = 'web';
     } else {
-      headers['X-Platform'] = Platform.isAndroid ? 'android' : 'ios';
+      headers['X-Platform'] = (!kIsWeb && Platform.isAndroid) ? 'android' : 'ios';
     }
     headers['X-Request-ID'] = _generateRequestId();
   }

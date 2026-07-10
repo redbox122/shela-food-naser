@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:myfatoorah_flutter/MFModels.dart';
@@ -6,10 +7,9 @@ import 'package:sixam_mart/common/widgets/custom_snackbar.dart';
 import 'package:sixam_mart/common/widgets/smart_image.dart';
 import 'package:sixam_mart/features/checkout/controllers/checkout_controller.dart';
 import 'package:sixam_mart/features/wallet_kaidha_subscription/controllers/kaidhaSub_controller.dart';
-import 'package:sixam_mart/helper/price_converter.dart';
 import 'package:sixam_mart/helper/responsive_helper.dart';
-import 'package:sixam_mart/theme/app_color_tokens.dart';
 import 'package:sixam_mart/util/dimensions.dart';
+import 'package:sixam_mart/util/images.dart';
 import 'package:sixam_mart/util/styles.dart';
 
 //
@@ -83,7 +83,7 @@ class _PaymentMethodBottomSheetState extends State<PaymentMethodBottomSheet> {
           _isLoadingPaymentMethods = false;
         });
       }
-      showCustomSnackBar('pay_load_methods_error'.tr);
+      showCustomSnackBar('error_loading_payment_methods'.tr);
     }
   }
 
@@ -96,65 +96,117 @@ class _PaymentMethodBottomSheetState extends State<PaymentMethodBottomSheet> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final double sheetMaxHeight = MediaQuery.sizeOf(context).height * 0.9;
-    return SafeArea(
-      top: false,
-      bottom: true,
-      left: false,
-      right: false,
-      minimum: EdgeInsets.zero,
-      child: Align(
-        alignment: Alignment.bottomCenter,
-        child: ConstrainedBox(
-          constraints: BoxConstraints(maxHeight: sheetMaxHeight),
-          child: Material(
-            color: Colors.transparent,
-            child: Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(Dimensions.paddingSizeLarge),
-              decoration: BoxDecoration(
-                color: theme.cardColor,
-                borderRadius: BorderRadius.vertical(
-                  top: const Radius.circular(Dimensions.radiusLarge),
-                  bottom: Radius.circular(ResponsiveHelper.isDesktop(context)
-                      ? Dimensions.radiusLarge
-                      : 0),
-                ),
+    return Align(
+      alignment: Alignment.bottomCenter,
+      child: ConstrainedBox(
+        constraints: BoxConstraints(maxHeight: sheetMaxHeight),
+        child: Material(
+          color: Colors.transparent,
+          child: Container(
+            width: double.infinity,
+            decoration: BoxDecoration(
+              color: theme.brightness == Brightness.dark
+                  ? const Color(0xFF0F172A)
+                  : theme.cardColor,
+              borderRadius: BorderRadius.vertical(
+                top: const Radius.circular(Dimensions.radiusLarge),
+                bottom: Radius.circular(ResponsiveHelper.isDesktop(context)
+                    ? Dimensions.radiusLarge
+                    : 0),
               ),
-              child: GetBuilder<KaidhaSubscriptionController>(
-                builder: (KaidhaSubController) {
-                  return GetBuilder<CheckoutController>(
-                      builder: (checkoutController) {
-                    return SingleChildScrollView(
-                      physics: const ClampingScrollPhysics(),
-                      keyboardDismissBehavior:
-                          ScrollViewKeyboardDismissBehavior.onDrag,
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const SizedBox(height: 10),
-                          Text('pay_choose_method'.tr,
-                              style: TextStyle(
-                                  fontSize: 20, fontWeight: FontWeight.bold)),
-                          const SizedBox(height: 20),
-                          PriceConverter.convertPrice2(
-                            checkoutController.viewTotalPrice,
-                            textStyle: robotoBold.copyWith(
-                              color: Theme.of(context).primaryColor,
-                              fontSize: Dimensions.fontSizeOverLarge,
+            ),
+            // White fills through the bottom safe-area (no dark strip below).
+            child: SafeArea(
+              top: false,
+              bottom: true,
+              child: Padding(
+                padding: const EdgeInsets.all(Dimensions.paddingSizeLarge),
+                child: GetBuilder<KaidhaSubscriptionController>(
+                  builder: (KaidhaSubController) {
+                    return GetBuilder<CheckoutController>(
+                        builder: (checkoutController) {
+                      return SingleChildScrollView(
+                        physics: const ClampingScrollPhysics(),
+                        keyboardDismissBehavior:
+                            ScrollViewKeyboardDismissBehavior.onDrag,
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const SizedBox(height: 6),
+                            // Header: centered title + close (X) on the left.
+                            SizedBox(
+                              height: 32,
+                              child: Stack(
+                                children: [
+                                  Align(
+                                    alignment: Alignment.center,
+                                    child: Text(
+                                      'choose_digital_payment'.tr,
+                                      textAlign: TextAlign.center,
+                                      style: tajawalBold.copyWith(
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.w700,
+                                        height: 1.6,
+                                        letterSpacing: 0,
+                                        color: theme.brightness ==
+                                                Brightness.dark
+                                            ? Colors.white
+                                            : const Color(0xFF121C19),
+                                      ),
+                                    ),
+                                  ),
+                                  Align(
+                                    alignment: Alignment.centerLeft,
+                                    child: InkWell(
+                                      onTap: () => Navigator.of(context).pop(),
+                                      borderRadius: BorderRadius.circular(20),
+                                      child: const Padding(
+                                        padding: EdgeInsets.all(4),
+                                        child: Icon(Icons.close, size: 22),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
-                          ),
-                          const SizedBox(height: 20),
-                          _buildDigitalPaymentMethodsList(checkoutController),
-                          const SizedBox(height: 20),
-                          const LinearProgressIndicator(value: 0.1),
-                          const SizedBox(height: 20),
-                          _buildActionButtons(checkoutController),
-                          const SizedBox(height: 30),
-                        ],
-                      ),
-                    );
-                  });
-                },
+                            const SizedBox(height: 16),
+                            // Total — SAR symbol + amount (Tajawal Bold 32, 120%).
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              crossAxisAlignment: CrossAxisAlignment.center,
+                              children: [
+                                Text(
+                                  (checkoutController.viewTotalPrice ?? 0)
+                                      .toStringAsFixed(2),
+                                  textAlign: TextAlign.right,
+                                  style: tajawalBold.copyWith(
+                                    fontSize: 32,
+                                    fontWeight: FontWeight.w700,
+                                    height: 1.2,
+                                    letterSpacing: 0,
+                                    color: Theme.of(context).primaryColor,
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Image.asset(
+                                  Images.sar,
+                                  width: 21.33,
+                                  height: 23.89,
+                                  color: Theme.of(context).primaryColor,
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 24),
+                            _buildDigitalPaymentMethodsList(checkoutController),
+                            const SizedBox(height: 24),
+                            _buildActionButtons(checkoutController),
+                            const SizedBox(height: 16),
+                          ],
+                        ),
+                      );
+                    });
+                  },
+                ),
               ),
             ),
           ),
@@ -173,7 +225,7 @@ class _PaymentMethodBottomSheetState extends State<PaymentMethodBottomSheet> {
           children: [
             CircularProgressIndicator(),
             SizedBox(height: 16),
-            Text('pay_loading_methods'.tr),
+            Text('loading_payment_methods'.tr),
           ],
         ),
       );
@@ -184,10 +236,14 @@ class _PaymentMethodBottomSheetState extends State<PaymentMethodBottomSheet> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.payment,
-                size: 48, color: theme.colorScheme.onSurfaceVariant),
+            Image.asset(
+              Images.add_payment_method,
+              height: 150,
+              width: 150,
+              color: Theme.of(context).disabledColor,
+            ),
             const SizedBox(height: 16),
-            Text('pay_no_methods'.tr,
+            Text('no_payment_methods_available'.tr,
                 style: TextStyle(color: theme.colorScheme.onSurfaceVariant)),
           ],
         ),
@@ -198,188 +254,122 @@ class _PaymentMethodBottomSheetState extends State<PaymentMethodBottomSheet> {
     final filteredPaymentMethods =
         _filterPaymentMethodsByPlatform(checkoutController.paymentMethods);
 
-    // Professional list: one clean, tappable card per method + a secure-payment
-    // trust line. Selection logic (selectPaymentMethod / filtering / MyFatoorah)
-    // is unchanged — only the visual card was upgraded.
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Padding(
-          padding: const EdgeInsets.only(bottom: Dimensions.paddingSizeSmall),
-          child: Row(
-            children: [
-              Icon(Icons.lock_outline,
-                  size: 15, color: Theme.of(context).primaryColor),
-              const SizedBox(width: 6),
-              Text('pay_secure_encrypted'.tr,
-                  style: robotoRegular.copyWith(
-                      fontSize: Dimensions.fontSizeSmall,
-                      color: Theme.of(context).hintColor)),
-            ],
-          ),
-        ),
-        ListView.separated(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          itemCount: filteredPaymentMethods.length,
-          separatorBuilder: (_, __) =>
-              const SizedBox(height: Dimensions.paddingSizeSmall),
-          itemBuilder: (context, index) {
-            final paymentMethod = filteredPaymentMethods[index];
-            final int originalIndex =
-                checkoutController.paymentMethods.indexOf(paymentMethod);
-            final bool isSelected = originalIndex >= 0 &&
-                originalIndex < checkoutController.isSelected.length &&
-                checkoutController.isSelected[originalIndex];
-            return _buildProMethodTile(paymentMethod, isSelected, () {
-              if (originalIndex == -1) return;
-              checkoutController.selectPaymentMethod(originalIndex);
-              setState(() {});
-            });
-          },
-        ),
-      ],
-    );
-  }
-
-  /// Professional payment-method row: radio · name · logo. Purely visual — the
-  /// selection is driven by the same controller call as before.
-  Widget _buildProMethodTile(
-      dynamic paymentMethod, bool isSelected, VoidCallback onTap) {
-    final theme = Theme.of(context);
-    final tokens = theme.extension<AppColorTokens>();
-    final String name =
-        (paymentMethod.paymentMethodAr ?? paymentMethod.paymentMethodEn ?? '')
-            .toString();
-    final Color primary = theme.primaryColor;
-
-    return GestureDetector(
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 150),
-        padding: const EdgeInsets.symmetric(
-            horizontal: Dimensions.paddingSizeDefault, vertical: 12),
-        decoration: BoxDecoration(
-          color: isSelected
-              ? primary.withValues(alpha: 0.07)
-              : (tokens?.surfaceSoft ?? theme.cardColor),
-          borderRadius: BorderRadius.circular(Dimensions.radiusDefault),
-          border: Border.all(
-            color: isSelected ? primary : theme.dividerColor,
-            width: isSelected ? 1.6 : 1,
-          ),
-          boxShadow: isSelected
-              ? [
-                  BoxShadow(
-                      color: primary.withValues(alpha: 0.12),
-                      blurRadius: 8,
-                      offset: const Offset(0, 2))
-                ]
-              : null,
-        ),
-        child: Row(
-          textDirection: TextDirection.rtl,
-          children: [
-            // Radio indicator.
-            Container(
-              width: 22,
-              height: 22,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: isSelected ? primary : Colors.transparent,
-                border: Border.all(
-                    color: isSelected ? primary : theme.dividerColor,
-                    width: 2),
-              ),
-              child: isSelected
-                  ? const Icon(Icons.check, size: 14, color: Colors.white)
-                  : null,
-            ),
-            const SizedBox(width: Dimensions.paddingSizeSmall),
-            // Name.
-            Expanded(
-              child: Text(
-                name,
-                textAlign: TextAlign.right,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: robotoMedium.copyWith(
-                  fontSize: Dimensions.fontSizeDefault,
-                  color: isSelected
-                      ? primary
-                      : theme.textTheme.bodyLarge?.color,
-                ),
-              ),
-            ),
-            const SizedBox(width: Dimensions.paddingSizeSmall),
-            // Logo.
-            Container(
-              width: 46,
-              height: 30,
-              alignment: Alignment.center,
-              child: SmartImage(
-                url: (paymentMethod.imageUrl ?? '').toString(),
-                height: 30,
-                width: 46,
-                fit: BoxFit.contain,
-                cacheWidth: 300,
-                cacheHeight: 300,
-                errorWidget: Icon(Icons.credit_card,
-                    color: theme.hintColor, size: 24),
-              ),
-            ),
-          ],
-        ),
+    return GridView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: ResponsiveHelper.isDesktop(context) ? 4 : 3,
+        mainAxisSpacing: Dimensions.paddingSizeDefault,
+        crossAxisSpacing: Dimensions.paddingSizeDefault,
+        // Figma card: 103 × 100 → aspect ratio 103/100.
+        childAspectRatio:
+            ResponsiveHelper.isDesktop(context) ? 1.15 : 103 / 100,
       ),
+      itemCount: filteredPaymentMethods.length,
+      itemBuilder: (context, index) {
+        final paymentMethod = filteredPaymentMethods[index];
+        final int originalIndex =
+            checkoutController.paymentMethods.indexOf(paymentMethod);
+        final bool isSelected = originalIndex >= 0 &&
+            originalIndex < checkoutController.isSelected.length &&
+            checkoutController.isSelected[originalIndex];
+
+        return GestureDetector(
+          onTap: () {
+            if (originalIndex == -1) {
+              return;
+            }
+            checkoutController.selectPaymentMethod(originalIndex);
+            setState(() {});
+          },
+          child: Container(
+            padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
+            decoration: BoxDecoration(
+              color: isSelected
+                  ? Theme.of(context).primaryColor.withValues(alpha: 0.08)
+                  : (theme.brightness == Brightness.dark
+                      ? const Color(0xFF1E293B)
+                      : Theme.of(context).cardColor),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(
+                color: isSelected
+                    ? Theme.of(context).primaryColor
+                    : (theme.brightness == Brightness.dark
+                        ? const Color(0xFF334155)
+                        : Theme.of(context).dividerColor.withValues(alpha: 0.5)),
+                width: 1,
+              ),
+            ),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                SizedBox(
+                  height: 44,
+                  width: 44,
+                  child: SmartImage(
+                    url: paymentMethod.imageUrl ?? '',
+                    height: 44,
+                    width: 44,
+                    fit: BoxFit.contain,
+                    cacheWidth: 300,
+                    cacheHeight: 300,
+                    errorWidget: const Icon(Icons.image_not_supported),
+                  ),
+                ),
+                const SizedBox(height: Dimensions.paddingSizeExtraSmall),
+                Text(
+                  paymentMethod.paymentMethodEn ?? '',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
+                  style: tajawalBold.copyWith(
+                    fontWeight: FontWeight.w700,
+                    height: 1.6,
+                    fontSize: 14,
+                    color: isSelected
+                        ? Theme.of(context).primaryColor
+                        : Theme.of(context).textTheme.bodyMedium?.color,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 
   Widget _buildActionButtons(CheckoutController checkoutController) {
-    return Row(
-      children: [
-        Expanded(
-          child: TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: Text(
-              'pay_cancel'.tr,
-              style: robotoMedium.copyWith(
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
-                fontSize: Dimensions.fontSizeLarge,
-              ),
-            ),
+    return SizedBox(
+      width: double.infinity,
+      child: ElevatedButton(
+        onPressed:
+            _isProcessing ? null : () => _handlePayment(checkoutController),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Theme.of(context).primaryColor,
+          padding: const EdgeInsets.symmetric(vertical: 16),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(Dimensions.radiusDefault),
           ),
         ),
-        SizedBox(width: Dimensions.paddingSizeDefault),
-        Expanded(
-          child: ElevatedButton(
-            onPressed:
-                _isProcessing ? null : () => _handlePayment(checkoutController),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Theme.of(context).primaryColor,
-              padding: const EdgeInsets.symmetric(vertical: 12),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(Dimensions.radiusDefault),
+        child: _isProcessing
+            ? const SizedBox(
+                height: 20,
+                width: 20,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                ),
+              )
+            : Text(
+                'choose_payment_method'.tr,
+                style: tajawalBold.copyWith(
+                  color: Colors.white,
+                  fontSize: 16,
+                  height: 1.6,
+                ),
               ),
-            ),
-            child: _isProcessing
-                ? const SizedBox(
-                    height: 20,
-                    width: 20,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                    ),
-                  )
-                : Text(
-                    'pay_select_method'.tr,
-                    style: robotoMedium.copyWith(
-                      color: Colors.white,
-                      fontSize: Dimensions.fontSizeLarge,
-                    ),
-                  ),
-          ),
-        ),
-      ],
+      ),
     );
   }
 
@@ -391,7 +381,7 @@ class _PaymentMethodBottomSheetState extends State<PaymentMethodBottomSheet> {
       // Close the modal first
       Navigator.of(context).pop();
     } else {
-      showCustomSnackBar('pay_please_choose_first'.tr);
+      showCustomSnackBar('please_select_payment_method_first'.tr);
     }
   }
 
@@ -405,12 +395,12 @@ class _PaymentMethodBottomSheetState extends State<PaymentMethodBottomSheet> {
       final methodEn = method.paymentMethodEn?.toLowerCase() ?? '';
 
       // On Android, keep all methods visible (including Apple Pay).
-      if (Platform.isAndroid) {
+      if ((!kIsWeb && Platform.isAndroid)) {
         return true;
       }
 
       // On iOS, hide Google Pay methods (if any)
-      if (Platform.isIOS) {
+      if ((!kIsWeb && Platform.isIOS)) {
         return !methodCode.contains('gp') && !methodEn.contains('google');
       }
 

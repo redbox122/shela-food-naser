@@ -261,7 +261,7 @@ class _UpdateDialogState extends State<UpdateDialog> {
               ),
 
               // Auto update option for Android
-              if (Platform.isAndroid &&
+              if ((!kIsWeb && Platform.isAndroid) &&
                   _autoUpdateAvailable &&
                   !widget.versionResult.isForceUpdate) ...[
                 const SizedBox(height: Dimensions.paddingSizeDefault),

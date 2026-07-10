@@ -775,6 +775,15 @@ class CheckoutController extends GetxController implements GetxService {
   int _paymentMethodIndex = -1;
   int get paymentMethodIndex => _paymentMethodIndex;
 
+  // Ported from the old app's payment section: a transient "no payment method
+  // selected" validation flag the payment cards read to show their red outline.
+  bool _payMethodError = false;
+  bool get payMethodError => _payMethodError;
+  set payMethodError(bool value) {
+    _payMethodError = value;
+    update(['payment']);
+  }
+
   int _selectedDateSlot = 0;
   int get selectedDateSlot => _selectedDateSlot;
 
@@ -1098,7 +1107,7 @@ class CheckoutController extends GetxController implements GetxService {
     final String selCode =
         (select_payment_Methods!.paymentMethodCode ?? '').toLowerCase();
     final bool isApplePay = selEn.contains('apple') || selCode == 'ap';
-    if (isApplePay && Platform.isIOS && AppConstants.applePayNativeEnabled) {
+    if (isApplePay && (!kIsWeb && Platform.isIOS) && AppConstants.applePayNativeEnabled) {
       final bool nativeOk =
           await processNativeApplePay(amount, customerReference: orderId.toString());
       if (nativeOk) {
@@ -1642,7 +1651,7 @@ class CheckoutController extends GetxController implements GetxService {
   /// available so the caller can fall back to the WebView flow.
   Future<bool> processNativeApplePay(String amount,
       {String? customerReference}) async {
-    if (!Platform.isIOS || !AppConstants.applePayNativeEnabled) {
+    if (!(!kIsWeb && Platform.isIOS) || !AppConstants.applePayNativeEnabled) {
       return false; // caller falls back to the WebView flow
     }
     try {

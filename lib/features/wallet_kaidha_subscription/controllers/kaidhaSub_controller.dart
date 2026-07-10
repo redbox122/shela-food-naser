@@ -1581,12 +1581,12 @@ class KaidhaSubscriptionController extends GetxController
       final methodAr = method.paymentMethodAr?.toLowerCase() ?? '';
 
       // Keep all methods visible on Android (including Apple Pay).
-      if (Platform.isAndroid) {
+      if ((!kIsWeb && Platform.isAndroid)) {
         return true;
       }
 
       // On iOS, hide Google Pay methods.
-      if (Platform.isIOS) {
+      if ((!kIsWeb && Platform.isIOS)) {
         final isGooglePay = methodCode.contains('gp') ||
             methodEn.contains('google') ||
             methodAr.contains('google');

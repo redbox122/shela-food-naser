@@ -543,6 +543,35 @@ class CartService implements CartServiceInterface {
 
       final int? quantityLimit = cart.item!.quantityLimit;
 
+      // Readable labels for the customer's chosen options, built directly from
+      // the variations the backend returned (cart.foodVariation). This works even
+      // when the item's foodVariations definitions are absent (as with the
+      // lightweight v2 cart items), so the cart shows the choices under the name.
+      final List<String> variationLabels = [];
+      if (cart.foodVariation != null) {
+        for (final online_cart.Variation g in cart.foodVariation!) {
+          final List<String> chosen = [];
+          final dynamic vals = g.values;
+          if (vals is List) {
+            for (final o in vals) {
+              final dynamic label = (o is Map) ? o['label'] : null;
+              if (label != null && label.toString().trim().isNotEmpty) {
+                chosen.add(label.toString());
+              }
+            }
+          } else if (vals is online_cart.Value && vals.label != null) {
+            for (final l in vals.label!) {
+              if (l.trim().isNotEmpty) chosen.add(l);
+            }
+          }
+          final String name = (g.name ?? '').trim();
+          if (chosen.isNotEmpty) {
+            variationLabels.add(
+                name.isEmpty ? chosen.join('، ') : '$name: ${chosen.join('، ')}');
+          }
+        }
+      }
+
       cartList.add(
         CartModel(
           id: cart.id,
@@ -553,6 +582,8 @@ class CartService implements CartServiceInterface {
           variation: cart.productVariation ?? [],
           foodVariations: selectedFoodVariations,
           rawFoodVariations: cart.foodVariation,
+          selectedVariationLabels:
+              variationLabels.isEmpty ? null : variationLabels,
           discountAmount: discountAmount,
           quantity: quantity,
           addOnIds: addOnIdList,

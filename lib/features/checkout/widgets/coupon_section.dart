@@ -47,7 +47,9 @@ class CouponSection extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(horizontal: Dimensions.paddingSizeLarge),
                 child: Column(children: [
                   Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-                    Text('promo_code'.tr, style: robotoMedium),
+                    Text('have_promo_code'.tr,
+                        style: tajawalBold.copyWith(
+                            fontSize: 18, height: 1.6, letterSpacing: 0)),
                     InkWell(
                       onTap: () {
                         if (ResponsiveHelper.isDesktop(context)) {
@@ -67,7 +69,7 @@ class CouponSection extends StatelessWidget {
                       child: Padding(
                         padding: const EdgeInsets.all(10.0),
                         child: Row(children: [
-                          Text('add_voucher'.tr,
+                          Text('coupons'.tr,
                               style: robotoMedium.copyWith(fontSize: Dimensions.fontSizeSmall, color: Theme.of(context).primaryColor)),
                           const SizedBox(width: Dimensions.paddingSizeExtraSmall),
                           Icon(Icons.add, size: 20, color: Theme.of(context).primaryColor),
@@ -104,8 +106,9 @@ class CouponSection extends StatelessWidget {
                     ),
                   Container(
                     decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(Dimensions.radiusDefault),
-                      border: Border.all(color: Theme.of(context).primaryColor, width: 0.2),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                          color: Theme.of(context).primaryColor, width: 1.5),
                     ),
                     padding: const EdgeInsets.only(left: 5),
                     child: Row(children: [
@@ -116,8 +119,10 @@ class CouponSection extends StatelessWidget {
                             controller: checkoutController.couponController,
                             style: robotoRegular.copyWith(height: ResponsiveHelper.isMobile(context) ? null : 2),
                             decoration: InputDecoration(
-                              hintText: 'enter_promo_code'.tr,
-                              hintStyle: robotoRegular.copyWith(color: Theme.of(context).hintColor),
+                              hintText: 'promo_code_example'.tr,
+                              hintStyle: tajawalRegular.copyWith(
+                                  fontSize: 14,
+                                  color: Theme.of(context).hintColor),
                               isDense: true,
                               filled: true,
                               enabled: !couponController.hasAppliedCoupon,
@@ -182,20 +187,23 @@ class CouponSection extends StatelessWidget {
                         },
                         child: Container(
                           height: 45,
-                          width: !couponController.hasAppliedCoupon ? 100 : 50,
+                          width: !couponController.hasAppliedCoupon ? 96 : 48,
                           alignment: Alignment.center,
-                          margin: const EdgeInsets.all(Dimensions.paddingSizeExtraSmall),
+                          margin: const EdgeInsets.all(6),
                           decoration: BoxDecoration(
                             color: !couponController.hasAppliedCoupon
                                 ? Theme.of(context).primaryColor
                                 : Colors.transparent,
-                            borderRadius: BorderRadius.circular(Dimensions.radiusDefault),
+                            borderRadius: BorderRadius.circular(8),
                           ),
                           child: !couponController.hasAppliedCoupon
                               ? !couponController.isLoading
                                   ? Text(
-                                      'apply'.tr,
-                                      style: robotoMedium.copyWith(color: Theme.of(context).cardColor),
+                                      'activate'.tr,
+                                      style: tajawalBold.copyWith(
+                                          color: Colors.white,
+                                          fontSize: 14,
+                                          height: 1.6),
                                     )
                                   : const SizedBox(
                                       height: 30,

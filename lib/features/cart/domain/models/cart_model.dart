@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:sixam_mart/features/item/domain/models/item_model.dart';
 
 class CartModel {
@@ -8,6 +9,11 @@ class CartModel {
   List<Variation>? variation;
   List<List<bool?>>? foodVariations;
   List<dynamic>? rawFoodVariations;
+
+  /// Display labels for food-variation choices returned in the `{name, values}`
+  /// shape (the market options sheet / order format), e.g. "ساندوتش 1/2: بيج
+  /// تايستي". Populated only when the server sends that format; null otherwise.
+  List<String>? selectedVariationLabels;
   double? discountAmount;
   int? quantity;
   List<AddOn>? addOnIds;
@@ -26,6 +32,7 @@ class CartModel {
     this.variation,
     this.foodVariations,
     this.rawFoodVariations,
+    this.selectedVariationLabels,
     this.discountAmount,
     this.quantity,
     this.addOnIds,
@@ -43,12 +50,49 @@ class CartModel {
     price = _parseDouble(json['price']) ?? 0.0;
     discountedPrice = price;
 
-    // variation
-    if (json['variation'] is List) {
-      variation = (json['variation'] as List)
+    // variation — may arrive as a List, or (for double-encoded rows) a JSON
+    // String like "[{...}]". Decode the string first so the choices still parse.
+    dynamic variationRaw = json['variation'];
+    if (variationRaw is String) {
+      try {
+        variationRaw = jsonDecode(variationRaw);
+      } catch (_) {
+        variationRaw = null;
+      }
+    }
+    if (variationRaw is List) {
+      variation = variationRaw
           .whereType<Map<String, dynamic>>()
           .map((v) => Variation.fromJson(v))
           .toList();
+
+      // Food-variation choices arrive as {name, values:[{label,..}]} (or the
+      // older {name, values:{label:[...]}}). The Variation model above only
+      // captures type/price, so extract readable labels here for the cart UI.
+      final labels = <String>[];
+      for (final v in variationRaw) {
+        if (v is! Map || v['name'] == null || v['values'] == null) continue;
+        final chosen = <String>[];
+        final dynamic vals = v['values'];
+        if (vals is List) {
+          for (final o in vals) {
+            if (o is Map && o['label'] != null) {
+              chosen.add(o['label'].toString());
+            }
+          }
+        } else if (vals is Map && vals['label'] != null) {
+          final dynamic lab = vals['label'];
+          if (lab is List) {
+            chosen.addAll(lab.map((e) => e.toString()));
+          } else {
+            chosen.add(lab.toString());
+          }
+        }
+        if (chosen.isNotEmpty) {
+          labels.add('${v['name']}: ${chosen.join('، ')}');
+        }
+      }
+      if (labels.isNotEmpty) selectedVariationLabels = labels;
     }
 
     // food variations

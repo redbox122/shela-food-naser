@@ -1,16 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:google_maps_flutter/google_maps_flutter.dart';
-import 'package:sixam_mart/common/widgets/address_widget.dart';
 import 'package:sixam_mart/features/address/domain/models/address_model.dart';
+import 'package:sixam_mart/features/address/widgets/address_selection_sheet.dart';
 import 'package:sixam_mart/features/checkout/controllers/checkout_controller.dart';
 import 'package:sixam_mart/helper/auth_helper.dart';
-import 'package:sixam_mart/helper/responsive_helper.dart';
-import 'package:sixam_mart/helper/route_helper.dart';
 import 'package:sixam_mart/util/dimensions.dart';
+import 'package:sixam_mart/util/images.dart';
 import 'package:sixam_mart/util/styles.dart';
 import 'package:sixam_mart/common/widgets/custom_dropdown.dart';
-import 'package:sixam_mart/common/widgets/custom_text_field.dart';
 import 'package:sixam_mart/features/checkout/widgets/guest_delivery_address.dart';
 
 class DeliverySection extends StatelessWidget {
@@ -36,9 +33,9 @@ class DeliverySection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final bool isDark = Theme.of(context).brightness == Brightness.dark;
     final bool isGuestLoggedIn = AuthHelper.isGuestLoggedIn();
     final bool takeAway = (checkoutController.orderType == 'take_away');
-    final bool isDesktop = ResponsiveHelper.isDesktop(context);
     final int selectedIndex = (checkoutController.addressIndex != null &&
             checkoutController.addressIndex! >= 0 &&
             checkoutController.addressIndex! < address.length)
@@ -61,392 +58,103 @@ class DeliverySection extends StatelessWidget {
           : !takeAway
               ? Container(
                   decoration: BoxDecoration(
-                    color: Theme.of(context).cardColor,
-                    boxShadow: [
-                      BoxShadow(
-                          color: Theme.of(context)
-                              .primaryColor
-                              .withValues(alpha: 0.05),
-                          blurRadius: 10)
-                    ],
+                    color: isDark ? const Color(0xFF0F172A) : Theme.of(context).cardColor,
+                    border: isDark
+                        ? Border.all(color: const Color(0xFF334155), width: 1)
+                        : null,
                   ),
                   padding: const EdgeInsets.symmetric(
                       horizontal: Dimensions.paddingSizeLarge),
                   child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text('deliver_to'.tr, style: robotoMedium),
-                              TextButton.icon(
-                                onPressed: () async {
-                                  final dynamic result = await Get.toNamed(
-                                      RouteHelper.getAddAddressRoute(
-                                          true,
-                                          false,
-                                          checkoutController.store!.zoneId));
-                                  if (result is AddressModel) {
-                                    checkoutController.getDistanceInKM(
-                                      LatLng(double.parse(result.latitude!),
-                                          double.parse(result.longitude!)),
-                                      LatLng(
-                                          double.parse(checkoutController
-                                              .store!.latitude!),
-                                          double.parse(checkoutController
-                                              .store!.longitude!)),
-                                    );
-                                    final String? street = result.streetNumber;
-                                    if (street != null &&
-                                        street.trim().isNotEmpty) {
-                                      checkoutController
-                                          .streetNumberController.text = street;
-                                    }
-                                    final String? house = result.house;
-                                    if (house != null &&
-                                        house.trim().isNotEmpty) {
-                                      checkoutController.houseController.text =
-                                          house;
-                                    }
-                                    final String? floor = result.floor;
-                                    if (floor != null &&
-                                        floor.trim().isNotEmpty) {
-                                      checkoutController.floorController.text =
-                                          floor;
-                                    }
-                                  }
-                                },
-                                icon: const Icon(Icons.add, size: 20),
-                                label: Text('add_new'.tr,
-                                    style: robotoMedium.copyWith(
-                                        fontSize: Dimensions.fontSizeSmall)),
-                              ),
-                            ]),
-                        isDesktop
-                            ? Stack(children: [
-                                Container(
-                                  constraints:
-                                      const BoxConstraints(minHeight: 90),
-                                  decoration: BoxDecoration(
-                                    borderRadius: BorderRadius.circular(
-                                        Dimensions.radiusDefault),
-                                    color: Theme.of(context)
-                                        .primaryColor
-                                        .withValues(alpha: 0.1),
-                                  ),
-                                  child: Container(
-                                    height: 50,
-                                    padding: const EdgeInsets.symmetric(
-                                      vertical:
-                                          Dimensions.paddingSizeExtraSmall,
-                                      horizontal:
-                                          Dimensions.paddingSizeExtraSmall,
-                                    ),
-                                    child: AddressWidget(
-                                      address: address[selectedIndex],
-                                      fromAddress: false,
-                                      fromCheckout: true,
-                                    ),
-                                  ),
-                                ),
-                                Positioned.fill(
-                                  child: Align(
-                                    alignment: Alignment.centerRight,
-                                    child: PopupMenuButton(
-                                        position: PopupMenuPosition.under,
-                                        icon: const Icon(
-                                            Icons.keyboard_arrow_down),
-                                        onSelected: (value) {},
-                                        itemBuilder: (context) => List.generate(
-                                            address.length,
-                                            (index) => PopupMenuItem(
-                                                  child: InkWell(
-                                                    onTap: () {
-                                                      checkoutController
-                                                          .getDistanceInKM(
-                                                        LatLng(
-                                                          double.parse(
-                                                              address[index]
-                                                                  .latitude!),
-                                                          double.parse(
-                                                              address[index]
-                                                                  .longitude!),
-                                                        ),
-                                                        LatLng(
-                                                            double.parse(
-                                                                checkoutController
-                                                                    .store!
-                                                                    .latitude!),
-                                                            double.parse(
-                                                                checkoutController
-                                                                    .store!
-                                                                    .longitude!)),
-                                                      );
-                                                      checkoutController
-                                                          .setAddressIndex(
-                                                              index);
-                                                      final String? street =
-                                                          address[index]
-                                                              .streetNumber;
-                                                      if (street != null &&
-                                                          street
-                                                              .trim()
-                                                              .isNotEmpty) {
-                                                        checkoutController
-                                                            .streetNumberController
-                                                            .text = street;
-                                                      }
-                                                      final String? house =
-                                                          address[index].house;
-                                                      if (house != null &&
-                                                          house
-                                                              .trim()
-                                                              .isNotEmpty) {
-                                                        checkoutController
-                                                            .houseController
-                                                            .text = house;
-                                                      }
-                                                      final String? floor =
-                                                          address[index].floor;
-                                                      if (floor != null &&
-                                                          floor
-                                                              .trim()
-                                                              .isNotEmpty) {
-                                                        checkoutController
-                                                            .floorController
-                                                            .text = floor;
-                                                      }
-                                                      Navigator.pop(context);
-                                                    },
-                                                    child: Row(
-                                                        crossAxisAlignment:
-                                                            CrossAxisAlignment
-                                                                .start,
-                                                        children: [
-                                                          Container(
-                                                            height: 20,
-                                                            width: 20,
-                                                            padding:
-                                                                const EdgeInsets
-                                                                    .all(3),
-                                                            decoration:
-                                                                BoxDecoration(
-                                                              shape: BoxShape
-                                                                  .circle,
-                                                              border: Border.all(
-                                                                  color: checkoutController
-                                                                              .addressIndex ==
-                                                                          index
-                                                                      ? Theme.of(
-                                                                              context)
-                                                                          .primaryColor
-                                                                      : Theme.of(
-                                                                              context)
-                                                                          .disabledColor),
-                                                            ),
-                                                            child: checkoutController
-                                                                        .addressIndex ==
-                                                                    index
-                                                                ? Container(
-                                                                    height: 15,
-                                                                    width: 15,
-                                                                    decoration: BoxDecoration(
-                                                                        shape: BoxShape
-                                                                            .circle,
-                                                                        color: Theme.of(context)
-                                                                            .primaryColor),
-                                                                  )
-                                                                : const SizedBox(),
-                                                          ),
-                                                          const SizedBox(
-                                                              width: Dimensions
-                                                                  .paddingSizeSmall),
-                                                          Expanded(
-                                                            child: Column(
-                                                              crossAxisAlignment:
-                                                                  CrossAxisAlignment
-                                                                      .start,
-                                                              children: [
-                                                                Text(
-                                                                    address[index]
-                                                                        .addressType!
-                                                                        .tr,
-                                                                    style: robotoMedium.copyWith(
-                                                                        fontSize:
-                                                                            Dimensions.fontSizeSmall)),
-                                                                const SizedBox(
-                                                                    height: Dimensions
-                                                                        .paddingSizeExtraSmall),
-                                                                Text(
-                                                                  address[index]
-                                                                      .address!,
-                                                                  maxLines: 1,
-                                                                  overflow:
-                                                                      TextOverflow
-                                                                          .ellipsis,
-                                                                  style: robotoRegular.copyWith(
-                                                                      fontSize:
-                                                                          Dimensions
-                                                                              .fontSizeExtraSmall,
-                                                                      color: Theme.of(
-                                                                              context)
-                                                                          .disabledColor),
-                                                                ),
-                                                              ],
-                                                            ),
-                                                          ),
-                                                        ]),
-                                                  ),
-                                                ))),
-                                  ),
-                                ),
-                              ])
-                            : Container(
-                                constraints: BoxConstraints(
-                                  minHeight: ResponsiveHelper.isDesktop(context)
-                                      ? 100
-                                      : 96,
-                                ),
-                                decoration: BoxDecoration(
-                                  borderRadius: BorderRadius.circular(
-                                      Dimensions.radiusDefault),
-                                  color: Theme.of(context)
-                                      .primaryColor
-                                      .withValues(alpha: 0.05),
-                                ),
-                                child: Align(
-                                  alignment: Alignment.topCenter,
-                                  child: Padding(
-                                    padding: const EdgeInsets.all(
-                                        Dimensions.paddingSizeSmall),
-                                    child: CustomDropdown<int>(
-                                      onChange: (int? value, int index) {
-                                        checkoutController.getDistanceInKM(
-                                          LatLng(
-                                            double.parse(
-                                                address[index].latitude!),
-                                            double.parse(
-                                                address[index].longitude!),
-                                          ),
-                                          LatLng(
-                                            double.parse(checkoutController
-                                                .store!.latitude!),
-                                            double.parse(checkoutController
-                                                .store!.longitude!),
-                                          ),
-                                        );
-                                        checkoutController
-                                            .setAddressIndex(index);
-
-                                        final String? street =
-                                            address[index].streetNumber;
-                                        if (street != null &&
-                                            street.trim().isNotEmpty) {
-                                          checkoutController
-                                              .streetNumberController
-                                              .text = street;
-                                        }
-                                        final String? house =
-                                            address[index].house;
-                                        if (house != null &&
-                                            house.trim().isNotEmpty) {
-                                          checkoutController
-                                              .houseController.text = house;
-                                        }
-                                        final String? floor =
-                                            address[index].floor;
-                                        if (floor != null &&
-                                            floor.trim().isNotEmpty) {
-                                          checkoutController
-                                              .floorController.text = floor;
-                                        }
-                                      },
-                                      dropdownButtonStyle: DropdownButtonStyle(
-                                        height: 96,
-                                        padding: const EdgeInsets.symmetric(
-                                          vertical:
-                                              Dimensions.paddingSizeExtraSmall,
-                                          horizontal:
-                                              Dimensions.paddingSizeExtraSmall,
+                        const SizedBox(height: 8),
+                        // 🎨 NEW DESIGN: tappable "will arrive at" row + address
+                        // line. Tapping opens the address bottom sheet (choose
+                        // saved / add new / edit). The detailed street/house/
+                        // floor fields were removed — the selected address
+                        // already carries them.
+                        InkWell(
+                          borderRadius: BorderRadius.circular(8),
+                          // The new app's address sheet handles selection
+                          // (zone, distance, active address) internally.
+                          onTap: () => showAddressSelectionSheet(),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 6),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Flexible(
+                                  // "سيصلك على" → Headline (Bold 18, #121C19);
+                                  // address name → Highlight green (Bold 16).
+                                  child: Text.rich(
+                                    TextSpan(children: [
+                                      TextSpan(
+                                        text: '${'will_arrive_at'.tr} ',
+                                        style: tajawalBold.copyWith(
+                                          fontSize: 18,
+                                          height: 1.6,
+                                          letterSpacing: 0,
+                                          color: isDark ? Colors.white : const Color(0xFF121C19),
                                         ),
-                                        primaryColor: Theme.of(context)
-                                            .textTheme
-                                            .bodyLarge!
-                                            .color,
                                       ),
-                                      dropdownStyle: DropdownStyle(
-                                        elevation: 10,
-                                        borderRadius: BorderRadius.circular(
-                                            Dimensions.radiusDefault),
-                                        padding: const EdgeInsets.all(
-                                            Dimensions.paddingSizeExtraSmall),
-                                      ),
-                                      items: addressList,
-                                      child: AddressWidget(
-                                        address: address[selectedIndex],
-                                        fromAddress: false,
-                                        fromCheckout: true,
-                                      ),
+                                      if (address.isNotEmpty &&
+                                          (address[selectedIndex].addressType ??
+                                                  '')
+                                              .isNotEmpty)
+                                        TextSpan(
+                                          text: address[selectedIndex]
+                                              .addressType!,
+                                          style: tajawalBold.copyWith(
+                                            fontSize: 16,
+                                            height: 1.6,
+                                            letterSpacing: 0,
+                                            color: const Color(0xFF30913F),
+                                          ),
+                                        ),
+                                    ]),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    textAlign: TextAlign.right,
+                                  ),
+                                ),
+                                const SizedBox(width: 2),
+                                Icon(Icons.keyboard_arrow_down,
+                                    color: Theme.of(context).primaryColor),
+                              ],
+                            ),
+                          ),
+                        ),
+                        if (address.isNotEmpty &&
+                            (address[selectedIndex].address ?? '').isNotEmpty)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 4, bottom: 4),
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Image.asset(Images.location_new,
+                                    width: 16, height: 16),
+                                const SizedBox(width: 6),
+                                Expanded(
+                                  child: Text(
+                                    address[selectedIndex].address!,
+                                    textAlign: TextAlign.right,
+                                    style: tajawalMedium.copyWith(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w500,
+                                      height: 1.6,
+                                      letterSpacing: 0,
+                                      color: Theme.of(context)
+                                          .textTheme
+                                          .bodyLarge
+                                          ?.color,
                                     ),
                                   ),
                                 ),
-                              ),
-                        const SizedBox(height: Dimensions.paddingSizeLarge),
-                        !isDesktop
-                            ? CustomTextField(
-                                labelText: 'street_number'.tr,
-                                titleText: 'write_street_number'.tr,
-                                inputType: TextInputType.streetAddress,
-                                focusNode: checkoutController.streetNode,
-                                nextFocus: checkoutController.houseNode,
-                                controller:
-                                    checkoutController.streetNumberController,
-                              )
-                            : const SizedBox(),
-                        SizedBox(
-                            height:
-                                !isDesktop ? Dimensions.paddingSizeLarge : 0),
-                        Row(children: [
-                          isDesktop
-                              ? Expanded(
-                                  child: CustomTextField(
-                                    titleText: 'write_street_number'.tr,
-                                    labelText: 'street_number'.tr,
-                                    inputType: TextInputType.streetAddress,
-                                    focusNode: checkoutController.streetNode,
-                                    nextFocus: checkoutController.houseNode,
-                                    controller: checkoutController
-                                        .streetNumberController,
-                                  ),
-                                )
-                              : const SizedBox(),
-                          SizedBox(
-                              width:
-                                  isDesktop ? Dimensions.paddingSizeSmall : 0),
-
-                          Expanded(
-                            child: CustomTextField(
-                              titleText: 'write_house_number'.tr,
-                              labelText: 'house'.tr,
-                              focusNode: checkoutController.houseNode,
-                              nextFocus: checkoutController.floorNode,
-                              controller: checkoutController.houseController,
+                              ],
                             ),
                           ),
-                          const SizedBox(width: Dimensions.paddingSizeSmall),
-
-                          Expanded(
-                            child: CustomTextField(
-                              titleText: 'write_floor_number'.tr,
-                              labelText: 'floor'.tr,
-                              focusNode: checkoutController.floorNode,
-                              inputAction: TextInputAction.done,
-                              controller: checkoutController.floorController,
-                            ),
-                          ),
-                          //const SizedBox(height: Dimensions.paddingSizeLarge),
-                        ]),
-                        const SizedBox(height: Dimensions.paddingSizeLarge),
+                        const SizedBox(height: Dimensions.paddingSizeSmall),
                       ]),
                 )
               : const SizedBox(),

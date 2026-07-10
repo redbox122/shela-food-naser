@@ -221,12 +221,12 @@ class WalletController extends GetxController implements GetxService {
       final methodAr = method.paymentMethodAr?.toLowerCase() ?? '';
 
       // On Android, keep all methods visible (including Apple Pay).
-      if (Platform.isAndroid) {
+      if ((!kIsWeb && Platform.isAndroid)) {
         return true;
       }
 
       // On iOS, hide Google Pay methods but show Apple Pay
-      if (Platform.isIOS) {
+      if ((!kIsWeb && Platform.isIOS)) {
         final isGooglePay = methodCode.contains('gp') ||
             methodEn.contains('google') ||
             methodAr.contains('جوجل') ||

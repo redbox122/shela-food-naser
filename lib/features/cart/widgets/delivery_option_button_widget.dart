@@ -67,55 +67,49 @@ class _DeliveryOptionButtonWidgetState
               }
             }
           },
-          child: Container(
+          child: Builder(builder: (context) {
+            // 🎨 Ported design (old app): light-green filled card (#EBFEEB) with a
+            // green custom radio when selected; light-grey card otherwise. Wiring
+            // and the reactive charge label below are unchanged.
+            final theme = Theme.of(context);
+            final bool isDark = theme.brightness == Brightness.dark;
+            final Color primary = theme.primaryColor;
+            final Color cardBg = select
+                ? const Color(0xFFEBFEEB)
+                : (isDark ? const Color(0xFF0F172A) : const Color(0xFFF6F5F8));
+            final Color titleColor = select
+                ? const Color(0xFF121C19)
+                : (isDark ? Colors.white : const Color(0xFF121C19));
+            final Color borderColor = select
+                ? primary
+                : (isDark
+                    ? const Color(0xFF334155)
+                    : theme.dividerColor.withValues(alpha: 0.8));
+            return Container(
+            width: double.infinity,
             decoration: BoxDecoration(
-              color: select
-                  ? widget.fromWeb
-                      ? Theme.of(context).primaryColor.withValues(alpha: 0.1)
-                      : Theme.of(context).cardColor
-                  : Colors.transparent,
-              borderRadius: BorderRadius.circular(Dimensions.radiusSmall),
-              border: Border.all(
-                  color: select
-                      ? Theme.of(context).primaryColor
-                      : Colors.transparent),
+              color: cardBg,
+              borderRadius: BorderRadius.circular(Dimensions.radiusDefault),
+              border: Border.all(color: borderColor, width: select ? 1.4 : 1),
             ),
             padding: const EdgeInsets.symmetric(
-                horizontal: Dimensions.paddingSizeSmall,
-                vertical: Dimensions.paddingSizeExtraSmall),
+                horizontal: Dimensions.paddingSizeDefault,
+                vertical: Dimensions.paddingSizeSmall),
             child: Row(
               children: [
-                // ignore: deprecated_member_use
-                Radio<String>(
-                  value: widget.value,
-                  // ignore: deprecated_member_use
-                  groupValue: checkoutController.orderType,
-                  // ignore: deprecated_member_use
-                  onChanged: (String? value) {
-                    checkoutController.setOrderType(value);
-                  },
-                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                  fillColor: WidgetStateProperty.resolveWith<Color>((states) {
-                    if (states.contains(WidgetState.selected)) {
-                      return Theme.of(context).primaryColor;
-                    }
-                    return Theme.of(context).unselectedWidgetColor;
-                  }),
-                  visualDensity:
-                      const VisualDensity(horizontal: -3, vertical: -3),
-                ),
-                const SizedBox(width: Dimensions.paddingSizeSmall),
-                Column(
+                Expanded(
+                child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(widget.title,
-                        style: robotoMedium.copyWith(
-                            color: select
-                                ? Theme.of(context).primaryColor
-                                : Theme.of(context)
-                                    .textTheme
-                                    .bodyMedium!
-                                    .color)),
+                        textAlign: TextAlign.right,
+                        style: tajawalBold.copyWith(
+                            fontSize: 16,
+                            height: 27 / 16,
+                            letterSpacing: 0,
+                            color: titleColor)),
+                    const SizedBox(height: 2),
                     Row(
                       children: [
                         if (select &&
@@ -168,10 +162,38 @@ class _DeliveryOptionButtonWidgetState
                     ),
                   ],
                 ),
+                ),
                 const SizedBox(width: Dimensions.paddingSizeSmall),
+                // Custom radio at the end (left in RTL): green ring + green dot
+                // when selected, light-grey empty ring otherwise.
+                AnimatedContainer(
+                  duration: const Duration(milliseconds: 150),
+                  width: 22,
+                  height: 22,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: select
+                        ? Colors.white
+                        : (isDark ? const Color(0xFF0F172A) : theme.cardColor),
+                    border: Border.all(
+                      color: select ? primary : const Color(0xFFC4C9CF),
+                      width: select ? 2 : 5,
+                    ),
+                  ),
+                  child: select
+                      ? Container(
+                          width: 8,
+                          height: 8,
+                          decoration: BoxDecoration(
+                              shape: BoxShape.circle, color: primary),
+                        )
+                      : const SizedBox.shrink(),
+                ),
               ],
             ),
-          ),
+            );
+          }),
         );
       },
     );

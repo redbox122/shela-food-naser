@@ -98,8 +98,8 @@ class _SimpleChartsBannerState extends State<SimpleChartsBanner> {
   Widget _buildPeriodSelector(AnalyticsController controller) {
     return Container(
       height: 34,
-      width: 104,
-      padding: const EdgeInsets.symmetric(horizontal: 12),
+      width: 100,
+      padding: const EdgeInsets.symmetric(horizontal: 10),
       decoration: BoxDecoration(
         color: const Color(0xFFF3F4F6),
         borderRadius: BorderRadius.circular(5),
@@ -108,14 +108,11 @@ class _SimpleChartsBannerState extends State<SimpleChartsBanner> {
         value: controller.currentTrendPeriod,
         isDense: true,
         isExpanded: true,
-        alignment: AlignmentDirectional.center,
+        alignment: AlignmentDirectional.centerStart,
         underline: const SizedBox(),
         borderRadius: BorderRadius.circular(10),
-        icon: const Padding(
-          padding: EdgeInsets.only(right: 2),
-          child: Icon(Icons.keyboard_arrow_down,
-              size: 18, color: Color(0xFF2D3633)),
-        ),
+        icon: const Icon(Icons.keyboard_arrow_down,
+            size: 18, color: Color(0xFF2D3633)),
         style: const TextStyle(
           fontFamily: 'Tajawal',
           color: Color(0xFF2D3633),
@@ -702,7 +699,12 @@ class _SimpleChartsBannerState extends State<SimpleChartsBanner> {
         final month = int.tryParse(monthStr);
 
         if (month != null && month >= 1 && month <= 12) {
-          return month.toString();
+          // Show the month NAME on the X-axis (not the bare number).
+          const List<String> monthNames = <String>[
+            'يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو',
+            'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر',
+          ];
+          return monthNames[month - 1];
         }
       }
     } catch (e) {

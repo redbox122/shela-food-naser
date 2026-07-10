@@ -603,4 +603,15 @@ class Images {
   static const String coin_doller = 'assets/image/coin_doller.png';
   static const String navProfile = 'assets/image/profile_v2.png';
   static const String pending_v2 = 'assets/image/pending_v2.png';
+  // Ported with the old checkout payment section (3-card design).
+  static const String quidha_info = 'assets/image/quidha_info.png';
+  static const String location_new = 'assets/image/location_new.png';
+  static const String add_payment_method =
+      'assets/image/add_payment_method.png';
+  static const String sms = 'assets/image/sms.png';
+  static const String point_coin_1 = 'assets/image/point_coin1.png';
+  static const String point_coin_2 = 'assets/image/point_coin2.png';
+  static const String no_points = 'assets/image/no_points.png';
+  static const String quidhaWalletIcon = 'assets/image/quidha_wallet.png';
+  static const String receiptAddIcon = 'assets/image/receipt-add.png';
 }

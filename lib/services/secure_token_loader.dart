@@ -18,9 +18,9 @@ class SecureTokenLoader {
 
     _initCompleter = Completer<void>();
     try {
-      if (Platform.isAndroid) {
+      if ((!kIsWeb && Platform.isAndroid)) {
         await _loadAndroidTokens();
-      } else if (Platform.isIOS) {
+      } else if ((!kIsWeb && Platform.isIOS)) {
         await _loadIOSTokens();
       }
 

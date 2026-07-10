@@ -370,30 +370,44 @@ class TopSection extends StatelessWidget {
 
                     if (takeAway) ...[
                       const SizedBox(height: Dimensions.paddingSizeLarge),
-                      Container(
-                        padding: const EdgeInsets.all(Dimensions.paddingSizeDefault),
-                        decoration: BoxDecoration(
-                          color: Theme.of(context).primaryColor.withValues(alpha: 0.05),
-                          borderRadius: BorderRadius.circular(Dimensions.radiusSmall),
-                          border: Border.all(color: Theme.of(context).primaryColor.withValues(alpha: 0.2)),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(children: [
-                              Icon(Icons.location_on, color: Theme.of(context).primaryColor, size: 20),
-                              const SizedBox(width: Dimensions.paddingSizeSmall),
-                              Text('pickup_location'.tr, style: robotoMedium.copyWith(color: Theme.of(context).primaryColor)),
-                            ]),
-                            const SizedBox(height: Dimensions.paddingSizeExtraSmall),
-                            if (pickupStoreName.isNotEmpty)
-                              Text(pickupStoreName, style: robotoMedium.copyWith(fontSize: Dimensions.fontSizeDefault)),
-                            if (pickupStoreAddress.isNotEmpty)
-                              Text(pickupStoreAddress, style: robotoRegular.copyWith(fontSize: Dimensions.fontSizeDefault))
-                            else
-                              Text('no_data_found'.tr, style: robotoRegular.copyWith(fontSize: Dimensions.fontSizeDefault, color: Theme.of(context).disabledColor)),
-                          ],
-                        ),
+                      // 🎨 Ported (old app): "عنوان المتجر" heading + pin + address
+                      // line — same style as the "سيصلك على" block.
+                      Text('store_address'.tr,
+                          textAlign: TextAlign.right,
+                          style: tajawalBold.copyWith(
+                            fontSize: 18,
+                            height: 1.6,
+                            letterSpacing: 0,
+                          )),
+                      const SizedBox(height: Dimensions.paddingSizeSmall),
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Icon(Icons.location_on,
+                              size: 18, color: Theme.of(context).primaryColor),
+                          const SizedBox(width: 6),
+                          Expanded(
+                            child: Text(
+                              pickupStoreAddress.isNotEmpty
+                                  ? (pickupStoreName.isNotEmpty
+                                      ? '$pickupStoreName، $pickupStoreAddress'
+                                      : pickupStoreAddress)
+                                  : (pickupStoreName.isNotEmpty
+                                      ? pickupStoreName
+                                      : 'no_data_found'.tr),
+                              textAlign: TextAlign.right,
+                              style: tajawalMedium.copyWith(
+                                fontSize: 16,
+                                height: 1.6,
+                                letterSpacing: 0,
+                                color: Theme.of(context)
+                                    .textTheme
+                                    .bodyLarge
+                                    ?.color,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ],
@@ -444,10 +458,11 @@ class TopSection extends StatelessWidget {
                 module: module,
               ),
 
-              // Coupon section.
+              // Coupon section. storeId is passed null so the section always
+              // renders (matches old app); coupon apply uses StoreController.
               !isDesktop && !isGuestLoggedIn
                   ? CouponSection(
-                      storeId: storeId,
+                      storeId: null,
                       checkoutController: controller,
                       total: total, price: price, discount: discount, addOns: addOns,
                       deliveryCharge: deliveryCharge, // Use value from parent.

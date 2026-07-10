@@ -505,38 +505,60 @@ class _ProductOptionsSheetState extends State<_ProductOptionsSheet> {
     final bool invalid = _invalid.contains(gi);
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
-      color: const Color(0xFFFAFBFC),
+      // Required groups get the light-yellow "must choose" background; optional
+      // groups stay white — matches the reference McDonald's design.
+      color: g.required ? const Color(0xFFFFFBE6) : Colors.white,
       padding: const EdgeInsets.symmetric(vertical: 10),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // Group header: name + (required tag) + choose-one/many hint.
+          // Group header: name + (required/optional tag) + choose-one/many hint.
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
             child: Row(
               children: [
-                if (g.required)
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                    decoration: BoxDecoration(
-                      color: invalid
-                          ? const Color(0xFFFDE7E9)
-                          : const Color(0xFFF0F1F3),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Text(
-                      'مطلوب',
-                      style: TextStyle(
-                        fontFamily: 'Tajawal',
-                        fontWeight: FontWeight.w700,
-                        fontSize: 11,
-                        color: invalid
-                            ? const Color(0xFFE23B4E)
-                            : const Color(0xFF717885),
-                      ),
-                    ),
+                // "مطلوب" (orange + info icon) for required groups; "اختياري"
+                // (gray) for optional groups.
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: g.required
+                        ? (invalid
+                            ? const Color(0xFFFDE7E9)
+                            : const Color(0xFFFFF3CD))
+                        : const Color(0xFFF0F1F3),
+                    borderRadius: BorderRadius.circular(20),
                   ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (g.required) ...[
+                        Icon(
+                          Icons.info_outline,
+                          size: 12,
+                          color: invalid
+                              ? const Color(0xFFE23B4E)
+                              : const Color(0xFFE8912A),
+                        ),
+                        const SizedBox(width: 3),
+                      ],
+                      Text(
+                        g.required ? 'مطلوب' : 'اختياري',
+                        style: TextStyle(
+                          fontFamily: 'Tajawal',
+                          fontWeight: FontWeight.w700,
+                          fontSize: 11,
+                          color: g.required
+                              ? (invalid
+                                  ? const Color(0xFFE23B4E)
+                                  : const Color(0xFFE8912A))
+                              : const Color(0xFF717885),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
                 const Spacer(),
                 Expanded(
                   flex: 5,
@@ -557,10 +579,8 @@ class _ProductOptionsSheetState extends State<_ProductOptionsSheet> {
                       ),
                       Text(
                         g.multi
-                            ? (g.max > 0
-                                ? 'اخترت ${_selected[gi].length} من ${g.max}'
-                                : 'اختياري')
-                            : 'اختيار واحد',
+                            ? (g.max > 0 ? 'حتى ${g.max}' : 'اختياري')
+                            : 'اختر 1',
                         textAlign: TextAlign.right,
                         style: const TextStyle(
                           fontFamily: 'Tajawal',

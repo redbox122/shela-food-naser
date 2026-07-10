@@ -92,6 +92,8 @@ class NotificationHelper {
                 RouteHelper.getNotificationRoute(fromNotification: true)),
             NotificationType.trip: () => Get.to(() => TaxiOrderDetailsScreen(
                 tripId: int.parse(payload.orderId.toString()))),
+            NotificationType.coupon: () =>
+                Get.toNamed(RouteHelper.getCouponRoute()),
           };
 
           notificationActions[payload.notificationType]?.call();

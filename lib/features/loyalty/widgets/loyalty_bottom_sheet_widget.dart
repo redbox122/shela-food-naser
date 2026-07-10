@@ -10,7 +10,6 @@ import 'package:sixam_mart/util/images.dart';
 import 'package:sixam_mart/util/styles.dart';
 import 'package:sixam_mart/common/widgets/custom_button.dart';
 import 'package:sixam_mart/common/widgets/custom_snackbar.dart';
-import 'package:sixam_mart/common/widgets/custom_text_field.dart';
 
 class LoyaltyBottomSheetWidget extends StatefulWidget {
   final String amount;
@@ -33,102 +32,242 @@ class _LoyaltyBottomSheetWidgetState extends State<LoyaltyBottomSheetWidget> {
     _amountController.text = widget.amount;
   }
 
+  void _onConvert(LoyaltyController controller) {
+    if (_amountController.text.isEmpty) {
+      if (Get.isBottomSheetOpen!) {
+        Get.back();
+      }
+      showCustomSnackBar('input_field_is_empty'.tr);
+    } else {
+      // tryParse — a pasted "12.5"/"1,000"/letters would crash int.parse.
+      final int? amount = int.tryParse(_amountController.text.trim());
+      if (amount == null) {
+        showCustomSnackBar('input_field_is_empty'.tr);
+        return;
+      }
+      final int? point =
+          Get.find<ProfileController>().userInfoModel!.loyaltyPoint;
+
+      if (amount < minimumExchangePoint!) {
+        if (Get.isBottomSheetOpen!) {
+          Get.back();
+        }
+        showCustomSnackBar(
+            '${'please_exchange_more_then'.tr} $minimumExchangePoint ${'points'.tr}');
+      } else if (point! < amount) {
+        if (Get.isBottomSheetOpen!) {
+          Get.back();
+        }
+        showCustomSnackBar('you_do_not_have_enough_point_to_exchange'.tr);
+      } else {
+        controller.pointToWallet(amount);
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    final ThemeData theme = Theme.of(context);
+    final bool isDark = theme.brightness == Brightness.dark;
+    final Color cardBg = isDark ? const Color(0xFF1E293B) : Colors.white;
+    final Color fieldBg =
+        isDark ? const Color(0xFF0F172A) : const Color(0xFFF6F5F8);
+    final Color onSurface = isDark ? Colors.white : const Color(0xFF111B18);
+    final Color subColor =
+        isDark ? const Color(0xFF94A3B8) : theme.disabledColor;
+    final Color? fieldBorder = isDark ? const Color(0xFF334155) : null;
+    final Color primary = theme.primaryColor;
+
+    final int userPoints =
+        Get.find<ProfileController>().userInfoModel?.loyaltyPoint ?? 0;
+
     return Stack(
       children: [
         Container(
           width: ResponsiveHelper.isDesktop(context) ? 400 : 550,
-          padding: const EdgeInsets.all(Dimensions.paddingSizeLarge),
+          padding: const EdgeInsets.fromLTRB(20, 28, 20, 20),
           decoration: BoxDecoration(
-            color: Theme.of(context).cardColor,
-            borderRadius: const BorderRadius.all(Radius.circular(Dimensions.radiusExtraLarge)),
+            color: cardBg,
+            borderRadius: const BorderRadius.all(
+                Radius.circular(Dimensions.radiusExtraLarge)),
           ),
           child: SingleChildScrollView(
             child: Column(mainAxisSize: MainAxisSize.min, children: [
-              Image.asset(ResponsiveHelper.isDesktop(context) ? Images.loyaltyConvertIcon : Images.creditIcon, height: 50, width: 50),
-              const SizedBox(height: Dimensions.paddingSizeSmall),
+              // ── Green star badge with soft outer ring ──
+              Container(
+                width: 66,
+                height: 66,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: primary.withValues(alpha: 0.15),
+                ),
+                child: Container(
+                  width: 52,
+                  height: 52,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: primary,
+                  ),
+                  child: const Icon(Icons.star, color: Colors.white, size: 26),
+                ),
+              ),
+              const SizedBox(height: Dimensions.paddingSizeDefault),
+
+              // ── Rate: "250 نقاط = 1.00 ﷼" ──
               Row(mainAxisAlignment: MainAxisAlignment.center, children: [
                 Text(
-                  '$exchangePointRate ${'points'.tr}= ',
-                  style: robotoBold.copyWith(fontSize: Dimensions.fontSizeDefault),
+                  '$exchangePointRate ${'points'.tr} = ',
+                  style: tajawalBold.copyWith(
+                      fontSize: Dimensions.fontSizeLarge, color: onSurface),
                 ),
                 PriceConverter.convertPrice2(
                   1,
-                  textStyle: robotoBold.copyWith(fontSize: Dimensions.fontSizeDefault),
-                )
+                  textStyle: tajawalBold.copyWith(
+                      fontSize: Dimensions.fontSizeLarge, color: onSurface),
+                ),
               ]),
-              const SizedBox(height: Dimensions.paddingSizeSmall),
-              Text(
-                '(${'from'.tr} ${widget.amount} ${'points'.tr})',
-                style: robotoRegular.copyWith(fontSize: Dimensions.fontSizeSmall, color: Theme.of(context).disabledColor),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                textAlign: TextAlign.center,
+              const SizedBox(height: Dimensions.paddingSizeLarge),
+
+              // ── Converted amount  ⇄  your points ──
+              Row(
+                textDirection: TextDirection.rtl,
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  // نقاطك (read-only)
+                  Expanded(
+                    child: _FieldBox(
+                      label: 'your_points'.tr,
+                      fieldBg: fieldBg,
+                      border: fieldBorder,
+                      labelColor: subColor,
+                      child: Text(
+                        '$userPoints',
+                        textAlign: TextAlign.center,
+                        style: tajawalBold.copyWith(
+                            fontSize: 18, color: onSurface),
+                      ),
+                    ),
+                  ),
+                  // Swap icon
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                    child: Icon(Icons.swap_horiz, color: primary, size: 24),
+                  ),
+                  // المبلغ المحول (input)
+                  Expanded(
+                    child: _FieldBox(
+                      label: 'المبلغ المحول',
+                      fieldBg: fieldBg,
+                      border: fieldBorder,
+                      labelColor: subColor,
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Image.asset(Images.sar,
+                              width: 16, height: 16, color: onSurface),
+                          const SizedBox(width: 6),
+                          Expanded(
+                            child: TextField(
+                              controller: _amountController,
+                              keyboardType: TextInputType.number,
+                              textAlign: TextAlign.center,
+                              style: tajawalBold.copyWith(
+                                  fontSize: 18, color: onSurface),
+                              decoration: InputDecoration(
+                                border: InputBorder.none,
+                                isCollapsed: true,
+                                hintText: '00.00',
+                                hintStyle: tajawalBold.copyWith(
+                                    fontSize: 18,
+                                    color: onSurface.withValues(alpha: 0.5)),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(height: Dimensions.paddingSizeSmall),
+              const SizedBox(height: Dimensions.paddingSizeDefault),
+
               Text(
                 'amount_can_be_convert_into_wallet_money'.tr,
-                style: robotoRegular.copyWith(fontSize: Dimensions.fontSizeSmall, color: Theme.of(context).disabledColor),
+                style: robotoRegular.copyWith(
+                    fontSize: Dimensions.fontSizeSmall, color: subColor),
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
                 textAlign: TextAlign.center,
               ),
-              SizedBox(height: ResponsiveHelper.isDesktop(context) ? Dimensions.paddingSizeExtraLarge : Dimensions.paddingSizeLarge),
-              SizedBox(
-                width: ResponsiveHelper.isDesktop(context) ? 260 : null,
-                child: CustomTextField(
-                  titleText: 'enter_amount'.tr,
-                  controller: _amountController,
-                  inputType: TextInputType.phone,
-                  textAlign: TextAlign.center,
-                ),
-              ),
-              SizedBox(height: ResponsiveHelper.isDesktop(context) ? Dimensions.paddingSizeExtraLarge : Dimensions.paddingSizeLarge),
-              GetBuilder<LoyaltyController>(builder: (walletController) {
-                return CustomButton(
-                  width: ResponsiveHelper.isDesktop(context) ? 136 : context.width / 3,
-                  isBold: false,
-                  buttonText: 'convert'.tr,
-                  radius: ResponsiveHelper.isDesktop(context) ? Dimensions.radiusSmall : 50,
-                  isLoading: walletController.isLoading,
-                  onPressed: () {
-                    if (_amountController.text.isEmpty) {
-                      if (Get.isBottomSheetOpen!) {
-                        Get.back();
-                      }
-                      showCustomSnackBar('input_field_is_empty'.tr);
-                    } else {
-                      final int amount = int.parse(_amountController.text.trim());
-                      final int? point = Get.find<ProfileController>().userInfoModel!.loyaltyPoint;
+              const SizedBox(height: Dimensions.paddingSizeLarge),
 
-                      if (amount < minimumExchangePoint!) {
-                        if (Get.isBottomSheetOpen!) {
-                          Get.back();
-                        }
-                        showCustomSnackBar('${'please_exchange_more_then'.tr} $minimumExchangePoint ${'points'.tr}');
-                      } else if (point! < amount) {
-                        if (Get.isBottomSheetOpen!) {
-                          Get.back();
-                        }
-                        showCustomSnackBar('you_do_not_have_enough_point_to_exchange'.tr);
-                      } else {
-                        walletController.pointToWallet(amount);
-                      }
-                    }
-                  },
+              GetBuilder<LoyaltyController>(builder: (controller) {
+                return CustomButton(
+                  width: double.infinity,
+                  isBold: false,
+                  buttonText: 'تحويل نقاط الآن',
+                  radius: 14,
+                  isLoading: controller.isLoading,
+                  onPressed: () => _onConvert(controller),
                 );
               }),
             ]),
           ),
         ),
         Positioned(
-          top: 10,
-          right: 10,
+          top: 8,
+          left: 8,
           child: IconButton(
             onPressed: () => Get.back(),
-            icon: const Icon(Icons.clear, size: 18),
+            icon: Icon(Icons.clear, size: 20, color: onSurface),
           ),
+        ),
+      ],
+    );
+  }
+}
+
+/// Labelled rounded field box used for the "converted amount" / "your points"
+/// pair in the loyalty conversion dialog.
+class _FieldBox extends StatelessWidget {
+  final String label;
+  final Color fieldBg;
+  final Color? border;
+  final Color labelColor;
+  final Widget child;
+  const _FieldBox({
+    required this.label,
+    required this.fieldBg,
+    required this.border,
+    required this.labelColor,
+    required this.child,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          label,
+          textAlign: TextAlign.center,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: robotoRegular.copyWith(fontSize: 12, color: labelColor),
+        ),
+        const SizedBox(height: 6),
+        Container(
+          height: 48,
+          alignment: Alignment.center,
+          padding: const EdgeInsets.symmetric(horizontal: 10),
+          decoration: BoxDecoration(
+            color: fieldBg,
+            borderRadius: BorderRadius.circular(12),
+            border: border == null ? null : Border.all(color: border!),
+          ),
+          child: child,
         ),
       ],
     );

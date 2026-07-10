@@ -34,6 +34,7 @@ part 'market_store_screen_categories.dart';
 part 'market_store_screen_products.dart';
 part 'market_store_screen_extras.dart';
 part 'market_store_screen_options.dart';
+part 'market_store_screen_hyper.dart';
 
 /// 🎨 REDESIGN (Market): grocery store detail screen opened when tapping a
 /// store card in the market.
@@ -328,6 +329,37 @@ class _MarketStoreScreenState extends State<MarketStoreScreen> {
       ));
     }
 
+    // ── Hyper Shela browse block (design ported from the old shop_home): the
+    // "الأقسام" green-card grid, the "العلامات التجارية" brand circles, and the
+    // "عروض وخصومات" promo banner — shown above the product tabs, only for the
+    // هايبر شله storefront, over this store's own (new-app) data.
+    if (widget.isHyperStorefront && !_loading) {
+      if (cats.isNotEmpty) {
+        slivers.add(SliverToBoxAdapter(
+          child: _HyperSectionHeader(title: 'sections'.tr),
+        ));
+        slivers.add(SliverToBoxAdapter(
+          // Old shop_home "الأقسام" look: two-row horizontal rail of compact
+          // green-name-over-image cards (see _HyperCategoriesRail).
+          child: _HyperCategoriesRail(
+            categories: cats,
+            storeId: widget.storeId,
+            moduleId: effectiveModule,
+            storeCover: d?.cover ?? widget.cover,
+          ),
+        ));
+      }
+      slivers.add(SliverToBoxAdapter(
+        child: _HyperBrandsRail(moduleId: widget.moduleId),
+      ));
+      slivers.add(SliverToBoxAdapter(
+        child: _HyperSectionHeader(title: 'offers_and_discounts'.tr),
+      ));
+      slivers.add(SliverToBoxAdapter(
+        child: MarketBannerSection(moduleId: widget.moduleId),
+      ));
+    }
+
     // Pinned tab bar — sticks once the cover (if any) scrolls away.
     if (!_loading && cats.isNotEmpty) {
       slivers.add(SliverPersistentHeader(
@@ -395,11 +427,10 @@ class _MarketStoreScreenState extends State<MarketStoreScreen> {
             storeId: widget.storeId,
             moduleId: effectiveModule,
           ),
-          if (!widget.useCoverHeader) ...[
-            const HomeTopNoticeStrip(),
-            if (widget.isHyperStorefront)
-              MarketBannerSection(moduleId: widget.moduleId),
-          ],
+          // The هايبر شله promo banner moved into the scrollable "عروض وخصومات"
+          // section below (see the browse block), so only the notice strip stays
+          // fixed here.
+          if (!widget.useCoverHeader) const HomeTopNoticeStrip(),
           Expanded(child: scrollArea),
         ],
       ),
