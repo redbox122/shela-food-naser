@@ -449,46 +449,101 @@ class _PaymentSectionState extends State<PaymentSection> {
           : Theme.of(context).hintColor;
     }
 
+    // 🎨 Professional redesign (green/white, matches the app). Visual only —
+    // selection state (paymentMethodIndex) and the MyFatoorah/wallet logic in
+    // onTap are untouched, so payment stays fully compatible.
+    final Color restIcon =
+        (isDark && !isSelected) ? Colors.white : const Color(0xFF010201);
+    final Color labelColor = isSelected
+        ? const Color(0xFF121C19)
+        : ((isDark && !isSelected) ? Colors.white : const Color(0xff010201));
+
     return GestureDetector(
       onTap: onTap,
-      child: Container(
-        height: 120,
-        width: 128,
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        curve: Curves.easeOut,
+        height: 138,
+        width: 124,
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 14),
         decoration: BoxDecoration(
-          color: backgroundColor,
-          border: Border.all(color: borderColor, width: 1),
-          borderRadius: BorderRadius.circular(8),
+          color: isSelected
+              ? backgroundColor
+              : (isDark ? Colors.transparent : Colors.white),
+          border: Border.all(
+              color: borderColor, width: isSelected ? 1.6 : 1),
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: isSelected
+              ? [
+                  BoxShadow(
+                    color: iconColor.withValues(alpha: 0.20),
+                    blurRadius: 16,
+                    offset: const Offset(0, 6),
+                  ),
+                ]
+              : null,
         ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          mainAxisSize: MainAxisSize.min,
+        child: Stack(
           children: [
-            imageAsset != null
-                ? Image.asset(imageAsset,
-                    width: 24,
-                    height: 24,
-                    color: (isDark && !isSelected)
-                        ? Colors.white
-                        : const Color(0xFF010201))
-                : Icon(icon, color: iconColor, size: 24),
-            const SizedBox(height: 6),
-            Text(
-              label,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              textAlign: TextAlign.center,
-              style: tajawalBold.copyWith(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
-                  height: 1.6,
-                  letterSpacing: 0,
-                  color: (isDark && !isSelected)
-                      ? Colors.white
-                      : const Color(0xff010201)),
+            Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Icon inside a soft tinted circle.
+                Container(
+                  width: 46,
+                  height: 46,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: isSelected
+                        ? iconColor.withValues(alpha: 0.14)
+                        : Theme.of(context)
+                            .hintColor
+                            .withValues(alpha: isDark ? 0.18 : 0.08),
+                  ),
+                  child: Center(
+                    child: imageAsset != null
+                        ? Image.asset(imageAsset,
+                            width: 22,
+                            height: 22,
+                            color: isSelected ? iconColor : restIcon)
+                        : Icon(icon,
+                            color: isSelected
+                                ? iconColor
+                                : Theme.of(context).hintColor,
+                            size: 22),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
+                  style: tajawalBold.copyWith(
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w700,
+                      height: 1.2,
+                      letterSpacing: 0,
+                      color: labelColor),
+                ),
+                const SizedBox(height: 5),
+                _buildWalletBalance(context, index),
+              ],
             ),
-            const SizedBox(height: 4),
-            _buildWalletBalance(context, index),
+            // Selected check badge (top-trailing).
+            if (isSelected)
+              Positioned(
+                top: 0,
+                right: 0,
+                child: Container(
+                  width: 20,
+                  height: 20,
+                  decoration:
+                      BoxDecoration(color: iconColor, shape: BoxShape.circle),
+                  child: const Icon(Icons.check, color: Colors.white, size: 13),
+                ),
+              ),
           ],
         ),
       ),
@@ -505,11 +560,13 @@ class _PaymentSectionState extends State<PaymentSection> {
             ? checkoutController.paymentMethodIndex == 2
             : checkoutController.paymentMethodIndex == 1;
     final TextStyle style = tajawalMedium.copyWith(
-      fontSize: 16,
-      fontWeight: FontWeight.w500,
+      fontSize: 13,
+      fontWeight: FontWeight.w600,
       height: 1.2,
       letterSpacing: 0,
-      color: (isDark && !isSelected) ? Colors.white : const Color(0xFF121C19),
+      color: (isDark && !isSelected)
+          ? Colors.white
+          : (isSelected ? const Color(0xFF1FA64A) : const Color(0xFF6B7770)),
     );
 
     if (index == 1) {

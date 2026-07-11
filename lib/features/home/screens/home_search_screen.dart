@@ -102,21 +102,13 @@ class _HomeSearchScreenState extends State<HomeSearchScreen> {
   void _onChanged(String v) {
     _debounce?.cancel();
     final text = v.trim();
-    if (text.isEmpty) {
-      setState(() {
-        _showResults = false;
-        _selectedKeyword = null;
-      });
-      return;
-    }
-    // Don't hit the server for a single character (too broad / irrelevant);
-    // local suggestions still render via the isNotEmpty branch in build().
-    if (text.length < 2) {
-      if (_showResults) setState(() => _showResults = false);
-      return;
-    }
-    _debounce =
-        Timer(const Duration(milliseconds: 300), () => _runSearch(text));
+    // Live autocomplete: always keep the local prefix-suggestions bar visible as
+    // the user types — it must NOT vanish after the 2nd letter. The server
+    // results view opens only on submit (Enter / GO / tapping a suggestion).
+    setState(() {
+      _showResults = false;
+      if (text.isEmpty) _selectedKeyword = null;
+    });
   }
 
   /// Cross-module product search via `/api/v1/items/search` (no module_id ⇒
@@ -841,7 +833,9 @@ class _HomeSearchScreenState extends State<HomeSearchScreen> {
                     fontSize: 16,
                     height: 1.4,
                   ),
-                  prefixIcon: Padding(
+                  // Lens on the LEFT (suffix in an RTL field); the typed text
+                  // sits on the right next to GO. Clear "X" on the right (prefix).
+                  suffixIcon: Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 10),
                     child: Image.asset(
                       Images.search_v2,
@@ -851,9 +845,9 @@ class _HomeSearchScreenState extends State<HomeSearchScreen> {
                           Icon(Icons.search, size: 22),
                     ),
                   ),
-                  prefixIconConstraints:
+                  suffixIconConstraints:
                       const BoxConstraints(minWidth: 40, minHeight: 40),
-                  suffixIcon: _controller.text.isEmpty
+                  prefixIcon: _controller.text.isEmpty
                       ? null
                       : InkWell(
                           onTap: () {
@@ -868,7 +862,7 @@ class _HomeSearchScreenState extends State<HomeSearchScreen> {
                             size: 20,
                           ),
                         ),
-                  suffixIconConstraints:
+                  prefixIconConstraints:
                       const BoxConstraints(minWidth: 36, minHeight: 36),
                   border: InputBorder.none,
                   enabledBorder: InputBorder.none,
@@ -1104,17 +1098,15 @@ class _HomeSearchScreenState extends State<HomeSearchScreen> {
     final String q = _normCore(_controller.text.trim());
     // (text, optional brand): brand present → open store directly; null → search.
     final List<(String, BrandModel?)> prefix = [];
-    final List<(String, BrandModel?)> mid = [];
     final Set<String> seen = {};
 
     void add(String text, BrandModel? brand) {
       final norm = _normCore(text);
       if (text.isEmpty || !seen.add(norm)) return;
-      final item = (text, brand);
+      // Prefix-only: show terms that START WITH the query (normalized), e.g.
+      // typing "ج" surfaces "جبنة"/"الجبنة" — never "دجاج" (contains, not prefix).
       if (norm.startsWith(q)) {
-        prefix.add(item);
-      } else if (norm.contains(q)) {
-        mid.add(item);
+        prefix.add((text, brand));
       }
     }
 
@@ -1123,7 +1115,7 @@ class _HomeSearchScreenState extends State<HomeSearchScreen> {
     for (final b in _brands) { add(b.name ?? '', b); }
     for (final t in _mostSearched) { add(t, null); }
 
-    final limited = [...prefix, ...mid].take(10).toList();
+    final limited = prefix.take(10).toList();
 
     if (limited.isEmpty) {
       return Center(
@@ -1159,7 +1151,10 @@ class _HomeSearchScreenState extends State<HomeSearchScreen> {
                 horizontal: Dimensions.paddingSizeDefault, vertical: 10),
             child: Row(
               children: [
-                // Leading: store logo or search icon.
+                // Suggestion text on the RIGHT (start in RTL), prefix in green.
+                Expanded(child: _highlightPrefix(text, q)),
+                const SizedBox(width: 10),
+                // Store logo or the search lens on the LEFT (end in RTL).
                 if ((logo ?? '').isNotEmpty)
                   ClipRRect(
                     borderRadius: BorderRadius.circular(6),
@@ -1172,9 +1167,6 @@ class _HomeSearchScreenState extends State<HomeSearchScreen> {
                   )
                 else
                   const Icon(Icons.search, size: 18, color: Color(0xFF9AA0A6)),
-                const Spacer(),
-                // Text with the matched prefix highlighted in green.
-                Flexible(child: _highlightPrefix(text, q)),
               ],
             ),
           ),

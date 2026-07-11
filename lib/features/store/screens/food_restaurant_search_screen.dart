@@ -104,11 +104,13 @@ class _FoodRestaurantSearchScreenState extends State<FoodRestaurantSearchScreen>
                           fontSize: Dimensions.fontSizeDefault,
                           color: theme.disabledColor,
                         ),
-                        prefixIcon: Icon(
+                        // Lens on the LEFT (suffix in the RTL field); the clear
+                        // "X" on the right (prefix) — matches the market search.
+                        suffixIcon: Icon(
                           Icons.search,
                           color: theme.primaryColor,
                         ),
-                        suffixIcon: _searchController.text.isNotEmpty
+                        prefixIcon: _searchController.text.isNotEmpty
                             ? IconButton(
                                 icon: Icon(
                                   Icons.clear,

@@ -338,6 +338,7 @@ class _OfferFilterSheetState extends State<_OfferFilterSheet> {
                                       _price!.$2 == r.$2)
                                   ? null
                                   : (r.$1, r.$2)),
+                              ltr: true,
                             )),
                       ],
                     ),
@@ -395,7 +396,8 @@ class _OfferFilterSheetState extends State<_OfferFilterSheet> {
   }
 
   Widget _section(String title, Widget content) => Column(
-        crossAxisAlignment: CrossAxisAlignment.end,
+        // In the RTL sheet, start = right, so titles + chips align to the right.
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             title,
@@ -412,7 +414,8 @@ class _OfferFilterSheetState extends State<_OfferFilterSheet> {
         ],
       );
 
-  Widget _chip(String label, bool active, VoidCallback onTap) =>
+  Widget _chip(String label, bool active, VoidCallback onTap,
+          {bool ltr = false}) =>
       GestureDetector(
         onTap: onTap,
         child: AnimatedContainer(
@@ -429,6 +432,8 @@ class _OfferFilterSheetState extends State<_OfferFilterSheet> {
           ),
           child: Text(
             label,
+            // Numeric ranges ("40 - 70") stay LTR so RTL bidi doesn't flip them.
+            textDirection: ltr ? TextDirection.ltr : null,
             style: TextStyle(
               fontFamily: 'Tajawal',
               fontWeight: FontWeight.w600,
@@ -672,7 +677,10 @@ class _MarketOffersScreenState extends State<MarketOffersScreen> {
     if (mounted) setState(() => _loadingDetail = true);
     try {
       final response = await api.getData(
-        '/api/v2/stores/${widget.storeId}/categories/$catId?limit=20',
+        // The endpoint has no working offset pagination, but it DOES honor a
+        // larger limit, so pull the whole category in one shot — the lazy
+        // sliver body renders it without jank (was ?limit=20, capped at 20).
+        '/api/v2/stores/${widget.storeId}/categories/$catId?limit=100',
         headers: _headers,
         useEtag: false,
       );

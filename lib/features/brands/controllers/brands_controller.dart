@@ -111,7 +111,7 @@ class BrandsController extends GetxController implements GetxService {
   String _type = 'all';
   String get type => _type;
 
-  bool _isVertical = false;
+  bool _isVertical = true;
   bool get isVertical => _isVertical;
 
   bool _isPriceAscending = true;
@@ -1187,7 +1187,7 @@ class BrandsController extends GetxController implements GetxService {
     _selectedCategoryIds.clear();
     _categoryIndex = 0;
     _isPriceAscending = true;
-    _isVertical = false;
+    _isVertical = true;
     _type = 'all';
 
     // âŒ REMOVED: Local filtering - reload from API instead
@@ -1203,7 +1203,7 @@ class BrandsController extends GetxController implements GetxService {
     _selectedCategoryIds.clear();
     _categoryIndex = 0;
     _isPriceAscending = true;
-    _isVertical = false;
+    _isVertical = true;
     _type = 'all';
     _isFilterModalOpen = false;
 

@@ -446,78 +446,88 @@ class _ProductCardSkeleton extends StatelessWidget {
 /// Skeleton for a whole category section (header + 3 card placeholders).
 class _CategorySectionSkeleton extends StatelessWidget {
   final String title;
-  const _CategorySectionSkeleton({required this.title});
+
+  /// When false the section is only *queued* (waiting for a fetch slot): render
+  /// a cheap static grey placeholder instead of an animated shimmer, so entering
+  /// a store with many categories doesn't run 15-20 shimmer animations at once.
+  final bool animate;
+  const _CategorySectionSkeleton({required this.title, this.animate = true});
 
   @override
   Widget build(BuildContext context) {
+    // White blocks are tinted by the Shimmer gradient; queued sections use a
+    // flat grey and only one row so they stay ultra-light until they load.
+    final Color ph = animate ? Colors.white : const Color(0xFFE6E8EB);
+    final int rows = animate ? 3 : 1;
+    final Widget content = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Section title placeholder
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 20, 16, 12),
+          child: Container(
+            height: 16,
+            width: 120,
+            decoration:
+                BoxDecoration(color: ph, borderRadius: BorderRadius.circular(4)),
+          ),
+        ),
+        for (int i = 0; i < rows; i++) ...[
+          if (i > 0)
+            const Divider(
+                height: 1,
+                indent: 16,
+                endIndent: 16,
+                color: Color(0xFFF0F1F3)),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                          height: 14,
+                          width: double.infinity,
+                          decoration: BoxDecoration(
+                              color: ph,
+                              borderRadius: BorderRadius.circular(4))),
+                      const SizedBox(height: 8),
+                      Container(
+                          height: 12,
+                          width: 100,
+                          decoration: BoxDecoration(
+                              color: ph,
+                              borderRadius: BorderRadius.circular(4))),
+                      const SizedBox(height: 12),
+                      Container(
+                          height: 14,
+                          width: 60,
+                          decoration: BoxDecoration(
+                              color: ph,
+                              borderRadius: BorderRadius.circular(4))),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Container(
+                  width: 80,
+                  height: 80,
+                  decoration: BoxDecoration(
+                      color: ph, borderRadius: BorderRadius.circular(8)),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ],
+    );
+    if (!animate) return content;
     return Shimmer.fromColors(
       baseColor: const Color(0xFFF0F1F3),
       highlightColor: const Color(0xFFFFFFFF),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Section title placeholder
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 20, 16, 12),
-            child: Container(
-              height: 16,
-              width: 120,
-              decoration: BoxDecoration(
-                  color: Colors.white, borderRadius: BorderRadius.circular(4)),
-            ),
-          ),
-          for (int i = 0; i < 3; i++) ...[
-            if (i > 0)
-              const Divider(
-                  height: 1,
-                  indent: 16,
-                  endIndent: 16,
-                  color: Color(0xFFF0F1F3)),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Container(
-                            height: 14,
-                            width: double.infinity,
-                            decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(4))),
-                        const SizedBox(height: 8),
-                        Container(
-                            height: 12,
-                            width: 100,
-                            decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(4))),
-                        const SizedBox(height: 12),
-                        Container(
-                            height: 14,
-                            width: 60,
-                            decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(4))),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Container(
-                    width: 80,
-                    height: 80,
-                    decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(8)),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ],
-      ),
+      child: content,
     );
   }
 }
@@ -703,9 +713,40 @@ class _CategoryRailState extends State<_CategoryRail> {
   bool _fetching = false;
   bool _hasMore = true;
   bool _initialLoadDone = false;
+  bool _loadStarted = false; // true once this rail actually holds a fetch slot.
   int? _resolvedModuleId;
 
   static const int _pageSize = 20;
+
+  // 🚀 PERF: cap simultaneous product fetches. Entering a store with many
+  // categories used to mount all rails at once and fire 15-20 requests + JSON
+  // parses on the same frame → freeze on entry. This gate lets at most
+  // [_maxConcurrent] rails fetch at a time; the rest queue and run as slots free.
+  static int _activeLoads = 0;
+  static const int _maxConcurrent = 3;
+  static final List<Completer<void>> _loadWaiters = <Completer<void>>[];
+  // The module resolved for a store, shared across all its category rails, so
+  // only the first rail runs the (serial) module probe and the rest fetch with
+  // the known module in a single request.
+  static final Map<int, int> _resolvedModuleByStore = <int, int>{};
+
+  static Future<void> _acquireSlot() async {
+    if (_activeLoads < _maxConcurrent) {
+      _activeLoads++;
+      return;
+    }
+    final c = Completer<void>();
+    _loadWaiters.add(c);
+    await c.future; // slot handed over by _releaseSlot (count already held).
+  }
+
+  static void _releaseSlot() {
+    if (_loadWaiters.isNotEmpty) {
+      _loadWaiters.removeAt(0).complete(); // pass the slot on, count unchanged.
+    } else {
+      _activeLoads = _activeLoads > 0 ? _activeLoads - 1 : 0;
+    }
+  }
 
   @override
   void initState() {
@@ -759,34 +800,47 @@ class _CategoryRailState extends State<_CategoryRail> {
     if (_fetching || !_hasMore) return;
     if (mounted) setState(() => _fetching = true);
 
-    final offset = _products.length;
-    var fetched = <_Product>[];
+    // Wait for a fetch slot so we don't flood the main thread on entry.
+    await _acquireSlot();
+    try {
+      if (!mounted) return;
+      // Now actively fetching → let this section's skeleton animate.
+      if (!_loadStarted) setState(() => _loadStarted = true);
+      final offset = _products.length;
+      var fetched = <_Product>[];
 
-    if (Get.isRegistered<ApiClient>()) {
-      final candidates =
-          _resolvedModuleId != null ? [_resolvedModuleId!] : _candidateModules();
-      for (final m in candidates) {
-        fetched = await _fetchWithModule(m, offset);
-        if (!mounted) return;
-        if (fetched.isNotEmpty) {
-          _resolvedModuleId = m;
-          break;
+      if (Get.isRegistered<ApiClient>()) {
+        // Reuse the module already resolved for this store (by any rail) so only
+        // the first rail runs the serial probe; the rest fetch in one request.
+        final int? shared =
+            _resolvedModuleId ?? _resolvedModuleByStore[widget.storeId];
+        final candidates = shared != null ? [shared] : _candidateModules();
+        for (final m in candidates) {
+          fetched = await _fetchWithModule(m, offset);
+          if (!mounted) return;
+          if (fetched.isNotEmpty) {
+            _resolvedModuleId = m;
+            _resolvedModuleByStore[widget.storeId] = m;
+            break;
+          }
         }
       }
+
+      if (!mounted) return;
+
+      // Deduplicate by ID within this section.
+      final existingIds = _products.map((p) => p.id).toSet();
+      final unique = fetched.where((p) => !existingIds.contains(p.id)).toList();
+
+      setState(() {
+        _products.addAll(unique);
+        _hasMore = fetched.length >= _pageSize;
+        _fetching = false;
+        _initialLoadDone = true;
+      });
+    } finally {
+      _releaseSlot();
     }
-
-    if (!mounted) return;
-
-    // Deduplicate by ID within this section.
-    final existingIds = _products.map((p) => p.id).toSet();
-    final unique = fetched.where((p) => !existingIds.contains(p.id)).toList();
-
-    setState(() {
-      _products.addAll(unique);
-      _hasMore = fetched.length >= _pageSize;
-      _fetching = false;
-      _initialLoadDone = true;
-    });
   }
 
   /// Called by the parent screen's scroll-spy to auto-load the next page.
@@ -795,9 +849,11 @@ class _CategoryRailState extends State<_CategoryRail> {
   @override
   Widget build(BuildContext context) {
     // Initial load in progress (or load hasn't started yet) → skeleton.
+    // Only sections that actually hold a fetch slot animate; queued sections
+    // stay a cheap static placeholder (no shimmer ticker) until their turn.
     if (!_initialLoadDone) {
       return _CategorySectionSkeleton(
-          title: widget.category.name ?? '');
+          title: widget.category.name ?? '', animate: _loadStarted);
     }
     // Loaded but empty → friendly empty state.
     if (_products.isEmpty) {

@@ -17,6 +17,10 @@ import 'package:sixam_mart/theme/app_color_tokens.dart';
 import 'package:sixam_mart/util/dimensions.dart';
 import 'package:sixam_mart/util/styles.dart';
 import 'package:sixam_mart/features/item/domain/models/item_model.dart';
+// 🎨 Reuse the market "الأقسام" product card so the brand grid matches the
+// category design (per user request 2026-07-11).
+import 'package:sixam_mart/features/home/widgets/market/offers/market_offers_models.dart';
+import 'package:sixam_mart/features/home/widgets/market/offers/market_offers_product_card.dart';
 
 class BrandsItemScreen extends StatefulWidget {
   final int brandId;
@@ -248,9 +252,13 @@ class _BrandsItemScreenState extends State<BrandsItemScreen> {
   Widget _buildSectionTitle(BuildContext context, String title) {
     return Padding(
       padding: const EdgeInsets.only(bottom: Dimensions.paddingSizeSmall),
-      child: Text(
-        title,
-        style: robotoBold.copyWith(fontSize: Dimensions.fontSizeDefault),
+      child: SizedBox(
+        width: double.infinity,
+        child: Text(
+          title,
+          textAlign: TextAlign.right,
+          style: robotoBold.copyWith(fontSize: Dimensions.fontSizeDefault),
+        ),
       ),
     );
   }
@@ -259,6 +267,7 @@ class _BrandsItemScreenState extends State<BrandsItemScreen> {
       {StateSetter? modalSetState}) {
     final List<String> values = ['popular', 'ascending', 'descending'];
     return Wrap(
+      textDirection: TextDirection.rtl,
       spacing: Dimensions.paddingSizeSmall,
       runSpacing: Dimensions.paddingSizeSmall,
       children: values.map((value) {
@@ -268,25 +277,13 @@ class _BrandsItemScreenState extends State<BrandsItemScreen> {
             : value == 'ascending'
                 ? 'ascending'.tr
                 : 'descending'.tr;
-        return ChoiceChip(
-          label: Text(label),
-          selected: isSelected,
-          onSelected: (selected) {
-            if (selected) {
-              final updater = modalSetState ?? setState;
-              updater(() {
-                _selectedSort = value;
-                _isPriceSortActive = false;
-              });
-            }
-          },
-          selectedColor: Theme.of(context).primaryColor.withValues(alpha: 0.2),
-          labelStyle: TextStyle(
-            color: isSelected
-                ? Theme.of(context).primaryColor
-                : Theme.of(context).textTheme.bodyLarge?.color,
-          ),
-        );
+        return _pillChip(label, isSelected, () {
+          final updater = modalSetState ?? setState;
+          updater(() {
+            _selectedSort = value;
+            _isPriceSortActive = false;
+          });
+        });
       }).toList(),
     );
   }
@@ -294,32 +291,21 @@ class _BrandsItemScreenState extends State<BrandsItemScreen> {
   Widget _buildBrandPriceRangeChips(BuildContext context,
       {StateSetter? modalSetState}) {
     return Wrap(
+      textDirection: TextDirection.rtl,
       spacing: Dimensions.paddingSizeSmall,
       runSpacing: Dimensions.paddingSizeSmall,
       children: _priceRanges.map((range) {
         final bool isSelected = _selectedPriceLabel == range['label'];
         final String label =
             range['label'] == 'all' ? 'all'.tr : range['label']!;
-        return ChoiceChip(
-          label: Text(label),
-          selected: isSelected,
-          onSelected: (selected) {
-            if (selected) {
-              final updater = modalSetState ?? setState;
-              updater(() {
-                _selectedPriceLabel = range['label']!;
-                _minPrice = range['min']!;
-                _maxPrice = range['max']!;
-              });
-            }
-          },
-          selectedColor: Theme.of(context).primaryColor.withValues(alpha: 0.2),
-          labelStyle: TextStyle(
-            color: isSelected
-                ? Theme.of(context).primaryColor
-                : Theme.of(context).textTheme.bodyLarge?.color,
-          ),
-        );
+        return _pillChip(label, isSelected, () {
+          final updater = modalSetState ?? setState;
+          updater(() {
+            _selectedPriceLabel = range['label']!;
+            _minPrice = range['min']!;
+            _maxPrice = range['max']!;
+          });
+        }, ltr: true);
       }).toList(),
     );
   }
@@ -358,62 +344,8 @@ class _BrandsItemScreenState extends State<BrandsItemScreen> {
                       // Filter Controls
                       Row(
                         children: [
-                          // Grid/List Toggle
-                          InkWell(
-                            onTap: () {
-                              brandsController.setVerticalItems(
-                                  !brandsController.isVertical);
-                            },
-                            child: Container(
-                              decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(
-                                    Dimensions.radiusDefault),
-                                color: Theme.of(context)
-                                    .primaryColor
-                                    .withValues(alpha: 0.1),
-                              ),
-                              padding: const EdgeInsets.all(
-                                  Dimensions.paddingSizeExtraSmall),
-                              child: Icon(
-                                  brandsController.isVertical
-                                      ? Icons.list
-                                      : Icons.grid_view,
-                                  size: 24,
-                                  color: Theme.of(context).primaryColor),
-                            ),
-                          ),
-
-                          const SizedBox(width: Dimensions.paddingSizeSmall),
-
-                          // Price Sort Toggle
-                          InkWell(
-                            onTap: () {
-                              setState(() {
-                                _isPriceSortActive = true;
-                              });
-                              brandsController.setPriceLocal(
-                                  !brandsController.isPriceAscending);
-                            },
-                            child: Container(
-                              decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(
-                                    Dimensions.radiusDefault),
-                                color: brandsController.isPriceAscending
-                                    ? Theme.of(context)
-                                        .primaryColor
-                                        .withValues(alpha: 0.1)
-                                    : selectedChipColor,
-                              ),
-                              padding: const EdgeInsets.all(
-                                  Dimensions.paddingSizeExtraSmall),
-                              child: Icon(
-                                  brandsController.isPriceAscending
-                                      ? Icons.trending_down
-                                      : Icons.trending_up,
-                                  size: 28,
-                                  color: Theme.of(context).primaryColor),
-                            ),
-                          ),
+                          // Segmented list/grid view toggle (matches الأقسام).
+                          _viewSegToggle(context, brandsController),
 
                           const SizedBox(width: Dimensions.paddingSizeSmall),
 
@@ -669,7 +601,9 @@ class _BrandsItemScreenState extends State<BrandsItemScreen> {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      builder: (context) => StatefulBuilder(
+      builder: (context) => Directionality(
+        textDirection: TextDirection.rtl,
+        child: StatefulBuilder(
         builder: (context, modalSetState) => DraggableScrollableSheet(
           initialChildSize: 0.9,
           minChildSize: 0.5,
@@ -772,7 +706,7 @@ class _BrandsItemScreenState extends State<BrandsItemScreen> {
                           backgroundColor: Theme.of(context).primaryColor,
                         ),
                         child: Text(
-                          'apply'.tr,
+                          'pay_done'.tr,
                           style: const TextStyle(color: Colors.white),
                         ),
                       ),
@@ -783,7 +717,7 @@ class _BrandsItemScreenState extends State<BrandsItemScreen> {
             ),
           ),
         ),
-      ),
+      )),
     );
   }
 
@@ -806,37 +740,119 @@ class _BrandsItemScreenState extends State<BrandsItemScreen> {
     );
   }
 
+  // 🎨 Market "الأقسام" look for the brand grid.
+  static const Color _catAccent = Color(0xFF1F7A35);
+  static const SliverGridDelegate _catGrid =
+      SliverGridDelegateWithFixedCrossAxisCount(
+    crossAxisCount: 3,
+    mainAxisSpacing: 12,
+    crossAxisSpacing: 10,
+    childAspectRatio: 104 / 134,
+  );
+
+  /// Maps a brand [Item] to the offers-screen [OfferProduct] the category card
+  /// expects, so the brand grid renders with the exact same design.
+  OfferProduct _toOfferProduct(Item it) {
+    final double price = it.price ?? 0;
+    final double disc = it.discount ?? 0;
+    final bool percent = (it.discountType ?? 'percent') != 'amount';
+    double discounted = percent ? price - (price * disc / 100) : price - disc;
+    if (discounted < 0) discounted = 0;
+    final double pct = price > 0
+        ? (percent ? disc : (disc / price * 100))
+        : 0;
+    return OfferProduct(
+      id: it.id,
+      name: it.name,
+      image: it.imageFullUrl,
+      price: price,
+      discountedPrice: discounted,
+      discountPercentage: pct,
+    );
+  }
+
+  Widget _brandCard(Item it) => OfferProductCard(
+        product: _toOfferProduct(it),
+        storeId: it.storeId,
+        moduleId: it.moduleId ?? 3,
+        accent: _catAccent,
+      );
+
+  /// Pill filter chip identical to the market "الأقسام" filter — solid green
+  /// when active, no checkmark. [ltr] keeps numeric ranges ("40 - 70") correct.
+  Widget _pillChip(String label, bool active, VoidCallback onTap,
+      {bool ltr = false}) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        decoration: BoxDecoration(
+          color: active ? _catAccent : Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+              color: active ? _catAccent : const Color(0xFFE0E1E3)),
+        ),
+        child: Text(
+          label,
+          textDirection: ltr ? TextDirection.ltr : null,
+          style: TextStyle(
+            fontFamily: 'Tajawal',
+            fontWeight: FontWeight.w600,
+            fontSize: 13,
+            color: active ? Colors.white : const Color(0xFF717885),
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Segmented list/grid view toggle styled like the market "الأقسام" screen.
+  Widget _viewSegToggle(BuildContext context, BrandsController c) {
+    Widget seg(IconData icon, bool active, VoidCallback onTap) => InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(10),
+          child: Container(
+            padding: const EdgeInsets.all(7),
+            decoration: BoxDecoration(
+              color: active
+                  ? _catAccent.withValues(alpha: 0.12)
+                  : Colors.transparent,
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(icon,
+                size: 22,
+                color: active ? _catAccent : const Color(0xFF9AA0A6)),
+          ),
+        );
+    return Container(
+      decoration: BoxDecoration(
+        border: Border.all(color: const Color(0xFFE6E8EB)),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      padding: const EdgeInsets.all(2),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          seg(Icons.view_agenda_outlined, !c.isVertical,
+              () => c.setVerticalItems(false)),
+          seg(Icons.grid_view_rounded, c.isVertical,
+              () => c.setVerticalItems(true)),
+        ],
+      ),
+    );
+  }
+
   /// 🔧 FIX: Build Sliver for items view (for search results)
   Widget _buildSliverItemsView(
       BuildContext context, List<Item> items, bool isVertical) {
-    final bool isDesktop = ResponsiveHelper.isDesktop(context);
-
     if (isVertical) {
       return SliverGrid(
         delegate: SliverChildBuilderDelegate(
-          (context, index) {
-            return ItemWidget(
-              key: ValueKey('item_${items[index].id}_$index'),
-              isStore: false,
-              item: items[index],
-              store: null,
-              index: index,
-              length: items.length,
-              verticalItem: true,
-            );
-          },
+          (context, index) => _brandCard(items[index]),
           childCount: items.length,
         ),
-        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisSpacing: isDesktop
-              ? Dimensions.paddingSizeExtremeLarge
-              : Dimensions.paddingSizeLarge,
-          mainAxisSpacing: isDesktop
-              ? Dimensions.paddingSizeExtremeLarge
-              : Dimensions.paddingSizeSmall,
-          mainAxisExtent: isDesktop ? 220 : 200,
-          crossAxisCount: isDesktop ? 3 : 2,
-        ),
+        gridDelegate: _catGrid,
       );
     }
 
@@ -875,7 +891,6 @@ class _BrandsItemScreenState extends State<BrandsItemScreen> {
         controller.isEndReached &&
         controller.offset > 1 &&
         items.isNotEmpty;
-    final bool isDesktop = ResponsiveHelper.isDesktop(context);
 
     // 🛑 CRITICAL FIX: Only show loader if we got more than 1 unique item in last request
     // This prevents showing loader when pagination has effectively stopped
@@ -891,15 +906,7 @@ class _BrandsItemScreenState extends State<BrandsItemScreen> {
           (context, index) {
             // Show items
             if (index < items.length) {
-              return ItemWidget(
-                key: ValueKey('item_${items[index].id}_$index'),
-                isStore: false,
-                item: items[index],
-                store: null,
-                index: index,
-                length: items.length,
-                verticalItem: true,
-              );
+              return _brandCard(items[index]);
             }
 
             if (showLoader) {
@@ -910,16 +917,7 @@ class _BrandsItemScreenState extends State<BrandsItemScreen> {
           },
           childCount: itemCount,
         ),
-        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisSpacing: isDesktop
-              ? Dimensions.paddingSizeExtremeLarge
-              : Dimensions.paddingSizeLarge,
-          mainAxisSpacing: isDesktop
-              ? Dimensions.paddingSizeExtremeLarge
-              : Dimensions.paddingSizeSmall,
-          mainAxisExtent: isDesktop ? 220 : 200,
-          crossAxisCount: isDesktop ? 3 : 2,
-        ),
+        gridDelegate: _catGrid,
       );
     }
 

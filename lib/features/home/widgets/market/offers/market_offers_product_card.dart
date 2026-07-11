@@ -199,8 +199,10 @@ class OfferProductCard extends StatelessWidget {
               fontWeight: struck ? FontWeight.w500 : FontWeight.w700,
               fontSize: struck ? 11 : 14,
               height: 1.2,
+              // Clear, thick red strikethrough on the original discounted price.
               decoration: struck ? TextDecoration.lineThrough : null,
               decorationColor: struck ? Colors.red : color,
+              decorationThickness: struck ? 2.5 : null,
               color: color,
             ),
           ),

@@ -1,6 +1,7 @@
 // Kept-but-unused helper tiles (_ViewMoreTile / _SeeAllProductsScreen) retain
 // their params for later reuse.
 // ignore_for_file: unused_element_parameter, unused_element
+import 'dart:async';
 import 'dart:convert';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
@@ -99,6 +100,10 @@ class _MarketStoreScreenState extends State<MarketStoreScreen> {
   bool _loading = true;
   int _activeTab = 0;
 
+  // 🚀 PERF: throttle the scroll-spy so the O(sections) localToGlobal walk
+  // doesn't run on every single scroll frame while browsing.
+  double _lastSpyOffset = -1000;
+
   // Single scroll controller for the whole product area.
   final ScrollController _scrollCtrl = ScrollController();
   final ScrollController _tabScrollCtrl = ScrollController();
@@ -114,9 +119,35 @@ class _MarketStoreScreenState extends State<MarketStoreScreen> {
   List<_Category> get _resolvedCategories {
     final base =
         _categories.isNotEmpty ? _categories : (_detail?.categories ?? const []);
-    return base
-        .where((c) => !c.isDiscount && c.rawId.toLowerCase() != 'offers')
-        .toList();
+    final filtered =
+        base.where((c) => !c.isDiscount && c.rawId.toLowerCase() != 'offers');
+    // The store's taxonomy has near-duplicate categories (e.g. "الجبنة و اللبنة"
+    // vs "جبنة و لبنة"). Collapse them by normalized name so the grid/tabs show
+    // each category once — first occurrence wins.
+    final seen = <String>{};
+    final out = <_Category>[];
+    for (final c in filtered) {
+      final key = _normCatName(c.name ?? '');
+      if (key.isEmpty || seen.add(key)) out.add(c);
+    }
+    return out;
+  }
+
+  /// Normalizes an Arabic category name for duplicate detection: strips the
+  /// definite article "ال", the conjunction "و", spaces/tatweel, and unifies
+  /// alef/taa-marbuta variants so visually-equal names compare equal.
+  static String _normCatName(String s) {
+    var t = s.trim();
+    if (t.isEmpty) return '';
+    t = t.replaceAll('ـ', '').replaceAll(RegExp(r'\s+'), '');
+    t = t
+        .replaceAll('أ', 'ا')
+        .replaceAll('إ', 'ا')
+        .replaceAll('آ', 'ا')
+        .replaceAll('ة', 'ه')
+        .replaceAll('ى', 'ي');
+    t = t.replaceAll('ال', '').replaceAll('و', '');
+    return t;
   }
 
   @override
@@ -139,6 +170,10 @@ class _MarketStoreScreenState extends State<MarketStoreScreen> {
 
   void _onScroll() {
     if (_sectionKeys.isEmpty || !_scrollCtrl.hasClients) return;
+    // Skip the per-section measurement unless we've moved a meaningful amount.
+    final double off = _scrollCtrl.offset;
+    if ((off - _lastSpyOffset).abs() < 6) return;
+    _lastSpyOffset = off;
     final scrollBox = _scrollViewKey.currentContext?.findRenderObject();
     if (scrollBox is! RenderBox) return;
 

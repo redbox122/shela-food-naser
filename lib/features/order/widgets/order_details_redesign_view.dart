@@ -432,6 +432,44 @@ class OrderDetailsRedesignView extends StatelessWidget {
     return out;
   }
 
+  /// Structured option / add-on lines for an order item — each shown on its own
+  /// tree-style row ("└ …") under the item name. `isAddon` picks the accent:
+  /// green for extras, muted grey for the chosen option value. Additive helper;
+  /// the flat [_orderChoiceLabels] above is kept for any other caller.
+  List<_OrderChoiceLine> _orderChoiceLines(OrderDetailsModel d) {
+    final List<_OrderChoiceLine> out = <_OrderChoiceLine>[];
+    final foodVars = d.foodVariation;
+    if (foodVars != null) {
+      for (final v in foodVars) {
+        final List<String> chosen = <String>[];
+        final vals = v.variationValues;
+        if (vals != null) {
+          for (final val in vals) {
+            final String lvl = (val.level ?? '').trim();
+            if (lvl.isNotEmpty) chosen.add(lvl);
+          }
+        }
+        final String name = (v.name ?? '').trim();
+        if (chosen.isNotEmpty) {
+          out.add(_OrderChoiceLine(
+            name.isEmpty ? chosen.join('، ') : '$name: ${chosen.join('، ')}',
+            isAddon: false,
+          ));
+        }
+      }
+    }
+    final addOns = d.addOns;
+    if (addOns != null) {
+      for (final a in addOns) {
+        final String n = (a.name ?? '').trim();
+        if (n.isEmpty) continue;
+        final int q = a.quantity ?? 1;
+        out.add(_OrderChoiceLine(q > 1 ? '$n ×$q' : n, isAddon: true));
+      }
+    }
+    return out;
+  }
+
   // ── Store card ────────────────────────────────────────────────────────────
   Widget _storeCard() {
     return _card(
@@ -502,7 +540,7 @@ class OrderDetailsRedesignView extends StatelessWidget {
               ((detail.price ?? 0) - (detail.discountOnItem ?? 0)) * quantity;
           final bool hasDiscount = discounted < original;
           final String? desc = detail.itemDetails?.description;
-          final List<String> choiceLabels = _orderChoiceLabels(detail);
+          final List<_OrderChoiceLine> choiceLines = _orderChoiceLines(detail);
           return Padding(
             padding: const EdgeInsets.symmetric(
                 vertical: Dimensions.paddingSizeSmall),
@@ -558,19 +596,26 @@ class OrderDetailsRedesignView extends StatelessWidget {
                           ),
                         ),
                       ],
-                      // Customer's chosen options under the item name.
-                      if (choiceLabels.isNotEmpty) ...[
+                      // Customer's chosen options / add-ons — each on its own
+                      // tree-style line ("└ …") under the item name; extras in
+                      // green so they stand apart from the plain option values.
+                      if (choiceLines.isNotEmpty) ...[
                         const SizedBox(height: 3),
-                        Text(
-                          choiceLabels.join('  •  '),
-                          maxLines: 5,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            fontFamily: 'Tajawal',
-                            fontWeight: FontWeight.w500,
-                            fontSize: 11,
-                            height: 1.35,
-                            color: _muted,
+                        ...choiceLines.map(
+                          (line) => Padding(
+                            padding: const EdgeInsets.only(top: 2),
+                            child: Text(
+                              '└ ${line.text}',
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontFamily: 'Tajawal',
+                                fontWeight: FontWeight.w500,
+                                fontSize: 11,
+                                height: 1.35,
+                                color: line.isAddon ? _green : _muted,
+                              ),
+                            ),
                           ),
                         ),
                       ],
@@ -977,4 +1022,13 @@ class _StatusVisual {
         );
     }
   }
+}
+
+/// One tree-style option/add-on line under an order item.
+/// [isAddon] = true → a paid extra (shown green); false → a chosen option value.
+class _OrderChoiceLine {
+  final String text;
+  final bool isAddon;
+
+  const _OrderChoiceLine(this.text, {required this.isAddon});
 }
