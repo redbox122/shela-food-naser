@@ -314,8 +314,9 @@ class _WideOfferCard extends StatelessWidget {
       final suffix = offer.discountType == 'percent' ? '%' : '';
       return '${'discount_label'.tr} ${_fmt(offer.discountAmount)}$suffix';
     }
-    final title = (offer.offerTitle ?? '').trim();
-    return title.isNotEmpty ? title : 'special_offer'.tr;
+    // The offer title is now shown prominently at the top of the card, so the
+    // discount line falls back to a generic label instead of repeating it.
+    return 'special_offer'.tr;
   }
 
   @override
@@ -403,8 +404,13 @@ class _WideOfferCard extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
+                        // Prominent line: the item/offer name — disambiguates
+                        // several offers from the same store. Falls back to the
+                        // store name when the backend omits the offer title.
                         Text(
-                          offer.storeName ?? '',
+                          (offer.offerTitle?.trim().isNotEmpty ?? false)
+                              ? offer.offerTitle!.trim()
+                              : (offer.storeName ?? ''),
                           textAlign: TextAlign.right,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
@@ -416,6 +422,23 @@ class _WideOfferCard extends StatelessWidget {
                             color: Color(0xFF121C19),
                           ),
                         ),
+                        // Secondary line: the store name (grey), shown only when
+                        // the prominent line above is the item title.
+                        if ((offer.offerTitle?.trim().isNotEmpty ?? false) &&
+                            (offer.storeName?.trim().isNotEmpty ?? false))
+                          Text(
+                            offer.storeName!.trim(),
+                            textAlign: TextAlign.right,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontFamily: 'Tajawal',
+                              fontWeight: FontWeight.w500,
+                              fontSize: 11,
+                              height: 1.3,
+                              color: Color(0xFF8A8F98),
+                            ),
+                          ),
                         const SizedBox(height: 2),
                         // Discount line below the name (design spec: Tajawal
                         // 700 / 14px / 140% / right; colour --Text-Headline

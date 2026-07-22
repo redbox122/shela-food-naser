@@ -212,6 +212,13 @@ class _HomeSearchScreenState extends State<HomeSearchScreen> {
           .where((p) => _nameMatchesQuery(p.name ?? '', q))
           .toList();
     }
+    // (1) Capture the backend's original order (a popularity/relevance proxy).
+    // Dart's List.sort is NOT stable, so without this, equal-rank items like
+    // "لوكس" vs "لوكر" for "لوك" would order arbitrarily. This keeps ties
+    // deterministic toward what the backend surfaced first.
+    final Map<_SearchProduct, int> backendOrder = {
+      for (int i = 0; i < results.length; i++) results[i]: i,
+    };
     int rank(_SearchProduct p) {
       final n = _normCore(p.name ?? '');
       if (n == q) return 0;
@@ -219,13 +226,29 @@ class _HomeSearchScreenState extends State<HomeSearchScreen> {
       final i = n.indexOf(q);
       return i < 0 ? 1000000 : 100 + i;
     }
+    // (2) Brand/name intent: a product whose FIRST word starts with the query
+    // ("لوكس شامبو" for "لوك") ranks above one that matches only a later word
+    // ("بسكويت لوكر").
+    int firstWordRank(_SearchProduct p) {
+      for (final String w
+          in (p.name ?? '').split(RegExp(r'[\s\-/,،()\[\].]+'))) {
+        if (w.trim().isEmpty) continue;
+        return arabicDedupKey(w).startsWith(q) ? 0 : 1;
+      }
+      return 1;
+    }
 
     // Food first, tools second — then by name relevance within each group.
     int foodFirst(_SearchProduct p) => _isKitchenTool(p.name ?? '') ? 1 : 0;
     results = [...results]..sort((a, b) {
       final int t = foodFirst(a).compareTo(foodFirst(b));
       if (t != 0) return t;
-      return rank(a).compareTo(rank(b));
+      final int r = rank(a).compareTo(rank(b));
+      if (r != 0) return r;
+      final int fw = firstWordRank(a).compareTo(firstWordRank(b));
+      if (fw != 0) return fw;
+      // Final stable tiebreak: keep the backend's order (popularity proxy).
+      return (backendOrder[a] ?? 0).compareTo(backendOrder[b] ?? 0);
     });
     // Stores whose name matches the query (restaurants etc.) — name-start first.
     // Primary: pre-fetched _brands list.
@@ -744,9 +767,13 @@ class _HomeSearchScreenState extends State<HomeSearchScreen> {
                             children: [
                               // Order: خدماتنا (all modules) → recent searches →
                               // most-searched (module-scoped) → popular stores.
-                              // "خدماتنا" services grid — tapping a service (e.g.
-                              // هايبر شله) opens its storefront. Global search only.
-                              if (widget.storeId == null)
+                              // "خدماتنا" services grid (all verticals) shows ONLY
+                              // in GLOBAL search. When search is opened scoped to a
+                              // module (e.g. from المطاعم), hide it so the user
+                              // stays in that vertical and doesn't see Hyper /
+                              // pharmacies / other sectors.
+                              if (widget.storeId == null &&
+                                  widget.moduleId == null)
                                 const HomeServicesGrid(),
                               _buildRecentSection(),
                               // Global discovery rails are hidden for store-scoped

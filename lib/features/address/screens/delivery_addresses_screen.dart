@@ -181,9 +181,12 @@ class _DeliveryAddressesScreenState extends State<DeliveryAddressesScreen> {
                         address: items[i],
                         selected: items[i].id == currentId,
                         onDelete: () => _confirmDelete(items[i], i),
+                        // Edit opens the SAME add-address screen (with the map
+                        // picker), prefilled with this address + its existing
+                        // coordinates — so editing can re-pin the location on the
+                        // map, not just edit text (which left GPS stale/empty).
                         onEdit: () => Get.toNamed(
-                          RouteHelper.getAddressDetailsRoute(),
-                          arguments: {'addressId': items[i].id},
+                          RouteHelper.getEditAddressRoute(items[i]),
                         ),
                       ),
                     );

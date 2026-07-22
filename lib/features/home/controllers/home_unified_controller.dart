@@ -43,6 +43,10 @@ import 'package:sixam_mart/util/app_constants.dart';
 /// - Single API call vs 5+ individual calls
 /// - Instant home screen from cache
 /// - Background refresh with subtle UI update
+// ── State-management convention (project-wide) ──────────────────────────────
+// GetBuilder/update(): business data + API/loading state owned by this controller.
+// setState (in widgets): local, ephemeral visual effects only (animations,
+//   expand/collapse, focus) — never business/pricing/API state.
 class HomeUnifiedController extends GetxController implements GetxService {
   final HomeUnifiedService homeUnifiedService;
 

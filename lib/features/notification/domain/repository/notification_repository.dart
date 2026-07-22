@@ -19,8 +19,12 @@ class NotificationRepository implements NotificationRepositoryInterface {
     final List<NotificationModel> localNotificationLog =
         _getLocalNotificationLog();
     try {
+      // Do NOT use ETag caching here: a 304 (Not Modified) would drop us into
+      // the local-log-only fallback below, collapsing the full list to the 1-2
+      // locally-stored push notifications (the "notifications disappear after
+      // tapping / list flickers" bug). Always fetch the full server list.
       final Response response =
-          await apiClient.getData(AppConstants.notificationUri);
+          await apiClient.getData(AppConstants.notificationUri, useEtag: false);
 
       if (kDebugMode) {
         appLogger.debug(

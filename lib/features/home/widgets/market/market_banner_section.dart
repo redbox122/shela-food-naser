@@ -14,7 +14,10 @@ import 'package:sixam_mart/util/images.dart';
 class MarketBannerSection extends StatefulWidget {
   final int? moduleId;
 
-  const MarketBannerSection({super.key, this.moduleId});
+  /// Optional cap on how many banners the carousel shows (null = show all).
+  final int? maxBanners;
+
+  const MarketBannerSection({super.key, this.moduleId, this.maxBanners});
 
   /// The banner/offers feed is sourced from a fixed module (id 3), independent
   /// of the market's grocery module.
@@ -57,7 +60,7 @@ class _MarketBannerSectionState extends State<MarketBannerSection> {
       final response = await Get.find<ApiClient>().getData(
         '${AppConstants.bannerUri}?featured=1',
         headers: {
-          AppConstants.localizationKey: 'ar',
+          AppConstants.localizationKey: AppConstants.currentLanguageCode,
           AppConstants.moduleId:
               MarketBannerSection._bannerModuleId.toString(),
         },
@@ -76,12 +79,16 @@ class _MarketBannerSectionState extends State<MarketBannerSection> {
                       : const []),
                 ]
               : const [];
-      final images = raw
+      var images = raw
           .whereType<Map>()
           .map((e) => (e['image_full_url'] ?? e['image'])?.toString())
           .where((e) => e != null && e.isNotEmpty)
           .cast<String>()
           .toList();
+      // Optionally cap the number of banners (e.g. the Hyper storefront shows 2).
+      if (widget.maxBanners != null && images.length > widget.maxBanners!) {
+        images = images.take(widget.maxBanners!).toList();
+      }
       setState(() {
         _images = images;
         _loading = false;

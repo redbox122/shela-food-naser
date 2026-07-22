@@ -10,11 +10,12 @@ import 'package:sixam_mart/features/home/widgets/market/offers/market_offers_bra
 import 'package:sixam_mart/features/home/widgets/market/offers/market_offers_cart_search_bar.dart';
 import 'package:sixam_mart/features/home/widgets/market/offers/market_offers_header.dart';
 import 'package:sixam_mart/features/home/widgets/market/offers/market_offers_models.dart';
+import 'package:sixam_mart/features/home/widgets/market/offers/market_offers_subcat_classifier.dart';
 import 'package:sixam_mart/features/home/widgets/market/offers/market_offers_tabs_bar.dart';
 import 'package:sixam_mart/util/app_constants.dart';
 
 enum _ViewMode { grid, list }
-enum _SortOrder { none, nameAsc, nameDesc, popular }
+enum _SortOrder { none, nameAsc, nameDesc, popular, priceAsc, priceDesc }
 
 /// 🎨 REDESIGN (Market): store category / "Best Offers" screen.
 ///
@@ -49,12 +50,20 @@ class MarketOffersScreen extends StatefulWidget {
   /// the two-level categories + sub-categories browser.
   final bool brandedHeader;
 
+  /// When true, the categories top bar is replaced by a minimal accent band
+  /// with only a back arrow (used by the هايبر شله designed category cards).
+  final bool minimalHeader;
+
   /// Products the caller already loaded (e.g. a featured-store section). Used as
   /// a fallback when the store-category fetch returns nothing: a cross-module
   /// featured store (a restaurant opened via "منتجات من متجر آخر") has no market
   /// "offers" category, so `/categories/offers` comes back empty even though the
   /// caller already holds the products to show.
   final List<OfferProduct> presetProducts;
+
+  /// When true, only products that carry a discount are shown (used by the
+  /// هايبر شله discount banners — each opens its department's discounted items).
+  final bool discountedOnly;
 
   const MarketOffersScreen({
     super.key,
@@ -66,7 +75,9 @@ class MarketOffersScreen extends StatefulWidget {
     this.storeLogo,
     this.storeCover,
     this.brandedHeader = false,
+    this.minimalHeader = false,
     this.presetProducts = const [],
+    this.discountedOnly = false,
   });
 
   @override
@@ -168,15 +179,17 @@ class _OfferControlRow extends StatelessWidget {
 class _OfferFilterSheet extends StatefulWidget {
   final _SortOrder sortOrder;
   final (double, double)? priceRange;
-  final String? catFilter;
-  final List<SubCat> subCats;
+  final String? brandFilter;
+
+  /// Brands (name → count) extracted from the products currently in view.
+  final List<MapEntry<String, int>> brands;
   final void Function(_SortOrder, (double, double)?, String?) onApply;
 
   const _OfferFilterSheet({
     required this.sortOrder,
     required this.priceRange,
-    required this.catFilter,
-    required this.subCats,
+    required this.brandFilter,
+    required this.brands,
     required this.onApply,
   });
 
@@ -187,7 +200,7 @@ class _OfferFilterSheet extends StatefulWidget {
 class _OfferFilterSheetState extends State<_OfferFilterSheet> {
   late _SortOrder _sort;
   late (double, double)? _price;
-  late String? _cat;
+  late String? _brand;
 
   static const _priceRanges = <(double, double, String)>[
     (0, 10, '0 - 10'),
@@ -208,8 +221,11 @@ class _OfferFilterSheetState extends State<_OfferFilterSheet> {
     super.initState();
     _sort = widget.sortOrder;
     _price = widget.priceRange;
-    _cat = widget.catFilter;
+    _brand = widget.brandFilter;
   }
+
+  void _toggleSort(_SortOrder o) =>
+      setState(() => _sort = _sort == o ? _SortOrder.none : o);
 
   @override
   Widget build(BuildContext context) {
@@ -273,46 +289,36 @@ class _OfferFilterSheetState extends State<_OfferFilterSheet> {
                       spacing: 8,
                       runSpacing: 8,
                       children: [
-                        _chip(
-                          'تنازلي من (ي - أ)',
-                          _sort == _SortOrder.nameDesc,
-                          () => setState(() => _sort = _sort == _SortOrder.nameDesc
-                              ? _SortOrder.none
-                              : _SortOrder.nameDesc),
-                        ),
-                        _chip(
-                          'تصاعدي من (أ - ي)',
-                          _sort == _SortOrder.nameAsc,
-                          () => setState(() => _sort = _sort == _SortOrder.nameAsc
-                              ? _SortOrder.none
-                              : _SortOrder.nameAsc),
-                        ),
-                        _chip(
-                          'شائع',
-                          _sort == _SortOrder.popular,
-                          () => setState(() => _sort = _sort == _SortOrder.popular
-                              ? _SortOrder.none
-                              : _SortOrder.popular),
-                        ),
+                        // Price sort first — the most-used option.
+                        _chip('الأقل سعراً', _sort == _SortOrder.priceAsc,
+                            () => _toggleSort(_SortOrder.priceAsc)),
+                        _chip('الأعلى سعراً', _sort == _SortOrder.priceDesc,
+                            () => _toggleSort(_SortOrder.priceDesc)),
+                        _chip('تصاعدي (أ - ي)', _sort == _SortOrder.nameAsc,
+                            () => _toggleSort(_SortOrder.nameAsc)),
+                        _chip('تنازلي (ي - أ)', _sort == _SortOrder.nameDesc,
+                            () => _toggleSort(_SortOrder.nameDesc)),
                       ],
                     ),
                   ),
-                  if (widget.subCats.length > 1) ...[
+                  // Brand filter — brands extracted client-side from the
+                  // products currently in view. Only shown when there are ≥2.
+                  if (widget.brands.length > 1) ...[
                     const SizedBox(height: 20),
                     _section(
-                      'pay_products'.tr,
+                      'العلامة التجارية',
                       Wrap(
                         textDirection: TextDirection.rtl,
                         spacing: 8,
                         runSpacing: 8,
                         children: [
-                          _chip('جميع المنتجات', _cat == null,
-                              () => setState(() => _cat = null)),
-                          ...widget.subCats.map((s) => _chip(
-                                s.name,
-                                _cat == s.id,
-                                () => setState(
-                                    () => _cat = _cat == s.id ? null : s.id),
+                          _chip('كل العلامات', _brand == null,
+                              () => setState(() => _brand = null)),
+                          ...widget.brands.map((e) => _chip(
+                                '${e.key} (${e.value})',
+                                _brand == e.key,
+                                () => setState(() =>
+                                    _brand = _brand == e.key ? null : e.key),
                               )),
                         ],
                       ),
@@ -349,7 +355,7 @@ class _OfferFilterSheetState extends State<_OfferFilterSheet> {
                     height: 50,
                     child: ElevatedButton(
                       onPressed: () {
-                        widget.onApply(_sort, _price, _cat);
+                        widget.onApply(_sort, _price, _brand);
                         Get.back<void>();
                       },
                       style: ElevatedButton.styleFrom(
@@ -374,7 +380,7 @@ class _OfferFilterSheetState extends State<_OfferFilterSheet> {
                     onPressed: () => setState(() {
                       _sort = _SortOrder.none;
                       _price = null;
-                      _cat = null;
+                      _brand = null;
                     }),
                     child: Text(
                       'pay_reset'.tr,
@@ -471,30 +477,68 @@ class _MarketOffersScreenState extends State<MarketOffersScreen> {
   (double, double)? _priceRange;
   String? _catFilter;
 
+  /// Brand filter (client-side): products whose extracted brand equals this are
+  /// kept. Null = all brands. Reset whenever the sub/child selection changes.
+  String? _brandFilter;
+
+  /// Name of the category whose products are currently in view — used to derive
+  /// head-nouns for brand extraction. Updated when a sub tab is tapped.
+  String _activeCatName = '';
+
   /// One GlobalKey per *displayed* (post-filter) section, rebuilt whenever the
   /// filter changes. Passed to both the tabs bar and the body so tap-to-scroll
   /// and Scrollable.ensureVisible stay in sync.
   List<GlobalKey> _displayKeys = const [];
 
-  // ── Computed ─────────────────────────────────────────────────────────────
+  // ── Optional DEEPER level (panda-style) ──────────────────────────────────
+  // When a tapped sub-category itself has real sub-categories in the backend,
+  // they load here and render a SECOND filter bar (same design) directly under
+  // the first, drilling the grid one level deeper. For today's flat Hyper data
+  // (each category returns only itself) this stays empty and nothing changes —
+  // the logic activates automatically the moment real sub-categories exist.
+  List<SubCat> _childSubs = const [];
+  int _childTab = 0;
+  String? _childFilter; // selected child id (null = "الكل")
 
-  List<SubCat> get _displaySubs {
-    List<SubCat> result = _catFilter != null
-        ? _subs.where((s) => s.id == _catFilter).toList()
-        : List<SubCat>.from(_subs);
-    return result.map((sub) {
+  /// Apply the active price-range + brand + sort to a set of sub-categories,
+  /// dropping any that end up empty. Shared by [_displaySubs] and
+  /// [_childDisplaySubs] so every filter is applied in exactly one place. All
+  /// client-side — no extra API calls.
+  List<SubCat> _applyPriceSort(List<SubCat> input) {
+    final heads = SubCatClassifier.headNouns(_activeCatName);
+    return input.map((sub) {
       List<OfferProduct> products = sub.products;
       if (_priceRange != null) {
         final (mn, mx) = _priceRange!;
-        products =
-            products.where((p) => p.shownPrice >= mn && p.shownPrice <= mx).toList();
+        products = products
+            .where((p) => p.shownPrice >= mn && p.shownPrice <= mx)
+            .toList();
       }
-      if (_sortOrder == _SortOrder.nameAsc) {
-        products = [...products]
-          ..sort((a, b) => (a.name ?? '').compareTo(b.name ?? ''));
-      } else if (_sortOrder == _SortOrder.nameDesc) {
-        products = [...products]
-          ..sort((a, b) => (b.name ?? '').compareTo(a.name ?? ''));
+      if (_brandFilter != null) {
+        products = products
+            .where((p) => SubCatClassifier.brandOf(p.name ?? '', heads) == _brandFilter)
+            .toList();
+      }
+      switch (_sortOrder) {
+        case _SortOrder.priceAsc:
+          products = [...products]
+            ..sort((a, b) => a.shownPrice.compareTo(b.shownPrice));
+          break;
+        case _SortOrder.priceDesc:
+          products = [...products]
+            ..sort((a, b) => b.shownPrice.compareTo(a.shownPrice));
+          break;
+        case _SortOrder.nameAsc:
+          products = [...products]
+            ..sort((a, b) => (a.name ?? '').compareTo(b.name ?? ''));
+          break;
+        case _SortOrder.nameDesc:
+          products = [...products]
+            ..sort((a, b) => (b.name ?? '').compareTo(a.name ?? ''));
+          break;
+        case _SortOrder.none:
+        case _SortOrder.popular:
+          break;
       }
       return SubCat(
           id: sub.id,
@@ -505,11 +549,76 @@ class _MarketOffersScreenState extends State<MarketOffersScreen> {
     }).where((s) => s.products.isNotEmpty).toList();
   }
 
+  /// Children of the drilled sub-category, filtered by [_childFilter].
+  List<SubCat> get _childDisplaySubs {
+    final base = _childFilter != null
+        ? _childSubs.where((s) => s.id == _childFilter).toList()
+        : List<SubCat>.from(_childSubs);
+    return _applyPriceSort(base);
+  }
+
+  /// What the body actually renders: the deeper child level when drilled into a
+  /// category that has real sub-categories, otherwise the normal display set.
+  /// Identical to [_displaySubs] whenever no children are loaded (today's data),
+  /// so the existing behaviour is unchanged.
+  List<SubCat> get _effectiveDisplaySubs =>
+      _childSubs.isNotEmpty ? _childDisplaySubs : _displaySubs;
+
+  // ── Dynamic per-tab counts (panda-style "زيت زيتون (13)") ─────────────────
+
+  /// Product count for one sub/group, reflecting the active price filter.
+  /// Falls back to the API total_products (real total) when unfiltered so the
+  /// main department tabs aren't undercounted by the first-page fetch; virtual
+  /// (client-classified) groups carry total == products.length, so they're
+  /// exact. Sort never changes counts.
+  int _countOf(SubCat s) {
+    if (_priceRange == null) {
+      return s.total > 0 ? s.total : s.products.length;
+    }
+    final (mn, mx) = _priceRange!;
+    return s.products
+        .where((p) => p.shownPrice >= mn && p.shownPrice <= mx)
+        .length;
+  }
+
+  /// Tab labels with a live count each: ['الكل (N)', 'اسم (n)', ...].
+  List<String> _labelsWithCounts(List<SubCat> subs) {
+    final total = subs.fold<int>(0, (a, s) => a + _countOf(s));
+    return <String>[
+      'الكل ($total)',
+      for (final s in subs) '${s.name} (${_countOf(s)})',
+    ];
+  }
+
+  // ── Computed ─────────────────────────────────────────────────────────────
+
+  List<SubCat> get _displaySubs {
+    final result = _catFilter != null
+        ? _subs.where((s) => s.id == _catFilter).toList()
+        : List<SubCat>.from(_subs);
+    return _applyPriceSort(result);
+  }
+
   bool get _hasFilter =>
-      _sortOrder != _SortOrder.none || _priceRange != null || _catFilter != null;
+      _sortOrder != _SortOrder.none ||
+      _priceRange != null ||
+      _catFilter != null ||
+      _brandFilter != null;
+
+  /// Products currently in view (selected sub/child), BEFORE the brand filter —
+  /// the pool the brand chips are derived from so all brands stay selectable.
+  List<OfferProduct> get _brandPool {
+    final subs = _childSubs.isNotEmpty ? _childSubs : _subs;
+    final Iterable<SubCat> sel = _childSubs.isNotEmpty
+        ? (_childFilter != null
+            ? subs.where((s) => s.id == _childFilter)
+            : subs)
+        : (_catFilter != null ? subs.where((s) => s.id == _catFilter) : subs);
+    return sel.expand((s) => s.products).toList();
+  }
 
   int get _displayCount =>
-      _displaySubs.fold(0, (sum, s) => sum + s.products.length);
+      _effectiveDisplaySubs.fold(0, (sum, s) => sum + s.products.length);
 
   /// Theme accent derived from the store logo (palette_generator); the brand's
   /// green band, tabs, pills, buttons and section titles all tint to it.
@@ -585,7 +694,7 @@ class _MarketOffersScreenState extends State<MarketOffersScreen> {
       Get.isRegistered<ApiClient>() ? Get.find<ApiClient>() : null;
 
   Map<String, String> get _headers => {
-        AppConstants.localizationKey: 'ar',
+        AppConstants.localizationKey: AppConstants.currentLanguageCode,
         AppConstants.moduleId: widget.moduleId.toString(),
       };
 
@@ -666,6 +775,12 @@ class _MarketOffersScreenState extends State<MarketOffersScreen> {
     _sortOrder = _SortOrder.none;
     _priceRange = null;
     _catFilter = null;
+    _brandFilter = null;
+    _activeCatName = widget.title;
+    // Drop any deeper (child) level from the previous category.
+    _childSubs = const [];
+    _childTab = 0;
+    _childFilter = null;
   }
 
   Future<void> _fetchDetail(String catId) async {
@@ -689,11 +804,25 @@ class _MarketOffersScreenState extends State<MarketOffersScreen> {
       final List raw = (body is Map && body['sub_categories'] is List)
           ? body['sub_categories'] as List
           : const [];
-      final subs = raw
+      var subs = raw
           .whereType<Map>()
           .map((e) => SubCat.fromJson(Map<String, dynamic>.from(e)))
           .where((s) => s.products.isNotEmpty)
           .toList();
+      // Discount banners: keep only discounted products, drop empty sub-cats.
+      if (widget.discountedOnly) {
+        subs = subs
+            .map((s) => SubCat(
+                  id: s.id,
+                  name: s.name,
+                  products:
+                      s.products.where((p) => p.hasDiscount).toList(),
+                  total: s.total,
+                  hasMore: s.hasMore,
+                ))
+            .where((s) => s.products.isNotEmpty)
+            .toList();
+      }
       // Fall back to the caller's products when the category has nothing.
       setState(() => _applySubs(subs.isNotEmpty ? subs : _presetSubs()));
     } catch (_) {
@@ -703,18 +832,102 @@ class _MarketOffersScreenState extends State<MarketOffersScreen> {
 
   /// Tapping a sub_category tab scrolls the body to its titled section.
   void _onTabTap(int i) {
-    setState(() => _selectedTab = i);
-    final ctx = (i >= 0 && i < _displayKeys.length)
-        ? _displayKeys[i].currentContext
-        : null;
-    if (ctx != null) {
-      Scrollable.ensureVisible(
-        ctx,
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeOut,
-        alignment: 0.0,
+    // Panda-style sub-category FILTER: tab 0 = "الكل" (no filter, show every
+    // sub-category); tabs 1..n filter the grid to that single sub-category.
+    setState(() {
+      _selectedTab = i;
+      _catFilter =
+          (i <= 0 || (i - 1) >= _subs.length) ? null : _subs[i - 1].id;
+      // Track the active category name (for brand extraction) + reset the brand
+      // filter since brands differ per sub.
+      _activeCatName =
+          (i <= 0 || (i - 1) >= _subs.length) ? widget.title : _subs[i - 1].name;
+      _brandFilter = null;
+      // Changing the top-level sub selection resets any deeper (child) level.
+      _childSubs = const [];
+      _childTab = 0;
+      _childFilter = null;
+      // Rebuild the section keys for the (now filtered) display set.
+      _displayKeys = List.generate(_effectiveDisplaySubs.length, (_) => GlobalKey());
+    });
+    // If a real sub-category (not "الكل") was tapped, classify its products into
+    // keyword groups and, if there are ≥2 clear groups, reveal the second bar.
+    // No-op for homogeneous categories — the grid keeps showing the products.
+    if (i > 0 && (i - 1) < _subs.length) {
+      _maybeLoadChildren(_subs[i - 1].id, _subs[i - 1].name);
+    }
+    // Bring the filtered products into view from the top.
+    if (_scroll.hasClients) {
+      _scroll.animateTo(0,
+          duration: const Duration(milliseconds: 250), curve: Curves.easeOut);
+    }
+  }
+
+  /// Panda-style deeper level — CLIENT-SIDE. Fetches the tapped category's full
+  /// product list, then groups the products into virtual sub-categories by
+  /// keyword (see [SubCatClassifier]). If ≥2 clear groups exist, they populate
+  /// the second bar; a homogeneous category yields none, so [_childSubs] stays
+  /// empty and the UI is unchanged.
+  ///
+  /// This depends on NO backend sub-categories — grouping happens in the app —
+  /// so it survives the external daily category/product sync and needs no
+  /// production writes.
+  Future<void> _maybeLoadChildren(String subId, String subName) async {
+    final api = _api;
+    if (api == null || widget.storeId == null) return;
+    try {
+      final response = await api.getData(
+        '/api/v2/stores/${widget.storeId}/categories/$subId?limit=100',
+        headers: _headers,
+        useEtag: false,
       );
-    } else if (_scroll.hasClients) {
+      if (!mounted) return;
+      final dynamic body = response.body;
+      final List raw = (body is Map && body['sub_categories'] is List)
+          ? body['sub_categories'] as List
+          : const [];
+      // Flatten every product the category returns (across any sub_categories).
+      var products = <OfferProduct>[];
+      for (final s in raw.whereType<Map>()) {
+        final list = s['products'];
+        if (list is List) {
+          for (final p in list.whereType<Map>()) {
+            products.add(OfferProduct.fromJson(Map<String, dynamic>.from(p)));
+          }
+        }
+      }
+      if (widget.discountedOnly) {
+        products = products.where((p) => p.hasDiscount).toList();
+      }
+      final groups = SubCatClassifier.classify(subName, products);
+      // Only apply if the tapped sub is still the selected one (guard against a
+      // fast second tap).
+      if (!mounted || _catFilter != subId) return;
+      setState(() {
+        _childSubs = groups;
+        _childTab = 0;
+        _childFilter = null;
+        _displayKeys =
+            List.generate(_effectiveDisplaySubs.length, (_) => GlobalKey());
+      });
+    } catch (_) {
+      // Deeper level is optional; on failure keep the flat (current) view.
+    }
+  }
+
+  /// Tapping a child tab (second bar): tab 0 = "الكل" (all children), 1..n
+  /// filter the grid to that single child sub-category.
+  void _onChildTabTap(int i) {
+    setState(() {
+      _childTab = i;
+      _childFilter =
+          (i <= 0 || (i - 1) >= _childSubs.length) ? null : _childSubs[i - 1].id;
+      // Brands differ per child group, so reset the brand filter on switch.
+      _brandFilter = null;
+      _displayKeys =
+          List.generate(_effectiveDisplaySubs.length, (_) => GlobalKey());
+    });
+    if (_scroll.hasClients) {
       _scroll.animateTo(0,
           duration: const Duration(milliseconds: 250), curve: Curves.easeOut);
     }
@@ -728,18 +941,19 @@ class _MarketOffersScreenState extends State<MarketOffersScreen> {
       builder: (_) => _OfferFilterSheet(
         sortOrder: _sortOrder,
         priceRange: _priceRange,
-        catFilter: _catFilter,
-        subCats: _subs,
-        onApply: (sort, price, cat) {
+        brandFilter: _brandFilter,
+        // Brands from the products currently in view (drilled group or dept).
+        brands: SubCatClassifier.brands(_activeCatName, _brandPool),
+        onApply: (sort, price, brand) {
           if (!mounted) return;
           setState(() {
             _sortOrder = sort;
             _priceRange = price;
-            _catFilter = cat;
-            _selectedTab = 0;
-            // Rebuild display keys for the new filtered set. _displaySubs
-            // reads the just-updated filter fields so the count is correct.
-            _displayKeys = List.generate(_displaySubs.length, (_) => GlobalKey());
+            _brandFilter = brand;
+            // Filters apply to whatever is CURRENTLY in view — the drill level
+            // (sub/child selection) is preserved on purpose.
+            _displayKeys =
+                List.generate(_effectiveDisplaySubs.length, (_) => GlobalKey());
           });
         },
       ),
@@ -775,7 +989,26 @@ class _MarketOffersScreenState extends State<MarketOffersScreen> {
                 // Branded (store "see more"/logo) → cover + logo + name header,
                 // no categories top bar. Otherwise → solid accent band with the
                 // store-categories top bar.
-                if (widget.brandedHeader)
+                if (widget.minimalHeader)
+                  Container(
+                    color: _accent,
+                    child: SafeArea(
+                      bottom: false,
+                      child: Align(
+                        alignment: Alignment.centerRight,
+                        child: InkResponse(
+                          onTap: () => Get.back<void>(),
+                          radius: 24,
+                          child: const Padding(
+                            padding: EdgeInsets.all(10),
+                            child: Icon(Icons.arrow_back_ios,
+                                size: 22, color: Colors.white),
+                          ),
+                        ),
+                      ),
+                    ),
+                  )
+                else if (widget.brandedHeader)
                   MarketOffersBrandedHeader(
                     accent: _accent,
                     cover: widget.storeCover,
@@ -794,8 +1027,35 @@ class _MarketOffersScreenState extends State<MarketOffersScreen> {
                     onBack: () => Get.back<void>(),
                     onCatTap: _onCatTap,
                   ),
-                // Count + view toggle + filter button row.
                 if (!_loadingDetail && _subs.isNotEmpty) ...[
+                  // Sub-category filter bar sits DIRECTLY under the main-category
+                  // header ("الزيت والسمن" → [الكل][زيت][سمن][زيت زيتون]), so the
+                  // two category strips are adjacent. Panda layout.
+                  // Always shows every sub-category plus an "الكل" tab; tapping a
+                  // tab filters the grid below (see _onTabTap).
+                  if (_subs.isNotEmpty)
+                    MarketOffersTabsBar(
+                      labels: _labelsWithCounts(_subs),
+                      selectedTab: _selectedTab.clamp(0, _subs.length),
+                      // Panda dark green for the selected sub-category pill.
+                      // Was: Color(0xFF1F7A35)
+                      accent: const Color(0xFF1B5E3F),
+                      accentPale: _accentPale,
+                      onTabTap: _onTabTap,
+                    ),
+                  // Deeper (panda-style) second filter bar — appears ONLY when
+                  // the tapped sub-category has real sub-categories in the
+                  // backend. Same design as the bar above. Empty today (flat
+                  // data) → not rendered, so nothing changes until data exists.
+                  if (_childSubs.isNotEmpty)
+                    MarketOffersTabsBar(
+                      labels: _labelsWithCounts(_childSubs),
+                      selectedTab: _childTab.clamp(0, _childSubs.length),
+                      accent: const Color(0xFF1B5E3F),
+                      accentPale: _accentPale,
+                      onTabTap: _onChildTabTap,
+                    ),
+                  // Count + view toggle + filter button row, below the sub bar.
                   _OfferControlRow(
                     count: _displayCount,
                     viewMode: _viewMode,
@@ -803,21 +1063,11 @@ class _MarketOffersScreenState extends State<MarketOffersScreen> {
                     onViewMode: (v) => setState(() => _viewMode = v),
                     onFilter: _openFilter,
                   ),
-                  // Sub-category tabs (show only the displayed/filtered tabs).
-                  if (_displaySubs.isNotEmpty)
-                    MarketOffersTabsBar(
-                      labels: _displaySubs.map((s) => s.name).toList(),
-                      selectedTab: _selectedTab
-                          .clamp(0, (_displaySubs.length - 1).clamp(0, 9999)),
-                      accent: const Color(0xFF1F7A35),
-                      accentPale: _accentPale,
-                      onTabTap: _onTabTap,
-                    ),
                 ],
                 Expanded(
                   child: MarketOffersBody(
                     loading: _loadingDetail,
-                    subs: _displaySubs,
+                    subs: _effectiveDisplaySubs,
                     sectionKeys: _displayKeys,
                     scrollController: _scroll,
                     accent: _accent,
@@ -828,15 +1078,19 @@ class _MarketOffersScreenState extends State<MarketOffersScreen> {
                 ),
               ],
             ),
-            // Floating cart half-pill, flush to the screen's right edge — cart
-            // only (no search; the header already carries search).
+            // Floating cart + search half-pill, flush to the screen's right edge.
+            // Search is scoped to THIS store so shoppers can find a product
+            // (e.g. "سكر") without leaving the category screen.
             Positioned(
               right: 0,
               bottom: 120,
               child: CartFab(
                 accent: _accent,
-                showSearch: false,
-                onSearch: () {},
+                showSearch: true,
+                onSearch: () => Get.to<void>(() => HomeSearchScreen(
+                      storeId: widget.storeId,
+                      moduleId: widget.moduleId,
+                    )),
               ),
             ),
           ],

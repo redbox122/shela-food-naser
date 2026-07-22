@@ -485,6 +485,7 @@
     "results_found": "results found",
     "additional_note": "Additional note",
     "nutrition_notes": "Nutrition notes",
+    "calories": "calories",
     "nurtition_notes": "Nutrition notes",
     "restaurant_notes_hint": "Write your notes for the restaurant (e.g. no onions)",
     "cafe_notes_hint": "Write your notes for the cafe (e.g. less sugar)",
@@ -512,6 +513,8 @@
     "no_item_available": "No item available",
     "no_restaurant_available": "No restaurant available",
     "no_store_available": "No store available",
+    "no_store_matches_filter": "No stores match this filter in your area",
+    "show_all_stores": "Show all stores",
     "no_notification_found": "No notification found",
     "no_notifications": "You have no notifications at the moment",
     "no_notifications_subtitle": "You're all caught up!\nNothing new for now 😎",
@@ -2398,6 +2401,7 @@
     "ord_check_payment": "Check payment status",
     "ord_complete_failed": "Could not complete the order",
     "ord_cancel_failed": "Could not cancel the order",
+    "order_canceled_refund_pending": "Order canceled successfully. Your refund will be credited to your wallet shortly.",
     "ord_change_address_notes": "Change address or notes",
     "ord_order_details": "Order details",
     "ord_your_order_details": "Your order details",
@@ -2565,5 +2569,9 @@
     "refer_invites_count": "Invitations",
     "refer_total_rewards": "Total Rewards",
     "refer_status_pending": "Pending",
-    "refer_status_registered": "Registered"
+    "refer_status_registered": "Registered",
+    "shop_by_category": "Shop by category",
+    "picked_for_you": "Picked for you",
+    "best_selling": "Best selling",
+    "most_reviewed": "Most reviewed"
 }

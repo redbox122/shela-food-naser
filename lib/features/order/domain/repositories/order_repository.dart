@@ -137,11 +137,16 @@ class OrderRepository implements OrderRepositoryInterface {
 
       if (response.statusCode == 200 && apiSuccess) {
         success = true;
-        String successMessage = (directMessage != null &&
-                directMessage.toString().trim().isNotEmpty)
-            ? directMessage.toString()
-            : 'order_cancelled'.tr;
-        if (refundProcessed) {
+        final bool refundPending = map['refund_pending'] == true ||
+            map['refund_pending'] == 1 ||
+            map['refund_pending'] == '1';
+        // Always show a localized message (never the raw backend English text).
+        String successMessage = 'order_cancelled'.tr;
+        if (refundPending) {
+          // Order was canceled but the refund couldn't be processed instantly;
+          // it is queued/pending. Reassure the user in their language.
+          successMessage = 'order_canceled_refund_pending'.tr;
+        } else if (refundProcessed) {
           if (refundTarget == 'wallet_qidha') {
             successMessage = 'refund_to_qidha_wallet_processing'.tr;
           } else if (refundTarget == 'wallet') {
@@ -157,7 +162,12 @@ class OrderRepository implements OrderRepositoryInterface {
           isError: false,
         );
       } else {
-        showCustomSnackBar(resolvedMessage);
+        // Never surface a raw (usually English) backend error inside the Arabic
+        // UI. Show the backend text only when it is actually Arabic; otherwise
+        // fall back to the app's localized generic cancellation error.
+        final bool isArabicMsg =
+            RegExp(r'[؀-ۿ]').hasMatch(resolvedMessage);
+        showCustomSnackBar(isArabicMsg ? resolvedMessage : 'ord_cancel_failed'.tr);
       }
     } else {
       debugPrint('[OrderCancel] cancel response map not available');

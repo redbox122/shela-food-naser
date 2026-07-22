@@ -10,7 +10,11 @@ import 'package:sixam_mart/helper/auth_helper.dart';
 import 'package:sixam_mart/helper/route_helper.dart';
 import 'package:sixam_mart/util/dimensions.dart';
 
-Future<void> showAddressSelectionSheet() async {
+/// [onSelected] — when provided (e.g. from Checkout), it is invoked after a
+/// saved address is chosen INSTEAD of navigating to Home, so the caller can
+/// stay on its screen and refresh reactively. When null (e.g. from Home) the
+/// old behaviour is kept: the app resets to Home with the new zone.
+Future<void> showAddressSelectionSheet({VoidCallback? onSelected}) async {
   // Pre-load saved addresses BEFORE opening so the sheet appears once already
   // populated (no empty-then-filled flicker). On first open we wait for the
   // list; afterwards we refresh silently in the background.
@@ -23,14 +27,15 @@ Future<void> showAddressSelectionSheet() async {
     }
   }
   Get.bottomSheet(
-    const _AddressSelectionSheet(),
+    _AddressSelectionSheet(onSelected: onSelected),
     isScrollControlled: true,
     backgroundColor: Colors.transparent,
   );
 }
 
 class _AddressSelectionSheet extends StatefulWidget {
-  const _AddressSelectionSheet();
+  final VoidCallback? onSelected;
+  const _AddressSelectionSheet({this.onSelected});
 
   @override
   State<_AddressSelectionSheet> createState() => _AddressSelectionSheetState();
@@ -60,7 +65,13 @@ class _AddressSelectionSheetState extends State<_AddressSelectionSheet> {
       areaIds: const [],
     );
     await AddressHelper.saveUserAddressInSharedPref(current);
-    Get.offAllNamed(RouteHelper.getMainRoute('home'));
+    // From Checkout (onSelected != null): stay put and let the caller refresh
+    // the address + delivery fee. From Home (null): reset to Home as before.
+    if (widget.onSelected != null) {
+      widget.onSelected!();
+    } else {
+      Get.offAllNamed(RouteHelper.getMainRoute('home'));
+    }
   }
 
   void _addNewAddress() {

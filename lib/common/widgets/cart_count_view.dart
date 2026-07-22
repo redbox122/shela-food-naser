@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:sixam_mart/features/cart/controllers/cart_controller.dart';
-import 'package:sixam_mart/features/item/controllers/item_controller.dart';
+import 'package:sixam_mart/features/home/screens/market_store_screen.dart'
+    show showProductOptions;
+import 'package:sixam_mart/features/splash/controllers/splash_controller.dart';
 import 'package:sixam_mart/features/store/controllers/store_controller.dart';
 import 'package:sixam_mart/features/item/domain/models/item_model.dart';
 import 'package:sixam_mart/common/widgets/custom_snackbar.dart';
@@ -179,12 +181,24 @@ class CartCountView extends StatelessWidget {
                   }
                 }
                 HapticFeedback.lightImpact();
-                // Keep "+" behavior identical to card tap behavior.
-                Get.find<ItemController>().navigateToItemPage(
-                  item,
-                  context,
-                  inStore: inStorePage,
-                  isCampaign: isCampaign,
+                final int? id = item.id;
+                if (id == null) return;
+                // "+" ADDS to cart via the working v2 options flow: a direct
+                // quick-add when the item has no required options, or a small
+                // options sheet to pick required choices. The old
+                // navigateToItemPage opened the food ItemBottomSheet whose v1
+                // endpoint now 403s, leaving an empty sheet (tapping the card
+                // body still opens the full details).
+                showProductOptions(
+                  itemId: id,
+                  storeId: item.storeId,
+                  moduleId: item.moduleId ??
+                      (Get.isRegistered<SplashController>()
+                          ? (Get.find<SplashController>().module?.id ?? 1)
+                          : 1),
+                  name: item.name,
+                  image: item.imageFullUrl ?? item.displayImage,
+                  price: item.price ?? 0,
                 );
               },
               child: child ??

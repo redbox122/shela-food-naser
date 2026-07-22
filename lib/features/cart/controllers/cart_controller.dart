@@ -67,6 +67,10 @@ class CartTotals {
   }
 }
 
+// ── State-management convention (project-wide) ──────────────────────────────
+// GetBuilder/update(): business data + API/loading state owned by this controller.
+// setState (in widgets): local, ephemeral visual effects only (animations,
+//   expand/collapse, focus) — never business/pricing/API state.
 class CartController extends GetxController implements GetxService {
   final CartServiceInterface cartServiceInterface;
 

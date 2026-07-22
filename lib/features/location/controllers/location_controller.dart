@@ -45,6 +45,10 @@ enum ZoneStatus {
   outside,
 }
 
+// ── State-management convention (project-wide) ──────────────────────────────
+// GetBuilder/update(): business data + API/loading state owned by this controller.
+// setState (in widgets): local, ephemeral visual effects only (animations,
+//   expand/collapse, focus) — never business/pricing/API state.
 class LocationController extends GetxController implements GetxService {
   final LocationServiceInterface locationServiceInterface;
 
@@ -216,6 +220,12 @@ class LocationController extends GetxController implements GetxService {
   // 🔥 OPTIMIZATION: Prevent multiple home reloads after location change
   bool _homeReloadTriggered = false;
 
+  // 3.2: coordinates of the last address that forced a full home reload. Used to
+  // skip the full-skeleton reload for a nearby move (<1km) — the zone-based
+  // reloadOnZoneChange still refreshes silently if the zone actually changed.
+  double? _lastHomeReloadLat;
+  double? _lastHomeReloadLng;
+
   /// Trigger home reload once after location change
   void triggerHomeReloadOnce(BuildContext context) {
     if (_homeReloadTriggered) {
@@ -280,9 +290,12 @@ class LocationController extends GetxController implements GetxService {
   }
 
   void setUpdateAddress(AddressModel address) {
+    // Null/invalid coordinates must NOT crash (many saved v2 addresses have no
+    // GPS yet — that's exactly why editing opens the map). Default to 0,0 so the
+    // map opens and the user can drop a pin.
     _position = positionFromLatLng(
-      double.parse(address.latitude!),
-      double.parse(address.longitude!),
+      double.tryParse(address.latitude ?? '') ?? 0,
+      double.tryParse(address.longitude ?? '') ?? 0,
     );
     _address = address.address;
     _addressTypeIndex = _addressTypeList.indexOf(address.addressType);
@@ -1107,7 +1120,31 @@ class LocationController extends GetxController implements GetxService {
       return;
     }
     final BuildContext buildContext = context;
-    triggerHomeReloadOnce(buildContext);
+
+    // 3.2: For a nearby move (<1km from the last reload), skip the full-skeleton
+    // reload — the address is already applied to prefs/headers above, and the
+    // zone-based reloadOnZoneChange below still refreshes silently if the zone
+    // changed. Only a meaningful move (or first load) shows the skeleton.
+    final double? newLat = double.tryParse(address.latitude ?? '');
+    final double? newLng = double.tryParse(address.longitude ?? '');
+    bool nearbyMove = false;
+    if (newLat != null &&
+        newLng != null &&
+        _lastHomeReloadLat != null &&
+        _lastHomeReloadLng != null) {
+      final double meters = Geolocator.distanceBetween(
+          _lastHomeReloadLat!, _lastHomeReloadLng!, newLat, newLng);
+      nearbyMove = meters < 1000;
+      if (kDebugMode) {
+        debugPrint(
+            '📍 LocationController: address move = ${meters.toStringAsFixed(0)}m (nearby=$nearbyMove)');
+      }
+    }
+    if (!nearbyMove) {
+      triggerHomeReloadOnce(buildContext);
+    }
+    _lastHomeReloadLat = newLat;
+    _lastHomeReloadLng = newLng;
 
     // 🔧 FIX 2: Notify HomeController of zone change for reactive data loading
     if (Get.isRegistered<HomeController>()) {

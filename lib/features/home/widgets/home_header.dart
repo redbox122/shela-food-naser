@@ -7,6 +7,8 @@ import 'package:sixam_mart/helper/auth_helper.dart';
 import 'package:sixam_mart/helper/route_helper.dart';
 import 'package:sixam_mart/util/dimensions.dart';
 import 'package:sixam_mart/util/images.dart';
+import 'package:sixam_mart/features/home/screens/home_search_screen.dart';
+import 'package:sixam_mart/features/splash/controllers/splash_controller.dart';
 
 /// 🎨 REDESIGN: White home header — personalised greeting on the leading side,
 /// notification bell (with an unread dot) and search on the trailing side.
@@ -74,18 +76,18 @@ class _HomeHeaderState extends State<HomeHeader> {
                 ),
               ),
             ),
-            // Search lens hidden on the HOME screen (per request). The code is
-            // kept for easy restore; the module storefronts keep their own search.
-            // _HeaderIconButton(
-            //   image: Images.search,
-            //   icon: CupertinoIcons.search,
-            //   onTap: () => Get.to<void>(() => HomeSearchScreen(
-            //         moduleId: Get.isRegistered<SplashController>()
-            //             ? Get.find<SplashController>().module?.id
-            //             : null,
-            //       )),
-            // ),
-            // const SizedBox(width: Dimensions.paddingSizeSmall),
+            // Restored: search lens on the HOME screen so shoppers can search
+            // across the active module without hunting for an entry point.
+            _HeaderIconButton(
+              image: Images.search,
+              icon: CupertinoIcons.search,
+              onTap: () => Get.to<void>(() => HomeSearchScreen(
+                    moduleId: Get.isRegistered<SplashController>()
+                        ? Get.find<SplashController>().module?.id
+                        : null,
+                  )),
+            ),
+            const SizedBox(width: Dimensions.paddingSizeSmall),
             const _NotificationBell(),
           ],
         ),

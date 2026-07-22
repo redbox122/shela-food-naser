@@ -57,7 +57,7 @@ class _HomeBannerViewState extends State<HomeBannerView> {
       final response = await Get.find<ApiClient>().getData(
         '${AppConstants.bannerUri}?featured=1',
         headers: {
-          AppConstants.localizationKey: 'ar',
+          AppConstants.localizationKey: AppConstants.currentLanguageCode,
           AppConstants.moduleId: HomeBannerView._bannerModuleId.toString(),
         },
         useEtag: false,

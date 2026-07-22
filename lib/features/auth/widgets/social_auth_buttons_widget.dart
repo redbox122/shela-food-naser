@@ -9,12 +9,15 @@ class SocialAuthButtonsWidget extends StatelessWidget {
   final bool showDivider;
   const SocialAuthButtonsWidget({super.key, this.showDivider = true});
 
-  // Social login is a first-class option in the passwordless flow: Google is
-  // always offered, and Apple is shown on iOS only (platform standard). We no
-  // longer gate on the legacy "centralize login" admin toggles.
-  static bool get googleLoginActive => true;
+  // iOS ships phone/OTP login only — both social buttons are removed there:
+  //   * Google crashes on tap (GoogleService-Info.plist has no CLIENT_ID /
+  //     REVERSED_CLIENT_ID, so google_sign_in has no usable configuration).
+  //   * Apple is removed too; with no third-party social login remaining,
+  //     App Store guideline 4.8 no longer requires Sign in with Apple.
+  // Google stays available on Android (complete google-services.json).
+  static bool get googleLoginActive => !GetPlatform.isIOS;
 
-  static bool get appleLoginActive => !GetPlatform.isAndroid;
+  static bool get appleLoginActive => false;
 
   static bool get hasAnySocial => googleLoginActive || appleLoginActive;
 

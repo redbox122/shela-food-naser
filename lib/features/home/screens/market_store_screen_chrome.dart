@@ -57,7 +57,17 @@ class _MarketTopHeader extends StatelessWidget {
   /// Store/module the search should be scoped to (search only this store).
   final int? storeId;
   final int? moduleId;
-  const _MarketTopHeader({required this.title, this.storeId, this.moduleId});
+
+  /// Whether to show the header search lens. Defaults to true so every store
+  /// keeps its search entry point. The هايبر شله storefront passes false
+  /// because it already shows a full, always-visible search bar below the
+  /// banner (_HyperSearchBar) — this avoids the duplicate lens.
+  final bool showSearch;
+  const _MarketTopHeader(
+      {required this.title,
+      this.storeId,
+      this.moduleId,
+      this.showSearch = true});
 
   @override
   Widget build(BuildContext context) {
@@ -87,10 +97,17 @@ class _MarketTopHeader extends StatelessWidget {
                 ),
               ),
             ),
-            _iconBtn(
-                Images.search_v2,
-                () => Get.to<void>(() =>
-                    HomeSearchScreen(storeId: storeId, moduleId: moduleId))),
+            // Original header search lens — kept intact, only conditionally
+            // shown. Hidden on the هايبر شله storefront (showSearch:false) to
+            // remove the duplicate of the full search bar below the banner.
+            if (showSearch)
+              _iconBtn(
+                  Images.search_v2,
+                  () => Get.to<void>(() =>
+                      HomeSearchScreen(storeId: storeId, moduleId: moduleId)))
+            else
+              // Keep the title visually centered by balancing the back button.
+              const SizedBox(width: 42),
           ],
         ),
       ),

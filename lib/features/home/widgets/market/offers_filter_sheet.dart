@@ -77,7 +77,7 @@ class _OffersFilterSheetState extends State<_OffersFilterSheet> {
       final response = await Get.find<ApiClient>().getData(
         '/api/v2/categories',
         headers: {
-          AppConstants.localizationKey: 'ar',
+          AppConstants.localizationKey: AppConstants.currentLanguageCode,
           if (widget.moduleId != null)
             AppConstants.moduleId: widget.moduleId.toString(),
         },

@@ -176,7 +176,9 @@ class OfferProductCard extends StatelessWidget {
   }
 
   Widget _price(double value, {bool bold = false, bool struck = false}) {
-    final color = struck ? const Color(0xFF717885) : const Color(0xFF121C19);
+    // Original (pre-discount) price is shown in red with a red strikethrough so
+    // the discount is unmistakable; the discounted price stays dark.
+    final color = struck ? const Color(0xFFE53935) : const Color(0xFF121C19);
     return Directionality(
       textDirection: TextDirection.ltr,
       child: Row(

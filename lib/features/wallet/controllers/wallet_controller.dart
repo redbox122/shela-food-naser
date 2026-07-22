@@ -225,15 +225,22 @@ class WalletController extends GetxController implements GetxService {
         return true;
       }
 
-      // On iOS, hide Google Pay methods but show Apple Pay
+      // On iOS, hide Google Pay AND Apple Pay (Apple Pay merchant not yet
+      // provisioned — see payment_method_bottom_sheet filter for details).
       if ((!kIsWeb && Platform.isIOS)) {
         final isGooglePay = methodCode.contains('gp') ||
             methodEn.contains('google') ||
             methodAr.contains('جوجل') ||
             methodAr.contains('google');
+        final isApplePay = methodCode == 'ap' ||
+            methodCode.contains('apple') ||
+            methodEn.contains('apple') ||
+            methodAr.contains('ابل') ||
+            methodAr.contains('آبل') ||
+            methodAr.contains('أبل');
 
-        if (isGooglePay) {
-          debugPrint('🚫 iOS: Hiding Google Pay - ${method.paymentMethodAr}');
+        if (isGooglePay || isApplePay) {
+          debugPrint('🚫 iOS: Hiding ${method.paymentMethodAr}');
           return false;
         }
         return true;

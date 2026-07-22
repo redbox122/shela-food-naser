@@ -47,7 +47,10 @@ class SocialLoginWidget extends StatelessWidget {
         (Get.find<SplashController>().configModel!.socialLogin![0].status! ||
             Get.find<SplashController>().configModel!.socialLogin![1].status!);
 
-    final bool googleLoginActive =
+    // Google is hidden on iOS: GoogleService-Info.plist ships without a
+    // CLIENT_ID, so google_sign_in has no config and crashes on tap. Keep
+    // Google to Android only until a valid iOS OAuth client is provisioned.
+    final bool googleLoginActive = !GetPlatform.isIOS &&
         Get.find<SplashController>().configModel!.socialLogin![0].status! &&
             Get.find<SplashController>()
                 .configModel!
@@ -69,15 +72,9 @@ class SocialLoginWidget extends StatelessWidget {
                 .centralizeLoginSetup!
                 .facebookLoginStatus!;
 
-    final bool appleLoginActive = canAppleLogin &&
-        Get.find<SplashController>()
-            .configModel!
-            .centralizeLoginSetup!
-            .socialLoginStatus! &&
-        Get.find<SplashController>()
-            .configModel!
-            .centralizeLoginSetup!
-            .appleLoginStatus!;
+    // Apple sign-in button removed: iOS ships phone/OTP login only, and with no
+    // third-party social login present, guideline 4.8 no longer requires it.
+    const bool appleLoginActive = false;
 
     if (onlySocialLogin) {
       return Column(
@@ -472,8 +469,11 @@ class SocialLoginWidget extends StatelessWidget {
 
     final SocialLogInBody appleBodyModel = SocialLogInBody(
       email: credential.email,
-      token: credential.authorizationCode,
-      uniqueId: credential.authorizationCode,
+      // userIdentifier is Apple's stable per-user id; authorizationCode is a
+      // one-time code that changes each sign-in and cannot match a returning
+      // user. Use userIdentifier as unique_id, fall back to the code if absent.
+      token: credential.identityToken ?? credential.authorizationCode,
+      uniqueId: credential.userIdentifier ?? credential.authorizationCode,
       medium: 'apple',
       loginType: CentralizeLoginType.social.name,
       platform: GetPlatform.isIOS ? 'flutter_app' : 'flutter_web',

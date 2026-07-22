@@ -1531,8 +1531,10 @@ class _FoodRestaurantDetailScreenState
           _sortItemsByAvailabilityThenPrice(items, storeController);
         }
 
-        // Show category if it's loaded (even if empty) or currently loading
-        if (isLoaded || isLoading) {
+        // Show a loaded category only when it actually has items (hides empty
+        // categories); keep showing it while its items are still loading.
+        final bool hasLoadedItems = items.isNotEmpty;
+        if ((isLoaded && hasLoadedItems) || isLoading) {
           // Ensure GlobalKey exists for this category
           if (!_categoryKeys.containsKey(categoryId)) {
             _categoryKeys[categoryId] = GlobalKey();

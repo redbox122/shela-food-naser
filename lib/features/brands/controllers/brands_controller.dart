@@ -631,10 +631,15 @@ class BrandsController extends GetxController implements GetxService {
           ItemModel? brandItemModel;
           for (final int? candidateLimit in limitCandidates) {
             try {
-              // âœ… Use unified searchItems API instead of brand-specific endpoint
-              brandItemModel = await itemRepository.searchItems(
-                brandId: brandId.toString(),
-                page: offset,
+              // Use the brand-specific endpoint (/api/v1/brand/items/{id}). The
+              // unified searchItems?brand_id=X returns EMPTY because the external
+              // sync leaves each item's brand_id = 0, so filtering by brand_id
+              // matches nothing. The brand endpoint associates items differently
+              // and returns the real products (sync-proof). Was:
+              //   itemRepository.searchItems(brandId: brandId.toString(), ...)
+              brandItemModel = await brandsServiceInterface.getBrandItemList(
+                brandId: brandId,
+                offset: offset,
                 limit: candidateLimit ?? 12,
               );
               if (kDebugMode) {

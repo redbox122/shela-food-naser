@@ -175,7 +175,7 @@ Future<List<OfferItem>> _fetchForModule(ApiClient api, int? moduleId) async {
     final response = await api.getData(
       '/api/v2/stores/offers?limit=50&offset=0',
       headers: {
-        AppConstants.localizationKey: 'ar',
+        AppConstants.localizationKey: AppConstants.currentLanguageCode,
         if (moduleId != null) AppConstants.moduleId: moduleId.toString(),
       },
       useEtag: false,

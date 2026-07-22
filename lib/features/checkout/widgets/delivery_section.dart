@@ -78,7 +78,11 @@ class DeliverySection extends StatelessWidget {
                           borderRadius: BorderRadius.circular(8),
                           // The new app's address sheet handles selection
                           // (zone, distance, active address) internally.
-                          onTap: () => showAddressSelectionSheet(),
+                          // Stay on Checkout after picking an address; refresh
+                          // the address + delivery fee instead of resetting Home.
+                          onTap: () => showAddressSelectionSheet(
+                              onSelected: () =>
+                                  checkoutController.onAddressChanged?.call()),
                           child: Padding(
                             padding: const EdgeInsets.symmetric(vertical: 6),
                             child: Row(

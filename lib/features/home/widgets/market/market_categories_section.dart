@@ -81,7 +81,18 @@ class _MarketCategoriesSectionState extends State<MarketCategoriesSection> {
     return raw
         .whereType<Map>()
         .map((e) => _Cat.fromJson(Map<String, dynamic>.from(e)))
+        // Hide the "العروض والخصومات" tile (broken image + redundant — offers
+        // already have their own section below the categories rail).
+        .where((c) => !_isOffersCategory(c.name))
         .toList();
+  }
+
+  bool _isOffersCategory(String? name) {
+    final n = (name ?? '').trim();
+    return n == 'العروض والخصومات' ||
+        n == 'عروض وخصومات' ||
+        n.toLowerCase() == 'best offers' ||
+        n.toLowerCase() == 'offers';
   }
 
   Future<void> _fetch() async {
@@ -104,7 +115,7 @@ class _MarketCategoriesSectionState extends State<MarketCategoriesSection> {
       final response = await Get.find<ApiClient>().getData(
         '/api/v2/categories',
         headers: {
-          AppConstants.localizationKey: 'ar',
+          AppConstants.localizationKey: AppConstants.currentLanguageCode,
           if (widget.moduleId != null)
             AppConstants.moduleId: widget.moduleId.toString(),
         },
@@ -152,8 +163,9 @@ class _MarketCategoriesSectionState extends State<MarketCategoriesSection> {
   /// Fixed tile size for the single-row layout (أسواق الحي).
   static const double _rowTileSize = 90;
 
-  /// Single horizontal row of fixed 90×90 tiles. No "view more" tile — the row
-  /// just scrolls.
+  /// Single horizontal row of fixed 90×90 tiles, ending with a "عرض الكل" tile
+  /// that opens a full-screen grid of every category (so the user doesn't have
+  /// to scroll the long row endlessly).
   Widget _buildRow() {
     return SizedBox(
       height: _rowTileSize,
@@ -161,10 +173,17 @@ class _MarketCategoriesSectionState extends State<MarketCategoriesSection> {
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(
             horizontal: Dimensions.paddingSizeDefault),
-        itemCount: _items.length,
+        itemCount: _items.length + 1,
         separatorBuilder: (_, __) => const SizedBox(width: 10),
         itemBuilder: (_, i) {
-          final cat = _items[i];
+          // "عرض الكل" is the FIRST tile (RTL: rightmost); categories follow.
+          if (i == 0) {
+            return SizedBox(
+              width: _rowTileSize,
+              child: _ViewAllTile(onTap: _showAllCategoriesSheet),
+            );
+          }
+          final cat = _items[i - 1];
           final bool selected = cat.id != null && cat.id == widget.selectedId;
           return SizedBox(
             width: _rowTileSize,
@@ -177,6 +196,72 @@ class _MarketCategoriesSectionState extends State<MarketCategoriesSection> {
           );
         },
       ),
+    );
+  }
+
+  /// Bottom sheet showing every category in a grid; tapping one selects it and
+  /// closes the sheet.
+  void _showAllCategoriesSheet() {
+    Get.bottomSheet<void>(
+      Container(
+        constraints: BoxConstraints(
+            maxHeight: MediaQuery.of(Get.context!).size.height * 0.8),
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Center(
+              child: Container(
+                width: 44,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFD9DCE1),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            const SizedBox(height: 14),
+            const Text(
+              'كل التصنيفات',
+              textAlign: TextAlign.right,
+              style: TextStyle(
+                fontFamily: 'Tajawal',
+                fontWeight: FontWeight.w800,
+                fontSize: 18,
+                color: Color(0xFF121C19),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Flexible(
+              child: GridView.builder(
+                shrinkWrap: true,
+                padding: EdgeInsets.zero,
+                itemCount: _items.length,
+                gridDelegate: _gridDelegate,
+                itemBuilder: (_, i) {
+                  final cat = _items[i];
+                  final bool selected =
+                      cat.id != null && cat.id == widget.selectedId;
+                  return _CategoryCard(
+                    cat: cat,
+                    selected: selected,
+                    onTap: () {
+                      Get.back<void>();
+                      widget.onSelect?.call(selected ? null : cat.id);
+                    },
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+      isScrollControlled: true,
     );
   }
 
@@ -364,6 +449,49 @@ class _ViewMoreCard extends StatelessWidget {
             ),
             const SizedBox(height: 4),
             const Icon(Icons.arrow_back, size: 16, color: Color(0xFF237D2E)),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// "عرض الكل" tile at the end of the horizontal categories row — opens a grid
+/// of every category so the user doesn't scroll the long row endlessly.
+class _ViewAllTile extends StatelessWidget {
+  final VoidCallback onTap;
+  const _ViewAllTile({required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final radius = BorderRadius.circular(12);
+    return InkWell(
+      borderRadius: radius,
+      onTap: onTap,
+      child: Container(
+        decoration: BoxDecoration(
+          color: const Color(0xFFE7F7EA),
+          borderRadius: radius,
+          border: Border.all(color: const Color(0xFF237D2E), width: 1),
+        ),
+        alignment: Alignment.center,
+        padding: const EdgeInsets.all(4),
+        child: const Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.grid_view_rounded, size: 20, color: Color(0xFF237D2E)),
+            SizedBox(height: 4),
+            Text(
+              'عرض الكل',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontFamily: 'Tajawal',
+                fontWeight: FontWeight.w700,
+                fontSize: 11,
+                height: 1.2,
+                color: Color(0xFF237D2E),
+              ),
+            ),
           ],
         ),
       ),

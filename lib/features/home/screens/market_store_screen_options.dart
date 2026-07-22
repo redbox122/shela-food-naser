@@ -79,14 +79,31 @@ class _OptGroup {
 
 /// Opens the product options sheet. Falls back to a quick add when the item has
 /// no options (resolved after the detail loads).
-void showProductOptions({
+Future<void> showProductOptions({
   required int itemId,
   int? storeId,
   required int moduleId,
   String? name,
   String? image,
   double price = 0,
-}) {
+  // When true (restaurant meals), ALWAYS open the details/customization sheet
+  // on tap — never quick-add — so the customer sees ingredients + options.
+  bool alwaysShowSheet = false,
+}) async {
+  // Resolve the item's options FIRST. No required options → add straight to the
+  // cart with NO sheet (fixes the janky half-loaded sheet). Otherwise open the
+  // sheet as before, with the already-fetched data preloaded (no double fetch).
+  final resolved = await _resolveItemOptions(itemId: itemId, moduleId: moduleId);
+  if (!alwaysShowSheet && resolved != null && resolved.groups.isEmpty) {
+    final double p = double.tryParse('${resolved.data['price'] ?? 0}') ?? 0;
+    await _quickAddToCart(
+      itemId: itemId,
+      storeId: storeId,
+      moduleId: resolved.module,
+      price: p > 0 ? p : price,
+    );
+    return;
+  }
   Get.bottomSheet(
     _ProductOptionsSheet(
       itemId: itemId,
@@ -95,10 +112,160 @@ void showProductOptions({
       initialName: name,
       initialImage: image,
       initialPrice: price,
+      preloadedData: resolved?.data,
+      preloadedGroups: resolved?.groups,
     ),
     isScrollControlled: true,
     backgroundColor: Colors.transparent,
   );
+}
+
+({List<_OptGroup> groups, Map<String, dynamic> data, int module})? _parseResolved(
+    Response r, int module) {
+  final body = r.body;
+  if (body is Map && body['name'] != null && body['id'] != null) {
+    final data = Map<String, dynamic>.from(body);
+    final groups = (data['option_groups'] is List)
+        ? (data['option_groups'] as List)
+            .whereType<Map>()
+            .map((e) => _OptGroup.fromJson(Map<String, dynamic>.from(e)))
+            .where((g) => g.options.isNotEmpty)
+            .toList()
+        : <_OptGroup>[];
+    return (groups: groups, data: data, module: module);
+  }
+  return null;
+}
+
+/// Headless resolve of an item's option groups, run BEFORE opening anything so
+/// the caller can decide quick-add vs sheet. The v2 details endpoint is
+/// MODULE-SCOPED and returns empty for items whose module differs from the
+/// active one (e.g. a food meal while a grocery module is active — the food v1
+/// endpoint also 403s), so we try WITHOUT a module id first (resolves any item
+/// by id), then fall back to module-scoped candidates.
+Future<({List<_OptGroup> groups, Map<String, dynamic> data, int module})?>
+    _resolveItemOptions(
+        {required int itemId, required int moduleId}) async {
+  if (!Get.isRegistered<ApiClient>()) return null;
+  final api = Get.find<ApiClient>();
+  const String uri = '/api/v2/items/details/';
+  try {
+    final r = await api.getData(
+      '$uri$itemId',
+      headers: {AppConstants.localizationKey: AppConstants.currentLanguageCode},
+      useEtag: false,
+      omitModuleId: true,
+    );
+    final res = _parseResolved(r, moduleId);
+    if (res != null) return res;
+  } catch (_) {}
+  try {
+    for (final mod in _moduleCandidatesFor(moduleId)) {
+      final r = await api.getData(
+        '$uri$itemId',
+        headers: {
+          AppConstants.localizationKey: AppConstants.currentLanguageCode,
+          AppConstants.moduleId: mod.toString(),
+        },
+        useEtag: false,
+      );
+      final res = _parseResolved(r, mod);
+      if (res != null) return res;
+    }
+  } catch (_) {}
+  return null;
+}
+
+/// Top-level twin of the sheet's _moduleCandidates (same order: given → food →
+/// ecommerce → all) — used by the headless resolve.
+List<int> _moduleCandidatesFor(int moduleId) {
+  final out = <int>[];
+  void add(int? m) {
+    if (m != null && m > 0 && !out.contains(m)) out.add(m);
+  }
+
+  add(moduleId);
+  if (Get.isRegistered<SplashController>()) {
+    final modules = Get.find<SplashController>().moduleList ?? const [];
+    for (final m in modules) {
+      if ((m.moduleType ?? '').toLowerCase() == 'food') add(m.id);
+    }
+    for (final m in modules) {
+      if ((m.moduleType ?? '').toLowerCase() == 'ecommerce') add(m.id);
+    }
+    for (final m in modules) {
+      add(m.id);
+    }
+  }
+  if (out.isEmpty) out.add(moduleId);
+  return out;
+}
+
+/// Guests need a server-assigned `guest_id` before the cart accepts items
+/// (otherwise the v2 cart API 422s with `guest_id_required`). Create one on the
+/// fly when missing — no-op for logged-in users and guests who already have one.
+Future<void> _ensureGuestSession() async {
+  if (AuthHelper.isLoggedIn()) return;
+  if (AuthHelper.getGuestId().isNotEmpty) return;
+  if (!Get.isRegistered<AuthController>()) return;
+  await Get.find<AuthController>().guestLogin();
+}
+
+/// Add an item that has NO required options straight to the cart — no sheet.
+/// Mirrors the sheet's _add() minus variations; reuses the shared clear-cart
+/// confirm + "added" toast.
+Future<void> _quickAddToCart({
+  required int itemId,
+  int? storeId,
+  required int moduleId,
+  required double price,
+}) async {
+  if (!Get.isRegistered<CartController>()) return;
+  await _ensureGuestSession();
+  final cartController = Get.find<CartController>();
+  if (cartController.existAnotherStoreItem(storeId, moduleId)) {
+    if (!await _confirmClearCart()) return;
+    await cartController.clearCartList();
+  }
+  if (Get.isRegistered<SplashController>()) {
+    final sc = Get.find<SplashController>();
+    for (final m in sc.moduleList ?? const []) {
+      if (m.id == moduleId) {
+        if (sc.module?.id != moduleId) await sc.setModuleHeaderOnly(m);
+        await sc.setCacheModuleOnly(m);
+        break;
+      }
+    }
+  }
+  final cart = OnlineCart(
+    null,
+    itemId,
+    null,
+    price.toString(),
+    '',
+    const [],
+    const [],
+    1,
+    const [],
+    const [],
+    const [],
+    'Item',
+    itemType: 'Item',
+    storeId: storeId,
+  );
+  try {
+    bool ok = await cartController.addToCartOnline(cart);
+    if (!ok && cartController.lastAddToCartErrorCode == 'different_store') {
+      if (!await _confirmClearCart()) return;
+      await cartController.clearCartList();
+      ok = await cartController.addToCartOnline(cart);
+    }
+    ok
+        ? _showAddedToCartToast()
+        : showCustomSnackBar('failed_to_add_to_cart'.tr, isError: true);
+  } catch (e) {
+    showCustomSnackBar(e.toString(), isError: true);
+  }
 }
 
 class _ProductOptionsSheet extends StatefulWidget {
@@ -109,6 +276,11 @@ class _ProductOptionsSheet extends StatefulWidget {
   final String? initialImage;
   final double initialPrice;
 
+  /// Pre-fetched detail + groups from [_resolveItemOptions] → the sheet skips
+  /// its own network fetch (no double request). Null → fetch as before.
+  final Map<String, dynamic>? preloadedData;
+  final List<_OptGroup>? preloadedGroups;
+
   const _ProductOptionsSheet({
     required this.itemId,
     required this.storeId,
@@ -116,6 +288,8 @@ class _ProductOptionsSheet extends StatefulWidget {
     this.initialName,
     this.initialImage,
     this.initialPrice = 0,
+    this.preloadedData,
+    this.preloadedGroups,
   });
 
   @override
@@ -145,7 +319,12 @@ class _ProductOptionsSheetState extends State<_ProductOptionsSheet> {
     _image = widget.initialImage;
     _basePrice = widget.initialPrice;
     _selected = [];
-    _fetch();
+    if (widget.preloadedData != null && widget.preloadedGroups != null) {
+      // Already resolved by the caller — populate directly, no network fetch.
+      _applyDetail(widget.preloadedData!, widget.preloadedGroups!);
+    } else {
+      _fetch();
+    }
   }
 
   /// Candidate modules to try (the item-details index is module-scoped and the
@@ -185,7 +364,7 @@ class _ProductOptionsSheetState extends State<_ProductOptionsSheet> {
         final r = await Get.find<ApiClient>().getData(
           '/api/v2/items/details/${widget.itemId}',
           headers: {
-            AppConstants.localizationKey: 'ar',
+            AppConstants.localizationKey: AppConstants.currentLanguageCode,
             AppConstants.moduleId: mod.toString(),
           },
           useEtag: false,
@@ -205,48 +384,50 @@ class _ProductOptionsSheetState extends State<_ProductOptionsSheet> {
                 .where((g) => g.options.isNotEmpty)
                 .toList()
             : <_OptGroup>[];
-        if (mounted) {
-          setState(() {
-            _name = (data['name'] ?? _name)?.toString();
-            _description = data['description']?.toString();
-            _image = (data['image_full_url'] ?? _image)?.toString();
-            _basePrice =
-                double.tryParse('${data['price'] ?? _basePrice}') ?? _basePrice;
-            _groups = groups;
-            // Pre-select options flagged `is_default`, capped at the group's
-            // max; then, for a required single group with no default, fall back
-            // to its first available option so the sheet opens valid.
-            _selected = List.generate(groups.length, (i) {
-              final g = groups[i];
-              final defaults = <int>{};
-              for (int oi = 0; oi < g.options.length; oi++) {
-                final o = g.options[oi];
-                if (!o.isDefault || !o.available) continue;
-                if (g.multi) {
-                  if (g.max > 0 && defaults.length >= g.max) break;
-                  defaults.add(oi);
-                } else {
-                  defaults
-                    ..clear()
-                    ..add(oi);
-                  break; // single keeps exactly one
-                }
-              }
-              if (defaults.isEmpty && !g.multi && g.required) {
-                final first = g.options.indexWhere((o) => o.available);
-                if (first >= 0) defaults.add(first);
-              }
-              return defaults;
-            });
-            _loading = false;
-          });
-        }
+        if (mounted) setState(() => _applyDetail(data, groups));
       } else if (mounted) {
         setState(() => _loading = false);
       }
     } catch (_) {
       if (mounted) setState(() => _loading = false);
     }
+  }
+
+  /// Populate the sheet from a resolved detail payload + parsed groups. Shared by
+  /// the network [_fetch] and the preloaded path (initState) so both behave
+  /// identically. Call inside setState (or before first build in initState).
+  void _applyDetail(Map<String, dynamic> data, List<_OptGroup> groups) {
+    _name = (data['name'] ?? _name)?.toString();
+    _description = data['description']?.toString();
+    _image = (data['image_full_url'] ?? _image)?.toString();
+    _basePrice = double.tryParse('${data['price'] ?? _basePrice}') ?? _basePrice;
+    _groups = groups;
+    // Pre-select options flagged `is_default`, capped at the group's max; then,
+    // for a required single group with no default, fall back to its first
+    // available option so the sheet opens valid.
+    _selected = List.generate(groups.length, (i) {
+      final g = groups[i];
+      final defaults = <int>{};
+      for (int oi = 0; oi < g.options.length; oi++) {
+        final o = g.options[oi];
+        if (!o.isDefault || !o.available) continue;
+        if (g.multi) {
+          if (g.max > 0 && defaults.length >= g.max) break;
+          defaults.add(oi);
+        } else {
+          defaults
+            ..clear()
+            ..add(oi);
+          break; // single keeps exactly one
+        }
+      }
+      if (defaults.isEmpty && !g.multi && g.required) {
+        final first = g.options.indexWhere((o) => o.available);
+        if (first >= 0) defaults.add(first);
+      }
+      return defaults;
+    });
+    _loading = false;
   }
 
   // ── Selection ──────────────────────────────────────────────────────────────
@@ -309,6 +490,7 @@ class _ProductOptionsSheetState extends State<_ProductOptionsSheet> {
       return;
     }
     if (!Get.isRegistered<CartController>()) return;
+    await _ensureGuestSession();
     final cartController = Get.find<CartController>();
 
     // Build the selected option groups as cart variations so the merchant sees

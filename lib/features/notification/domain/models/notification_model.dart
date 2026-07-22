@@ -39,13 +39,18 @@ class Data {
   String? imageFullUrl;
   String? type;
 
-  Data({this.title, this.description, this.imageFullUrl, this.type});
+  /// Backend order this notification refers to (from `order_id`) — enables
+  /// deep-linking the tap straight to that order's details.
+  int? orderId;
+
+  Data({this.title, this.description, this.imageFullUrl, this.type, this.orderId});
 
   Data.fromJson(Map<String, dynamic> json) {
     title = json['title']?.toString();
     description = json['description'].toString();
     imageFullUrl = json['image_full_url']?.toString();
     type = json['type']?.toString();
+    orderId = int.tryParse('${json['order_id'] ?? ''}');
   }
 
   Map<String, dynamic> toJson() {
@@ -54,6 +59,7 @@ class Data {
     data['description'] = description;
     data['image_full_url'] = imageFullUrl;
     data['type'] = type;
+    data['order_id'] = orderId;
     return data;
   }
 }

@@ -35,17 +35,27 @@ class NotificationNavigationHelper {
       Get.toNamed<void>(RouteHelper.getWalletRoute(fromNotification: true));
       return;
     }
-    if (has([
-      'order',
-      'delivery',
-      'confirmed',
-      'processing',
-      'placed',
-      'الطلب',
-      'طلب',
-      'المندوب',
-    ])) {
-      Get.toNamed<void>(RouteHelper.getOrderRoute());
+    if (type == 'order_status' ||
+        (model.data?.orderId != null && (model.data?.orderId ?? 0) > 0) ||
+        has([
+          'order',
+          'delivery',
+          'confirmed',
+          'processing',
+          'placed',
+          'الطلب',
+          'طلب',
+          'المندوب',
+        ])) {
+      final int? orderId = model.data?.orderId;
+      if (orderId != null && orderId > 0) {
+        // Deep-link straight to the referenced order's details (e.g. tapping
+        // "Order 27 is canceled" opens order 27), not just the orders list.
+        Get.toNamed<void>(
+            RouteHelper.getOrderDetailsRoute(orderId, fromNotification: true));
+      } else {
+        Get.toNamed<void>(RouteHelper.getOrderRoute());
+      }
       return;
     }
     // Unknown type → stay on the notifications screen.

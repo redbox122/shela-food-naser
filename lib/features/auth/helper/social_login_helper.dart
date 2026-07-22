@@ -25,26 +25,26 @@ class SocialLoginHelper {
   const SocialLoginHelper._();
 
   static void googleLogin(BuildContext context) async {
-    final GoogleSignIn googleSignIn = GoogleSignIn();
-    googleSignIn.signOut();
-    final GoogleSignInAccount? googleAccount = await googleSignIn.signIn();
-    if (googleAccount == null) {
-      return;
-    }
-    final GoogleSignInAuthentication auth = await googleAccount.authentication;
+    try {
+      final GoogleSignIn googleSignIn = GoogleSignIn();
+      await googleSignIn.signOut();
+      final GoogleSignInAccount? googleAccount = await googleSignIn.signIn();
+      if (googleAccount == null) {
+        return;
+      }
+      final GoogleSignInAuthentication auth = await googleAccount.authentication;
 
-    final SocialLogInBody googleBodyModel = SocialLogInBody(
-      email: googleAccount.email,
-      token: auth.accessToken,
-      uniqueId: googleAccount.id,
-      medium: 'google',
-      accessToken: 1,
-      loginType: CentralizeLoginType.social.name,
-    );
+      final SocialLogInBody googleBodyModel = SocialLogInBody(
+        email: googleAccount.email,
+        token: auth.accessToken,
+        uniqueId: googleAccount.id,
+        medium: 'google',
+        accessToken: 1,
+        loginType: CentralizeLoginType.social.name,
+      );
 
-    Get.find<AuthController>()
-        .loginWithSocialMedia(googleBodyModel)
-        .then((response) {
+      final response = await Get.find<AuthController>()
+          .loginWithSocialMedia(googleBodyModel);
       if (response.isSuccess) {
         if (!context.mounted) {
           return;
@@ -54,7 +54,9 @@ class SocialLoginHelper {
       } else {
         showCustomSnackBar(response.message);
       }
-    });
+    } catch (e) {
+      showCustomSnackBar(e.toString());
+    }
   }
 
   static void facebookLogin(BuildContext context) async {
@@ -89,36 +91,45 @@ class SocialLoginHelper {
   }
 
   static void appleLogin(BuildContext context) async {
-    final String clientID =
-        Get.find<SplashController>().configModel!.appleLogin![0].clientId!;
-    final String redirectURL =
-        Get.find<SplashController>().configModel!.appleLogin![0].redirectUrl!;
+    try {
+      // On iOS the native flow is used, so clientId/redirectUrl are only needed
+      // for the web fallback. Read them defensively (config may be empty) to
+      // avoid a force-unwrap crash when Apple config is missing.
+      WebAuthenticationOptions? webOptions;
+      if (!GetPlatform.isIOS) {
+        final appleConfig =
+            Get.find<SplashController>().configModel?.appleLogin;
+        if (appleConfig != null && appleConfig.isNotEmpty) {
+          webOptions = WebAuthenticationOptions(
+            clientId: appleConfig[0].clientId ?? '',
+            redirectUri: Uri.parse(appleConfig[0].redirectUrl ?? ''),
+          );
+        }
+      }
 
-    final credential = await SignInWithApple.getAppleIDCredential(
-      scopes: [
-        AppleIDAuthorizationScopes.email,
-        AppleIDAuthorizationScopes.fullName,
-      ],
-      webAuthenticationOptions: GetPlatform.isIOS
-          ? null
-          : WebAuthenticationOptions(
-              clientId: clientID,
-              redirectUri: Uri.parse(redirectURL),
-            ),
-    );
+      final credential = await SignInWithApple.getAppleIDCredential(
+        scopes: [
+          AppleIDAuthorizationScopes.email,
+          AppleIDAuthorizationScopes.fullName,
+        ],
+        webAuthenticationOptions: webOptions,
+      );
 
-    final SocialLogInBody appleBodyModel = SocialLogInBody(
-      email: credential.email,
-      token: credential.authorizationCode,
-      uniqueId: credential.authorizationCode,
-      medium: 'apple',
-      loginType: CentralizeLoginType.social.name,
-      platform: GetPlatform.isIOS ? 'flutter_app' : 'flutter_web',
-    );
+      // userIdentifier is Apple's STABLE per-user id (same on every sign-in);
+      // authorizationCode is a one-time code that changes each time, so it can
+      // never be used to match a returning user. Use userIdentifier as the
+      // backend unique_id and fall back to authorizationCode only if absent.
+      final SocialLogInBody appleBodyModel = SocialLogInBody(
+        email: credential.email,
+        token: credential.identityToken ?? credential.authorizationCode,
+        uniqueId: credential.userIdentifier ?? credential.authorizationCode,
+        medium: 'apple',
+        loginType: CentralizeLoginType.social.name,
+        platform: GetPlatform.isIOS ? 'flutter_app' : 'flutter_web',
+      );
 
-    Get.find<AuthController>()
-        .loginWithSocialMedia(appleBodyModel)
-        .then((response) {
+      final response =
+          await Get.find<AuthController>().loginWithSocialMedia(appleBodyModel);
       if (response.isSuccess) {
         if (!context.mounted) {
           return;
@@ -127,7 +138,11 @@ class SocialLoginHelper {
       } else {
         showCustomSnackBar(response.message);
       }
-    });
+    } on SignInWithAppleAuthorizationException catch (_) {
+      // User cancelled the Apple sheet — do nothing (no crash, no error).
+    } catch (e) {
+      showCustomSnackBar(e.toString());
+    }
   }
 
   static void _processSocialSuccessSetup(

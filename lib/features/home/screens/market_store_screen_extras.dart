@@ -353,10 +353,24 @@ class _GridProductCard extends StatelessWidget {
   String _fmt(double v) =>
       v == v.roundToDouble() ? v.toStringAsFixed(0) : v.toStringAsFixed(2);
 
+  /// Open the FULL product details screen — tapping the card body (image/name/
+  /// price) opens details; only the "+" button quick-adds. Mirrors
+  /// [_ListProductCard] so both cards behave the same.
+  void _openDetails() {
+    if (product.id == null) return;
+    MarketProductScreen.show(
+      itemId: product.id!,
+      storeId: storeId,
+      moduleId: _marketModuleId,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final radius = BorderRadius.circular(6);
-    return Container(
+    return InkWell(
+      onTap: _openDetails,
+      child: Container(
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: radius,
@@ -451,6 +465,7 @@ class _GridProductCard extends StatelessWidget {
           ),
         ],
       ),
+      ),
     );
   }
 
@@ -501,6 +516,7 @@ class _ListProductCard extends StatelessWidget {
       v == v.roundToDouble() ? v.toStringAsFixed(0) : v.toStringAsFixed(2);
 
   /// Opens the product options sheet (choices + quantity), then adds to cart.
+  /// Used ONLY by the "+" button.
   void _open() {
     if (product.id == null) return;
     showProductOptions(
@@ -513,6 +529,18 @@ class _ListProductCard extends StatelessWidget {
     );
   }
 
+  /// Open the FULL product details screen (big image, gallery, full
+  /// description, in-screen add) — used by tapping the card body, kept separate
+  /// from the "+" quick-add so a body tap never silently adds to the cart.
+  void _openDetails() {
+    if (product.id == null) return;
+    MarketProductScreen.show(
+      itemId: product.id!,
+      storeId: storeId,
+      moduleId: moduleId,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final radius = BorderRadius.circular(12);
@@ -520,7 +548,7 @@ class _ListProductCard extends StatelessWidget {
         ? '+500'
         : '${product.orderCount}';
     return InkWell(
-      onTap: _open,
+      onTap: _openDetails,
       child: Padding(
         padding: const EdgeInsets.symmetric(
             horizontal: Dimensions.paddingSizeDefault, vertical: 10),

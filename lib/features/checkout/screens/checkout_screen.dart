@@ -198,6 +198,10 @@ class CheckoutScreenState extends State<CheckoutScreen>
     // ✅ FIX: Resolve data from arguments ONCE (survives rebuilds)
     _resolveDataFromArguments();
 
+    // Let the address-selection sheet refresh THIS screen (address + delivery
+    // fee) instead of resetting to Home when the user changes address here.
+    Get.find<CheckoutController>().onAddressChanged = _onAddressChangedFromSheet;
+
     initCall();
 
     // 🔁 On checkout open, only do TTL cleanup of any stale pending-payment
@@ -303,6 +307,18 @@ class CheckoutScreenState extends State<CheckoutScreen>
       // Don't show error to user, just log it
       // Payment methods will be loaded when user actually clicks "Digital Payment"
     }
+  }
+
+  /// Invoked by the address-selection sheet (opened from DeliverySection) after
+  /// the user picks a new saved address. Pulls the new address from prefs and
+  /// re-runs [initCall] so the zone + delivery fee recalculate — WITHOUT leaving
+  /// the checkout screen (the old flow reset to Home here, ejecting the user).
+  void _onAddressChangedFromSheet() {
+    if (!mounted) return;
+    setState(() {
+      _passedAddress = AddressHelper.getUserAddressFromSharedPref();
+    });
+    initCall();
   }
 
   Future<void> initCall() async {
@@ -600,6 +616,14 @@ class CheckoutScreenState extends State<CheckoutScreen>
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    // Drop the address-change hook so the (longer-lived) controller doesn't call
+    // back into this disposed screen.
+    if (Get.isRegistered<CheckoutController>()) {
+      final c = Get.find<CheckoutController>();
+      if (c.onAddressChanged == _onAddressChangedFromSheet) {
+        c.onAddressChanged = null;
+      }
+    }
     super.dispose();
 
     guestContactPersonNameController.dispose();

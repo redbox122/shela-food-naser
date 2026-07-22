@@ -37,7 +37,8 @@ class HomeServicesGrid extends StatelessWidget {
   /// module's own stores.
   void _openModule(BuildContext context, ModuleModel module) {
     final String type = (module.moduleType ?? '').toLowerCase();
-    // هايبر شلة — single-store market storefront (store 1).
+    // هايبر شلة — single-store market storefront (store 1). Now that the
+    // catalog is populated, entry is open again (gate removed 2026-07-13).
     if (type == AppConstants.ecommerce) {
       Get.to<void>(() => MarketStoreScreen(
             storeId: 1,
@@ -55,6 +56,90 @@ class HomeServicesGrid extends StatelessWidget {
           moduleType: type,
           moduleId: module.id ?? 0,
         ));
+  }
+
+  /// "قريباً" sheet — kept for quick re-gating of هايبر شله if ever needed.
+  // ignore: unused_element
+  void _showHyperComingSoon(BuildContext context) {
+    Get.bottomSheet<void>(
+      Container(
+        padding: const EdgeInsets.fromLTRB(24, 14, 24, 32),
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 44,
+              height: 4,
+              decoration: BoxDecoration(
+                color: const Color(0xFFD9DCE1),
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(height: 24),
+            Container(
+              width: 74,
+              height: 74,
+              decoration: BoxDecoration(
+                color: _greenLabel.withValues(alpha: 0.10),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.shopping_cart_rounded,
+                  color: _greenLabel, size: 36),
+            ),
+            const SizedBox(height: 18),
+            const Text(
+              'هايبر شله — قريباً',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontFamily: 'Tajawal',
+                fontWeight: FontWeight.w800,
+                fontSize: 20,
+                color: Color(0xFF121C19),
+              ),
+            ),
+            const SizedBox(height: 10),
+            const Text(
+              'نعمل حالياً على تطوير القسم بتحديثات جوهرية لتجربة تسوّق أفضل. يعود قريباً بإذن الله 🚀',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontFamily: 'Tajawal',
+                fontWeight: FontWeight.w500,
+                fontSize: 14,
+                height: 1.7,
+                color: Color(0xFF8A8A8A),
+              ),
+            ),
+            const SizedBox(height: 22),
+            SizedBox(
+              width: double.infinity,
+              height: 50,
+              child: ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: _greenLabel,
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14)),
+                ),
+                onPressed: () => Get.back<void>(),
+                child: const Text(
+                  'حسناً',
+                  style: TextStyle(
+                    fontFamily: 'Tajawal',
+                    fontWeight: FontWeight.w700,
+                    fontSize: 15,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   bool _isMarketFamily(ModuleModel m) {
@@ -172,6 +257,7 @@ class HomeServicesGrid extends StatelessWidget {
       imageColor: imageColor,
       fill: fill,
       labelColor: labelColor,
+      comingSoon: false, // هايبر شله مفتوح الآن (بلا شارة قريباً)
       onTap: () => _openModule(context, module),
     );
   }
@@ -190,6 +276,9 @@ class _ServiceTile extends StatelessWidget {
   final Color labelColor;
   final VoidCallback onTap;
 
+  /// When true the tile shows a "قريباً" badge (section temporarily gated).
+  final bool comingSoon;
+
   const _ServiceTile({
     required this.label,
     required this.fill,
@@ -198,13 +287,14 @@ class _ServiceTile extends StatelessWidget {
     this.imageAsset,
     this.iconUrl,
     this.imageColor,
+    this.comingSoon = false,
   });
 
   @override
   Widget build(BuildContext context) {
     final radius = BorderRadius.circular(8);
 
-    return Material(
+    final Widget tile = Material(
       color: fill,
       borderRadius: radius,
       clipBehavior: Clip.antiAlias,
@@ -258,6 +348,35 @@ class _ServiceTile extends StatelessWidget {
           ),
         ),
       ),
+    );
+
+    if (!comingSoon) return tile;
+    // Gated section: dim the tile and pin a "قريباً" badge on the corner.
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        Opacity(opacity: 0.72, child: tile),
+        PositionedDirectional(
+          top: 6,
+          start: 6,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+            decoration: BoxDecoration(
+              color: const Color(0xFF1F7A35),
+              borderRadius: BorderRadius.circular(999),
+            ),
+            child: const Text(
+              'قريباً',
+              style: TextStyle(
+                fontFamily: 'Tajawal',
+                fontWeight: FontWeight.w800,
+                fontSize: 10,
+                color: Colors.white,
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

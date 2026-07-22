@@ -88,6 +88,10 @@ Future<void> _writeDebugLogAsync(String location, String message,
 }
 // #endregion
 
+// ── State-management convention (project-wide) ──────────────────────────────
+// GetBuilder/update(): business data + API/loading state owned by this controller.
+// setState (in widgets): local, ephemeral visual effects only (animations,
+//   expand/collapse, focus) — never business/pricing/API state.
 class StoreController extends GetxController implements GetxService {
   final StoreServiceInterface storeServiceInterface;
 

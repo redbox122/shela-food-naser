@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:sixam_mart/util/environment_config.dart';
 import 'package:http/http.dart' as http;
 
 /// Shows an address in Arabic. Store/customer addresses are usually geocoded in
@@ -23,7 +24,8 @@ class ArabicAddressText extends StatefulWidget {
     this.maxLines = 2,
   });
 
-  static const String _apiKey = 'AIzaSyDwpl1O5yMBvB9JHtZz61I3P3uz_ClvXP8';
+  // Google Maps key is server-side; reverse-geocoding goes through the backend
+  // proxy (see EnvironmentConfig.baseUrl + /api/v1/maps/geocode). No key here.
   static final Map<String, String> _cache = <String, String>{};
 
   @override
@@ -59,8 +61,8 @@ class _ArabicAddressTextState extends State<ArabicAddressText> {
     }
     try {
       final uri = Uri.parse(
-          'https://maps.googleapis.com/maps/api/geocode/json'
-          '?latlng=$a,$b&language=ar&region=SA&key=${ArabicAddressText._apiKey}');
+          '${EnvironmentConfig.baseUrl}/api/v1/maps/geocode'
+          '?latlng=$a,$b&language=ar&region=SA');
       final res = await http.get(uri).timeout(const Duration(seconds: 6));
       if (res.statusCode != 200) return;
       final data = jsonDecode(res.body) as Map<String, dynamic>;

@@ -428,12 +428,17 @@ class OrderDetailsScreenState extends State<OrderDetailsScreen> {
           subTotal = PriceConverter.toFixed(itemsPrice + addOns);
           taxFromDetails = PriceConverter.toFixed(taxFromDetails);
 
-          // Calculate tax after we know subTotal, using checkout-style logic
-          tax = _calculateTax(
-            taxIncluded: order.taxStatus ?? false,
-            orderAmount: subTotal,
-            taxPercent: taxPercent,
-          );
+          // Prefer the ACTUAL tax the backend charged (summed per order line into
+          // taxFromDetails) so this screen matches the amount taken at checkout.
+          // Fall back to a computed value only for legacy orders with no per-line
+          // tax (taxFromDetails == 0).
+          tax = taxFromDetails > 0
+              ? taxFromDetails
+              : _calculateTax(
+                  taxIncluded: order.taxStatus ?? false,
+                  orderAmount: subTotal,
+                  taxPercent: taxPercent,
+                );
 
           // Rebuild expected total from visible breakdown to keep summary consistent.
           final double reconstructedTotal = PriceConverter.toFixed(

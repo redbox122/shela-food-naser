@@ -608,18 +608,36 @@ class _ItemBottomSheetState extends State<ItemBottomSheet> {
           discount = (discount ?? 0) * (itemController.quantity ?? 1);
         }
 
-        // Calculate variation price - prefer food variations if they exist
+        // Calculate variation price - prefer food variations if they exist.
+        // A REQUIRED single-select group is a SIZE: the chosen option's price IS
+        // the item price (replaces base), per the merchant setup ("مطلوب - اختر 1"
+        // where every option carries a full price). OPTIONAL groups are add-ons
+        // whose price is ADDED on top of the base.
+        double? requiredBasePrice;
         if (item.foodVariations != null && item.foodVariations!.isNotEmpty) {
           for (int index = 0; index < item.foodVariations!.length; index++) {
+            final fvGroup = item.foodVariations![index];
+            // Two cases (per the merchant setup):
+            //  • SIZE: a single-select option whose price is >= the item base
+            //    (e.g. energy box 105/145/.../625, base 105). It is the whole
+            //    product at a size, so it REPLACES the base.
+            //  • CHOICE / add-on: a smaller option price (e.g. fries +1, sauce
+            //    +5) or a free choice (0). It is ADDED on top of the base.
+            final double baseForCompare = item.price ?? 0;
+            final bool isSingleSelect = fvGroup.multiSelect != true;
             for (int i = 0;
-                i < item.foodVariations![index].variationValues!.length;
+                i < fvGroup.variationValues!.length;
                 i++) {
               if (itemController.selectedVariations.length > index &&
                   itemController.selectedVariations[index].length > i &&
                   itemController.selectedVariations[index][i] == true) {
-                variationPrice += item.foodVariations![index]
-                        .variationValues![i].optionPrice ??
-                    0;
+                final double vp =
+                    fvGroup.variationValues![i].optionPrice ?? 0;
+                if (isSingleSelect && vp > 0 && vp >= baseForCompare) {
+                  requiredBasePrice = vp; // size option replaces the base
+                } else {
+                  variationPrice += vp; // add-on / choice, additive
+                }
               }
             }
           }
@@ -667,9 +685,10 @@ class _ItemBottomSheetState extends State<ItemBottomSheet> {
         appLogger.debug('   💰 item.originalPrice (from API): ${item.originalPrice}');
         appLogger.debug('   ➕ Variation price: $variationPrice');
 
-        // Combine base price with variation price
-        price = (price ?? 0) + variationPrice;
-        appLogger.debug('   💵 Total price (base + variations): $price');
+        // Required-size option (if any) replaces the base; optional add-ons add
+        // on top. So: energy box 50-can (325) = 325; sharebox 80 + 2 + 2 = 84.
+        price = (requiredBasePrice ?? (price ?? 0)) + variationPrice;
+        appLogger.debug('   💵 Total price (base/size + add-ons): $price');
 
         // For new-variation modules, price from backend is already discounted,
         // and variation/preset prices are final amounts. Do NOT re-apply discount.

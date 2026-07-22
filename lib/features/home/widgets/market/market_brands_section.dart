@@ -98,7 +98,7 @@ class _MarketBrandsSectionState extends State<MarketBrandsSection> {
       final response = await Get.find<ApiClient>().getData(
         '/api/v2/stores?module_id=$storeModuleId&limit=20&offset=0',
         headers: {
-          AppConstants.localizationKey: 'ar',
+          AppConstants.localizationKey: AppConstants.currentLanguageCode,
           AppConstants.moduleId: storeModuleId.toString(),
         },
         useEtag: false,

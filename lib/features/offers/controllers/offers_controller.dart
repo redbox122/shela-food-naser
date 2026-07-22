@@ -325,6 +325,19 @@ class OffersController extends GetxController implements GetxService {
   /// from whichever modules actually have them (e.g. Cafes / Restaurants),
   /// instead of only Module 3. Merges + de-dupes by offer id, then restores the
   /// previous module id in the API headers.
+  /// True when [moduleId] is the هايبر شله (ecommerce) module — whose offers are
+  /// currently hidden from the aggregated home offers.
+  bool _isEcommerceModule(int moduleId) {
+    if (!Get.isRegistered<SplashController>()) return false;
+    final modules = Get.find<SplashController>().moduleList ?? const [];
+    for (final m in modules) {
+      if (m.id == moduleId) {
+        return (m.moduleType ?? '').toLowerCase() == AppConstants.ecommerce;
+      }
+    }
+    return false;
+  }
+
   Future<void> getAggregatedOffers(List<int> moduleIds) async {
     if (_isLoading || moduleIds.isEmpty) {
       return;
@@ -348,6 +361,10 @@ class OffersController extends GetxController implements GetxService {
 
     try {
       for (final int moduleId in moduleIds) {
+        // Hyper Shela (ecommerce) is temporarily gated — skip its offers so the
+        // home shows only pharmacy / café / restaurant / neighbourhood-market
+        // offers instead.
+        if (_isEcommerceModule(moduleId)) continue;
         apiClient.updateHeader(
           apiClient.token,
           addressModel?.zoneIds,

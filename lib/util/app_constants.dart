@@ -9,6 +9,7 @@
 // ===========================================
 
 import 'package:get/get.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sixam_mart/common/models/choose_us_model.dart';
 import 'package:sixam_mart/features/language/domain/models/language_model.dart';
 import 'package:sixam_mart/util/images.dart';
@@ -468,6 +469,18 @@ class AppConstants {
   static const String token = '6ammart_token';
   static const String countryCode = '6ammart_country_code';
   static const String languageCode = '6ammart_language_code';
+
+  /// Active app language code from SharedPreferences, defaulting to the first
+  /// supported language ('ar'). Use this instead of hardcoding 'ar' in raw
+  /// http localization headers so requests follow the user's chosen language.
+  static String get currentLanguageCode {
+    try {
+      return Get.find<SharedPreferences>().getString(languageCode) ??
+          languages[0].languageCode!;
+    } catch (_) {
+      return languages[0].languageCode!;
+    }
+  }
   static const String cacheCountryCode = 'cache_country_code';
   static const String cacheLanguageCode = 'cache_language_code';
   static const String cartList = '6ammart_cart_list';

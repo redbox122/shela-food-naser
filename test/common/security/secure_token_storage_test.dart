@@ -8,7 +8,7 @@
  */
 
 import 'package:flutter/foundation.dart';
-import 'secure_token_storage.dart';
+import 'package:sixam_mart/common/security/secure_token_storage.dart';
 
 /// Test class for Secure Token Storage functionality
 class SecureTokenStorageTest {

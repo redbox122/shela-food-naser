@@ -240,6 +240,11 @@ class _MarketStoresSectionState extends State<MarketStoresSection> {
   /// First page (resets pagination). Called on init + category/filter change.
   Future<void> _fetch() async {
     _page = 1;
+    // 4.1: a filter/sort-triggered refetch has no cache to paint from, so show
+    // the skeleton while it loads instead of leaving the stale list frozen.
+    if (mounted && _hasActiveFilter && !_loading) {
+      setState(() => _loading = true);
+    }
     // Instant paint of the default view from cache, then revalidate.
     if (!_hasActiveFilter) {
       final cached = SimpleJsonCache.read(_storesCacheKey);
@@ -274,7 +279,7 @@ class _MarketStoresSectionState extends State<MarketStoresSection> {
       final response = await Get.find<ApiClient>().getData(
         _buildUrl(),
         headers: {
-          AppConstants.localizationKey: 'ar',
+          AppConstants.localizationKey: AppConstants.currentLanguageCode,
           if (widget.moduleId != null)
             AppConstants.moduleId: widget.moduleId.toString(),
           // Send the user's location so the server computes distance + orders
@@ -335,14 +340,55 @@ class _MarketStoresSectionState extends State<MarketStoresSection> {
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 32),
               child: Center(
-                child: Text(
-                  'no_store_available'.tr,
-                  style: const TextStyle(
-                    fontFamily: 'Tajawal',
-                    fontWeight: FontWeight.w500,
-                    fontSize: 14,
-                    color: Color(0xFF717885),
-                  ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      // A filtered-empty result is a recoverable state (e.g. the
+                      // chosen category has no stores tagged in this zone), so it
+                      // gets a clearer message + a way out, not a dead end.
+                      _hasActiveFilter
+                          ? 'no_store_matches_filter'.tr
+                          : 'no_store_available'.tr,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        fontFamily: 'Tajawal',
+                        fontWeight: FontWeight.w500,
+                        fontSize: 14,
+                        color: Color(0xFF717885),
+                      ),
+                    ),
+                    if (_hasActiveFilter) ...[
+                      const SizedBox(height: 12),
+                      OutlinedButton(
+                        onPressed: () {
+                          // Clear both filter systems: the external category and
+                          // the sort/filter bar controller, then reload all.
+                          Get.find<RestaurantFilterController>(tag: _filterTag)
+                              .resetAll();
+                          if (widget.categoryId != null) {
+                            widget.onCategoryChanged?.call(null);
+                          }
+                        },
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: const Color(0xFF1F7A35),
+                          side: const BorderSide(color: Color(0xFF1F7A35)),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10)),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 20, vertical: 10),
+                        ),
+                        child: Text(
+                          'show_all_stores'.tr,
+                          style: const TextStyle(
+                            fontFamily: 'Tajawal',
+                            fontWeight: FontWeight.w700,
+                            fontSize: 13,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
               ),
             )

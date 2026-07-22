@@ -69,10 +69,16 @@ class PillTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       decoration: BoxDecoration(
-        color: selected ? Color(0xffEBFEEB) : const Color(0xFFF0F1F3),
+        // Panda-style selected pill: solid dark-green fill (the passed accent),
+        // idle pill white with a light grey border.
+        // Was: color: selected ? Color(0xffEBFEEB) : const Color(0xFFF0F1F3)
+        color: selected ? accent : Colors.white,
         borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: selected ? accent : const Color(0xFFE0E0E0),
+        ),
       ),
       child: Text(
         label,
@@ -81,7 +87,8 @@ class PillTab extends StatelessWidget {
           fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
           fontSize: 13,
           height: 1.0,
-          color: selected ? accent : const Color(0xFF717885),
+          // Was: color: selected ? accent : const Color(0xFF717885)
+          color: selected ? Colors.white : const Color(0xFF717885),
         ),
       ),
     );

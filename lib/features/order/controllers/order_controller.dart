@@ -362,10 +362,14 @@ class OrderController extends GetxController implements GetxService {
       {bool isUpdate = false, bool fromDashboard = false}) async {
     debugPrint(
         '[OrderCtrl] getRunningOrders start offset=$offset isUpdate=$isUpdate fromDashboard=$fromDashboard');
-    _Order_isLoading = true;
+    // SWR: if this tab already has cached data, keep it visible and refresh
+    // silently — only show the loader / clear the list on the first load.
+    final bool hasCache =
+        offset == 1 && (_runningOrderModel?.orders?.isNotEmpty ?? false);
+    _Order_isLoading = !hasCache;
     _hasOrderError = false;
 
-    if (offset == 1) {
+    if (offset == 1 && !hasCache) {
       _runningOrderModel = null;
       if (isUpdate) {
         update();
@@ -470,13 +474,17 @@ class OrderController extends GetxController implements GetxService {
   Future<void> getHistoryOrders(int offset, {bool isUpdate = false}) async {
     debugPrint(
         '[OrderCtrl] getHistoryOrders start offset=$offset isUpdate=$isUpdate');
-    _isLoadingHistoryOrders = true;
+    // SWR: keep the cached history/cancelled lists visible during a background
+    // refresh — only show the loader / clear on the first load.
+    final bool hasCache =
+        offset == 1 && (_historyOrderModel?.orders?.isNotEmpty ?? false);
+    _isLoadingHistoryOrders = !hasCache;
     _hasOrderError = false;
-    if (offset == 1) {
+    if (offset == 1 && !hasCache) {
       _historyOrderModel = null;
       _canceledOrderModel = null;
     }
-    if (isUpdate || offset == 1) {
+    if (!hasCache && (isUpdate || offset == 1)) {
       _updateSafely();
     }
     final PaginatedOrderModel? orderModel =

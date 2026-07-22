@@ -142,6 +142,8 @@ class Images {
   static const String supportImage = 'assets/image/support_image.png';
   static const String cashOnDelivery = 'assets/image/cash_on_delivery.png';
   static const String digitalPayment = 'assets/image/digital_payment.png';
+  static const String poweredByMyfatoorah =
+      'assets/image/powered_by_myfatoorah.png';
   static const String route = 'assets/image/route.png';
   static const String update = 'assets/image/update.png';
   static const String deliveryLocation = 'assets/image/delivery_location.png';

@@ -81,6 +81,10 @@ class _CheckoutReadableError {
   const _CheckoutReadableError({required this.code, required this.message});
 }
 
+// ── State-management convention (project-wide) ──────────────────────────────
+// GetBuilder/update(): business data + API/loading state owned by this controller.
+// setState (in widgets): local, ephemeral visual effects only (animations,
+//   expand/collapse, focus) — never business/pricing/API state.
 class CheckoutController extends GetxController implements GetxService {
   final CheckoutServiceInterface checkoutServiceInterface;
   CheckoutController({required this.checkoutServiceInterface});
@@ -2214,6 +2218,10 @@ class CheckoutController extends GetxController implements GetxService {
       update(['payment', 'checkout']);
     }
   }
+
+  /// Set by the Checkout screen so the address-selection sheet can ask it to
+  /// refresh (new address + delivery fee) instead of resetting to Home.
+  VoidCallback? onAddressChanged;
 
   void setAddressIndex(int? index) {
     _addressIndex = index;

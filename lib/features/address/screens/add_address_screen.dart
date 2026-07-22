@@ -85,13 +85,20 @@ class _AddAddressScreenState extends State<AddAddressScreen> {
     initCall();
 
     if (widget.address != null) {
-      splitPhoneNumber(widget.address!.contactPersonNumber!);
+      // v2 addresses may have no saved contact number — guard the null-check.
+      final String? savedNumber = widget.address!.contactPersonNumber;
+      if (savedNumber != null && savedNumber.isNotEmpty) {
+        splitPhoneNumber(savedNumber);
+      }
       _contactPersonNameController.text =
           widget.address!.contactPersonName ?? '';
       _emailController.text = widget.address!.email ?? '';
       _streetNumberController.text = widget.address!.streetNumber ?? '';
       _houseController.text = widget.address!.house ?? '';
       _floorController.text = widget.address!.floor ?? '';
+      // Prefill the saved address line so editing shows the existing details
+      // immediately (the map re-geocode can overwrite it if the user re-pins).
+      _addressController.text = widget.address!.address ?? '';
     } else if (Get.find<ProfileController>().userInfoModel != null &&
         _contactPersonNameController.text.isEmpty) {
       final userInfo = Get.find<ProfileController>().userInfoModel;
@@ -158,10 +165,20 @@ class _AddAddressScreenState extends State<AddAddressScreen> {
       }
     } else {
       Get.find<LocationController>().setUpdateAddress(widget.address!);
-      _initialPosition = LatLng(
-        double.parse(widget.address!.latitude ?? '0'),
-        double.parse(widget.address!.longitude ?? '0'),
-      );
+      final double? editLat = double.tryParse(widget.address!.latitude ?? '');
+      final double? editLng = double.tryParse(widget.address!.longitude ?? '');
+      if (editLat != null &&
+          editLng != null &&
+          (editLat != 0 || editLng != 0)) {
+        _initialPosition = LatLng(editLat, editLng);
+      } else {
+        // Address has no saved GPS — center on the config default so the map
+        // opens somewhere sensible (not the 0,0 ocean) for the user to pin.
+        final def = Get.find<SplashController>().configModel?.defaultLocation;
+        _initialPosition = (def?.lat != null && def?.lng != null)
+            ? LatLng(double.parse(def!.lat!), double.parse(def.lng!))
+            : const LatLng(24.7136, 46.6753);
+      }
 
       if (widget.address!.addressType == 'home') {
         Get.find<LocationController>().setAddressTypeIndex(0, isUpdate: false);
@@ -169,7 +186,7 @@ class _AddAddressScreenState extends State<AddAddressScreen> {
         Get.find<LocationController>().setAddressTypeIndex(1, isUpdate: false);
       } else {
         Get.find<LocationController>().setAddressTypeIndex(2, isUpdate: false);
-        _levelController.text = widget.address!.addressType!;
+        _levelController.text = widget.address!.addressType ?? '';
         _otherSelect = true;
       }
     }
@@ -198,7 +215,15 @@ class _AddAddressScreenState extends State<AddAddressScreen> {
       body: SafeArea(
         child: GetBuilder<ProfileController>(builder: (profileController) {
           return GetBuilder<LocationController>(builder: (locationController) {
-            _addressController.text = locationController.address!;
+            // Update the address line from the map's geocode, but NEVER blank it
+            // out: on edit-open the map may not have resolved yet, so keep the
+            // prefilled saved address instead of erasing it.
+            final String mapAddress = locationController.address ?? '';
+            if (mapAddress.isNotEmpty) {
+              _addressController.text = mapAddress;
+            } else if (_addressController.text.isEmpty && widget.address != null) {
+              _addressController.text = widget.address!.address ?? '';
+            }
 
             return Get.find<AddressController>().isLoading == true
                 ? const Center(child: CircularProgressIndicator())
@@ -627,7 +652,7 @@ class _AddAddressScreenState extends State<AddAddressScreen> {
                                                     width: 680,
                                                     child: CustomTextField(
                                                       titleText:
-                                                          '${'level_name'.tr}(${'optional'.tr})',
+                                                          'level_name'.tr,
                                                       hintText:
                                                           'write_level_name'.tr,
                                                       showTitle: true,
@@ -1208,7 +1233,7 @@ class _AddAddressScreenState extends State<AddAddressScreen> {
                                         _otherSelect
                                             ? CustomTextField(
                                                 labelText:
-                                                    '${'level_name'.tr}(${'optional'.tr})',
+                                                    'level_name'.tr,
                                                 titleText:
                                                     'write_level_name'.tr,
                                                 controller: _levelController,

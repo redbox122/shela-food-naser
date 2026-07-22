@@ -6,6 +6,7 @@ import 'package:myfatoorah_flutter/MFModels.dart';
 import 'package:sixam_mart/common/widgets/custom_snackbar.dart';
 import 'package:sixam_mart/common/widgets/smart_image.dart';
 import 'package:sixam_mart/features/checkout/controllers/checkout_controller.dart';
+import 'package:sixam_mart/features/checkout/widgets/powered_by_myfatoorah.dart';
 import 'package:sixam_mart/features/wallet_kaidha_subscription/controllers/kaidhaSub_controller.dart';
 import 'package:sixam_mart/helper/responsive_helper.dart';
 import 'package:sixam_mart/util/dimensions.dart';
@@ -201,6 +202,8 @@ class _PaymentMethodBottomSheetState extends State<PaymentMethodBottomSheet> {
                             const SizedBox(height: 24),
                             _buildActionButtons(checkoutController),
                             const SizedBox(height: 16),
+                            const PoweredByMyfatoorah(),
+                            const SizedBox(height: 4),
                           ],
                         ),
                       );
@@ -385,23 +388,32 @@ class _PaymentMethodBottomSheetState extends State<PaymentMethodBottomSheet> {
     }
   }
 
-  /// Filter payment methods based on platform
-  /// Apple Pay remains enabled
-  /// iOS: Hide Google Pay methods (if any)
+  /// Filter payment methods based on platform.
+  /// iOS: hide Google Pay AND Apple Pay. Apple Pay is hidden until a real Apple
+  /// Pay merchant id is registered with Apple and activated in MyFatoorah — the
+  /// placeholder merchant (merchant.com.shella.app) fails merchant validation in
+  /// the hosted page and shows an error (App Store review 2.1a). Mada / Visa /
+  /// STC Pay stay available. Re-enable once native Apple Pay is provisioned.
   List<MFPaymentMethod> _filterPaymentMethodsByPlatform(
       List<MFPaymentMethod> paymentMethods) {
     return paymentMethods.where((method) {
       final methodCode = method.paymentMethodCode?.toLowerCase() ?? '';
       final methodEn = method.paymentMethodEn?.toLowerCase() ?? '';
 
-      // On Android, keep all methods visible (including Apple Pay).
+      final bool isApplePay = methodCode == 'ap' ||
+          methodCode.contains('apple') ||
+          methodEn.contains('apple');
+      final bool isGooglePay =
+          methodCode.contains('gp') || methodEn.contains('google');
+
+      // On Android, hide Apple Pay (not usable) but keep everything else.
       if ((!kIsWeb && Platform.isAndroid)) {
-        return true;
+        return !isApplePay;
       }
 
-      // On iOS, hide Google Pay methods (if any)
+      // On iOS, hide both Google Pay and Apple Pay.
       if ((!kIsWeb && Platform.isIOS)) {
-        return !methodCode.contains('gp') && !methodEn.contains('google');
+        return !isGooglePay && !isApplePay;
       }
 
       // For other platforms, show all methods

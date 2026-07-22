@@ -11,8 +11,10 @@ import 'package:shimmer/shimmer.dart';
 import 'package:sixam_mart/api/api_client.dart';
 import 'package:sixam_mart/common/widgets/custom_image.dart';
 import 'package:sixam_mart/common/widgets/custom_snackbar.dart';
+import 'package:sixam_mart/features/auth/controllers/auth_controller.dart';
 import 'package:sixam_mart/features/cart/controllers/cart_controller.dart';
 import 'package:sixam_mart/features/checkout/domain/models/place_order_body_model.dart';
+import 'package:sixam_mart/helper/auth_helper.dart';
 import 'package:sixam_mart/features/dashboard/widgets/home_bottom_nav_bar.dart';
 import 'package:sixam_mart/features/home/widgets/home_top_notice_strip.dart';
 import 'package:sixam_mart/features/home/widgets/market/market_banner_section.dart';
@@ -286,7 +288,7 @@ class _MarketStoreScreenState extends State<MarketStoreScreen> {
 
     // ── 2) Revalidate from the network.
     final headers = {
-      AppConstants.localizationKey: 'ar',
+      AppConstants.localizationKey: AppConstants.currentLanguageCode,
       AppConstants.moduleId: widget.moduleId.toString(),
     };
     final id = widget.storeId;
@@ -369,34 +371,118 @@ class _MarketStoreScreenState extends State<MarketStoreScreen> {
     // "عروض وخصومات" promo banner — shown above the product tabs, only for the
     // هايبر شله storefront, over this store's own (new-app) data.
     if (widget.isHyperStorefront && !_loading) {
-      if (cats.isNotEmpty) {
-        slivers.add(SliverToBoxAdapter(
-          child: _HyperSectionHeader(title: 'sections'.tr),
-        ));
-        slivers.add(SliverToBoxAdapter(
-          // Old shop_home "الأقسام" look: two-row horizontal rail of compact
-          // green-name-over-image cards (see _HyperCategoriesRail).
-          child: _HyperCategoriesRail(
-            categories: cats,
-            storeId: widget.storeId,
-            moduleId: effectiveModule,
-            storeCover: d?.cover ?? widget.cover,
-          ),
-        ));
-      }
+      // Panda-style storefront: a persistent search bar first (search within
+      // THIS store), then a promo banner carousel, the "تسوق حسب الفئة" grid of
+      // beige category cards, then the "العلامات التجارية" brand rail.
       slivers.add(SliverToBoxAdapter(
-        child: _HyperBrandsRail(moduleId: widget.moduleId),
+        child: _HyperSearchBar(
+          storeId: widget.storeId,
+          moduleId: widget.moduleId,
+        ),
       ));
       slivers.add(SliverToBoxAdapter(
-        child: _HyperSectionHeader(title: 'offers_and_discounts'.tr),
+        child: MarketBannerSection(moduleId: widget.moduleId, maxBanners: 2),
       ));
       slivers.add(SliverToBoxAdapter(
-        child: MarketBannerSection(moduleId: widget.moduleId),
+        child: _HyperSectionHeader(title: 'shop_by_category'.tr),
       ));
+      slivers.add(SliverToBoxAdapter(
+        child: _HyperDesignedCategoriesGrid(
+          storeId: widget.storeId,
+          moduleId: effectiveModule,
+          storeCover: d?.cover ?? widget.cover,
+        ),
+      ));
+      // "اخترناها لك" curated picks — the store's pre-designed cards.
+      slivers.add(SliverToBoxAdapter(
+        child: _HyperPicksRail(
+          storeId: widget.storeId,
+          moduleId: effectiveModule,
+          storeCover: d?.cover ?? widget.cover,
+        ),
+      ));
+      // "القسم رابع" — pre-designed promo cards carousel (no header, arrow nav).
+      slivers.add(SliverToBoxAdapter(
+        child: _HyperCardCarousel(
+          assetPrefix: 'assets/image/hyper_promos/promo_',
+          count: 9,
+          aspectRatio: 668 / 954,
+          storeId: widget.storeId,
+          moduleId: effectiveModule,
+          storeCover: d?.cover ?? widget.cover,
+          // promo_01..09 → destination category ids (null = not wired yet).
+          catIds: const [
+            '59749', // 01 التجميل
+            '59576', // 02 الإلكترونيات
+            null, //    03 القسائم الإلكترونية
+            '59753', // 04 العناية بالبشرة
+            null, //    05 العناية الشخصية
+            '59609', // 06 العناية بالطفل
+            '59756', // 07 أساسيات المنزل
+            null, //    08 العناية بالحيوانات الأليفة
+            null, //    09 المباراة بدأت
+          ],
+        ),
+      ));
+      // "القسم خامس" — pre-designed discount cards carousel (no header, arrow nav).
+      slivers.add(SliverToBoxAdapter(
+        child: _HyperCardCarousel(
+          assetPrefix: 'assets/image/hyper_discounts/disc_',
+          count: 10,
+          aspectRatio: 516 / 660,
+          storeId: widget.storeId,
+          moduleId: effectiveModule,
+          storeCover: d?.cover ?? widget.cover,
+          discountedOnly: true, // banners open only discounted products
+          // disc_01..10 → department category ids (order matches the images).
+          catIds: const [
+            '59601', // 01 العناية الشخصية
+            '59662', // 02 المجمدات
+            '59670', // 03 الوجبات الخفيفة
+            '59648', // 04 المخبوزات
+            '59588', // 05 منتجات طازجة
+            '59631', // 06 العناية بالمنزل
+            '59581', // 07 المشروبات
+            '59626', // 08 الأطعمة الأساسية
+            '59616', // 09 مستلزمات الطبخ
+            '59679', // 10 الإفطار
+          ],
+        ),
+      ));
+      // "القسم السادس" — pre-designed brand (storefront) cards, the last section.
+      slivers.add(const SliverToBoxAdapter(
+        child: _HyperCardCarousel(
+          assetPrefix: 'assets/image/hyper_brands/brand_',
+          count: 17,
+          aspectRatio: 203 / 262,
+          // brand_01..17 → each brand's id + display name (order matches images).
+          brandTargets: [
+            (id: 25, name: 'سنسوداين'),      // 01 Sensodyne
+            (id: 7, name: 'بيبي جوي'),        // 02 BabyJoy
+            (id: 5, name: 'ليز'),             // 03 Lay's
+            (id: 3, name: 'ساديا'),           // 04 Sadia
+            (id: 8, name: 'دجاج دو'),         // 05 Doux
+            (id: 4, name: 'بيبسي'),           // 06 Pepsi
+            (id: 6, name: 'امريكانا'),        // 07 Americana
+            (id: 2, name: 'المراعي'),         // 08 Almarai
+            (id: 26, name: 'تايد'),           // 09 Tide
+            (id: 19, name: 'داوني'),          // 10 Downy
+            (id: 17, name: 'أولويز'),         // 11 Always
+            (id: 24, name: 'بانتين'),         // 12 Pantene
+            (id: 22, name: 'هيربال إيسنسز'),  // 13 Herbal Essences
+            (id: 21, name: 'هيد آند شولدرز'), // 14 Head & Shoulders
+            (id: 20, name: 'فيري'),           // 15 Fairy
+            (id: 18, name: 'أريال'),          // 16 Ariel
+            (id: 23, name: 'بامبرز'),         // 17 Pampers
+          ],
+        ),
+      ));
+      slivers.add(const SliverToBoxAdapter(child: SizedBox(height: 24)));
     }
 
-    // Pinned tab bar — sticks once the cover (if any) scrolls away.
-    if (!_loading && cats.isNotEmpty) {
+    // Pinned tab bar — sticks once the cover (if any) scrolls away. Hidden on
+    // the هايبر شله storefront: that page is the pre-designed sections only.
+    if (!_loading && cats.isNotEmpty && !widget.isHyperStorefront) {
       slivers.add(SliverPersistentHeader(
         pinned: true,
         delegate: _TabBarDelegate(
@@ -408,8 +494,8 @@ class _MarketStoreScreenState extends State<MarketStoreScreen> {
       ));
     }
 
-    // Category product sections.
-    if (!_loading && cats.isNotEmpty) {
+    // Category product sections (also hidden on the هايبر شله storefront).
+    if (!_loading && cats.isNotEmpty && !widget.isHyperStorefront) {
       for (int i = 0; i < cats.length; i++) {
         slivers.add(SliverToBoxAdapter(
           child: _CategorySection(
@@ -461,6 +547,9 @@ class _MarketStoreScreenState extends State<MarketStoreScreen> {
             title: title,
             storeId: widget.storeId,
             moduleId: effectiveModule,
+            // Hyper storefront already has the full _HyperSearchBar below the
+            // banner, so drop the duplicate lens from the top header.
+            showSearch: !widget.isHyperStorefront,
           ),
           // The هايبر شله promo banner moved into the scrollable "عروض وخصومات"
           // section below (see the browse block), so only the notice strip stays

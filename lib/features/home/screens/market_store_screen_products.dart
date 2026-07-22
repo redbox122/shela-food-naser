@@ -268,10 +268,29 @@ class _KeetaProductPanelState extends State<_KeetaProductPanel> {
     return const [];
   }
 
+  // 7.3: session-lived first-page cache keyed by store+category so re-opening the
+  // same category paints instantly instead of hitting the API on every tap.
+  static final Map<String, List<_Product>> _firstPageCache = {};
+
   Future<void> _loadPage() async {
     if (_fetching || !_hasMore) return;
+    final int offset = _products.length;
+    final String cacheKey = '${widget.storeId}|${widget.category.id}';
+    // Serve the first page from cache when available (no API request).
+    if (offset == 0 && _firstPageCache.containsKey(cacheKey)) {
+      final cached = _firstPageCache[cacheKey]!;
+      if (mounted) {
+        setState(() {
+          _products
+            ..clear()
+            ..addAll(cached);
+          _hasMore = cached.length >= _pageSize;
+          _fetching = false;
+        });
+      }
+      return;
+    }
     if (mounted) setState(() => _fetching = true);
-    final offset = _products.length;
     var fetched = <_Product>[];
     if (Get.isRegistered<ApiClient>()) {
       final candidates =
@@ -293,6 +312,10 @@ class _KeetaProductPanelState extends State<_KeetaProductPanel> {
       _hasMore = fetched.length >= _pageSize;
       _fetching = false;
     });
+    // Cache the first page for instant re-open (7.3).
+    if (offset == 0 && _products.isNotEmpty) {
+      _firstPageCache[cacheKey] = List<_Product>.from(_products);
+    }
   }
 
   @override

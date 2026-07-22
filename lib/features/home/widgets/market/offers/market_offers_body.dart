@@ -61,31 +61,16 @@ class MarketOffersBody extends StatelessWidget {
     final slivers = <Widget>[];
     for (int i = 0; i < subs.length; i++) {
       final sub = subs[i];
-      // Section title — its key lets the second bar scroll here.
+      // The visible green section title (sub.name) was removed — it duplicated
+      // the active tab in the second bar. A tiny keyed spacer stays so the tab
+      // bar can still scroll to this section.
       slivers.add(
         SliverToBoxAdapter(
-          child: Padding(
+          child: SizedBox(
             key: i < sectionKeys.length ? sectionKeys[i] : null,
-            // Tighter top/bottom so sections sit closer together.
-            padding: const EdgeInsets.fromLTRB(
-              Dimensions.paddingSizeDefault,
-              Dimensions.paddingSizeSmall,
-              Dimensions.paddingSizeDefault,
-              Dimensions.paddingSizeExtraSmall,
-            ),
-            child: Text(
-              sub.name,
-              textAlign: TextAlign.right,
-              style: TextStyle(
-                fontFamily: 'Tajawal',
-                fontWeight: FontWeight.w700,
-                fontSize: 16,
-                height: 1.2,
-                // Section titles follow the store logo color (the chips stay
-                // fixed green).
-                color: accent,
-              ),
-            ),
+            height: i == 0
+                ? Dimensions.paddingSizeSmall
+                : Dimensions.paddingSizeDefault,
           ),
         ),
       );
@@ -257,7 +242,7 @@ class _OfferListCard extends StatelessWidget {
                     padding: const EdgeInsets.symmetric(
                         horizontal: 10, vertical: 10),
                     child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.end,
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Text(
@@ -274,11 +259,13 @@ class _OfferListCard extends StatelessWidget {
                           ),
                         ),
                         const SizedBox(height: 6),
-                        Directionality(
-                          textDirection: TextDirection.ltr,
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            mainAxisAlignment: MainAxisAlignment.end,
+                        Align(
+                          alignment: Alignment.centerLeft,
+                          child: Directionality(
+                            textDirection: TextDirection.ltr,
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              mainAxisAlignment: MainAxisAlignment.start,
                             children: [
                               Image.asset(
                                 Images.sar,
@@ -316,6 +303,7 @@ class _OfferListCard extends StatelessWidget {
                               ],
                             ],
                           ),
+                        ),
                         ),
                       ],
                     ),

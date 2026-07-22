@@ -41,7 +41,14 @@
       "Bash(git commit -m ' *)",
       "Bash(grep \"\\\\.dart$\")",
       "Bash(command -v cliclick)",
-      "Bash(find /Users/nasseralimadkhali/Downloads/shella-apps/driver/lib/features/disbursement /Users/nasseralimadkhali/Downloads/shella-apps/driver/lib/features/cash_in_hand -name *.dart)"
+      "Bash(find /Users/nasseralimadkhali/Downloads/shella-apps/driver/lib/features/disbursement /Users/nasseralimadkhali/Downloads/shella-apps/driver/lib/features/cash_in_hand -name *.dart)",
+      "Bash(echo \"tunnel PID: $!\")",
+      "Bash(curl -s -m 5 -o /dev/null -w \"local 53682 -> %{http_code}\\\\n\" \"http://127.0.0.1:53682/auth?state=gxSQMu0DkyzFlWXemITmDw\")",
+      "Bash(jobs -l)",
+      "Bash(export LANG=en_US.UTF-8)",
+      "Bash(ssh -i ~/Downloads/shella-server_key.pem:*)",
+      "Bash(scp -i ~/Downloads/shella-server_key.pem:*)"
+
     ]
   }
 }

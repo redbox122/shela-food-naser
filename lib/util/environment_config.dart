@@ -14,20 +14,25 @@ library;
 import 'package:flutter/foundation.dart';
 import 'package:sixam_mart/common/utils/app_logger.dart';
 
-enum Environment { development, staging, production }
+enum Environment { development, staging, production, azure }
 
 class EnvironmentConfig {
   // Change this to switch environments
-  static const Environment currentEnvironment = Environment.production;
+  // ⚠️ TEMP: pointed at Azure (shellagroup) to test the هايبر شله rebuild.
+  // Revert to Environment.production before any release build.
+  static const Environment currentEnvironment = Environment.azure;
 
   // Environment-specific configurations
   static const Map<Environment, Map<String, String>> _configs = {
     Environment.development: {
-      'baseUrl':
-          'http://192.168.100.6:8000', // Updated: Using computer's local IP for Android Emulator
-      'webHostedUrl':
-          'http://192.168.100.6:8000', // Updated: Using computer's local IP for Android Emulator
-      'description': 'Local Laravel Development Server (192.168.100.6:8000)',
+      // Dev host is NOT hardcoded: override at build time with
+      //   --dart-define=DEV_BASE_URL=http://<your-lan-ip>:8000
+      // Default is the Android-emulator host loopback so nothing personal is in git.
+      'baseUrl': String.fromEnvironment('DEV_BASE_URL',
+          defaultValue: 'http://10.0.2.2:8000'),
+      'webHostedUrl': String.fromEnvironment('DEV_BASE_URL',
+          defaultValue: 'http://10.0.2.2:8000'),
+      'description': 'Local Laravel Dev (override via --dart-define=DEV_BASE_URL)',
     },
     Environment.staging: {
       'baseUrl': 'https://staging.shelafood.com',
@@ -35,9 +40,14 @@ class EnvironmentConfig {
       'description': 'Staging Server',
     },
     Environment.production: {
+      'baseUrl': 'https://shellafood.com',
+      'webHostedUrl': 'https://shellafood.com',
+      'description': 'Production Server',
+    },
+    Environment.azure: {
       'baseUrl': 'https://shellagroup.uaenorth.cloudapp.azure.com',
       'webHostedUrl': 'https://shellagroup.uaenorth.cloudapp.azure.com',
-      'description': 'Production Server',
+      'description': 'Azure (shellagroup) — هايبر شله rebuild test',
     },
   };
 

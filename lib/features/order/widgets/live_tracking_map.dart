@@ -1,6 +1,7 @@
 // ignore_for_file: deprecated_member_use
 import 'dart:async';
 import 'dart:collection';
+import 'package:sixam_mart/util/environment_config.dart';
 import 'dart:convert';
 import 'dart:math' as math;
 import 'dart:ui' show lerpDouble;
@@ -242,12 +243,12 @@ class _LiveTrackingMapState extends State<LiveTrackingMap>
   }
 
   Future<List<LatLng>> _fetchDirections(LatLng origin, LatLng dest) async {
-    const String apiKey = 'AIzaSyDwpl1O5yMBvB9JHtZz61I3P3uz_ClvXP8';
+    // Key is server-side: route through the backend Maps proxy (no key in client).
     final uri = Uri.parse(
-        'https://maps.googleapis.com/maps/api/directions/json'
+        '${EnvironmentConfig.baseUrl}/api/v1/maps/directions'
         '?origin=${origin.latitude},${origin.longitude}'
         '&destination=${dest.latitude},${dest.longitude}'
-        '&mode=driving&key=$apiKey');
+        '&mode=driving');
     final res = await http.get(uri).timeout(const Duration(seconds: 6));
     if (res.statusCode != 200) return const [];
     final data = jsonDecode(res.body) as Map<String, dynamic>;

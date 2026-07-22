@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:sixam_mart/features/category/domain/models/category_model.dart';
 import 'package:sixam_mart/features/item/domain/models/item_model.dart';
 import 'package:sixam_mart/features/store/widgets/food_restaurant/food_restaurant_menu_item_card.dart';
-import 'package:sixam_mart/features/item/controllers/item_controller.dart';
+import 'package:sixam_mart/features/home/screens/market_store_screen.dart'
+    show showProductOptions;
 import 'package:sixam_mart/features/language/controllers/language_controller.dart';
+import 'package:sixam_mart/features/splash/controllers/splash_controller.dart';
 import 'package:sixam_mart/features/store/controllers/store_controller.dart';
 import 'package:sixam_mart/util/dimensions.dart';
 import 'package:sixam_mart/util/styles.dart';
@@ -105,10 +107,28 @@ class FoodRestaurantCategorySection extends StatelessWidget {
                                     highlightedItemId != null &&
                                         item.id == highlightedItemId,
                                 onTap: () {
-                                  Get.find<ItemController>().navigateToItemPage(
-                                    item,
-                                    context,
-                                    inStore: true,
+                                  final int? id = item.id;
+                                  if (id == null) return;
+                                  // Restaurant meal: TAP opens the details /
+                                  // customization sheet (v2 options, always
+                                  // shown); the (+) button still quick-adds. The
+                                  // old food ItemBottomSheet used a v1 endpoint
+                                  // that now 403s, leaving the sheet empty.
+                                  showProductOptions(
+                                    itemId: id,
+                                    storeId: item.storeId,
+                                    moduleId: item.moduleId ??
+                                        (Get.isRegistered<SplashController>()
+                                            ? (Get.find<SplashController>()
+                                                    .module
+                                                    ?.id ??
+                                                1)
+                                            : 1),
+                                    name: item.name,
+                                    image:
+                                        item.imageFullUrl ?? item.displayImage,
+                                    price: item.price ?? 0,
+                                    alwaysShowSheet: true,
                                   );
                                 },
                               );
@@ -126,10 +146,28 @@ class FoodRestaurantCategorySection extends StatelessWidget {
                                     highlightedItemId != null &&
                                         item.id == highlightedItemId,
                                 onTap: () {
-                                  Get.find<ItemController>().navigateToItemPage(
-                                    item,
-                                    context,
-                                    inStore: true,
+                                  final int? id = item.id;
+                                  if (id == null) return;
+                                  // Restaurant meal: TAP opens the details /
+                                  // customization sheet (v2 options, always
+                                  // shown); the (+) button still quick-adds. The
+                                  // old food ItemBottomSheet used a v1 endpoint
+                                  // that now 403s, leaving the sheet empty.
+                                  showProductOptions(
+                                    itemId: id,
+                                    storeId: item.storeId,
+                                    moduleId: item.moduleId ??
+                                        (Get.isRegistered<SplashController>()
+                                            ? (Get.find<SplashController>()
+                                                    .module
+                                                    ?.id ??
+                                                1)
+                                            : 1),
+                                    name: item.name,
+                                    image:
+                                        item.imageFullUrl ?? item.displayImage,
+                                    price: item.price ?? 0,
+                                    alwaysShowSheet: true,
                                   );
                                 },
                               );

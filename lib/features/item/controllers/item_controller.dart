@@ -886,12 +886,17 @@ class ItemController extends GetxController implements GetxService {
     update();
   }
 
-  void setNewCartVariationIndex(int index, int i, Item item) {
+  void setNewCartVariationIndex(int index, int i, Item item) async {
     // ✅ Null-safe: Use empty list if foodVariations is null
     final foodVariations = item.foodVariations ?? [];
     _selectedVariations = itemServiceInterface.setNewCartVariationIndex(
         index, i, foodVariations, _selectedVariations);
-    setExistInCart(item, _selectedVariations);
+    // setExistInCart sets _quantity to the matched cart line's quantity. When the
+    // user SWITCHES size that must not stick (else picking a size already in the
+    // cart at qty 3 shows qty 3 for a fresh add). Reset the add-qty to 1 after,
+    // exactly like opening the sheet does — the add still increments the line.
+    await setExistInCart(item, _selectedVariations);
+    resetQuantityForIncrementalAdd(notify: false);
     _recalculateDetailsViewData();
     // if(!item.foodVariations![index].multiSelect!) {
     //   for(int j = 0; j < _selectedVariations[index].length; j++) {
@@ -1286,12 +1291,14 @@ class ItemController extends GetxController implements GetxService {
       debugPrint('   - Item variations count: ${item.variations?.length ?? 0}');
     }
 
-    // Check if it's food module
-    final isFoodModule = Get.find<SplashController>()
-            .configModel!
-            .moduleConfig!
-            .module!
-            .showRestaurantText! ||
+    // Check if it's food module. Null-safe: the old `configModel!.moduleConfig!
+    // .module!.showRestaurantText!` chain threw an NPE when any link was null
+    // (e.g. showRestaurantText unset for a store), which silently killed the
+    // card's onTap so the details/customization sheet never opened. Fall back
+    // to the item's own module type.
+    final module =
+        Get.find<SplashController>().configModel?.moduleConfig?.module;
+    final isFoodModule = (module?.showRestaurantText ?? false) ||
         (item.moduleType ?? AppConstants.food) == AppConstants.food;
 
     if (logEnabled) {

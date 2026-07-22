@@ -80,7 +80,10 @@ class AddressController extends GetxController implements GetxService {
     
     final ResponseModel responseModel = await addressServiceInterface.updateAddress(addressModel, addressId);
     if (responseModel.isSuccess) {
-      getAddressList();
+      // Refresh from the SAME source the list screen uses (V2). Refreshing via
+      // the legacy V1 list here replaced _addressList with V1 data and made the
+      // just-edited address vanish from the (V2) delivery-addresses list.
+      await getAddressListV2();
     }
     _isLoading = false;
     update();

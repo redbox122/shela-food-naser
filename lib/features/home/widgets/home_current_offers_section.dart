@@ -336,23 +336,47 @@ class _OfferCard extends StatelessWidget {
                         Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            // Store name — sits beside the logo on the right.
+                            // Item name (prominent) — disambiguates several
+                            // offers from the same store; falls back to the store
+                            // name when the backend omits the offer title.
                             Padding(
                               padding: const EdgeInsets.only(right: 50),
                               child: Text(
-                                offer.storeName ?? '',
+                                (offer.offerTitle?.trim().isNotEmpty ?? false)
+                                    ? offer.offerTitle!.trim()
+                                    : (offer.storeName ?? ''),
                                 textAlign: TextAlign.right,
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                                 style: const TextStyle(
                                   fontFamily: 'Tajawal',
                                   fontWeight: FontWeight.w700,
-                                  fontSize: 12,
+                                  fontSize: 12.5,
                                   height: 1.2,
                                   color: Color(0xFF121C19),
                                 ),
                               ),
                             ),
+                            // Store name — secondary line (grey), shown only when
+                            // it differs from the prominent title above.
+                            if ((offer.offerTitle?.trim().isNotEmpty ?? false) &&
+                                (offer.storeName?.trim().isNotEmpty ?? false))
+                              Padding(
+                                padding: const EdgeInsets.only(right: 50, top: 1),
+                                child: Text(
+                                  offer.storeName!.trim(),
+                                  textAlign: TextAlign.right,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    fontFamily: 'Tajawal',
+                                    fontWeight: FontWeight.w500,
+                                    fontSize: 10,
+                                    height: 1.2,
+                                    color: Color(0xFF8A8F98),
+                                  ),
+                                ),
+                              ),
                             const SizedBox(height: 6),
                             // Price: new (red, bold) + old (struck grey).
                             Directionality(

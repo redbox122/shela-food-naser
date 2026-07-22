@@ -1,13 +1,22 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:shimmer/shimmer.dart';
+import 'package:sixam_mart/common/utils/product_side_images.dart';
 import 'package:sixam_mart/api/api_client.dart';
 import 'package:sixam_mart/common/widgets/custom_image.dart';
+import 'package:sixam_mart/common/widgets/custom_snackbar.dart';
 import 'package:sixam_mart/features/cart/controllers/cart_controller.dart';
 import 'package:sixam_mart/features/checkout/domain/models/place_order_body_model.dart';
+import 'package:sixam_mart/features/favourite/controllers/favourite_controller.dart';
+import 'package:sixam_mart/features/item/domain/models/item_model.dart';
+import 'package:sixam_mart/helper/auth_helper.dart';
 import 'package:sixam_mart/features/home/screens/home_search_screen.dart';
+import 'package:sixam_mart/features/home/screens/market_store_screen.dart'
+    show showProductOptions;
 import 'package:sixam_mart/features/splash/controllers/splash_controller.dart';
 import 'package:sixam_mart/helper/route_helper.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:sixam_mart/util/app_constants.dart';
 import 'package:sixam_mart/util/dimensions.dart';
 import 'package:sixam_mart/util/images.dart';
@@ -180,6 +189,11 @@ class _MarketProductScreenState extends State<MarketProductScreen> {
   bool _loading = true;
   int _gallery = 0;
 
+  /// Extra product photos recovered from the CDN (side1.jpg, …) — the sync only
+  /// stores one image, so we fetch the rest client-side and append them to the
+  /// gallery. See [ProductSideImages].
+  List<String> _sideImages = const [];
+
   /// The item currently shown — changes in place when a related item is tapped
   /// (so the sheet updates instead of stacking a new one).
   late int _currentItemId;
@@ -224,32 +238,64 @@ class _MarketProductScreenState extends State<MarketProductScreen> {
       if (mounted) setState(() => _loading = false);
       return;
     }
-    // v2 item details is MODULE-SCOPED when a module-id header is sent: the
-    // backend only finds the item within that module and 404s otherwise. A
-    // market store can list products that belong to other modules, so scoping
-    // to the store's module fails for them. Omitting the module-id lets the
-    // backend resolve the item by id across modules (verified against the API).
-    Map<String, dynamic>? data;
-    try {
-      final response = await api.getData(
-        '/api/v2/items/details/$_currentItemId',
-        headers: {AppConstants.localizationKey: 'ar'},
-        useEtag: false,
-        omitModuleId: true,
-      );
-      final dynamic body = response.body;
-      if (response.statusCode == 200 && body is Map && body['id'] != null) {
-        data = Map<String, dynamic>.from(body);
+    // v2 item details is MODULE-SCOPED: different items resolve under different
+    // modules — some ONLY without a module id, others ONLY under a specific one
+    // (omitting the module doesn't always reach the backend, so a bare omit can
+    // still 404). Try WITHOUT a module first, then every candidate module, and
+    // take the first that returns the item — otherwise a valid product shows an
+    // empty "no data" sheet.
+    final List<int?> moduleAttempts = <int?>[null, widget.moduleId];
+    if (Get.isRegistered<SplashController>()) {
+      for (final m in Get.find<SplashController>().moduleList ?? const []) {
+        if (m.id != null && !moduleAttempts.contains(m.id)) {
+          moduleAttempts.add(m.id);
+        }
       }
-    } catch (_) {
-      // Item couldn't be resolved; the sheet shows its empty state.
+    }
+    Map<String, dynamic>? data;
+    for (final int? mod in moduleAttempts) {
+      try {
+        final response = await api.getData(
+          '/api/v2/items/details/$_currentItemId',
+          headers: {
+            AppConstants.localizationKey: AppConstants.currentLanguageCode,
+            if (mod != null) AppConstants.moduleId: mod.toString(),
+          },
+          useEtag: false,
+          omitModuleId: mod == null,
+        );
+        final dynamic body = response.body;
+        if (response.statusCode == 200 && body is Map && body['id'] != null) {
+          data = Map<String, dynamic>.from(body);
+          break;
+        }
+      } catch (_) {
+        // Try the next module candidate.
+      }
     }
     if (!mounted) return;
     setState(() {
       _item = data != null ? _Item.fromJson(data) : null;
       _loading = false;
+      _sideImages = const []; // reset for the (possibly new) item
     });
-    if (data != null) _fetchRelated();
+    if (data != null) {
+      _fetchRelated();
+      _loadSideImages();
+    }
+  }
+
+  /// Recover the product's extra photos from the CDN and append them to the
+  /// gallery (the main image is already shown; sides appear as they resolve).
+  Future<void> _loadSideImages() async {
+    final String? main =
+        (_item?.images.isNotEmpty ?? false) ? _item!.images.first : null;
+    if (main == null) return;
+    final int forId = _currentItemId;
+    final sides = await ProductSideImages.fetch(_hiResImage(main));
+    // Ignore if the user navigated to another item meanwhile.
+    if (!mounted || forId != _currentItemId || sides.isEmpty) return;
+    setState(() => _sideImages = sides);
   }
 
   /// "يُباع معها أيضاً" — fetched from the dedicated related-items endpoint.
@@ -261,7 +307,7 @@ class _MarketProductScreenState extends State<MarketProductScreen> {
     try {
       final response = await api.getData(
         '/api/v2/items/related-items/$_currentItemId',
-        headers: {AppConstants.localizationKey: 'ar'},
+        headers: {AppConstants.localizationKey: AppConstants.currentLanguageCode},
         useEtag: false,
         omitModuleId: true,
       );
@@ -318,6 +364,22 @@ class _MarketProductScreenState extends State<MarketProductScreen> {
         break;
       }
     }
+  }
+
+  /// The FIRST add goes through the unified options flow (same as the product
+  /// card's "+"): opens the options sheet when the item has REQUIRED choices,
+  /// or quick-adds when it has none. The +/- stepper below (for an item already
+  /// in the cart) keeps using [_add]/[_decrement] to change quantity.
+  void _openOptions(_Item item) {
+    if (item.id == null) return;
+    showProductOptions(
+      itemId: item.id!,
+      storeId: widget.storeId,
+      moduleId: widget.moduleId,
+      name: item.name,
+      image: item.images.isNotEmpty ? item.images.first : item.image,
+      price: item.price,
+    );
   }
 
   Future<void> _add(_Item item) async {
@@ -528,6 +590,11 @@ class _MarketProductScreenState extends State<MarketProductScreen> {
           // In RTL, `leading` sits on the RIGHT; the design wants the close on
           // the LEFT, so use `actions` (the end edge → left in RTL).
           actions: [
+            // Share the product (WhatsApp/etc.) with a promo message + web link.
+            IconButton(
+              onPressed: _item != null ? () => _shareProduct(_item!) : null,
+              icon: const Icon(Icons.ios_share, color: Color(0xFF121C19)),
+            ),
             IconButton(
               onPressed: () => Get.back<void>(),
               icon: const Icon(Icons.close, color: Color(0xFF121C19)),
@@ -609,21 +676,114 @@ class _MarketProductScreenState extends State<MarketProductScreen> {
     );
   }
 
+  /// Upgrade a todoorstep thumbnail to full resolution: the sync stores
+  /// "..._small.jpg" (150×150); dropping "_small" fetches the original
+  /// (750–1000px). Client-side, sync-proof; non-matching URLs pass through.
+  static String _hiResImage(String url) =>
+      url.contains('_small.jpg') ? url.replaceFirst('_small.jpg', '.jpg') : url;
+
+  /// Public brand domain for shareable links (not the current-env base, which
+  /// may be an internal Azure host).
+  static const String _shareBase = 'https://shellafood.com';
+
+  /// Share the product with a promo message + web link (WhatsApp, etc.).
+  void _shareProduct(_Item item) {
+    final String link = '$_shareBase/item-details?id=${item.id}&page=item';
+    final String price = item.hasDiscount
+        ? '🔥 خصم ${item.discountPercent}%! '
+            '${item.shownPrice.toStringAsFixed(2)} ر.س '
+            'بدل ${item.price.toStringAsFixed(2)} ر.س'
+        : '💰 ${item.price.toStringAsFixed(2)} ر.س';
+    final String text = '🛒 ${item.name}\n\n$price\n'
+        'سعر رائع في شلة فود!\n\n'
+        'اطلبه الآن عبر تطبيق شلة:\n$link';
+    Share.share(text);
+  }
+
+  /// Minimal [Item] built from the lean [_Item] so it can be handed to the
+  /// existing [FavouriteController] (the backend only needs the id; the rest is
+  /// for the favourites screen's immediate display before it re-fetches).
+  Item _toFavItem(_Item it) => Item(
+        id: it.id,
+        name: it.name,
+        price: it.price,
+        imageFullUrl: it.images.isNotEmpty ? it.images.first : null,
+        storeId: widget.storeId,
+        moduleId: widget.moduleId,
+      );
+
+  /// The favourite (♡) button wired to the existing [FavouriteController]:
+  /// toggles wishlist membership, reflects the saved state, and prompts login
+  /// when signed out. Reuses the current circular design.
+  Widget _favouriteButton(_Item item) {
+    return GetBuilder<FavouriteController>(builder: (fav) {
+      final bool isWished =
+          item.id != null && fav.wishItemIdList.contains(item.id);
+      return InkWell(
+        customBorder: const CircleBorder(),
+        onTap: () {
+          if (!AuthHelper.isLoggedIn()) {
+            showCustomSnackBar('you_are_not_logged_in'.tr);
+            return;
+          }
+          isWished
+              ? fav.removeFromFavouriteList(item.id, false)
+              : fav.addToFavouriteList(_toFavItem(item), null, false);
+        },
+        child: Container(
+          width: 38,
+          height: 38,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: const Color(0xffFAFAFB),
+            shape: BoxShape.circle,
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.10),
+                blurRadius: 6,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: isWished
+              ? const Icon(Icons.favorite, color: Color(0xFFE53935), size: 20)
+              : Image.asset(Images.heart_v2),
+        ),
+      );
+    });
+  }
+
   Widget _gallerySlider(_Item item) {
-    final imgs = item.images.isNotEmpty ? item.images : [''];
+    // Main image(s) upgraded to full-res, then the CDN side photos appended.
+    final List<String> imgs = <String>[
+      ...(item.images.isNotEmpty ? item.images : ['']).map(_hiResImage),
+      ..._sideImages,
+    ];
     return Stack(
       alignment: Alignment.bottomCenter,
       children: [
         PageView.builder(
           itemCount: imgs.length,
           onPageChanged: (i) => setState(() => _gallery = i),
-          itemBuilder: (_, i) => CustomImage(
-            image: imgs[i],
-            width: double.infinity,
-            height: double.infinity,
-            fit: BoxFit.contain,
-            placeholder: Images.placeholder,
-          ),
+          // Use CachedNetworkImage with ONLY memCacheWidth (no height) so the
+          // decode preserves the image's real aspect ratio — CustomImage derives
+          // BOTH cache dimensions from the box and squashes the picture. contain
+          // keeps the whole product visible, letterboxed, never stretched.
+          itemBuilder: (_, i) {
+            final String url = imgs[i]; // already hi-res (main) or a side URL
+            if (url.isEmpty) {
+              return Image.asset(Images.placeholder, fit: BoxFit.contain);
+            }
+            return CachedNetworkImage(
+              imageUrl: url,
+              fit: BoxFit.contain,
+              memCacheWidth: 1000, // width only → real aspect ratio preserved
+              placeholder: (_, __) =>
+                  Image.asset(Images.placeholder, fit: BoxFit.contain),
+              errorWidget: (_, __, ___) =>
+                  Image.asset(Images.placeholder, fit: BoxFit.contain),
+            );
+          },
         ),
         // Discount badge pinned to the image's top-right corner.
         if (item.hasDiscount)
@@ -672,23 +832,7 @@ class _MarketProductScreenState extends State<MarketProductScreen> {
           Column(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
-              Container(
-                width: 38,
-                height: 38,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  color: Color(0xffFAFAFB),
-                  shape: BoxShape.circle,
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.10),
-                      blurRadius: 6,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
-                ),
-                child: Image.asset(Images.heart_v2),
-              ),
+              _favouriteButton(item),
               const SizedBox(height: 12),
               _addControl(item),
             ],
@@ -782,9 +926,27 @@ class _MarketProductScreenState extends State<MarketProductScreen> {
   }
 
   /// Floating green "+" that turns into a "- qty +" stepper when in the cart.
+  /// Module type (food / ecommerce / grocery / pharmacy) of a given module id,
+  /// resolved from the loaded module list. Null when unknown.
+  String? _moduleTypeFor(int moduleId) {
+    if (!Get.isRegistered<SplashController>()) return null;
+    for (final m in Get.find<SplashController>().moduleList ?? const []) {
+      if (m.id == moduleId) return m.moduleType;
+    }
+    return null;
+  }
+
   Widget _addControl(_Item item) {
-    // Out-of-stock / unavailable items can't be added — show a muted disc.
-    if (!item.available) {
+    // Restaurants (food module: المطاعم/المقاهي) prepare to order and don't
+    // track real stock, so a synced is_available=false / stock=0 is unreliable
+    // — show the "+" anyway. Grocery/hyper/pharmacy DO track stock, so keep the
+    // muted "unavailable" disc for genuinely out-of-stock items.
+    // Use the ITEM's module (passed when the sheet was opened) — NOT the global
+    // active module, which stays the hyper (ecommerce) module even while viewing
+    // a restaurant item, so it wrongly reported non-food and re-disabled the "+".
+    final bool isFoodModule =
+        _moduleTypeFor(widget.moduleId) == AppConstants.food;
+    if (!item.available && !isFoodModule) {
       return Container(
         width: 38,
         height: 38,
@@ -806,7 +968,7 @@ class _MarketProductScreenState extends State<MarketProductScreen> {
             shape: const CircleBorder(),
             child: InkWell(
               customBorder: const CircleBorder(),
-              onTap: () => _add(item),
+              onTap: () => _openOptions(item),
               child: const Padding(
                 padding: EdgeInsets.all(8),
                 child: Icon(Icons.add, size: 35, color: Color(0xFF1F7A35)),

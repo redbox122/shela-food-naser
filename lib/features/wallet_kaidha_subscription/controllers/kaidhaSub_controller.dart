@@ -1585,13 +1585,20 @@ class KaidhaSubscriptionController extends GetxController
         return true;
       }
 
-      // On iOS, hide Google Pay methods.
+      // On iOS, hide Google Pay AND Apple Pay (Apple Pay merchant not yet
+      // provisioned — see payment_method_bottom_sheet filter for details).
       if ((!kIsWeb && Platform.isIOS)) {
         final isGooglePay = methodCode.contains('gp') ||
             methodEn.contains('google') ||
             methodAr.contains('google');
-        if (isGooglePay) {
-          debugPrint('iOS: Hiding Google Pay - ${method.paymentMethodAr}');
+        final isApplePay = methodCode == 'ap' ||
+            methodCode.contains('apple') ||
+            methodEn.contains('apple') ||
+            methodAr.contains('ابل') ||
+            methodAr.contains('آبل') ||
+            methodAr.contains('أبل');
+        if (isGooglePay || isApplePay) {
+          debugPrint('iOS: Hiding ${method.paymentMethodAr}');
           return false;
         }
         return true;

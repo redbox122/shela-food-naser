@@ -651,18 +651,9 @@ class _CartScreenState extends State<CartScreen> with RouteAware {
                           GetBuilder<CartController>(
                             id: 'cart_summary',
                             builder: (cartController) {
-                              final double effectiveTaxPercent =
-                                  _resolveCartTaxPercent(
-                                      storeController.store?.tax ??
-                                          (cartController.cartList.isNotEmpty
-                                              ? cartController
-                                                  .cartList.first.item?.tax
-                                              : null));
-                              final bool taxIncluded =
-                                  Get.find<SplashController>()
-                                          .configModel!
-                                          .taxIncluded ==
-                                      1;
+                              // Cart summary shows the PRODUCTS subtotal only;
+                              // tax/fees are computed at checkout, so no tax vars
+                              // are needed here.
                               final double minimumOrder =
                                   storeController.store?.minimumOrder ?? 0;
                               final bool belowMinimum = minimumOrder > 0 &&
@@ -702,29 +693,43 @@ class _CartScreenState extends State<CartScreen> with RouteAware {
                                       mainAxisAlignment:
                                           MainAxisAlignment.spaceBetween,
                                       children: [
-                                        Text(
-                                          '${'cart_grand_total'.tr} ($itemCount)',
-                                          style: const TextStyle(
-                                            fontFamily: 'Tajawal',
-                                            color: CartColors.dark,
-                                            fontSize: 16,
-                                            fontWeight: FontWeight.w600,
-                                            height: 1.6,
-                                          ),
+                                        // Cart shows the PRODUCTS subtotal only;
+                                        // taxes/fees are calculated at checkout.
+                                        Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Text(
+                                              'إجمالي المنتجات ($itemCount)',
+                                              style: const TextStyle(
+                                                fontFamily: 'Tajawal',
+                                                color: CartColors.dark,
+                                                fontSize: 16,
+                                                fontWeight: FontWeight.w600,
+                                                height: 1.4,
+                                              ),
+                                            ),
+                                            const Text(
+                                              'غير شامل الضريبة والرسوم',
+                                              style: TextStyle(
+                                                fontFamily: 'Tajawal',
+                                                color: Color(0xFF9AA0A6),
+                                                fontSize: 11,
+                                                fontWeight: FontWeight.w500,
+                                              ),
+                                            ),
+                                          ],
                                         ),
-                                        DefaultTextStyle(
+                                        Text(
+                                          PriceConverter.convertPrice(
+                                              cartController.subTotal),
+                                          textDirection: TextDirection.ltr,
                                           style: const TextStyle(
                                             fontFamily: 'Tajawal',
                                             color: CartColors.dark,
                                             fontSize: 17,
                                             fontWeight: FontWeight.w700,
-                                          ),
-                                          child: _calculateCartTotal(
-                                            context,
-                                            subTotal: cartController.subTotal,
-                                            taxPercent: effectiveTaxPercent,
-                                            taxIncluded: taxIncluded,
-                                            cartList: cartController.cartList,
                                           ),
                                         ),
                                       ],
@@ -1323,7 +1328,9 @@ class _CartScreenState extends State<CartScreen> with RouteAware {
     return storeTaxPercent;
   }
 
-  /// Calculate total for cart display using same logic as checkout
+  /// Calculate total for cart display using same logic as checkout.
+  /// Kept for reference/checkout parity; the cart bar now shows subtotal only.
+  // ignore: unused_element
   Widget _calculateCartTotal(
     BuildContext context, {
     required double subTotal,

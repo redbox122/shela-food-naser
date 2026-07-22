@@ -1,6 +1,8 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
-import 'package:sixam_mart/common/widgets/custom_image.dart';
+import 'package:sixam_mart/common/utils/product_side_images.dart';
 import 'package:sixam_mart/features/item/domain/models/item_model.dart';
+import 'package:sixam_mart/util/images.dart';
 import 'package:sixam_mart/util/styles.dart';
 
 /// 🎨 NEW DESIGN: centered 194×194 product image.
@@ -20,6 +22,10 @@ class _ItemImageCarouselState extends State<ItemImageCarousel> {
   final PageController _controller = PageController();
   int _index = 0;
 
+  /// Extra CDN photos (side1.jpg, …) recovered client-side — the sync stores
+  /// only one image. Appended after the API image(s). See [ProductSideImages].
+  List<String> _sideImages = const [];
+
   List<String> get _images {
     final List<String> list = [];
     final raw = widget.item.imagesFullUrl;
@@ -33,7 +39,20 @@ class _ItemImageCarouselState extends State<ItemImageCarousel> {
         list.add(single);
       }
     }
-    return list;
+    return [...list.map(_hiResImage), ..._sideImages];
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSideImages();
+  }
+
+  Future<void> _loadSideImages() async {
+    final String? main = widget.item.imageFullUrl ?? widget.item.displayImage;
+    if (main == null || main.isEmpty) return;
+    final sides = await ProductSideImages.fetch(_hiResImage(main));
+    if (mounted && sides.isNotEmpty) setState(() => _sideImages = sides);
   }
 
   @override
@@ -42,11 +61,32 @@ class _ItemImageCarouselState extends State<ItemImageCarousel> {
     super.dispose();
   }
 
+  /// Upgrade a todoorstep thumbnail to full resolution: the sync stores
+  /// "..._small.jpg" (150×150); dropping "_small" fetches the original
+  /// (750–1000px). Client-side, sync-proof; non-matching URLs pass through.
+  static String _hiResImage(String url) =>
+      url.contains('_small.jpg') ? url.replaceFirst('_small.jpg', '.jpg') : url;
+
   Widget _image(String url) {
+    final String hi = _hiResImage(url);
     return SizedBox(
       width: _size,
       height: _size,
-      child: CustomImage(image: url, fit: BoxFit.contain),
+      // CachedNetworkImage with ONLY memCacheWidth (no height) so the decode
+      // preserves the real aspect ratio — CustomImage derives BOTH cache
+      // dimensions from the square box and squashes the picture. contain keeps
+      // the whole product visible, letterboxed, never stretched.
+      child: hi.isEmpty
+          ? Image.asset(Images.placeholder, fit: BoxFit.contain)
+          : CachedNetworkImage(
+              imageUrl: hi,
+              fit: BoxFit.contain,
+              memCacheWidth: 600, // width only → real aspect ratio preserved
+              placeholder: (_, __) =>
+                  Image.asset(Images.placeholder, fit: BoxFit.contain),
+              errorWidget: (_, __, ___) =>
+                  Image.asset(Images.placeholder, fit: BoxFit.contain),
+            ),
     );
   }
 
