@@ -36,6 +36,10 @@ class OffersView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // 🚫 "عروض وخصومات" section removed per request. Kept the implementation
+    // below so it can be re-enabled by deleting this early return.
+    return const SizedBox.shrink();
+    // ignore: dead_code
     return GetBuilder<OffersController>(
       builder: (OffersController controller) {
         final List<Datum> rawOffers = controller.offersMode?.data ?? <Datum>[];

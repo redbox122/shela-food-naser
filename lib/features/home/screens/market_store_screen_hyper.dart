@@ -252,7 +252,26 @@ class _HyperCardCarouselState extends State<_HyperCardCarousel> {
 /// "اخترناها لك" — the store's pre-designed curated-pick cards (green cards with
 /// a name + product photos baked in), shown as a horizontal rail. Tap targets
 /// get wired to the real collections once the storefront data is in place.
-class _HyperPicksRail extends StatelessWidget {
+/// Circular white arrow button (green chevron) used to scroll the hyper
+/// horizontal rails on tap. Mirrors the arrows already used by
+/// [_HyperCardCarousel] so all rails share one look.
+Widget _hyperScrollArrow(IconData icon, VoidCallback onTap) {
+  return Material(
+    color: Colors.white,
+    shape: const CircleBorder(),
+    elevation: 3,
+    child: InkWell(
+      customBorder: const CircleBorder(),
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.all(7),
+        child: Icon(icon, size: 22, color: const Color(0xFF2E9E4F)),
+      ),
+    ),
+  );
+}
+
+class _HyperPicksRail extends StatefulWidget {
   final int? storeId;
   final int moduleId;
   final String? storeCover;
@@ -261,6 +280,13 @@ class _HyperPicksRail extends StatelessWidget {
     this.moduleId = _marketModuleId,
     this.storeCover,
   });
+
+  @override
+  State<_HyperPicksRail> createState() => _HyperPicksRailState();
+}
+
+class _HyperPicksRailState extends State<_HyperPicksRail> {
+  final ScrollController _sc = ScrollController();
 
   // 5 designed cards. catId set = tap opens that (sub)category; null = the
   // curated filters (الأعلى مبيعاً / وصل حديثاً / الجمعات) are wired later.
@@ -273,6 +299,20 @@ class _HyperPicksRail extends StatelessWidget {
   ];
 
   @override
+  void dispose() {
+    _sc.dispose();
+    super.dispose();
+  }
+
+  void _scrollBy(double delta) {
+    if (!_sc.hasClients) return;
+    final double target = (_sc.offset + delta)
+        .clamp(_sc.position.minScrollExtent, _sc.position.maxScrollExtent);
+    _sc.animateTo(target,
+        duration: const Duration(milliseconds: 300), curve: Curves.easeOut);
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -280,41 +320,55 @@ class _HyperPicksRail extends StatelessWidget {
         _HyperSectionHeader(title: 'picked_for_you'.tr),
         SizedBox(
           height: 132,
-          child: ListView.separated(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(
-                horizontal: Dimensions.paddingSizeDefault),
-            itemCount: _cards.length,
-            separatorBuilder: (_, __) =>
-                const SizedBox(width: Dimensions.paddingSizeSmall),
-            itemBuilder: (_, index) {
-              final card = _cards[index];
-              final Widget tile = ClipRRect(
-                borderRadius: BorderRadius.circular(14),
-                child: AspectRatio(
-                  aspectRatio: 297 / 267,
-                  child: Image.asset(
-                    'assets/image/hyper_picks/${card.asset}.png',
-                    fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => const SizedBox.shrink(),
-                  ),
-                ),
-              );
-              if (card.catId == null) return tile;
-              return GestureDetector(
-                onTap: () => Get.to<void>(
-                  () => MarketOffersScreen(
-                    title: card.title,
-                    storeId: storeId,
-                    moduleId: moduleId,
-                    categoryId: card.catId,
-                    storeCover: storeCover,
-                    minimalHeader: true,
-                  ),
-                ),
-                child: tile,
-              );
-            },
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              ListView.separated(
+                controller: _sc,
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(
+                    horizontal: Dimensions.paddingSizeDefault),
+                itemCount: _cards.length,
+                separatorBuilder: (_, __) =>
+                    const SizedBox(width: Dimensions.paddingSizeSmall),
+                itemBuilder: (_, index) {
+                  final card = _cards[index];
+                  final Widget tile = ClipRRect(
+                    borderRadius: BorderRadius.circular(14),
+                    child: AspectRatio(
+                      aspectRatio: 297 / 267,
+                      child: Image.asset(
+                        'assets/image/hyper_picks/${card.asset}.png',
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                      ),
+                    ),
+                  );
+                  if (card.catId == null) return tile;
+                  return GestureDetector(
+                    onTap: () => Get.to<void>(
+                      () => MarketOffersScreen(
+                        title: card.title,
+                        storeId: widget.storeId,
+                        moduleId: widget.moduleId,
+                        categoryId: card.catId,
+                        storeCover: widget.storeCover,
+                        minimalHeader: true,
+                      ),
+                    ),
+                    child: tile,
+                  );
+                },
+              ),
+              Positioned(
+                  left: 2,
+                  child: _hyperScrollArrow(
+                      Icons.chevron_left, () => _scrollBy(-300))),
+              Positioned(
+                  right: 2,
+                  child: _hyperScrollArrow(
+                      Icons.chevron_right, () => _scrollBy(300))),
+            ],
           ),
         ),
       ],
@@ -326,7 +380,7 @@ class _HyperPicksRail extends StatelessWidget {
 /// category, with the name + product photos baked in), shown as two rows that
 /// scroll horizontally (panda.sa layout). Tap targets get wired to the real
 /// categories once the storefront data is in place.
-class _HyperDesignedCategoriesGrid extends StatelessWidget {
+class _HyperDesignedCategoriesGrid extends StatefulWidget {
   final int? storeId;
   final int moduleId;
   final String? storeCover;
@@ -335,6 +389,15 @@ class _HyperDesignedCategoriesGrid extends StatelessWidget {
     this.moduleId = _marketModuleId,
     this.storeCover,
   });
+
+  @override
+  State<_HyperDesignedCategoriesGrid> createState() =>
+      _HyperDesignedCategoriesGridState();
+}
+
+class _HyperDesignedCategoriesGridState
+    extends State<_HyperDesignedCategoriesGrid> {
+  final ScrollController _sc = ScrollController();
 
   static const double _cardW = 118;
   static const double _cardH = 118;
@@ -363,43 +426,71 @@ class _HyperDesignedCategoriesGrid extends StatelessWidget {
   ];
 
   @override
+  void dispose() {
+    _sc.dispose();
+    super.dispose();
+  }
+
+  void _scrollBy(double delta) {
+    if (!_sc.hasClients) return;
+    final double target = (_sc.offset + delta)
+        .clamp(_sc.position.minScrollExtent, _sc.position.maxScrollExtent);
+    _sc.animateTo(target,
+        duration: const Duration(milliseconds: 300), curve: Curves.easeOut);
+  }
+
+  @override
   Widget build(BuildContext context) {
     return SizedBox(
       height: _cardH * 2 + 10,
-      child: GridView.builder(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(
-            horizontal: Dimensions.paddingSizeDefault),
-        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 2, // two rows (cross axis is vertical when scrolling →)
-          mainAxisExtent: _cardW,
-          mainAxisSpacing: 10,
-          crossAxisSpacing: 10,
-        ),
-        itemCount: _cards.length,
-        itemBuilder: (context, index) {
-          final card = _cards[index];
-          return GestureDetector(
-            onTap: () => Get.to<void>(
-              () => MarketOffersScreen(
-                title: card.title,
-                storeId: storeId,
-                moduleId: moduleId,
-                categoryId: card.catId,
-                storeCover: storeCover,
-                minimalHeader: true,
-              ),
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          GridView.builder(
+            controller: _sc,
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(
+                horizontal: Dimensions.paddingSizeDefault),
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 2, // two rows (cross axis is vertical when scrolling →)
+              mainAxisExtent: _cardW,
+              mainAxisSpacing: 10,
+              crossAxisSpacing: 10,
             ),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(12),
-              child: Image.asset(
-                'assets/image/hyper_categories/${card.asset}.png',
-                fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) => const SizedBox.shrink(),
-              ),
-            ),
-          );
-        },
+            itemCount: _cards.length,
+            itemBuilder: (context, index) {
+              final card = _cards[index];
+              return GestureDetector(
+                onTap: () => Get.to<void>(
+                  () => MarketOffersScreen(
+                    title: card.title,
+                    storeId: widget.storeId,
+                    moduleId: widget.moduleId,
+                    categoryId: card.catId,
+                    storeCover: widget.storeCover,
+                    minimalHeader: true,
+                  ),
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: Image.asset(
+                    'assets/image/hyper_categories/${card.asset}.png',
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                  ),
+                ),
+              );
+            },
+          ),
+          Positioned(
+              left: 2,
+              child: _hyperScrollArrow(
+                  Icons.chevron_left, () => _scrollBy(-(_cardW + 10) * 2))),
+          Positioned(
+              right: 2,
+              child: _hyperScrollArrow(
+                  Icons.chevron_right, () => _scrollBy((_cardW + 10) * 2))),
+        ],
       ),
     );
   }

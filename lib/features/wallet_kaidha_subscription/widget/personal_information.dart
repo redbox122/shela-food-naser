@@ -507,7 +507,8 @@ class _PersonalInformationState extends State<PersonalInformation> {
           text: 'marital_status'.tr,
           style: font11Black600W(context, size: size_14(context)),
         ),
-        Row(
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _buildRadioOption(
               context: context,
@@ -524,6 +525,17 @@ class _PersonalInformationState extends State<PersonalInformation> {
               context: context,
               label: 'married'.tr,
               value: 'married',
+              groupValue: KaidhaSub_Controller.marital_status,
+              onChanged: (value) {
+                KaidhaSub_Controller.updateMaritalStatus(value!);
+              },
+            ),
+            // مطلق — the backend validates marital_status as
+            // in:single,married,absolute, so the stored value is 'absolute'.
+            _buildRadioOption(
+              context: context,
+              label: 'divorced'.tr,
+              value: 'absolute',
               groupValue: KaidhaSub_Controller.marital_status,
               onChanged: (value) {
                 KaidhaSub_Controller.updateMaritalStatus(value!);

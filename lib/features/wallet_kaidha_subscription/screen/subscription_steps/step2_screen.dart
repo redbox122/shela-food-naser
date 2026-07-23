@@ -85,6 +85,37 @@ class _Step2ScreenState extends State<Step2Screen> {
     );
   }
 
+  // شارة حالة الدخل بجانب "الدخل الشهري": "غير موثق" قبل الإدخال، وتتحوّل إلى
+  // "تحت مراجعة الإدارة" بمجرد إدخال قيمة (مطابقة للتصميم).
+  Widget _incomeStatusBadge(KaidhaSubscriptionController ctrl) {
+    final bool filled = ctrl.monthlyIncome.text.trim().isNotEmpty;
+    final bool ar = Get.locale?.languageCode == 'ar';
+    final String label = filled
+        ? (ar ? 'تحت مراجعة الإدارة' : 'Under review')
+        : (ar ? 'غير موثق' : 'Unverified');
+    final Color fg =
+        filled ? AppColors.greenColor : const Color(0xFF9AA0A6);
+    final Color bg = filled
+        ? AppColors.greenColor.withValues(alpha: 0.10)
+        : const Color(0xFFEDEDF0);
+    final IconData icon =
+        filled ? Icons.verified_outlined : Icons.schedule;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration:
+          BoxDecoration(color: bg, borderRadius: BorderRadius.circular(20)),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 13, color: fg),
+          const SizedBox(width: 4),
+          Text(label,
+              style: tajawalMedium.copyWith(fontSize: 11, color: fg)),
+        ],
+      ),
+    );
+  }
+
   Widget _installmentOption(
       KaidhaSubscriptionController ctrl, String label, String value) {
     return Row(
@@ -244,8 +275,15 @@ class _Step2ScreenState extends State<Step2Screen> {
 
                   const SizedBox(height: 16),
 
-                  // الدخل الشهري
-                  _label('monthly_income'.tr),
+                  // الدخل الشهري — العنوان + شارة الحالة (غير موثق / تحت المراجعة)
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      _label('monthly_income'.tr),
+                      _incomeStatusBadge(KaidhaSubController),
+                    ],
+                  ),
                   Focus(
                     focusNode: KaidhaSubController.monthlyIncomeFocus,
                     child: TextFormField(
@@ -260,6 +298,7 @@ class _Step2ScreenState extends State<Step2Screen> {
                           _fieldDecoration('enter_approximate_monthly_income'.tr),
                       onChanged: (value) {
                         KaidhaSubController.debouncedSaveState();
+                        _safeSetState(() {}); // refresh the status badge
                       },
                     ),
                   ),

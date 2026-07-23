@@ -96,10 +96,17 @@ class KaidhaSubscriptionController extends GetxController
   String house_type = '';
   String city = '';
   TextEditingController neighborhood = TextEditingController();
+  // Design-added housing fields.
+  TextEditingController building_number = TextEditingController();
+  TextEditingController street_name = TextEditingController();
+  TextEditingController postal_code = TextEditingController();
+  String home_ownership = ''; // 'owned' (ملك) | 'rent' (إيجار)
 
   TextEditingController name_of_employer = TextEditingController();
   TextEditingController total_salary = TextEditingController();
   String Installments = '';
+  // Design-added: installment amount (used when Installments == 'yes').
+  TextEditingController installment_amount = TextEditingController();
 
   TextEditingController monthlyIncome = TextEditingController();
   TextEditingController salary_day = TextEditingController();
@@ -286,6 +293,11 @@ class KaidhaSubscriptionController extends GetxController
 
   void updateInstallments(String newinstallments) {
     Installments = newinstallments;
+    _scheduleUpdate();
+  }
+
+  void updateHomeOwnership(String newOwnership) {
+    home_ownership = newOwnership;
     _scheduleUpdate();
   }
 
@@ -744,6 +756,12 @@ class KaidhaSubscriptionController extends GetxController
         source_of_income: _mapJobSpecificationToServerValue(jobSpecification),
         monthly_amount: monthlyIncome.text,
         salary_day: salary_day.text.isNotEmpty ? salary_day.text : '2',
+        installment_amount:
+            Installments == 'yes' ? installment_amount.text : null,
+        building_number: building_number.text,
+        street_name: street_name.text,
+        postal_code: postal_code.text,
+        home_ownership: home_ownership.isNotEmpty ? home_ownership : null,
       );
 
       // STEP 1: Final Nafath Verification
@@ -2562,6 +2580,12 @@ class KaidhaSubscriptionController extends GetxController
         source_of_income: _mapJobSpecificationToServerValue(jobSpecification),
         monthly_amount: monthlyIncome.text,
         salary_day: salary_day.text.isNotEmpty ? salary_day.text : '2',
+        installment_amount:
+            Installments == 'yes' ? installment_amount.text : null,
+        building_number: building_number.text,
+        street_name: street_name.text,
+        postal_code: postal_code.text,
+        home_ownership: home_ownership.isNotEmpty ? home_ownership : null,
       );
 
       debugPrint('🚀 Calling API: POST /api/qidha-wallet/store');
@@ -2632,6 +2656,12 @@ class KaidhaSubscriptionController extends GetxController
         source_of_income: _mapJobSpecificationToServerValue(jobSpecification),
         monthly_amount: monthlyIncome.text,
         salary_day: salary_day.text.isNotEmpty ? salary_day.text : "2",
+        installment_amount:
+            Installments == 'yes' ? installment_amount.text : null,
+        building_number: building_number.text,
+        street_name: street_name.text,
+        postal_code: postal_code.text,
+        home_ownership: home_ownership.isNotEmpty ? home_ownership : null,
       );
 
       debugPrint("🚀 Calling API: POST /api/qidha-wallet/store");

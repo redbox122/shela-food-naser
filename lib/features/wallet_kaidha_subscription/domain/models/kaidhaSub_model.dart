@@ -22,6 +22,12 @@ class KaidhaSubModel {
   final String? source_of_income;
   final String? monthly_amount;
   final String? salary_day;
+  // Design-added fields (optional; only sent when non-empty).
+  final String? installment_amount;
+  final String? building_number;
+  final String? street_name;
+  final String? postal_code;
+  final String? home_ownership;
 
   KaidhaSubModel({
     required this.first_name,
@@ -45,6 +51,11 @@ class KaidhaSubModel {
     required this.source_of_income,
     required this.monthly_amount,
     required this.salary_day,
+    this.installment_amount,
+    this.building_number,
+    this.street_name,
+    this.postal_code,
+    this.home_ownership,
   });
 
   factory KaidhaSubModel.fromJson(Map<String, dynamic> json) {
@@ -72,11 +83,16 @@ class KaidhaSubModel {
       source_of_income: json['source_of_income']?.toString(),
       monthly_amount: json['monthly_amount']?.toString(),
       salary_day: json['salary_day']?.toString(),
+      installment_amount: json['installment_amount']?.toString(),
+      building_number: json['building_number']?.toString(),
+      street_name: json['street_name']?.toString(),
+      postal_code: json['postal_code']?.toString(),
+      home_ownership: json['home_ownership']?.toString(),
     );
   }
 
   Map<String, dynamic> toJson() {
-    return {
+    final map = <String, dynamic>{
       'first_name': first_name,
       'grandfather_name': grandfather_name,
       'father_name': father_name,
@@ -99,5 +115,17 @@ class KaidhaSubModel {
       'monthly_amount': monthly_amount,
       'salary_day': salary_day,
     };
+    // Only include the optional design-added fields when they carry a value, so
+    // the backend's `nullable` rules don't receive the literal string "null".
+    void putIf(String key, String? value) {
+      if (value != null && value.trim().isNotEmpty) map[key] = value;
+    }
+
+    putIf('installment_amount', installment_amount);
+    putIf('building_number', building_number);
+    putIf('street_name', street_name);
+    putIf('postal_code', postal_code);
+    putIf('home_ownership', home_ownership);
+    return map;
   }
 }
