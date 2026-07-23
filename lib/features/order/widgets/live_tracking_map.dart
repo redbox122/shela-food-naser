@@ -11,10 +11,12 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:flutter_polyline_points/flutter_polyline_points.dart';
 import 'package:http/http.dart' as http;
 import 'package:sixam_mart/common/controllers/theme_controller.dart';
 import 'package:sixam_mart/features/order/domain/models/order_model.dart';
 import 'package:sixam_mart/helper/marker_helper.dart';
+import 'package:sixam_mart/util/app_constants.dart';
 import 'package:sixam_mart/util/images.dart';
 
 /// 🗺️ Live order-tracking map. Shows the store, the customer and (once the order
@@ -242,7 +244,34 @@ class _LiveTrackingMapState extends State<LiveTrackingMap>
     if (mounted) setState(() {});
   }
 
+  // Google Maps key: prefer the dart-define (AppConstants.googleMapsApiKey),
+  // else fall back to the key already shipped in AndroidManifest / AppDelegate
+  // (it's public in the binary anyway). The direct Directions call needs this
+  // key to have the Directions API + Billing enabled — see the map checklist.
+  static const String _manifestMapsKey =
+      'AIzaSyDnHKMq_CX3PGtjGbsixvmi-42xeBBr-Ug';
+  String get _directionsApiKey => AppConstants.googleMapsApiKey.isNotEmpty
+      ? AppConstants.googleMapsApiKey
+      : _manifestMapsKey;
+
+  /// Resolve a real road route. Tries the backend Maps proxy first (keeps the
+  /// key server-side); if that is unavailable, calls the Google Directions API
+  /// directly so the polyline still follows the roads instead of a straight
+  /// line. Returns [] to let the caller keep its straight-line fallback.
   Future<List<LatLng>> _fetchDirections(LatLng origin, LatLng dest) async {
+    try {
+      final viaProxy = await _fetchDirectionsViaProxy(origin, dest);
+      if (viaProxy.length >= 2) return viaProxy;
+    } catch (_) {/* fall through to a direct Directions call */}
+    try {
+      final direct = await _fetchDirectionsDirect(origin, dest);
+      if (direct.length >= 2) return direct;
+    } catch (_) {/* caller keeps the straight-line fallback */}
+    return const [];
+  }
+
+  Future<List<LatLng>> _fetchDirectionsViaProxy(
+      LatLng origin, LatLng dest) async {
     // Key is server-side: route through the backend Maps proxy (no key in client).
     final uri = Uri.parse(
         '${EnvironmentConfig.baseUrl}/api/v1/maps/directions'
@@ -257,6 +286,31 @@ class _LiveTrackingMapState extends State<LiveTrackingMap>
     final encoded = routes.first['overview_polyline']?['points'] as String?;
     if (encoded == null) return const [];
     return _decodePolyline(encoded);
+  }
+
+  /// Direct Google Directions API call. Decodes overview_polyline with
+  /// flutter_polyline_points and maps it onto google_maps LatLng.
+  Future<List<LatLng>> _fetchDirectionsDirect(
+      LatLng origin, LatLng dest) async {
+    final key = _directionsApiKey;
+    if (key.isEmpty) return const [];
+    final uri = Uri.parse(
+        'https://maps.googleapis.com/maps/api/directions/json'
+        '?origin=${origin.latitude},${origin.longitude}'
+        '&destination=${dest.latitude},${dest.longitude}'
+        '&mode=driving&key=$key');
+    final res = await http.get(uri).timeout(const Duration(seconds: 6));
+    if (res.statusCode != 200) return const [];
+    final data = jsonDecode(res.body) as Map<String, dynamic>;
+    if (data['status'] != 'OK') return const []; // e.g. REQUEST_DENIED / billing
+    final routes = data['routes'] as List?;
+    if (routes == null || routes.isEmpty) return const [];
+    final encoded = routes.first['overview_polyline']?['points'] as String?;
+    if (encoded == null) return const [];
+    final decoded = PolylinePoints().decodePolyline(encoded);
+    return decoded
+        .map((p) => LatLng(p.latitude, p.longitude))
+        .toList(growable: false);
   }
 
   // Standard Google encoded-polyline decoder.

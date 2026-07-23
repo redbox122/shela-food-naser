@@ -9,6 +9,7 @@ import 'package:sixam_mart/features/checkout/controllers/checkout_controller.dar
 import 'package:sixam_mart/features/checkout/widgets/powered_by_myfatoorah.dart';
 import 'package:sixam_mart/features/wallet_kaidha_subscription/controllers/kaidhaSub_controller.dart';
 import 'package:sixam_mart/helper/responsive_helper.dart';
+import 'package:sixam_mart/util/app_constants.dart';
 import 'package:sixam_mart/util/dimensions.dart';
 import 'package:sixam_mart/util/images.dart';
 import 'package:sixam_mart/util/styles.dart';
@@ -389,11 +390,17 @@ class _PaymentMethodBottomSheetState extends State<PaymentMethodBottomSheet> {
   }
 
   /// Filter payment methods based on platform.
-  /// iOS: hide Google Pay AND Apple Pay. Apple Pay is hidden until a real Apple
-  /// Pay merchant id is registered with Apple and activated in MyFatoorah — the
-  /// placeholder merchant (merchant.com.shella.app) fails merchant validation in
-  /// the hosted page and shows an error (App Store review 2.1a). Mada / Visa /
-  /// STC Pay stay available. Re-enable once native Apple Pay is provisioned.
+  ///
+  /// Apple Pay: shown on iOS ONLY when [AppConstants.applePayNativeEnabled] is
+  /// true (flip with --dart-define=APPLE_PAY_NATIVE=true). It stays hidden by
+  /// default because the placeholder merchant (merchant.com.shella.app) fails
+  /// Apple-Pay merchant validation and would trigger an App Store 2.1a
+  /// rejection. Once a real Apple Merchant ID + Payment Processing Certificate
+  /// are registered and Apple Pay is activated in the MyFatoorah dashboard,
+  /// flip the flag and Apple Pay appears next to STC Pay / mada / VISA-MASTER
+  /// and pays through the existing MyFatoorah executePayment flow.
+  ///
+  /// Google Pay stays hidden on iOS; Apple Pay stays hidden on Android.
   List<MFPaymentMethod> _filterPaymentMethodsByPlatform(
       List<MFPaymentMethod> paymentMethods) {
     return paymentMethods.where((method) {
@@ -411,9 +418,12 @@ class _PaymentMethodBottomSheetState extends State<PaymentMethodBottomSheet> {
         return !isApplePay;
       }
 
-      // On iOS, hide both Google Pay and Apple Pay.
+      // On iOS, always hide Google Pay. Show Apple Pay only when the native
+      // Apple Pay flag is on (merchant provisioned); otherwise hide it.
       if ((!kIsWeb && Platform.isIOS)) {
-        return !isGooglePay && !isApplePay;
+        if (isGooglePay) return false;
+        if (isApplePay) return AppConstants.applePayNativeEnabled;
+        return true;
       }
 
       // For other platforms, show all methods

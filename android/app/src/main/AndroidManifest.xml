@@ -81,7 +81,7 @@
     </queries>
 
     <application android:label="شله" android:name="${applicationName}" android:extractNativeLibs="true" android:requestLegacyExternalStorage="true" android:usesCleartextTraffic="true" android:icon="@mipmap/ic_launcher" android:allowBackup="false" android:enableOnBackInvokedCallback="true">
-        <meta-data android:name="com.google.android.geo.API_KEY" android:value="AIzaSyDwpl1O5yMBvB9JHtZz61I3P3uz_ClvXP8"/>
+        <meta-data android:name="com.google.android.geo.API_KEY" android:value="AIzaSyDnHKMq_CX3PGtjGbsixvmi-42xeBBr-Ug"/>
         
         <!-- Firebase Cloud Messaging Configuration -->
         <meta-data android:name="firebase_messaging_auto_init_enabled" android:value="true" />

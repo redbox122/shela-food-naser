@@ -396,14 +396,13 @@ void _newlyRegisteredRouteProcess() {
   appLogger.info(
       'Newly registered route process - Available languages: ${AppConstants.languages.length}');
 
-  if (AppConstants.languages.length > 1) {
-    appLogger
-        .info('Multiple languages available, routing to language selection');
-    Get.offNamed<void>(RouteHelper.getLanguageRoute('splash'));
-  } else {
-    appLogger.info('Single language, routing to onboarding');
-    Get.offNamed<void>(RouteHelper.getOnBoardingRoute());
-  }
+  // 🚫 First-launch language chooser removed: the app defaults to Arabic
+  // (LocalizationController._locale = AppConstants.languages[0] = ar/SA), so we
+  // skip the selection screen and go straight to onboarding. The language
+  // screen itself is kept and remains reachable from the in-app menu/settings
+  // (RouteHelper.getLanguageRoute('menu')).
+  appLogger.info('Skipping language selection, routing to onboarding');
+  Get.offNamed<void>(RouteHelper.getOnBoardingRoute());
 }
 
 Future<void> _forGuestUserRouteProcess(

@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:dotted_border/dotted_border.dart';
 import 'package:get/get.dart';
+import 'package:sixam_mart/common/widgets/custom_snackbar.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:just_the_tooltip/just_the_tooltip.dart';
 import 'package:sixam_mart/features/checkout/widgets/guest_create_account.dart';
@@ -356,16 +357,62 @@ class TopSection extends StatelessWidget {
 
                     const SizedBox(height: Dimensions.paddingSizeSmall),
 
-                    DeliveryOptionButtonWidget(
-                      value: 'take_away',
-                      title: 'take_away'.tr,
-                      charge: 0,
-                      isFree: true,
-                      fromWeb: true,
-                      total: total,
-                      deliveryChargeForView: PriceConverter.convertPrice(0),
-                      badWeatherCharge: 0,
-                      extraChargeForToolTip: 0,
+                    // 🚫 Pickup (take_away) temporarily disabled: faded + a
+                    // "قريباً" badge; taps show a coming-soon snackbar instead
+                    // of selecting it. Re-enable by removing this wrapper.
+                    Stack(
+                      clipBehavior: Clip.none,
+                      children: [
+                        Opacity(
+                          opacity: 0.55,
+                          child: IgnorePointer(
+                            child: DeliveryOptionButtonWidget(
+                              value: 'take_away',
+                              title: 'take_away'.tr,
+                              charge: 0,
+                              isFree: true,
+                              fromWeb: true,
+                              total: total,
+                              deliveryChargeForView:
+                                  PriceConverter.convertPrice(0),
+                              badWeatherCharge: 0,
+                              extraChargeForToolTip: 0,
+                            ),
+                          ),
+                        ),
+                        Positioned.fill(
+                          child: GestureDetector(
+                            behavior: HitTestBehavior.opaque,
+                            onTap: () => showCustomSnackBar(
+                              Get.locale?.languageCode == 'ar'
+                                  ? 'خدمة الاستلام من المتجر ستتوفر قريباً'
+                                  : 'Pickup from store will be available soon',
+                            ),
+                          ),
+                        ),
+                        PositionedDirectional(
+                          top: -6,
+                          end: 8,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 8, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: Theme.of(context).primaryColor,
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Text(
+                              Get.locale?.languageCode == 'ar'
+                                  ? 'قريباً'
+                                  : 'Soon',
+                              style: tajawalBold.copyWith(
+                                fontSize: 10,
+                                height: 1.2,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
 
                     if (takeAway) ...[
